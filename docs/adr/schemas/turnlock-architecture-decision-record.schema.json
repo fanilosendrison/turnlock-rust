@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:architecture-decision-record:0.1.0",
+  "title": "TURNLOCK Architecture Decision Record Overlay 0.1.0",
+  "type": "object",
+  "required": [
+    "adr_profile_version",
+    "domain",
+    "id"
+  ],
+  "properties": {
+    "adr_profile_version": {
+      "const": "0.1.0"
+    },
+    "domain": {
+      "const": "turnlock-rust"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^ADR-[0-9]{3}$"
+    }
+  }
+}

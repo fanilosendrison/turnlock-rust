@@ -1,0 +1,66 @@
+profile_version: "0.1.0"
+canonical_schema:
+  id: "urn:fanilosendrison:okf:architecture-decision-record:0.1.0"
+  repository: "https://github.com/fanilosendrison/dotagents.git"
+  source_path: "conventions/architecture-decision-record.schema.json"
+  source_commit: "0c196eedd10700d893f933aafb06795c208cc344"
+  sha256: "55c9ff189e686cb1d545d0cbcfc9527a72dd1e1185c5ba595a3a1da7f3aa8c57"
+  vendored_path: "docs/adr/schemas/architecture-decision-record.schema.json"
+local_overlay:
+  id: "urn:fanilosendrison:turnlock-rust:architecture-decision-record:0.1.0"
+  sha256: "46cace41bb6e50c7a6ef95e338dd2aaecb401a2475366c22b94947687c377ca5"
+  path: "docs/adr/schemas/turnlock-architecture-decision-record.schema.json"
+repository:
+  domain: "turnlock-rust"
+  adr_directory: "docs/adr"
+  filename_pattern: '^adr-(?P<number>[0-9]{3})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.md$'
+  id_pattern: '^ADR-[0-9]{3}$'
+  id_width: 3
+  h1_separator: ": "
+  require_contiguous_ids: true
+  retain_allocated_ids: true
+  non_adr_markdown:
+    - "README.md"
+    - "index.md"
+legacy:
+  without_frontmatter:
+    - "ADR-001"
+    - "ADR-002"
+    - "ADR-003"
+    - "ADR-004"
+    - "ADR-005"
+    - "ADR-006"
+    - "ADR-007"
+    - "ADR-008"
+    - "ADR-009"
+    - "ADR-010"
+    - "ADR-011"
+    - "ADR-012"
+    - "ADR-013"
+    - "ADR-014"
+    - "ADR-015"
+    - "ADR-016"
+  null_dates: []
+generated_index:
+  path: "docs/adr/index.md"
+  required: false
+migration_evidence:
+  path: "docs/adr/metadata-migration-evidence.yaml"
+  required: false
+  baseline_commit: null
+  ids: []
+lifecycle:
+  transitions:
+    proposed:
+      - "accepted"
+      - "rejected"
+    accepted:
+      - "deprecated"
+      - "superseded"
+    rejected: []
+    deprecated:
+      - "superseded"
+    superseded: []
+commands:
+  check: ".venv/bin/python scripts/adr-metadata.py check"
+  render: ".venv/bin/python scripts/adr-metadata.py render"
