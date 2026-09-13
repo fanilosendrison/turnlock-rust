@@ -1,3 +1,26 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Evolve the normative and formal specifications together"
+id: "ADR-015"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "c321aeb4bb3a796897f37eaf3a5e729a3556395eb926cd234325f4fbde031b0e"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-003"
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "formal-specification workflow, invariant traceability, TLC model-checking organization"
+---
+
 # ADR-015: Evolve the normative and formal specifications together
 
 - **Status:** Accepted

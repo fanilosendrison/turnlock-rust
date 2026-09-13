@@ -1,3 +1,24 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Make bounded raw LLM inference first-class and allocate the minimum sufficient cognition"
+id: "ADR-012"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "772dca4b7406ad07318d34edc78e9b65ab046fa6de4594e8c2429795c6855669"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-012: Make bounded raw LLM inference first-class and allocate the minimum sufficient cognition
 
 - **Status:** Accepted

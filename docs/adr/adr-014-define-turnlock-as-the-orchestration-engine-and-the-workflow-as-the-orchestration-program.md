@@ -1,3 +1,26 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Define TURNLOCK as the orchestration engine and the workflow as the orchestration program"
+id: "ADR-014"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "ddadfd319a004a5b2e12d81b5ef8f9b95eefceb55dbf8f914b6efaab8b77ff00"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-001"
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "Ownership of orchestration logic versus runtime execution authority"
+---
+
 # ADR-014: Define TURNLOCK as the orchestration engine and the workflow as the orchestration program
 
 - **Status:** Accepted

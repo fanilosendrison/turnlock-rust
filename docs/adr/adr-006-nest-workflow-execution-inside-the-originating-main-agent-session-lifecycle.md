@@ -1,3 +1,26 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Nest workflow execution inside the originating main-agent session lifecycle"
+id: "ADR-006"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "3892cab7177cdd35f6527cfa385aaa37c6db1f1e1b3f9d2593a83c3c8bf71e5b"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-002"
+    - "ADR-005"
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-006: Nest workflow execution inside the originating main-agent session lifecycle
 
 - **Status:** Accepted

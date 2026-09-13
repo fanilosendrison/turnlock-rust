@@ -1,3 +1,26 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Model main-agent steps as reversible, repeatable control handoffs"
+id: "ADR-005"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "f4fc8fad47bd6237940d4f4212424471c1337a23ac55ccefde99ee0793b70536"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-001"
+    - "ADR-004"
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-005: Model main-agent steps as reversible, repeatable control handoffs
 
 - **Status:** Accepted

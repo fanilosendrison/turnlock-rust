@@ -1,3 +1,24 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Make independent agents first-class workflow resources and support workflow-owned parallel fan-out/fan-in"
+id: "ADR-011"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "4f5d5bf1103fc5361913e1d755c0430ff5580eaaaf43db9598b5e04eec5c45fa"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-011: Make independent agents first-class workflow resources and support workflow-owned parallel fan-out/fan-in
 
 - **Status:** Accepted

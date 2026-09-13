@@ -1,3 +1,29 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Allow nested workflow invocation from main-agent regions and return to the immediate caller"
+id: "ADR-008"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "e8fdad50f7ed0ad5f1fed0b9aa70b14e51407225125a4429281516ab3a9030d8"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-002"
+    - "ADR-005"
+    - "ADR-006"
+    - "ADR-007"
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "workflow composability, nested invocation, suspension, and return semantics"
+---
+
 # ADR-008: Allow nested workflow invocation from main-agent regions and return to the immediate caller
 
 - **Status:** Accepted

@@ -1,3 +1,25 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Require natural skill-like slash-command invocation inside coding-agent sessions"
+id: "ADR-002"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "55edf8cddb7a4c6fcfb350f4d4627d7af16f26390dfa6aff7b29f9e33eee7fae"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-001"
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-002: Require natural skill-like slash-command invocation inside coding-agent sessions
 
 - **Status:** Accepted

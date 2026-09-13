@@ -1,3 +1,27 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Separate workflow authorship from runtime execution authority"
+id: "ADR-016"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "042a54f785fbaca316971be7c415fb5c82a97c804b18e0422180c37ad4104f6e"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-009"
+    - "ADR-014"
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "Relationship between workflow authorship and runtime orchestration authority"
+---
+
 # ADR-016: Separate workflow authorship from runtime execution authority
 
 - **Status:** Accepted

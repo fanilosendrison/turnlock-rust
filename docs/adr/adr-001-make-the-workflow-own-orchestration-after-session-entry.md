@@ -1,3 +1,25 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Make the workflow own orchestration after session entry"
+id: "ADR-001"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "1302d2ce1b7c79b47a56938c6ee42ae93b50a88a62d8c9543434cd9e3638ed8f"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "TURNLOCK product definition and execution ownership"
+---
+
 # ADR-001: Make the workflow own orchestration after session entry
 
 - **Status:** Accepted

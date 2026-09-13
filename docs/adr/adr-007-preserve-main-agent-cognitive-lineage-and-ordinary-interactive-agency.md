@@ -1,3 +1,27 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Preserve main-agent cognitive lineage and ordinary interactive agency"
+id: "ADR-007"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "005a611031097a6dd7e6c65e47e34e2a97a4cef6b150a5312a27c0159e407740"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-005"
+    - "ADR-006"
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "semantic difference between a main-agent step and a spawned independent agent"
+---
+
 # ADR-007: Preserve main-agent cognitive lineage and ordinary interactive agency
 
 - **Status:** Accepted

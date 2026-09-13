@@ -1,3 +1,25 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Make product intent and derived invariants govern implementation"
+id: "ADR-003"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "bb982e20b47ddfaac5dd9e4e95aaa816ca6a4ce565110c43b7aa9252ed4a1ea3"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs:
+  - "interpretation of subsequent TURNLOCK architecture decisions"
+---
+
 # ADR-003: Make product intent and derived invariants govern implementation
 
 - **Status:** Accepted

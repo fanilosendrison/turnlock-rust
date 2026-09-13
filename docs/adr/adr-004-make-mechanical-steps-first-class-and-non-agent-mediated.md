@@ -1,3 +1,25 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Make mechanical steps first-class and non-agent-mediated"
+id: "ADR-004"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "dce775fb6022c1541188f2c546ace96ea472f5723aae2b36bf0210407b100ebf"
+relation_completeness: "complete"
+relations:
+  clarifies:
+    - "ADR-001"
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-004: Make mechanical steps first-class and non-agent-mediated
 
 - **Status:** Accepted

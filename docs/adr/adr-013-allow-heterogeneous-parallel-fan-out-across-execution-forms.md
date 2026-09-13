@@ -1,3 +1,24 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Allow heterogeneous parallel fan-out across execution forms"
+id: "ADR-013"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "690fa0515c2bb9a8b3c0a479af85fefe8cb613a654a2a1ae27b2a1ee86212878"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-013: Allow heterogeneous parallel fan-out across execution forms
 
 - **Status:** Accepted

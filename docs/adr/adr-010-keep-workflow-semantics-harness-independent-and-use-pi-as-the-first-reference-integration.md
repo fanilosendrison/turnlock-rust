@@ -1,3 +1,24 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Keep workflow semantics harness-independent and use Pi as the first reference integration"
+id: "ADR-010"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "dc1ec02ee4a73fb1f2c111717962e992ccc9c9a5ec0b31976e965c068a05adb5"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-010: Keep workflow semantics harness-independent and use Pi as the first reference integration
 
 - **Status:** Accepted

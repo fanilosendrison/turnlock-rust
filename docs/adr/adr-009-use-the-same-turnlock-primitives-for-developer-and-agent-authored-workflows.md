@@ -1,3 +1,24 @@
+---
+okf_version: "1.0"
+adr_profile_version: "0.1.0"
+kind: "KnowledgeAsset"
+asset_type: "architecture-decision-record"
+domain: "turnlock-rust"
+severity: "strict"
+name: "Use the same TURNLOCK primitives for developer-authored and coding-agent-authored workflows"
+id: "ADR-009"
+status: "accepted"
+date: "2026-09-13"
+decision_body_sha256: "b57fd21d54a1f6be173add81e593f9f711e12e438cef4baa095424d2e656508e"
+relation_completeness: "complete"
+relations:
+  clarifies: []
+  amends: []
+  supersedes: []
+  confirms: []
+governs: []
+---
+
 # ADR-009: Use the same TURNLOCK primitives for developer-authored and coding-agent-authored workflows
 
 - **Status:** Accepted
