@@ -71,7 +71,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, promises, invariants, boundaries, and architectural implications.
 - [ADR index](docs/adr/README.md) provides the chronological decision record and
-  links to ADR-001 through ADR-015.
+  links to ADR-001 through ADR-016.
 - [Formal-verification policy](docs/formal/README.md) explains the relationship
   between normative prose, formal intent, executable models, and evidence.
 - [Formal traceability manifest](formal/verification.yaml) records

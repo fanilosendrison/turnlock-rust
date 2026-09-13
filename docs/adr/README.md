@@ -1,8 +1,14 @@
 # TURNLOCK architectural decision index
 
-Architectural decisions are kept in the chronological order in which the product discussion established them. Decision numbers are stable identities. The consolidated product specification lives at [`../specification/turnlock-spec.md`](../specification/turnlock-spec.md).
+Architectural decisions are kept in the chronological order in which the
+product discussion established them. Decision numbers are stable identities.
+The consolidated product specification lives at
+[`../specification/turnlock-spec.md`](../specification/turnlock-spec.md).
 
-These ADRs were reconstructed from the TURNLOCK product conversation of 2026-09-12/13. They record decisions that were already made in the discussion but had not yet been separated into explicit decision records.
+ADR-001 through ADR-015 were reconstructed from the TURNLOCK product
+conversation of 2026-09-12/13. They record decisions that were already made in
+the discussion but had not yet been separated into explicit decision records.
+Later ADRs record subsequently accepted decisions.
 
 ## Chronological decision trace
 
@@ -21,6 +27,14 @@ These ADRs were reconstructed from the TURNLOCK product conversation of 2026-09-
 13. [ADR-013: Allow heterogeneous parallel fan-out across execution forms](adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md) — **Accepted**. A single workflow-owned parallel region may mix mechanical, raw-LLM, and independent-agent branches while preserving each branch type's semantics; same-task and different-task semantic branches are both supported.
 14. [ADR-014: Define TURNLOCK as the orchestration engine and the workflow as the orchestration program](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) — **Accepted**. The workflow artifact owns declared orchestration decisions and topology; TURNLOCK is the engine/runtime that executes, coordinates, and tracks them without silently inventing undeclared global strategy.
 15. [ADR-015: Evolve the normative and formal specifications together](adr-015-evolve-the-normative-and-formal-specifications-together.md) — **Accepted**. State/control/concurrency semantics are formalized in parallel with the prose specification; stable invariant IDs map machine-readably to TLA+ properties and, once modeled, their state variables/actions and TLC configs; the mapping is reversible for impact analysis; actual TLC run evidence is stored separately from verification intent; focused exploration never replaces integrated exploration.
+16. [ADR-016: Separate workflow authorship from runtime execution
+    authority][16] — **Accepted**. Developer, agent, planner, or
+    higher-level-system authorship does not confer runtime orchestration
+    authority. The workflow artifact remains authoritative and TURNLOCK executes
+    it; an authoring agent available under an existing execution form may later
+    participate through an explicitly declared region.
+
+[16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -30,6 +44,20 @@ TURNLOCK = orchestration engine / runtime execution authority
 ```
 
 TURNLOCK executes orchestration; it does not invent it.
+
+ADR-016 makes author provenance independent of runtime authority:
+
+```text
+developer / agent / planner / higher-level system
+  → authors workflow artifact
+  → TURNLOCK executes declared orchestration
+
+authorship != runtime orchestration authority
+```
+
+An authoring agent may later be invoked through an explicit workflow region,
+including continuation of the same main-agent lineage, without becoming the
+workflow's global scheduler.
 
 ## Governing reference scenario
 
@@ -87,6 +115,7 @@ TURNLOCK workflow owns global orchestration
 ```
 
 Independent agents and raw LLM calls may be fanned out concurrently under workflow control, either homogeneously or together with mechanical branches in the same heterogeneous fan-out. Same-type semantic branches may perform the same task or different tasks. The forms are intentionally non-equivalent: the author selects the minimum sufficient form for each region.
+
 ## Formal-specification governance
 
 ADR-015 establishes a second, synchronized specification surface:
@@ -106,4 +135,3 @@ formal/results/* (actual run evidence by commit/bounds)
 ```
 
 `formal/verification.yaml` is the machine-readable desired traceability/coverage graph and is mechanically invertible for formal impact analysis. `docs/formal/invariant-mapping.md` is generated from it. Actual TLC execution evidence is a distinct artifact class under `formal/results/` governed by `formal/tlc-result.schema.json`; a mapped property is not the same thing as a verified property. Focused model-checking configurations are allowed for speed and diagnosis, but TURNLOCK must retain integrated smoke/standard/stress profiles against the shared semantic model so cross-feature interactions remain explorable after semantic changes. No invariant is currently claimed as `checked`; the executable TLA+ model is the next formalization step.
-
