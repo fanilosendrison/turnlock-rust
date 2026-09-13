@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://turnlock.dev/schemas/tlc-result.schema.json",
+  "title": "TURNLOCK TLC verification run evidence",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "commit_sha",
+    "model_config",
+    "tla_module",
+    "tool",
+    "tool_version",
+    "started_at",
+    "finished_at",
+    "outcome",
+    "checked_properties",
+    "invariant_ids",
+    "finite_bounds"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "commit_sha": {"type": "string", "minLength": 7},
+    "model_config": {"type": "string", "minLength": 1},
+    "tla_module": {"type": "string", "minLength": 1},
+    "tool": {"const": "TLC"},
+    "tool_version": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "outcome": {"enum": ["passed", "failed", "error", "incomplete"]},
+    "checked_properties": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "invariant_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^TL-INV-[0-9]{3}$"},
+      "uniqueItems": true
+    },
+    "finite_bounds": {"type": "object"},
+    "fairness_assumptions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "states_generated": {"type": "integer", "minimum": 0},
+    "distinct_states": {"type": "integer", "minimum": 0},
+    "duration_seconds": {"type": "number", "minimum": 0},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": true
+}

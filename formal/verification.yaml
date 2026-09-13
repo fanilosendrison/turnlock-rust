@@ -1,0 +1,733 @@
+schema_version: 2
+project: TURNLOCK
+policy:
+  governing_adr: ADR-015
+  normative_spec: docs/specification/turnlock-spec.md
+  formal_model:
+    module: Turnlock
+    path: formal/Turnlock.tla
+    status: not-yet-introduced
+  mapping_view: docs/formal/invariant-mapping.md
+  mapping_view_generated: true
+  integrated_model_required: true
+  focused_models_are_substitutes_for_integrated: false
+  default_semantic_change_checks:
+  - relevant-focused
+  - integrated-smoke
+  integrated_profiles:
+  - name: integrated-smoke
+    path: formal/models/integrated/smoke.cfg
+    status: planned
+    intent: All currently formalized core execution forms under small finite bounds for fast cross-feature feedback.
+  - name: integrated-standard
+    path: formal/models/integrated/standard.cfg
+    status: planned
+    intent: All currently formalized core execution forms under ordinary CI bounds.
+  - name: integrated-stress
+    path: formal/models/integrated/stress.cfg
+    status: planned
+    intent: Larger deliberately expensive integrated exploration.
+  result_artifacts:
+    directory: formal/results
+    schema: formal/tlc-result.schema.json
+    purpose: Record what TLC actually checked for a concrete repository revision; verification claims are derived from run
+      evidence, not from manifest intent alone.
+    required_identity:
+    - commit_sha
+    - model_config
+    - tla_module
+    - tool
+    - tool_version
+    - started_at
+    - finished_at
+    required_verification_evidence:
+    - outcome
+    - checked_properties
+    - invariant_ids
+    - finite_bounds
+  traceability_requirements:
+    prose_to_formal: Every formally applicable invariant maps to one or more TLA+ properties once modeled.
+    formal_mechanism_mapping: Modeled invariants may record the TLA+ state variables and actions/transitions on which their
+      properties depend.
+    reverse_traceability: The mapping must be mechanically invertible from TLA+ property/action/state variable to affected
+      invariant IDs.
+    modeled_reference_validation: Once an invariant is marked modeled or checked, referenced TLA+ modules, properties, state
+      variables, actions, and TLC configs must exist.
+    checked_requires_run_evidence: An invariant may be marked checked only when matching TLC result artifacts exist for the
+      declared required configs and repository revision/policy.
+    semantic_correspondence_reviewed: Machine validation proves link consistency, not that a TLA+ formula faithfully captures
+      prose intent; semantic correspondence remains a review obligation.
+status_vocabulary:
+  formalization:
+    planned: Formalization is applicable and intended but not yet encoded.
+    partial: Only a formally meaningful subset of the prose invariant is intended for TLA+.
+    not-applicable: The invariant is intentionally outside the core TLA+ state-machine scope.
+  verification:
+    not-yet-modeled: No corresponding executable TLA+ property has yet been introduced.
+    modeled: Corresponding TLA+ property exists but has not yet been recorded as successfully checked.
+    checked: At least the declared TLC configurations have successfully checked the property at their stated finite bounds.
+    blocked: Formalization/checking is currently blocked and requires an explicit reason.
+  mapping:
+    pending-model: Formal names may be planned, but state/action dependencies are not yet bound to executable TLA+ identifiers.
+    mapped: The invariant is bound to executable TLA+ properties and any declared state/action dependencies.
+    not-applicable: No core TLA+ mapping is intended.
+invariants:
+- id: TL-INV-001
+  title: Workflow-orchestration invariant
+  spec_section: '3.1'
+  adrs:
+  - ADR-001
+  - ADR-014
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: DeclaredControlFlowOnly
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-002
+  title: Engine / decision-owner separation invariant
+  spec_section: 3.1A
+  adrs:
+  - ADR-014
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: EngineDoesNotInventTopology
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-003
+  title: Mechanical-execution invariant
+  spec_section: '3.2'
+  adrs:
+  - ADR-004
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: MechanicalExecutionNotAgentMediated
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-004
+  title: Reversible-handoff invariant
+  spec_section: '3.3'
+  adrs:
+  - ADR-005
+  kind: safety+liveness
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: HandoffPreservesContinuation
+      status: planned
+    - name: HandoffCanResume
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-005
+  title: Repeatable-handoff invariant
+  spec_section: '3.4'
+  adrs:
+  - ADR-005
+  kind: reachability
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: MultipleHandoffsRepresentable
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-006
+  title: Enclosing-workflow invariant
+  spec_section: '3.5'
+  adrs:
+  - ADR-005
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: EnclosingWorkflowPreservedDuringMainAgentRegion
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-007
+  title: Resume-position invariant
+  spec_section: '3.6'
+  adrs:
+  - ADR-005
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: ResumePositionWellDefined
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-008
+  title: Invocation/return continuity invariant
+  spec_section: '3.7'
+  adrs:
+  - ADR-006
+  - ADR-008
+  kind: safety+liveness
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: StructuredReturnPath
+      status: planned
+    - name: InvocationEventuallyReturnsUnderFairness
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-009
+  title: Main-agent identity/continuity invariant
+  spec_section: '3.8'
+  adrs:
+  - ADR-007
+  kind: safety
+  formalization: partial
+  formalization_note: TLA+ can model lineage identity/continuation tokens, but not prove equivalence of a real harness's conversational/cognitive
+    state.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: MainAgentLineagePreserved
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-010
+  title: Workflow-state independence invariant
+  spec_section: '3.9'
+  adrs:
+  - ADR-001
+  - ADR-005
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: WorkflowStateExistsOutsideAgentState
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-011
+  title: Harness-semantics invariant
+  spec_section: '3.10'
+  adrs:
+  - ADR-010
+  kind: conformance
+  formalization: not-applicable
+  formalization_note: Cross-harness semantic conformance belongs to adapter conformance models/tests; the core TLA+ model
+    defines the harness-independent semantics they must realize.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-012
+  title: Non-equivalence of cognitive execution forms invariant
+  spec_section: '3.11'
+  adrs:
+  - ADR-007
+  - ADR-011
+  - ADR-012
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: ExecutionFormsRemainDistinct
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-013
+  title: No-hidden-agent-orchestration invariant
+  spec_section: '3.12'
+  adrs:
+  - ADR-001
+  - ADR-014
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: AgentCannotAdvanceUndeclaredGlobalControl
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-014
+  title: Cognitive-lineage continuity invariant
+  spec_section: '3.13'
+  adrs:
+  - ADR-007
+  kind: safety
+  formalization: partial
+  formalization_note: The abstract model can preserve a main-lineage identity across handoff; real cognitive equivalence remains
+    a harness-level conformance obligation.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: MainLineageNotForkedByHandoff
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-015
+  title: Ordinary-agency restoration invariant
+  spec_section: '3.14'
+  adrs:
+  - ADR-007
+  kind: conformance
+  formalization: not-applicable
+  formalization_note: The richness of ordinary harness agency is an integration capability requirement rather than a core
+    state-machine property.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-016
+  title: Workflow-availability invariant
+  spec_section: '3.15'
+  adrs:
+  - ADR-002
+  - ADR-008
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: WorkflowInvocationAvailableWheneverMainOwnsControl
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-017
+  title: Nested-invocation invariant
+  spec_section: '3.16'
+  adrs:
+  - ADR-008
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: NestedInvocationSuspendsCaller
+      status: planned
+    - name: CallerStackWellFormed
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-018
+  title: Immediate-caller return invariant
+  spec_section: '3.17'
+  adrs:
+  - ADR-008
+  kind: safety+liveness
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: ReturnToImmediateCaller
+      status: planned
+    - name: CorrectCallerEventuallyResumesUnderFairness
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-019
+  title: Outer-orchestration preservation invariant
+  spec_section: '3.18'
+  adrs:
+  - ADR-008
+  - ADR-014
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: NestedInvocationCannotRewriteOuterContinuation
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-020
+  title: Same-artifact authoring invariant
+  spec_section: '3.19'
+  adrs:
+  - ADR-009
+  kind: dx
+  formalization: not-applicable
+  formalization_note: Authoring artifact equivalence is a language/tooling conformance property, not a core temporal state-machine
+    property.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-021
+  title: Author-facing primitive invariant
+  spec_section: '3.20'
+  adrs:
+  - ADR-009
+  kind: dx
+  formalization: not-applicable
+  formalization_note: Primitive ergonomics and abstraction direction are checked by API/language design and conformance tests
+    rather than core TLA+.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-022
+  title: Harness-independence invariant
+  spec_section: '3.21'
+  adrs:
+  - ADR-010
+  kind: architecture
+  formalization: not-applicable
+  formalization_note: This governs dependency direction and adapter conformance; the core formal model itself must remain
+    harness-independent.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-023
+  title: Pi-reference invariant
+  spec_section: '3.22'
+  adrs:
+  - ADR-010
+  kind: architecture
+  formalization: not-applicable
+  formalization_note: Reference-harness choice is outside core TLA+ semantics.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-024
+  title: Heterogeneous parallel composition invariant
+  spec_section: 3.22A
+  adrs:
+  - ADR-013
+  kind: safety+reachability
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: MixedBranchTypesCanCoexist
+      status: planned
+    - name: MixedBranchSemanticsPreserved
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-025
+  title: Independent-agent first-class invariant
+  spec_section: '3.23'
+  adrs:
+  - ADR-011
+  kind: reachability+safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: IndependentAgentCanBeWorkflowDeclared
+      status: planned
+    - name: IndependentAgentHasDistinctLineage
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-026
+  title: Bounded-context delegation invariant
+  spec_section: '3.24'
+  adrs:
+  - ADR-011
+  kind: semantic-boundary
+  formalization: partial
+  formalization_note: TLA+ can model explicitly declared context references and non-inheritance; it cannot prove semantic
+    sufficiency or quality of supplied context.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: IndependentAgentContextIsExplicitlyDeclared
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-027
+  title: Parallel semantic fan-out/fan-in invariant
+  spec_section: '3.25'
+  adrs:
+  - ADR-011
+  - ADR-012
+  - ADR-013
+  kind: safety+liveness
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: NoPrematureJoin
+      status: planned
+    - name: BranchCompletesAtMostOnce
+      status: planned
+    - name: JoinEventuallyReleasesUnderFairness
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-028
+  title: Raw-LLM inference invariant
+  spec_section: '3.26'
+  adrs:
+  - ADR-012
+  kind: reachability+safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: RawLLMIsBoundedLeaf
+      status: planned
+    - name: RawLLMDoesNotCreateAgentLoop
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-029
+  title: Minimum-sufficient cognition invariant
+  spec_section: '3.27'
+  adrs:
+  - ADR-012
+  kind: authoring-principle
+  formalization: not-applicable
+  formalization_note: Whether a chosen execution form is the minimum semantically sufficient one depends on task quality/cost
+    judgments outside the state-machine model.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-030
+  title: Deterministic-orchestration / probabilistic-leaf invariant
+  spec_section: '3.28'
+  adrs:
+  - ADR-012
+  - ADR-014
+  kind: safety
+  formalization: planned
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: ProbabilisticLeafCannotOwnGlobalControl
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-031
+  title: Workflow expressive-power invariant
+  spec_section: '3.29'
+  adrs:
+  - ADR-011
+  - ADR-012
+  - ADR-013
+  - ADR-014
+  kind: capability
+  formalization: partial
+  formalization_note: The abstract model can demonstrate composition/reachability of the required execution forms; it cannot
+    prove universal adequacy for every real workflow.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: RequiredCoreFormsComposable
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
