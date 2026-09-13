@@ -24,6 +24,8 @@ discussion.
   from the manifest.
 - `scripts/check-formal-traceability.py` — validates invariant IDs, ADR
   references, manifest statuses, and generated mapping freshness.
+- `requirements.txt` — pins the Python dependency required by the formal
+  traceability tooling.
 
 The package intentionally stops before fixing implementation mechanisms that
 have not yet been forced by the product invariants. Pi is the first reference

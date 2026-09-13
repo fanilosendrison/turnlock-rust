@@ -189,17 +189,25 @@ them.
 
 ## Mandatory validation
 
-Use Python 3 with PyYAML available. After changing
-`formal/verification.yaml`, regenerate the human-readable mapping first:
+Create an isolated Python 3 environment and install the pinned tooling
+dependency before validation:
 
 ```bash
-python3 scripts/render-formal-mapping.py
+python3 -m venv .venv
+.venv/bin/python -m pip install --requirement requirements.txt
+```
+
+After changing `formal/verification.yaml`, regenerate the human-readable mapping
+first:
+
+```bash
+.venv/bin/python scripts/render-formal-mapping.py
 ```
 
 After every intentional repository change, run:
 
 ```bash
-python3 scripts/check-formal-traceability.py
+.venv/bin/python scripts/check-formal-traceability.py
 git diff --check
 ```
 
@@ -222,5 +230,6 @@ change.
 - Machine-readable traceability: `formal/verification.yaml`
 - Generated invariant mapping: `docs/formal/invariant-mapping.md`
 - TLC result schema: `formal/tlc-result.schema.json`
+- Python tooling dependency: `requirements.txt`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`
