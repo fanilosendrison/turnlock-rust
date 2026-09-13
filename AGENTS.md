@@ -48,6 +48,9 @@ Use each source only for the responsibility it owns:
    runs they identify.
 6. Generated mappings and README files explain or project authoritative sources;
    they do not create product semantics or verification claims.
+7. `docs/vision/turnlock-vision.md` explains non-normative motivation and
+   long-term direction; it never overrides the specification, ADRs, or formal
+   governance.
 
 Report every inconsistency between authoritative sources. Do not silently select
 a convenient interpretation. Resolve a semantic conflict through an explicit
@@ -83,7 +86,8 @@ turnlock-rust/
 │   ├── adr/
 │   ├── formal/
 │   ├── repository-governance/
-│   └── specification/
+│   ├── specification/
+│   └── vision/
 ├── formal/
 │   ├── models/
 │   │   ├── focused/
@@ -114,6 +118,29 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   repository validation or formal evidence.
 
 ## Architectural invariants
+
+### Architectural center and product boundary
+
+- Do not model TURNLOCK as an agent-centric orchestration framework. Keep the
+  workflow program at the architectural center for declared orchestration.
+- Treat deterministic computation, raw LLM inference, independent agents, and
+  the existing main agent as semantically distinct execution resources
+  available to the workflow, not as interchangeable agent calls.
+- Keep known control-flow decisions in executable workflow logic. Do not move
+  them back into main-agent judgment merely because a harness makes that
+  convenient.
+- Keep TURNLOCK below policy, methodology, and domain-specific workflows. Do
+  not add core concepts such as feature, bug-fix, review, security, or migration
+  workflows; higher-level systems define those topologies above TURNLOCK.
+- Preserve the existing interactive coding-agent session as a product-defining,
+  first-class resumable cognitive resource rather than treating session
+  continuity as incidental UX.
+- Never present a generic LLM call, newly spawned agent, or reconstructed fresh
+  agent as main-agent continuation. Equivalent continuation must preserve the
+  existing cognitive lineage under the normative contract.
+- Keep workflow authorship separate from execution ownership. A coding agent or
+  other LLM may author a workflow without becoming the owner or scheduler of
+  that workflow's execution.
 
 ### Orchestration ownership
 
@@ -223,6 +250,7 @@ change.
 ## Quick navigation
 
 - Repository overview: `README.md`
+- Non-normative architectural vision: `docs/vision/turnlock-vision.md`
 - Normative product specification: `docs/specification/turnlock-spec.md`
 - Accepted decision index: `docs/adr/README.md`
 - Formal-verification policy: `docs/formal/README.md`
