@@ -19,8 +19,23 @@ adr_metadata = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adr_metadata)
 
 
+def disable_git_bound_validation(fixture_root: Path) -> None:
+    profile_path = fixture_root / "docs" / "adr" / "adr-profile.yaml"
+    profile = adr_metadata.load_yaml(profile_path)
+    profile["migration_evidence"] = {
+        "path": "docs/adr/metadata-migration-evidence.yaml",
+        "required": False,
+        "baseline_commit": None,
+        "ids": [],
+    }
+    profile["generated_index"]["required"] = False
+    profile_path.write_text(
+        adr_metadata.yaml.safe_dump(profile, sort_keys=False), encoding="utf-8"
+    )
+
+
 class AdrMetadataTests(unittest.TestCase):
-    def test_repository_passes_temporary_compatibility_mode(self) -> None:
+    def test_repository_passes_full_profile(self) -> None:
         self.assertEqual([], adr_metadata.collect_errors(ROOT))
 
     def test_calendar_aware_schema_validation_rejects_invalid_dates(self) -> None:
@@ -59,6 +74,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
 
             unknown = fixture_root / "docs" / "adr" / "adr-018-unlisted-record.md"
             unknown.write_text(
@@ -72,6 +88,12 @@ class AdrMetadataTests(unittest.TestCase):
             )
 
             unknown.unlink()
+            profile_path = fixture_root / "docs" / "adr" / "adr-profile.yaml"
+            profile = adr_metadata.load_yaml(profile_path)
+            profile["legacy"]["without_frontmatter"] = ["ADR-016"]
+            profile_path.write_text(
+                adr_metadata.yaml.safe_dump(profile, sort_keys=False), encoding="utf-8"
+            )
             legacy_path = next((fixture_root / "docs" / "adr").glob("adr-016-*.md"))
             legacy_path.unlink()
             errors = adr_metadata.collect_errors(fixture_root)
@@ -84,6 +106,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             overlay = (
                 fixture_root
                 / "docs"
@@ -108,6 +131,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             overlay = (
                 fixture_root
                 / "docs"
@@ -138,6 +162,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             adr_path = next((fixture_root / "docs" / "adr").glob("adr-017-*.md"))
             shutil.copyfile(adr_path, fixture_root / "docs" / "adr" / "wrong-name.md")
 
@@ -151,6 +176,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             profile_path = fixture_root / "docs" / "adr" / "adr-profile.yaml"
             profile = adr_metadata.load_yaml(profile_path)
             profile["migration_evidence"] = {
@@ -167,6 +193,7 @@ class AdrMetadataTests(unittest.TestCase):
             digest = adr_metadata.sha256_hex(body)
             evidence = {
                 "schema_version": 1,
+                "profile_version": "0.1.0",
                 "baseline_commit": "0" * 40,
                 "records": [
                     {
@@ -190,6 +217,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             profile_path = fixture_root / "docs" / "adr" / "adr-profile.yaml"
             profile = adr_metadata.load_yaml(profile_path)
             baseline = "1" * 40
@@ -266,6 +294,8 @@ class AdrMetadataTests(unittest.TestCase):
                     "name": "First",
                     "status": "accepted",
                     "date": "2026-09-13",
+                    "relation_completeness": "complete",
+                    "governs": [],
                     "relations": {
                         "clarifies": [],
                         "amends": [],
@@ -282,6 +312,8 @@ class AdrMetadataTests(unittest.TestCase):
                     "name": "Second",
                     "status": "accepted",
                     "date": "2026-09-13",
+                    "relation_completeness": "complete",
+                    "governs": [],
                     "relations": {
                         "clarifies": ["ADR-001"],
                         "amends": [],
@@ -303,6 +335,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             profile_path = fixture_root / "docs" / "adr" / "adr-profile.yaml"
             profile = adr_metadata.load_yaml(profile_path)
             profile["generated_index"]["required"] = True
@@ -322,6 +355,7 @@ class AdrMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = Path(temporary)
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
+            disable_git_bound_validation(fixture_root)
             adr_path = next((fixture_root / "docs" / "adr").glob("adr-017-*.md"))
             text = adr_path.read_text(encoding="utf-8")
             text = text.replace(
