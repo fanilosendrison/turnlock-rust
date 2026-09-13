@@ -6,7 +6,12 @@
 
 # 0. Product intent — governing user experience
 
-This section is normative for the current product direction. It states the product outcome that lower-level design exists to serve. It is ratified by ADR-001 through ADR-014 in `../adr/`, which record the chronological product decisions that produced the current contract. ADR-015 governs how this normative specification co-evolves with the formal TLA+/TLC model and verification manifest.
+This section is normative for the current product direction. It states the
+product outcome that lower-level design exists to serve. It is ratified by
+ADR-001 through ADR-014 and ADR-016 in `../adr/`, which record the chronological
+product decisions that produced the current contract. ADR-015 governs how this
+normative specification co-evolves with the formal TLA+/TLC model and
+verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -630,6 +635,14 @@ developer intent
           same TURNLOCK execution semantics
 ```
 
+Authorship does not confer runtime orchestration authority. A developer, coding
+agent, LLM planner, or higher-level system may produce the artifact; once
+execution begins, the artifact remains authoritative for its declared
+orchestration and TURNLOCK executes it. Authorship does not prevent an author
+that is also available under an existing execution form from later
+participating. Any local authority then comes from an explicit workflow region,
+including a main-agent continuation when the author is the existing main agent.
+
 TURNLOCK therefore provides **workflow primitives**, not a separate semantic language for human-authored versus agent-authored workflows. A coding agent generating a workflow is acting as a code author over TURNLOCK's public primitives, not invoking a privileged hidden generator protocol.
 
 The product requirement is not yet a concrete syntax. The exact language, library shape, file format, typing model, or packaging convention remains open. The invariant is that the authoring model must be simple and explicit enough that:
@@ -677,6 +690,15 @@ the same workflow semantics fundamentally change depending on whether the suppor
 workflow authors must write Pi-specific control plumbing instead of TURNLOCK-level workflow semantics
 
 human-authored workflows and coding-agent-authored workflows use different semantic artifact types
+
+an agent-authored or dynamically generated workflow exists only as advisory
+instructions that its author must interpret or schedule
+
+runtime orchestration authority is delegated back to an author merely because
+that author is an LLM or agent
+
+a generated graph is not independently represented or executed, and correctness
+depends on its author remembering the graph
 
 a proprietary builder is required to express core TURNLOCK workflow behavior
 
@@ -800,6 +822,22 @@ workflow
 ```
 
 The proof is not that every leaf is deterministic. The proof is that the workflow explicitly owns the topology, boundaries, fan-out/fan-in, and continuation while selecting the appropriate cognition form for each region.
+
+A fifth reference scenario establishes authorship/execution separation:
+
+```text
+main agent
+> generates workflow G
+> TURNLOCK begins executing G
+> mechanical step
+> G invokes main-agent continuation
+> same main agent performs bounded local work
+> G resumes declared progression
+```
+
+The main agent's authorship of G does not make it G's runtime scheduler. Its
+later local authority comes from the explicit main-agent region, after which
+TURNLOCK resumes executing G's declared orchestration.
 
 Pi is the first reference harness used to prove these scenarios end to end. Passing the Pi proof does not authorize TURNLOCK to redefine the normative workflow model in terms of Pi-only APIs.
 
@@ -1262,6 +1300,35 @@ structured return to caller
 
 This invariant does not require a large primitive catalog. TURNLOCK SHOULD prefer a small set of orthogonal primitives capable of expressing this space over a collection of domain-specific commands.
 
+## 3.30 TL-INV-032 — Authorship / execution-authority separation invariant
+
+The identity or nature of a workflow's author MUST NOT, by itself, confer
+runtime orchestration authority over that workflow.
+
+A developer, coding agent, LLM planner, or higher-level system MAY author or
+generate a workflow with any topology expressible through supported TURNLOCK
+primitives. Once execution begins, the workflow artifact remains the source of
+truth for its declared orchestration, and TURNLOCK remains the engine
+responsible for executing, coordinating, and tracking that orchestration.
+
+```text
+authorship of workflow
+!=
+ownership of workflow execution
+```
+
+An agent-authored or dynamically generated workflow MUST be independently
+represented and executed. It MUST NOT silently degrade into prose or
+instructions that its author must interpret, remember, or schedule during
+execution.
+
+Authorship does not prevent an author that is also available under an existing
+execution form from later participating through a region explicitly declared by
+the workflow. In particular, when the author is the existing main agent, a
+main-agent region MAY continue that same cognitive lineage for bounded local
+work. Authorship does not grant global progression authority, and the workflow
+resumes at its declared continuation after the region completes.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -1519,6 +1586,7 @@ nested workflow = suspended caller + independent workflow progression + caller r
 slash-command invocation = natural session-local workflow invocation surface
 workflow end = structured return to immediate caller
 workflow authoring = developer or coding agent → same TURNLOCK artifact/primitives
+workflow authorship != workflow execution ownership
 Pi = first reference integration, not the semantic definition
 ```
 

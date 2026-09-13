@@ -138,9 +138,9 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Never present a generic LLM call, newly spawned agent, or reconstructed fresh
   agent as main-agent continuation. Equivalent continuation must preserve the
   existing cognitive lineage under the normative contract.
-- Keep workflow authorship separate from execution ownership. A coding agent or
-  other LLM may author a workflow without becoming the owner or scheduler of
-  that workflow's execution.
+- Enforce `TL-INV-032`: keep workflow authorship separate from execution
+  ownership. A coding agent or other LLM may author a workflow without becoming
+  the owner or scheduler of that workflow's execution.
 
 ### Orchestration ownership
 
