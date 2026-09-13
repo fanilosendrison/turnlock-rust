@@ -6,10 +6,15 @@ authority. Canonical structured metadata lives in ADR frontmatter under
 [`adr-profile.yaml`](adr-profile.yaml); incoming relations are derived from
 source ADRs once the generated projection is enabled.
 
-ADR-001 through ADR-016 temporarily remain on the profile's exact compatibility
-allowlist pending the semantics-neutral migration authorized by ADR-017. Their
-existing Markdown metadata remains authoritative until canonical frontmatter is
-added; after migration it remains unchanged as historical presentation only.
+ADR-001 through ADR-016 were migrated under ADR-017 with exact H1-to-EOF
+preservation evidence in
+[`metadata-migration-evidence.yaml`](metadata-migration-evidence.yaml). All ADRs
+now carry canonical structured frontmatter. Retained legacy Markdown metadata is
+historical presentation only.
+
+The [generated ADR index](index.md) is the mechanical forward/reverse projection
+of canonical metadata. This README remains the manually maintained annotated
+history and repository guide.
 
 Architectural decisions are kept in the chronological order in which the
 product discussion established them. Decision numbers are stable identities.

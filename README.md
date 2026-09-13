@@ -72,9 +72,10 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   intent, promises, invariants, boundaries, and architectural implications.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
   chronological decision narrative and links to ADR-001 through ADR-017.
+- [Generated ADR index](docs/adr/index.md) projects canonical status and
+  outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
-  schema, TURNLOCK's local overlay, compatibility allowlists, and validation
-  commands.
+  schema, TURNLOCK's local overlay, migration evidence, and validation commands.
 - [Formal-verification policy](docs/formal/README.md) explains the relationship
   between normative prose, formal intent, executable models, and evidence.
 - [Formal traceability manifest](formal/verification.yaml) records

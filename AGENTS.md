@@ -210,8 +210,8 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   accepted decision; derive incoming relations instead of editing old records.
 - Permit a representation/schema migration only through a later governance ADR
   and machine-readable body-preservation evidence.
-- Keep `docs/adr/README.md` as the maintained annotated history. Do not hand-edit
-  `docs/adr/index.md` once the profile marks the generated index as required.
+- Keep `docs/adr/README.md` as the maintained annotated history. Never hand-edit
+  the required generated projection at `docs/adr/index.md`.
 - Synchronize the normative specification, ADR projections, formal traceability,
   and generated mapping whenever an accepted semantic change affects them.
 - Keep generated artifacts clearly identified and derived from one canonical
@@ -277,7 +277,8 @@ change.
 - Normative product specification: `docs/specification/turnlock-spec.md`
 - Annotated decision history and guide: `docs/adr/README.md`
 - ADR metadata profile: `docs/adr/adr-profile.yaml`
-- Generated ADR index, once required: `docs/adr/index.md`
+- Generated ADR index: `docs/adr/index.md`
+- ADR migration evidence: `docs/adr/metadata-migration-evidence.yaml`
 - ADR metadata validator and renderer: `scripts/adr-metadata.py`
 - Formal-verification policy: `docs/formal/README.md`
 - Formal workspace status: `formal/README.md`
