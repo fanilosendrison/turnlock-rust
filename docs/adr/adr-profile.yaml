@@ -23,7 +23,16 @@ repository:
     - "README.md"
     - "index.md"
 legacy:
-  without_frontmatter:
+  without_frontmatter: []
+  null_dates: []
+generated_index:
+  path: "docs/adr/index.md"
+  required: true
+migration_evidence:
+  path: "docs/adr/metadata-migration-evidence.yaml"
+  required: true
+  baseline_commit: "08746ee7c7d337a90038705e93eaf49a12aa96ff"
+  ids:
     - "ADR-001"
     - "ADR-002"
     - "ADR-003"
@@ -40,15 +49,6 @@ legacy:
     - "ADR-014"
     - "ADR-015"
     - "ADR-016"
-  null_dates: []
-generated_index:
-  path: "docs/adr/index.md"
-  required: false
-migration_evidence:
-  path: "docs/adr/metadata-migration-evidence.yaml"
-  required: false
-  baseline_commit: null
-  ids: []
 lifecycle:
   transitions:
     proposed:
