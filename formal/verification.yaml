@@ -731,3 +731,27 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-032
+  title: Authorship / execution-authority separation invariant
+  spec_section: '3.30'
+  adrs:
+  - ADR-009
+  - ADR-014
+  - ADR-016
+  kind: architecture+conformance
+  formalization: not-applicable
+  formalization_note: Whether an authoring/runtime integration independently executes an artifact rather than returning
+    scheduling authority to its author is an architecture and API/runtime conformance concern. TL-INV-001, TL-INV-002, and
+    TL-INV-013 cover the state-machine consequences of hidden agent orchestration; author provenance should not be introduced
+    into the core TLA+ model solely for this invariant.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []

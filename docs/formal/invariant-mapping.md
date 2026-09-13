@@ -42,6 +42,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-029` | Minimum-sufficient cognition invariant | authoring-principle | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-012 |
 | `TL-INV-030` | Deterministic-orchestration / probabilistic-leaf invariant | safety | planned | pending-model | `ProbabilisticLeafCannotOwnGlobalControl` | — | — | not-yet-modeled | ADR-012, ADR-014 |
 | `TL-INV-031` | Workflow expressive-power invariant | capability | partial | pending-model | `RequiredCoreFormsComposable` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013, ADR-014 |
+| `TL-INV-032` | Authorship / execution-authority separation invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009, ADR-014, ADR-016 |
 
 ## Reverse traceability
 
