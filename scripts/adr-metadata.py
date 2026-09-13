@@ -650,6 +650,10 @@ def _structured_records(root: Path) -> tuple[dict[str, Any], list[dict[str, Any]
     return profile, records
 
 
+def _markdown_cell(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
+
+
 def render_index(root: Path) -> str:
     profile, records = _structured_records(root.resolve())
     domain = profile["repository"]["domain"]
@@ -671,16 +675,20 @@ def render_index(root: Path) -> str:
         "",
         "## Decisions",
         "",
-        "| ID | Decision | Status | Date |",
-        "|---|---|---|---|",
+        "| ID | Decision | Status | Date | Relation coverage | Governs |",
+        "|---|---|---|---|---|---|",
     ]
     path_by_id = {record["id"]: record["path"].name for record in records}
     for record in records:
         metadata = record["metadata"]
         date = metadata["date"] if metadata["date"] is not None else "Unknown"
+        governed_scopes = "<br>".join(
+            _markdown_cell(scope) for scope in metadata["governs"]
+        ) or "—"
         lines.append(
-            f"| [{record['id']}]({record['path'].name}) | {metadata['name']} | "
-            f"{metadata['status']} | {date} |"
+            f"| [{record['id']}]({record['path'].name}) | "
+            f"{_markdown_cell(metadata['name'])} | {metadata['status']} | {date} | "
+            f"{metadata['relation_completeness']} | {governed_scopes} |"
         )
 
     outgoing: list[tuple[str, str, str]] = []
