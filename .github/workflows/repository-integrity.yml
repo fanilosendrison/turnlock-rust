@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,6 +28,12 @@ jobs:
 
       - name: Install validation dependencies
         run: python3 -m pip install --requirement requirements.txt
+
+      - name: Test ADR metadata tooling
+        run: python3 scripts/tests/test-adr-metadata.py
+
+      - name: Check ADR metadata
+        run: python3 scripts/adr-metadata.py check
 
       - name: Check formal traceability
         run: python3 scripts/check-formal-traceability.py
