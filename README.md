@@ -42,7 +42,7 @@ policy / intent / methodology / generated strategy
 Read the non-normative [architectural vision](docs/vision/turnlock-vision.md)
 for the full product thesis. Normative product meaning remains in the
 [TURNLOCK specification](docs/specification/turnlock-spec.md), with decision
-history in the [ADR index](docs/adr/README.md).
+history in the [annotated ADR history](docs/adr/README.md).
 
 ## Repository status
 
@@ -70,8 +70,11 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   defines GitHub Engineering Project routing and workflow policy.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, promises, invariants, boundaries, and architectural implications.
-- [ADR index](docs/adr/README.md) provides the chronological decision record and
-  links to ADR-001 through ADR-016.
+- [Annotated ADR history](docs/adr/README.md) provides the maintained
+  chronological decision narrative and links to ADR-001 through ADR-017.
+- [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
+  schema, TURNLOCK's local overlay, compatibility allowlists, and validation
+  commands.
 - [Formal-verification policy](docs/formal/README.md) explains the relationship
   between normative prose, formal intent, executable models, and evidence.
 - [Formal traceability manifest](formal/verification.yaml) records
@@ -81,13 +84,16 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   manifest into a human-readable view.
 - [Formal workspace](formal/README.md) records the planned model layout and its
   current status.
+- [ADR metadata tool](scripts/adr-metadata.py) validates ADR identity,
+  provenance, lifecycle metadata, outgoing relations, body integrity, and
+  generated projections.
 - [Traceability checker](scripts/check-formal-traceability.py) validates
   invariant IDs, ADR references, manifest statuses, and generated mapping
   freshness.
 - [Mapping renderer](scripts/render-formal-mapping.py) regenerates the
   human-readable mapping from the manifest.
-- [Pinned tooling dependency](requirements.txt) supports formal traceability
-  validation.
+- [Pinned tooling dependencies](requirements.txt) support ADR metadata and
+  formal traceability validation.
 
 ## Architectural snapshot
 

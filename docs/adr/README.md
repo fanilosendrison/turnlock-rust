@@ -1,4 +1,15 @@
-# TURNLOCK architectural decision index
+# TURNLOCK annotated architectural decision history
+
+This maintained history explains the chronological decision narrative and
+repository-specific qualifications. It is not a generated relationship
+authority. Canonical structured metadata lives in ADR frontmatter under
+[`adr-profile.yaml`](adr-profile.yaml); incoming relations are derived from
+source ADRs once the generated projection is enabled.
+
+ADR-001 through ADR-016 temporarily remain on the profile's exact compatibility
+allowlist pending the semantics-neutral migration authorized by ADR-017. Their
+existing Markdown metadata remains authoritative until canonical frontmatter is
+added; after migration it remains unchanged as historical presentation only.
 
 Architectural decisions are kept in the chronological order in which the
 product discussion established them. Decision numbers are stable identities.
@@ -34,7 +45,14 @@ Later ADRs record subsequently accepted decisions.
     it; an authoring agent available under an existing execution form may later
     participate through an explicitly declared region.
 
+17. [ADR-017: Adopt validated OKF Architecture Decision Record metadata][17] —
+    **Accepted**. TURNLOCK pins the generalized OKF ADR profile, keeps a
+    byte-identical vendored base schema plus a local overlay, authorizes a
+    body-preserving metadata migration, stores outgoing relations only, and
+    separates the generated mechanical projection from this annotated history.
+
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
+[17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
 
 ADR-014 makes the ownership terminology precise:
 

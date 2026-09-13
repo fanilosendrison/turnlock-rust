@@ -46,8 +46,9 @@ Use each source only for the responsibility it owns:
    formulas for its declared scope without replacing normative prose.
 5. Records under `formal/results/` are authoritative only for the bounded TLC
    runs they identify.
-6. Generated mappings and README files explain or project authoritative sources;
-   they do not create product semantics or verification claims.
+6. Generated mappings, generated ADR indexes, and README files explain or
+   project authoritative sources; they do not create product semantics or
+   verification claims.
 7. `docs/vision/turnlock-vision.md` explains non-normative motivation and
    long-term direction; it never overrides the specification, ADRs, or formal
    governance.
@@ -55,6 +56,11 @@ Use each source only for the responsibility it owns:
 Report every inconsistency between authoritative sources. Do not silently select
 a convenient interpretation. Resolve a semantic conflict through an explicit
 new ADR and synchronized normative and formal artifacts.
+
+ADR frontmatter is canonical for ADR identity, lifecycle, explicitly recorded
+outgoing relations, governed scope, and body integrity. `docs/adr/adr-profile.yaml`
+and its schemas govern that representation; they do not create product semantics
+or outrank accepted decision bodies.
 
 Repository-governance documents, GitHub Issues, Project fields, comments,
 discussions, and Pull Requests manage work. They never override product
@@ -84,6 +90,7 @@ turnlock-rust/
 ├── README.md
 ├── docs/
 │   ├── adr/
+│   │   └── schemas/
 │   ├── formal/
 │   ├── repository-governance/
 │   ├── specification/
@@ -96,6 +103,7 @@ turnlock-rust/
 │   ├── tlc-result.schema.json
 │   └── verification.yaml
 └── scripts/
+    └── tests/
 ```
 
 Do not create speculative implementation directories or manifests before an
@@ -195,11 +203,17 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 ## Architectural decisions and documentation
 
 - Keep ADRs chronological under `docs/adr/` using
-  `adr-NNN-lowercase-kebab-title.md`.
-- Treat accepted ADRs as immutable decision records. Use a later ADR to amend or
-  supersede an accepted decision.
-- Synchronize the normative specification, ADR index, formal traceability, and
-  generated mapping whenever an accepted semantic change affects them.
+  `adr-NNN-lowercase-kebab-title.md` and the pinned contract in
+  `docs/adr/adr-profile.yaml`.
+- Treat accepted ADR identity, name, date, outgoing relations, governed scope,
+  and decision body as immutable. Use a later ADR to amend or supersede an
+  accepted decision; derive incoming relations instead of editing old records.
+- Permit a representation/schema migration only through a later governance ADR
+  and machine-readable body-preservation evidence.
+- Keep `docs/adr/README.md` as the maintained annotated history. Do not hand-edit
+  `docs/adr/index.md` once the profile marks the generated index as required.
+- Synchronize the normative specification, ADR projections, formal traceability,
+  and generated mapping whenever an accepted semantic change affects them.
 - Keep generated artifacts clearly identified and derived from one canonical
   source.
 - Keep repository process under `docs/repository-governance/`, separate from
@@ -231,16 +245,25 @@ first:
 .venv/bin/python scripts/render-formal-mapping.py
 ```
 
+When ADR metadata changes and the repository profile requires its generated
+index, regenerate it first:
+
+```bash
+.venv/bin/python scripts/adr-metadata.py render
+```
+
 After every intentional repository change, run:
 
 ```bash
+.venv/bin/python scripts/tests/test-adr-metadata.py
+.venv/bin/python scripts/adr-metadata.py check
 .venv/bin/python scripts/check-formal-traceability.py
 git diff --check
 ```
 
-Inspect any generated mapping difference and confirm it follows directly from
-`formal/verification.yaml`. The traceability checker invokes the renderer and
-can therefore update `docs/formal/invariant-mapping.md`.
+Inspect generated differences and confirm they follow directly from canonical
+sources. The formal traceability checker invokes its renderer and can therefore
+update `docs/formal/invariant-mapping.md`.
 
 Do not fabricate Cargo, TLC, implementation-test, packaging, or CI commands
 before the corresponding artifacts and supported toolchain are introduced.
@@ -252,7 +275,10 @@ change.
 - Repository overview: `README.md`
 - Non-normative architectural vision: `docs/vision/turnlock-vision.md`
 - Normative product specification: `docs/specification/turnlock-spec.md`
-- Accepted decision index: `docs/adr/README.md`
+- Annotated decision history and guide: `docs/adr/README.md`
+- ADR metadata profile: `docs/adr/adr-profile.yaml`
+- Generated ADR index, once required: `docs/adr/index.md`
+- ADR metadata validator and renderer: `scripts/adr-metadata.py`
 - Formal-verification policy: `docs/formal/README.md`
 - Formal workspace status: `formal/README.md`
 - Machine-readable traceability: `formal/verification.yaml`
