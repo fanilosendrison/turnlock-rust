@@ -27,6 +27,10 @@ parent permission, security, formatting, naming, or implementation rule.
   responsibility-based directories.
 - Use lowercase kebab-case for new files and directories, except recognized
   system entry points such as `AGENTS.md` and `README.md`.
+- Apply
+  `docs/repository-governance/turnlock-discovery-classification-protocol.md`
+  before incorporating any material discovery into normative, formal,
+  architectural, implementation, or harness-conformance artifacts.
 - When the user mentions an Issue, Project work, backlog work, or a review
   finding, apply the shared GitHub Engineering Projects operational protocol,
   then read
@@ -49,7 +53,10 @@ Use each source only for the responsibility it owns:
 6. Generated mappings, generated ADR indexes, and README files explain or
    project authoritative sources; they do not create product semantics or
    verification claims.
-7. `docs/vision/turnlock-vision.md` explains non-normative motivation and
+7. `docs/repository-governance/turnlock-discovery-classification-protocol.md`
+   governs the procedural classification of material discoveries; it creates no
+   product semantics, accepted decision, or formal-verification evidence.
+8. `docs/vision/turnlock-vision.md` explains non-normative motivation and
    long-term direction; it never overrides the specification, ADRs, or formal
    governance.
 
@@ -62,9 +69,10 @@ outgoing relations, governed scope, and body integrity. `docs/adr/adr-profile.ya
 and its schemas govern that representation; they do not create product semantics
 or outrank accepted decision bodies.
 
-Repository-governance documents, GitHub Issues, Project fields, comments,
-discussions, and Pull Requests manage work. They never override product
-semantics or constitute formal-verification evidence.
+Repository-governance documents govern repository procedures and work
+management. GitHub Issues, Project fields, comments, discussions, and Pull
+Requests manage work. None of these sources overrides product semantics or
+constitutes formal-verification evidence.
 
 ## Required reading
 
@@ -72,12 +80,13 @@ Before changing product semantics, architecture, formalization, or preparing
 implementation work, read:
 
 1. `README.md`
-2. `docs/specification/turnlock-spec.md`
-3. `docs/adr/README.md`
-4. The ADRs governing the affected concepts
-5. `docs/formal/README.md`
-6. `formal/README.md`
-7. `formal/verification.yaml`
+2. `docs/repository-governance/turnlock-discovery-classification-protocol.md`
+3. `docs/specification/turnlock-spec.md`
+4. `docs/adr/README.md`
+5. The ADRs governing the affected concepts
+6. `docs/formal/README.md`
+7. `formal/README.md`
+8. `formal/verification.yaml`
 
 Read the executable model, configurations, and result evidence once those
 artifacts exist and the requested work affects them.
@@ -214,6 +223,11 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   the required generated projection at `docs/adr/index.md`.
 - Synchronize the normative specification, ADR projections, formal traceability,
   and generated mapping whenever an accepted semantic change affects them.
+- Classify every material discovery under
+  `docs/repository-governance/turnlock-discovery-classification-protocol.md`
+  before incorporating it into a semantically significant artifact. Never treat
+  classification as a substitute for required ADRs, synchronization,
+  traceability, review, or validation.
 - Keep generated artifacts clearly identified and derived from one canonical
   source.
 - Keep repository process under `docs/repository-governance/`, separate from
@@ -286,5 +300,7 @@ change.
 - Generated invariant mapping: `docs/formal/invariant-mapping.md`
 - TLC result schema: `formal/tlc-result.schema.json`
 - Python tooling dependency: `requirements.txt`
+- Discovery classification protocol:
+  `docs/repository-governance/turnlock-discovery-classification-protocol.md`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`

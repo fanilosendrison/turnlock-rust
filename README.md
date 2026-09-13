@@ -68,6 +68,9 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   non-normative long-term thesis and motivation.
 - [Repository governance](docs/repository-governance/turnlock-rust-engineering.md)
   defines GitHub Engineering Project routing and workflow policy.
+- [Discovery classification protocol](docs/repository-governance/turnlock-discovery-classification-protocol.md)
+  governs how material discoveries are classified before they affect normative,
+  formal, implementation, or harness-conformance artifacts.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, promises, invariants, boundaries, and architectural implications.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
