@@ -165,13 +165,19 @@ occurrences:
   section: '0.6'
   heading: 0.6 Workflow completion returns control to the immediate caller
   role: intent
-  fingerprint: fc1e45538638dc1e0783d351a9c29f067b8e649fe50ada867bfeeb47c7b0cbfe
+  fingerprint: b85ef9f9962648bfaeb30b15280f18b177b4bb7f5922df08a26483ea673ffc19
 - concepts:
   - immediate-caller-context
   section: '0.6'
   heading: 0.6 Workflow completion returns control to the immediate caller
   role: intent
-  fingerprint: 216ddc0d6b178b32f083cc16734ca5cb4508c7673bc290412549dff1a6372e33
+  fingerprint: 90c661dcac92abae043d8cc9f5cec5df64079257b758602b3fa8e0c037a33066
+- concepts:
+  - immediate-caller-context
+  section: '0.6'
+  heading: 0.6 Workflow completion returns control to the immediate caller
+  role: intent
+  fingerprint: 898ba0c9171d02926d27f115b5028b6c82967779a4b8a39e221b9c5a9985bfa5
 - concepts:
   - workflow
   section: '0.8'

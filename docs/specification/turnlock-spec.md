@@ -13,8 +13,9 @@ product decisions that produced the current contract. ADR-018 establishes
 minimum completed-execution inspectability. ADR-020 and ADR-021 clarify
 independent-agent context provenance and completion/output semantics. ADR-022
 defines workflow-declared invocation and its structured call/return semantics.
-ADR-015 governs how this normative specification co-evolves with the formal
-TLA+/TLC model and verification manifest.
+ADR-023 clarifies the caller-context and continuation distinction for nested
+workflow invocations. ADR-015 governs how this normative specification
+co-evolves with the formal TLA+/TLC model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -221,9 +222,13 @@ main agent
   → main agent
 ```
 
-For a nested invocation, the immediate caller is the calling context inside the
-enclosing workflow. For an agent-selected invocation, that context is the
-main-agent region:
+For a nested invocation, the immediate caller is the calling execution context
+inside the enclosing workflow. That caller context preserves a return-bearing
+continuation while the callee executes. An immediate caller context and its call
+continuation are distinct: the caller is the context that invoked the workflow,
+while the continuation is the preserved return state of that context.
+
+For an agent-selected invocation, the immediate caller is the main-agent region:
 
 ```text
 main-agent region A
@@ -232,12 +237,16 @@ main-agent region A
   → main-agent region A resumes
 ```
 
-For a workflow-declared invocation, the immediate caller is the suspended call
-continuation of the caller context inside the enclosing workflow.
+For a workflow-declared invocation, the immediate caller is the workflow
+execution context inside the enclosing workflow that performs the declared call.
+That caller context preserves the workflow-declared post-call continuation while
+the callee executes.
 
 Workflow completion MUST therefore have a defined return path to the **immediate invocation context** rather than unconditionally jumping to the root session, leaving the user stranded in a separate automation context, or requiring manual reconstruction of the suspended caller.
 
-For top-level workflows, this preserves the original promise that the ordinary interactive session resumes when the workflow ends. For nested workflows, it preserves structured composition: inner completion returns to the point that invoked the inner workflow, and the enclosing workflow continues only when its own main-agent region completes.
+For top-level workflows, this preserves the original promise that the ordinary interactive session resumes when the workflow ends.
+
+For nested workflows, inner completion returns to the immediate caller. For a workflow-declared invocation, normal completion makes the caller's preserved workflow-declared post-call continuation eligible according to the enclosing topology. For an agent-selected invocation, normal completion resumes the same main-agent region, and the enclosing workflow resumes its own declared continuation only after that main-agent region itself completes.
 
 ## 0.7 Mechanical work must not require agent interpretation
 
@@ -1381,7 +1390,9 @@ The completion boundary mechanism is not specified yet.
 
 An **immediate caller context** is the execution context that invoked a workflow and to which normal completion of that workflow returns.
 
-For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow, the caller is the calling context inside the enclosing workflow: the main-agent region for an agent-selected invocation, or the suspended call continuation of the caller context for a workflow-declared invocation.
+For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow, the caller is the calling execution context inside the enclosing workflow. For an agent-selected invocation, that context is the main-agent region. For a workflow-declared invocation, that context is the workflow execution context that performs the declared call.
+
+A caller context preserves a call continuation while the callee executes. The continuation is not itself the caller context; it is the preserved return state of that context.
 
 <a id="term-caller-stack"></a>
 
@@ -1925,12 +1936,16 @@ For an admitted declared invocation:
 caller context → declared invocation of callee → same caller context
 ```
 
-The caller context preserves its call continuation, the calling continuation is
-suspended with respect to that invocation, the callee executes its own declared
-progression, and normal completion returns to the same immediate caller context
-and enables only the caller's declared post-call continuation. The callee MUST
-NOT replace, rewrite, skip, or capture the caller's continuation or the
-enclosing workflow's declared progression.
+The caller context preserves its call continuation, and the calling continuation
+is suspended with respect to that invocation; the continuation is not itself the
+caller context. The callee executes its own declared progression, and normal
+completion returns to the same immediate caller context and makes the preserved
+workflow-declared post-call continuation eligible for that caller. That return
+authorizes no other continuation of that caller context, and it does not
+disable, suspend, or require stopping independently active concurrent contexts
+that the declared topology permits to continue. The callee MUST NOT replace,
+rewrite, skip, or capture the caller's continuation or the enclosing workflow's
+declared progression.
 
 Suspension is local to the calling continuation. A declared invocation MUST NOT
 be interpreted as implicitly suspending concurrently active contexts that the
@@ -2004,7 +2019,7 @@ The architecture must support workflow completion as a return to the immediate c
 workflow → immediate caller context
 ```
 
-For a top-level invocation, that caller is the surrounding main-agent interaction. For a nested invocation, that caller is the calling context inside the enclosing workflow: the suspended main-agent region that selected the invocation, or the suspended call continuation of a workflow-declared invocation. The implementation may use any mechanism, but it must preserve this structured return relationship.
+For a top-level invocation, that caller is the surrounding main-agent interaction. For a nested invocation, that caller is the calling execution context inside the enclosing workflow: the suspended main-agent region that selected the invocation, or the workflow execution context that performs a workflow-declared invocation. The implementation may use any mechanism, but it must preserve this structured return relationship.
 
 ## 5.4 Workflow progression cannot live only in prompt context
 
