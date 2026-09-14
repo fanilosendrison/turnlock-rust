@@ -76,14 +76,28 @@ class AdrMetadataTests(unittest.TestCase):
             shutil.copytree(ROOT / "docs" / "adr", fixture_root / "docs" / "adr")
             disable_git_bound_validation(fixture_root)
 
-            unknown = fixture_root / "docs" / "adr" / "adr-018-unlisted-record.md"
+            retained_numbers = [
+                int(path.name.split("-", 2)[1])
+                for path in (fixture_root / "docs" / "adr").glob("adr-[0-9][0-9][0-9]-*.md")
+            ]
+            unknown_number = max(retained_numbers) + 1
+            unknown_id = f"ADR-{unknown_number:03d}"
+            unknown = (
+                fixture_root
+                / "docs"
+                / "adr"
+                / f"adr-{unknown_number:03d}-unlisted-record.md"
+            )
             unknown.write_text(
-                "# ADR-018: Unlisted record\n\n## Context\n\nLegacy body.\n",
+                f"# {unknown_id}: Unlisted record\n\n## Context\n\nLegacy body.\n",
                 encoding="utf-8",
             )
             errors = adr_metadata.collect_errors(fixture_root)
             self.assertTrue(
-                any("ADR-018 is frontmatter-free but not allowlisted" in error for error in errors),
+                any(
+                    f"{unknown_id} is frontmatter-free but not allowlisted" in error
+                    for error in errors
+                ),
                 errors,
             )
 
