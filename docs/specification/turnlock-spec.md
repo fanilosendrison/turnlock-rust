@@ -11,9 +11,10 @@ product outcome that lower-level design exists to serve. It is ratified by
 ADR-001 through ADR-014 and ADR-016 in `../adr/`, which record the chronological
 product decisions that produced the current contract. ADR-018 establishes
 minimum completed-execution inspectability. ADR-020 and ADR-021 clarify
-independent-agent context provenance and completion/output semantics. ADR-015
-governs how this normative specification co-evolves with the formal TLA+/TLC
-model and verification manifest.
+independent-agent context provenance and completion/output semantics. ADR-022
+defines workflow-declared invocation and its structured call/return semantics.
+ADR-015 governs how this normative specification co-evolves with the formal
+TLA+/TLC model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -220,7 +221,9 @@ main agent
   → main agent
 ```
 
-For a nested invocation from a main-agent region of another workflow, the immediate caller is that main-agent region:
+For a nested invocation, the immediate caller is the calling context inside the
+enclosing workflow. For an agent-selected invocation, that context is the
+main-agent region:
 
 ```text
 main-agent region A
@@ -228,6 +231,9 @@ main-agent region A
   → workflow B terminates
   → main-agent region A resumes
 ```
+
+For a workflow-declared invocation, the immediate caller is the suspended call
+continuation of the caller context inside the enclosing workflow.
 
 Workflow completion MUST therefore have a defined return path to the **immediate invocation context** rather than unconditionally jumping to the root session, leaving the user stranded in a separate automation context, or requiring manual reconstruction of the suspended caller.
 
@@ -1375,7 +1381,7 @@ The completion boundary mechanism is not specified yet.
 
 An **immediate caller context** is the execution context that invoked a workflow and to which normal completion of that workflow returns.
 
-For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow invoked from a main-agent region, the caller is that main-agent region.
+For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow, the caller is the calling context inside the enclosing workflow: the main-agent region for an agent-selected invocation, or the suspended call continuation of the caller context for a workflow-declared invocation.
 
 <a id="term-caller-stack"></a>
 
@@ -1451,10 +1457,13 @@ its execution form, and the workflow owns the branch topology and join.
 
 <a id="term-nested-workflow-invocation"></a>
 
-A **nested workflow invocation** is a workflow invocation made from a main-agent
-region while that immediate caller context is suspended. The nested workflow
-owns its own declared progression, and normal completion returns to that same
-immediate caller context.
+A **nested workflow invocation** is a workflow invocation made from an immediate
+caller context inside an enclosing workflow while the continuation of that
+calling context is suspended. The invocation MAY be declared by the enclosing
+workflow program, or selected by the main agent while it legitimately owns a
+main-agent region (ADR-008). The nested workflow owns its own declared
+progression, and normal completion returns to that same immediate caller
+context.
 
 ## 2.9 Execution inspectability
 
@@ -1902,6 +1911,34 @@ capability is outside the current core product contract until a future accepted
 decision changes that boundary. It does not require, forbid, or prescribe any
 storage, telemetry, metric, comparison, experiment, or optimizer mechanism.
 
+## 3.33 TL-INV-035 — Declared-invocation invariant
+
+A TURNLOCK workflow program MAY declaratively invoke another TURNLOCK workflow
+as part of its authored orchestration. The decision to invoke that workflow
+belongs to the invoking workflow program, and TURNLOCK MUST execute an admitted
+declared invocation directly rather than requiring a main-agent handoff solely
+to reproduce an invocation decision already present in the executable topology.
+
+For an admitted declared invocation:
+
+```text
+caller context → declared invocation of callee → same caller context
+```
+
+The caller context preserves its call continuation, the calling continuation is
+suspended with respect to that invocation, the callee executes its own declared
+progression, and normal completion returns to the same immediate caller context
+and enables only the caller's declared post-call continuation. The callee MUST
+NOT replace, rewrite, skip, or capture the caller's continuation or the
+enclosing workflow's declared progression.
+
+Suspension is local to the calling continuation. A declared invocation MUST NOT
+be interpreted as implicitly suspending concurrently active contexts that the
+declared topology permits to continue.
+
+This invariant does not decide recursion, cyclic call graphs, restricted
+placement admissibility, or concrete depth and resource limits.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -1926,6 +1963,7 @@ The following questions are important but are **not yet answered by the product 
 - Whether visibility inside an agentic region should extend beyond explicitly exposed results and TURNLOCK-visible facts relevant to declared progression.
 - Whether multiple sibling/top-level workflows may execute concurrently in one interactive coding-agent session; structured nested invocation is already allowed.
 - Whether implementations impose explicit resource/safety limits on nesting depth, and how such limits are surfaced without changing immediate-caller return semantics.
+- The admissibility of workflow invocation in restricted contexts such as parallel branches, and the treatment of recursive or cyclic workflow call graphs.
 - What security/trust model applies to user-authored workflow code.
 - How a workflow selects models/providers and expresses inference budgets, model parameters, structured outputs, or provider fallbacks for raw LLM calls.
 - How one semantic raw-LLM operation maps to provider requests, retries, streaming, or other physical inference mechanics.
@@ -1966,7 +2004,7 @@ The architecture must support workflow completion as a return to the immediate c
 workflow → immediate caller context
 ```
 
-For a top-level invocation, that caller is the surrounding main-agent interaction. For a nested invocation, that caller is the suspended main-agent region that invoked the workflow. The implementation may use any mechanism, but it must preserve this structured return relationship.
+For a top-level invocation, that caller is the surrounding main-agent interaction. For a nested invocation, that caller is the calling context inside the enclosing workflow: the suspended main-agent region that selected the invocation, or the suspended call continuation of a workflow-declared invocation. The implementation may use any mechanism, but it must preserve this structured return relationship.
 
 ## 5.4 Workflow progression cannot live only in prompt context
 

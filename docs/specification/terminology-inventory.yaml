@@ -128,7 +128,7 @@ occurrences:
   section: '2.8'
   heading: 2.8 Parallel and nested composition
   role: canonical-definition
-  fingerprint: a6bb7366c92ece18776ab6586448520e890d3b2c7ae0efde6a497114851d1553
+  fingerprint: e4f623bba3a9a2aaececc65ea23e1a07c04681495816ad2678debbdd7bcbc2a7
 - concepts:
   - execution-inspectability
   section: '2.9'
@@ -165,7 +165,13 @@ occurrences:
   section: '0.6'
   heading: 0.6 Workflow completion returns control to the immediate caller
   role: intent
-  fingerprint: 6ec5c95f402bfb5f8d80816a93c8fd51865b43b232b480461e71083d279ffe05
+  fingerprint: fc1e45538638dc1e0783d351a9c29f067b8e649fe50ada867bfeeb47c7b0cbfe
+- concepts:
+  - immediate-caller-context
+  section: '0.6'
+  heading: 0.6 Workflow completion returns control to the immediate caller
+  role: intent
+  fingerprint: 216ddc0d6b178b32f083cc16734ca5cb4508c7673bc290412549dff1a6372e33
 - concepts:
   - workflow
   section: '0.8'
@@ -244,12 +250,6 @@ occurrences:
   role: reference
   fingerprint: b0ab602b78c5d6f73d76c35d2d08e9a35453d05d39ff7d7185874e2415b363a6
 - concepts:
-  - immediate-caller-context
-  section: '2.8'
-  heading: 2.8 Parallel and nested composition
-  role: reference
-  fingerprint: a6bb7366c92ece18776ab6586448520e890d3b2c7ae0efde6a497114851d1553
-- concepts:
   - main-agent-step
   section: '3.5'
   heading: "3.5 TL-INV-006 \u2014 Enclosing-workflow invariant"
@@ -278,4 +278,4 @@ occurrences:
   section: '4'
   heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: 7eb66c5b6ca967f25300aec836ccf2fadae2500d84b7b03606ff6afd79dbd4a2
+  fingerprint: 98cd241bac350c5668160ca18bfcdb205b5a6625688bd94ae565511f4681bdcb
