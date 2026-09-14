@@ -89,7 +89,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-019.
+  chronological decision narrative and links to ADR-001 through ADR-021.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
@@ -137,14 +137,16 @@ The execution forms remain semantically distinct:
 
 ```text
 mechanical execution = executable, non-agent-mediated progression
-raw LLM inference = bounded non-agentic semantic computation
-independent agent = bounded autonomous cognitive fork
+raw LLM inference = one declared non-agentic semantic operation with a result boundary
+independent agent = workflow-declared local autonomy in a fresh cognitive lineage
 main agent = continuation of the existing interactive cognitive lineage
 ```
 
 The guiding allocation rule is to use the minimum sufficient form of
-computation or cognition for each workflow region. Known orchestration remains
-in executable workflow logic even when runtime results are probabilistic,
+computation or cognition for each workflow region. Here, boundedness identifies
+semantic, structural, context, and local-authority boundaries; it does not by
+itself impose finite resources or guarantee termination. Known orchestration
+remains in executable workflow logic even when runtime results are probabilistic,
 nondeterministic, externally dependent, or produced by locally autonomous
 cognition. Completed workflow execution must expose enough actual
 TURNLOCK-visible behavior for external understanding and evaluation without
