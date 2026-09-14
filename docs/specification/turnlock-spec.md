@@ -24,7 +24,7 @@ The product is not merely a prompt library, a large skill, a subagent launcher, 
 The current execution spectrum is:
 
 ```text
-deterministic / mechanical computation
+mechanical execution
 bounded raw LLM inference
 bounded independent-agent execution
 continuation of the main interactive coding agent
@@ -79,7 +79,7 @@ When an invocation finishes, control returns to its immediate caller.
 
 The governing promise is:
 
-> **The workflow program owns the declared orchestration logic; TURNLOCK is the orchestration engine that executes it. The workflow can compose deterministic computation, bounded LLM inference, bounded independent agency, and continuation of the main interactive agent as distinct execution forms. Probabilistic or autonomous leaves do not become the global orchestration decision-maker merely by being invoked, and completed workflows return structurally to their immediate caller.**
+> **The workflow program owns the declared orchestration logic; TURNLOCK is the orchestration engine that executes it. The workflow can compose mechanical execution, bounded LLM inference, bounded independent agency, and continuation of the main interactive agent as distinct execution forms. Probabilistic or autonomous regions do not become the global orchestration decision-maker merely by being invoked, and completed workflows return structurally to their immediate caller.**
 
 ## 0.3 Workflow invocation is a natural slash-command surface inside the coding-agent session
 
@@ -230,17 +230,28 @@ For top-level workflows, this preserves the original promise that the ordinary i
 
 ## 0.7 Mechanical work must not require agent interpretation
 
-A workflow may contain steps whose semantics are sufficiently known that they should execute mechanically.
+A workflow may contain steps whose progression is sufficiently specified that it
+can execute mechanically. Mechanical execution is defined by execution and
+control authority, not by computational determinism.
 
-Examples may eventually include commands, checks, transformations, waiting, branching, state transitions, validation, or other deterministic operations. Their exact taxonomy is not fixed here.
+Examples may eventually include commands, checks, transformations, waiting,
+event handling, branching, state transitions, validation, or other executable
+operations. A mechanical region MAY be deterministic, nondeterministic,
+probabilistic, dependent on external state, or driven by external events. It may
+wait for information that was not known before execution.
 
 The invariant is:
 
-> **If a workflow step is defined as mechanical, its execution must not depend on the main agent correctly remembering, interpreting, or deciding to perform that step.**
+> **If a workflow step is defined as mechanical, its correct progression follows executable workflow semantics together with runtime inputs, results, state, or events. It must not require discretionary agent judgment to supply a missing orchestration decision.**
 
-This is the core reliability gain TURNLOCK seeks over encoding the whole process in a skill or prompt.
+This is the core reliability gain TURNLOCK seeks over encoding the whole process
+in a skill or prompt. It does not promise that equal inputs produce an identical
+output, path, schedule, trace, or replay.
 
-The main agent may still observe mechanical results when a later agentic phase needs them, but it is not the source of truth for whether the mechanical progression occurred.
+A mechanical region MAY consume a result produced by an LLM or agent and select
+among continuations already declared by workflow semantics. The origin or
+variability of that result does not make the consuming region agent-mediated or
+transfer global orchestration authority to its producer.
 
 ## 0.8 The workflow, not the main agent, owns global progression
 
@@ -263,7 +274,23 @@ main-agent phase:
   workflow resumes global progression
 ```
 
-Therefore the workflow's correctness MUST NOT rely on the main agent remembering the remaining control-flow graph after every agentic phase.
+Local semantic or discretionary authority inside an explicitly declared
+main-agent or independent-agent region is distinct from global orchestration
+authority. Such an agent MAY explore, edit, test, react to evidence, and choose
+local tactics within its region. A result of that work MAY select among
+continuations related to the result by executable workflow semantics; it does
+not thereby create a new orchestration possibility or authorize the agent to
+rewrite the enclosing graph.
+
+Every decision required for global workflow progression MUST be represented by
+executable workflow semantics. Those semantics MAY explicitly delegate a
+bounded decision to a declared agentic region, but they MUST define how the
+permitted result relates to declared continuations. The workflow MUST NOT reach
+an underspecified control point where an agent is expected to infer, remember,
+or reconstruct what the global workflow should do next.
+
+Therefore the workflow's correctness MUST NOT rely on the main agent remembering
+the remaining control-flow graph after every agentic phase.
 
 ## 0.8A TURNLOCK executes orchestration; it does not invent it
 
@@ -315,7 +342,7 @@ TURNLOCK does not divide work only into "mechanical" and "main-agent" regions. T
 The governing spectrum is:
 
 ```text
-0. deterministic computation
+0. mechanical execution
 1. bounded raw LLM inference
 2. bounded independent agentic execution
 3. continuation of the main interactive agent
@@ -362,7 +389,12 @@ different tasks
 
 The workflow, not the main agent, owns declared fan-out, synchronization, collection, and subsequent progression when that topology is part of the workflow definition.
 
-This matters because a deterministic orchestrator intentionally gives up some of the decision-time flexibility of an agentic orchestrator. TURNLOCK compensates by making the deterministic orchestration surface expressive enough that known orchestration decisions do not need to be pushed back into a main-agent prompt merely because they involve semantic work, concurrency, or delegation.
+This matters because workflow-owned control intentionally withholds undeclared
+global decision-time flexibility from an agentic orchestrator. TURNLOCK
+compensates by making the workflow-declared orchestration surface expressive
+enough that known orchestration decisions do not need to be pushed back into a
+main-agent prompt merely because they involve semantic work, concurrency, or
+delegation.
 
 ## 0.10B Raw LLM inference is a distinct first-class semantic primitive
 
@@ -394,7 +426,7 @@ For example:
 
 ```text
 fan-out
-  ├→ mechanical computation
+  ├→ mechanical execution
   ├→ raw LLM call A
   ├→ raw LLM call B
   ├→ independent agent A
@@ -411,37 +443,46 @@ Within that fan-out:
 - each branch retains the lifecycle, context, authority, and result semantics of its own execution form;
 - the workflow owns branch creation, synchronization, collection, and declared continuation.
 
-This capability matters because the workflow author may want to combine cheap bounded inference, richer autonomous delegation, and deterministic computation in one explicit concurrency topology rather than split them into artificial sequential phases.
+This capability matters because the workflow author may want to combine cheap
+bounded inference, richer autonomous delegation, and mechanical execution in one
+explicit concurrency topology rather than split them into artificial sequential
+phases.
 
 This decision does **not yet assert that main-agent continuation can participate as an ordinary concurrent branch**. Main-agent continuation has unique session-lineage and interactive-control semantics; concurrency involving it remains a separate semantic question.
 
-## 0.10D Deterministic orchestration may compose probabilistic leaves
+## 0.10D Workflow-owned control may compose varying results
 
-TURNLOCK's deterministic-orchestration goal concerns ownership of control flow, not bit-for-bit determinism of every computation executed by the workflow.
+TURNLOCK's workflow-owned-control goal concerns the authorization and explicit
+representation of global progression. It does not imply bit-for-bit determinism
+of any computation or one possible execution path.
 
-A workflow may explicitly orchestrate operations whose outputs are probabilistic:
+A workflow may explicitly compose operations whose behavior or results are
+probabilistic, nondeterministic, externally dependent, or event-driven:
 
 ```text
-mechanical computation
+mechanical execution
 raw LLM inference
 independent agent
 main-agent continuation
 ```
 
-while retaining explicit progression authority:
+while retaining workflow-owned control:
 
 ```text
-workflow decides what runs
-workflow decides declared sequencing / branching / fan-out / join
-workflow receives results
-workflow decides the declared continuation
+workflow semantics declare executable regions and permitted transitions
+runtime inputs / results / state / events select among declared possibilities
+TURNLOCK executes the selected sequencing / branching / fan-out / join
+no execution resource invents an undeclared global continuation
 ```
 
 Therefore:
 
-> **Deterministic orchestration does not require deterministic leaf computations.**
+> **Workflow-owned control does not require deterministic computations or results. A runtime result may select among declared possibilities; it does not thereby create new orchestration possibilities.**
 
-The relevant question is not "can this step produce a probabilistic result?" but "who owns the decision about what execution region comes next?"
+The relevant question is not whether a step can vary, but whether each change in
+global control is authorized by executable workflow semantics. TURNLOCK core
+orchestration semantics do not by themselves imply computational determinism,
+output determinism, identical traces, replayability, or run reproducibility.
 
 ## 0.11 Session continuity is part of the product value
 
@@ -535,10 +576,11 @@ but:  workflow suspends its local execution authority
 
 A one-shot LLM request/response is nevertheless a valid **separate** TURNLOCK primitive when that narrower semantic execution form is what the workflow requests. The prohibition here is only against implementing a declared main-agent continuation as though it were such a call.
 
-This lets TURNLOCK combine two properties that are otherwise often traded against each other:
+This lets TURNLOCK combine two properties that are otherwise often traded
+against each other:
 
 ```text
-determinism outside agentic regions
+mechanical, workflow-owned progression outside agentic regions
 +
 full coding-agent agency inside explicitly agentic regions
 ```
@@ -849,7 +891,7 @@ The governing user-visible contract is §0. The mechanisms below and future tech
 
 TURNLOCK addresses a specific failure mode in interactive agentic software development:
 
-> **Today, reusable workflows are commonly encoded as instructions for the main agent to orchestrate. This leaves control flow, step ordering, and mechanical progression dependent on model behavior. Moving orchestration fully into code improves determinism, but typical agent-workflow systems then replace the user's main interactive coding agent with subagents or separate agent calls. TURNLOCK aims to combine workflow-owned orchestration with reversible access to the main agent already participating in the user's session.**
+> **Today, reusable workflows are commonly encoded as instructions for the main agent to orchestrate. This leaves control flow, step ordering, and mechanical progression dependent on model behavior. Moving declared orchestration into executable workflow semantics removes that implicit control dependency, but typical agent-workflow systems then replace the user's main interactive coding agent with subagents or separate agent calls. TURNLOCK aims to combine workflow-owned orchestration with reversible access to the main agent already participating in the user's session.**
 
 The central reason for preserving the main-agent handoff is that a spawned independent agent is not automatically equivalent to the current main session. Spawning introduces a context reconstruction boundary and potentially a cognitive fork; handoff is intended to preserve one continuing agentic lineage and its ordinary interactive agency while the workflow retains global orchestration. See ADR-007 and ADR-008.
 
@@ -861,7 +903,10 @@ orchestration authority
 semantic / agentic execution capability
 ```
 
-The workflow owns orchestration authority. It may allocate work to deterministic computation, bounded raw LLM inference, bounded independent agents, or continuation of the main agent according to the requirements of each region. None of those execution resources becomes the global orchestrator merely by being used.
+The workflow owns orchestration authority. It may allocate work to mechanical
+execution, bounded raw LLM inference, bounded independent agents, or continuation
+of the main agent according to the requirements of each region. None of those
+execution resources becomes the global orchestrator merely by being used.
 
 # 2. Core mental model
 
@@ -875,9 +920,12 @@ main-agent step == raw LLM inference
 independent-agent step == raw LLM inference
 main-agent step == context-reconstructed child-agent call
 mechanical step == tool call chosen by the main agent
+mechanical execution == computational determinism
+workflow-owned control == one possible output, path, or trace
 workflow state == chat context
 workflow completion == agent-session completion
-probabilistic leaf == agent-owned global orchestration
+local agent discretion == global orchestration authority
+probabilistic result == a new orchestration possibility
 ```
 
 They are distinct product concepts.
@@ -920,11 +968,22 @@ Pi-specific APIs may implement these primitives in the first integration; they a
 
 ## 2.4 Mechanical step
 
-A **mechanical step** is a workflow phase whose progression is governed by executable semantics rather than by main-agent interpretation.
+A **mechanical step** is a workflow phase whose progression follows executable
+workflow semantics together with runtime inputs, results, state, or events,
+rather than requiring discretionary agent judgment to supply missing
+orchestration decisions.
 
-This specification intentionally does not yet fix which mechanical primitives exist or how they are expressed.
+Mechanical describes non-agent-mediated execution, not computational or output
+determinism. A mechanical step may be deterministic, nondeterministic,
+probabilistic, dependent on external state, or event-driven. It may consume an
+LLM or agent result without inheriting the producer's local authority; a declared
+rule that branches on that result remains mechanical.
 
-A mechanical step may produce state or evidence consumed by later steps, including a main-agent step.
+This specification intentionally does not yet fix which mechanical primitives
+exist or how they are expressed.
+
+A mechanical step may produce state or evidence consumed by later steps,
+including a main-agent step.
 
 ## 2.4A Raw LLM inference step
 
@@ -1049,10 +1108,19 @@ A runtime optimization or harness adapter MAY choose equivalent execution mechan
 For a mechanical step:
 
 ```text
-step execution truth != main-agent interpretation
+step execution truth != agent interpretation
+mechanical execution != computational determinism
 ```
 
-The step either executes according to its mechanical semantics or produces a defined non-success outcome. Its execution must not depend on the main agent deciding whether to follow a prose instruction.
+The step either progresses according to its executable semantics and available
+runtime inputs, results, state, or events, or produces a defined non-success
+outcome. Its execution MUST NOT depend on an agent deciding whether to follow a
+prose instruction or supplying an orchestration decision absent from those
+semantics.
+
+A mechanical step MAY wait for an external event or branch on a probabilistic,
+nondeterministic, external, LLM-produced, or agent-produced result when the
+workflow already declares how that result relates to permitted continuations.
 
 ## 3.3 TL-INV-004 — Reversible-handoff invariant
 
@@ -1143,9 +1211,19 @@ Conformance requires satisfying the specific contracts of the execution form dec
 
 ## 3.12 TL-INV-013 — No-hidden-agent-orchestration invariant
 
-An implementation MUST NOT claim workflow-owned orchestration while covertly translating the workflow into instructions that the main agent must interpret step-by-step.
+An implementation MUST NOT claim workflow-owned orchestration while covertly
+translating the workflow into instructions that the main agent must interpret
+step-by-step or by leaving an underspecified control point where an agent is
+expected to infer what the global workflow should do next.
 
-The location of the source code is irrelevant; what matters is where control-flow authority actually resides.
+This prohibition does not remove local semantic or discretionary authority from
+an explicitly declared main-agent or independent-agent region. Local judgment
+within that region MUST NOT, by itself, authorize the agent to add, skip,
+replace, or reconstruct global continuations that executable workflow semantics
+do not permit.
+
+The location of the source code is irrelevant; what matters is where control-flow
+authority actually resides.
 
 ## 3.13 TL-INV-014 — Cognitive-lineage continuity invariant
 
@@ -1227,7 +1305,7 @@ A future second-harness implementation is expected to act as an abstraction test
 
 ## 3.22A TL-INV-024 — Heterogeneous parallel composition invariant
 
-TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch types, including mechanical computation, bounded raw LLM inference, and bounded independent-agent execution. Branches of the same semantic type MAY perform the same task or different tasks. Mixed fan-out MUST preserve the lifecycle, context, authority, and result contract of each branch type while keeping fan-out, synchronization, collection, and continuation under workflow ownership.
+TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch types, including mechanical execution, bounded raw LLM inference, and bounded independent-agent execution. Branches of the same semantic type MAY perform the same task or different tasks. Mixed fan-out MUST preserve the lifecycle, context, authority, and result contract of each branch type while keeping fan-out, synchronization, collection, and continuation under workflow ownership.
 
 This invariant does not require main-agent continuation to be an ordinary parallel branch; that question remains separately open.
 
@@ -1266,7 +1344,7 @@ A workflow that needs a one-shot semantic transformation MUST NOT be forced to c
 The workflow model MUST preserve the author's ability to choose the least powerful execution form sufficient for a region:
 
 ```text
-deterministic computation
+mechanical execution
 → raw LLM inference
 → independent agent
 → main-agent continuation
@@ -1274,20 +1352,29 @@ deterministic computation
 
 TURNLOCK MUST NOT collapse these choices into one universal "agent step" when their cost, context, autonomy, continuity, and lifecycle semantics differ.
 
-## 3.28 TL-INV-030 — Deterministic-orchestration / probabilistic-leaf invariant
+## 3.28 TL-INV-030 — Workflow-owned-control / probabilistic-result invariant
 
-Workflow-owned deterministic control MUST be compatible with probabilistic leaf computations. Invoking an LLM or agent does not by itself transfer authority over the workflow's global control graph.
+Workflow-owned control MUST be compatible with probabilistic,
+nondeterministic, externally dependent, and event-driven results. Such a result
+MAY select among continuations already permitted by executable workflow
+semantics; it does not authorize an LLM, agent, mechanical operation, or other
+execution resource to create or alter the permitted global continuations.
 
-The workflow remains responsible for declared sequencing, branching, fan-out, synchronization, and continuation unless it explicitly enters a main-agent region or another execution region with different local authority semantics.
+An explicitly declared agentic region MAY exercise its local semantic or
+discretionary authority. The workflow remains responsible for declared
+sequencing, branching, fan-out, synchronization, and continuation, and every
+change in global control MUST be authorized by workflow semantics.
 
 ## 3.29 TL-INV-031 — Workflow expressive-power invariant
 
-TURNLOCK's deterministic orchestration engine MUST be expressive enough that known control decisions can remain executable workflow logic rather than being delegated back to an agent for lack of orchestration primitives.
+TURNLOCK's workflow-declared orchestration surface MUST be expressive enough
+that known control decisions can remain executable workflow logic rather than
+being delegated back to an agent for lack of orchestration primitives.
 
 At the semantic level this includes the ability to compose, as required by a workflow:
 
 ```text
-mechanical computation
+mechanical execution
 sequencing and conditional progression
 iteration where the workflow declares it
 parallel fan-out and join
@@ -1446,7 +1533,9 @@ Because raw LLM inference, independent-agent execution, and main-agent continuat
 
 Workflow-owned fan-out/fan-in requires an execution authority capable of starting independent branches, tracking their completion/results, and resuming declared continuation without asking the main agent to remember or schedule the parallel graph.
 
-That authority must support heterogeneous parallel graphs rather than assuming all branches use one execution primitive. A single fan-out may combine deterministic computation, bounded raw LLM calls, and bounded independent agents, while preserving the distinct lifecycle and context contract of every branch.
+That authority must support heterogeneous parallel graphs rather than assuming all branches use one execution primitive. A single fan-out may combine mechanical execution, bounded raw LLM calls, and
+bounded independent agents, while preserving the distinct lifecycle and context
+contract of every branch.
 
 This implication does not select a concurrency mechanism, scheduler, worker model, or process topology.
 
@@ -1568,7 +1657,7 @@ The authoring surface must additionally prove that the same workflow can be prod
 
 TURNLOCK can currently be summarized as:
 
-> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-authored deterministic control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical computation, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it. Pi is the first reference harness used to prove the model.**
+> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it. Pi is the first reference harness used to prove the model.**
 
 Or as a control equation:
 
@@ -1576,7 +1665,7 @@ Or as a control equation:
 workflow program = declared orchestration logic / orchestration program
 TURNLOCK = orchestration engine / runtime that executes it
 
-mechanical computation = non-semantic executable work
+mechanical execution = executable progression without missing agent-supplied orchestration decisions
 raw LLM inference = bounded stateless semantic function
 independent agent = bounded autonomous cognitive fork
 main agent = continuation of the existing interactive cognitive lineage

@@ -140,9 +140,9 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 
 - Do not model TURNLOCK as an agent-centric orchestration framework. Keep the
   workflow program at the architectural center for declared orchestration.
-- Treat deterministic computation, raw LLM inference, independent agents, and
-  the existing main agent as semantically distinct execution resources
-  available to the workflow, not as interchangeable agent calls.
+- Treat mechanical execution, raw LLM inference, independent agents, and the
+  existing main agent as semantically distinct execution resources available to
+  the workflow, not as interchangeable agent calls.
 - Keep known control-flow decisions in executable workflow logic. Do not move
   them back into main-agent judgment merely because a harness makes that
   convenient.
@@ -164,9 +164,11 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Keep declared orchestration decisions and topology in the workflow program.
 - Keep TURNLOCK responsible for executing, coordinating, and tracking declared
   orchestration without inventing global strategy.
-- Keep deterministic mechanical work outside agent interpretation.
-- Keep probabilistic execution forms as bounded leaves under deterministic
-  workflow control.
+- Keep mechanical work outside agent interpretation without treating mechanical
+  execution as a guarantee of deterministic outputs or traces.
+- Keep probabilistic, nondeterministic, externally dependent, and event-driven
+  results under workflow-owned control; those results may select only among
+  continuations permitted by executable workflow semantics.
 
 ### Control handoff and composition
 
@@ -175,7 +177,7 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   memory.
 - Return nested workflow invocations to their immediate caller without
   rewriting outer continuation state.
-- Preserve the distinct semantics of deterministic computation, bounded raw LLM
+- Preserve the distinct semantics of mechanical execution, bounded raw LLM
   inference, bounded independent-agent execution, and main-agent continuation.
 - Keep workflow-owned fan-out, fan-in, branch lifecycle, and join semantics
   explicit.
