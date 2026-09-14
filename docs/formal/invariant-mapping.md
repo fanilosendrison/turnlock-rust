@@ -45,6 +45,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-032` | Authorship / execution-authority separation invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009, ADR-014, ADR-016 |
 | `TL-INV-033` | Completed-execution inspectability invariant | safety+semantic-quality+conformance | partial | pending-model | `CompletedExecutionExposesActualBoundaryFacts` | — | — | not-yet-modeled | ADR-018 |
 | `TL-INV-034` | Evaluation/optimization-policy boundary invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-019 |
+| `TL-INV-035` | Declared-invocation invariant | capability+safety | planned | pending-model | `DeclaredInvocationAuthorizedByWorkflowProgram`, `DeclaredInvocationDoesNotRequireAgentHandoff`, `OnlyCallingContinuationSuspended`, `DeclaredInvocationReturnsToImmediateCaller` | — | — | not-yet-modeled | ADR-022 |
 
 ## Reverse traceability
 
@@ -57,6 +58,9 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 - `CompletedExecutionExposesActualBoundaryFacts` → `TL-INV-033`
 - `CorrectCallerEventuallyResumesUnderFairness` → `TL-INV-018`
 - `DeclaredControlFlowOnly` → `TL-INV-001`
+- `DeclaredInvocationAuthorizedByWorkflowProgram` → `TL-INV-035`
+- `DeclaredInvocationDoesNotRequireAgentHandoff` → `TL-INV-035`
+- `DeclaredInvocationReturnsToImmediateCaller` → `TL-INV-035`
 - `EnclosingWorkflowPreservedDuringMainAgentRegion` → `TL-INV-006`
 - `EngineDoesNotInventTopology` → `TL-INV-002`
 - `ExecutionFormsRemainDistinct` → `TL-INV-012`
@@ -76,6 +80,7 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 - `NestedInvocationCannotRewriteOuterContinuation` → `TL-INV-019`
 - `NestedInvocationSuspendsCaller` → `TL-INV-017`
 - `NoPrematureJoin` → `TL-INV-027`
+- `OnlyCallingContinuationSuspended` → `TL-INV-035`
 - `ProbabilisticLeafCannotOwnGlobalControl` → `TL-INV-030`
 - `RawLLMDoesNotCreateAgentLoop` → `TL-INV-028`
 - `RawLLMIsBoundedLeaf` → `TL-INV-028`

@@ -831,3 +831,34 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-035
+  title: Declared-invocation invariant
+  spec_section: '3.33'
+  adrs:
+  - ADR-022
+  kind: capability+safety
+  formalization: planned
+  formalization_note: A future formalization must represent a workflow-declared invocation as authorized by the declared
+    topology, executed without an agent handoff solely to reproduce the declared call, preserving the caller's continuation
+    and returning to the same immediate caller context on normal completion, with suspension local to the calling
+    continuation. It must not assert universal completion, interpret suspension as whole-workflow suspension, or decide
+    recursive/cyclic admissibility, restricted placements, or concrete depth/resource limits.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: DeclaredInvocationAuthorizedByWorkflowProgram
+      status: planned
+    - name: DeclaredInvocationDoesNotRequireAgentHandoff
+      status: planned
+    - name: OnlyCallingContinuationSuspended
+      status: planned
+    - name: DeclaredInvocationReturnsToImmediateCaller
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
