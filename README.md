@@ -89,7 +89,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-022.
+  chronological decision narrative and links to ADR-001 through ADR-023.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR

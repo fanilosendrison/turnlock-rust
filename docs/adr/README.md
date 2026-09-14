@@ -85,6 +85,13 @@ Later ADRs record subsequently accepted decisions.
     calling continuation is suspended locally, normal completion returns to the
     same immediate caller, and decision ownership remains distinct from
     ADR-008 agent-selected invocation.
+23. [ADR-023: Clarify caller-context and continuation semantics across nested
+    workflow invocations][23] — **Accepted**. An immediate caller context is
+    distinct from its preserved call continuation. A workflow-declared
+    invocation makes its workflow-declared post-call continuation eligible on
+    normal return, while an agent-selected invocation resumes the same
+    main-agent region; neither return disables independently active concurrent
+    contexts.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -93,6 +100,7 @@ Later ADRs record subsequently accepted decisions.
 [20]: adr-020-define-independent-agent-context-provenance.md
 [21]: adr-021-separate-independent-agent-completion-output-and-effects.md
 [22]: adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md
+[23]: adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -211,6 +219,15 @@ region. Both preserve the calling context's continuation and return to the same
 immediate caller on normal completion, and suspension stays local to the
 calling continuation rather than blocking independently declared concurrent
 contexts.
+
+ADR-023 clarifies the caller model shared by both invocation paths. The caller
+is an execution context, not the continuation itself: the caller context
+preserves a return-bearing continuation while the callee executes. A
+workflow-declared invocation makes its workflow-declared post-call continuation
+eligible on normal return, while an agent-selected invocation resumes the same
+main-agent region and leaves that region's subsequent local work under the main
+agent's local authority. Neither case implies whole-workflow suspension of
+independently active concurrent contexts.
 
 Accepted ADR bodies retain their historical wording, including uses of
 “deterministic computation” and “deterministic orchestration.” The current
