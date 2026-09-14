@@ -10,9 +10,10 @@ This section is normative for the current product direction. It states the
 product outcome that lower-level design exists to serve. It is ratified by
 ADR-001 through ADR-014 and ADR-016 in `../adr/`, which record the chronological
 product decisions that produced the current contract. ADR-018 establishes
-minimum completed-execution inspectability. ADR-015 governs how this normative
-specification co-evolves with the formal TLA+/TLC model and verification
-manifest.
+minimum completed-execution inspectability. ADR-020 and ADR-021 clarify
+independent-agent context provenance and completion/output semantics. ADR-015
+governs how this normative specification co-evolves with the formal TLA+/TLC
+model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -284,10 +285,20 @@ main-agent phase:
 Local semantic or discretionary authority inside an explicitly declared
 main-agent or independent-agent region is distinct from global orchestration
 authority. Such an agent MAY explore, edit, test, react to evidence, and choose
-local tactics within its region. A result of that work MAY select among
-continuations related to the result by executable workflow semantics; it does
-not thereby create a new orchestration possibility or authorize the agent to
-rewrite the enclosing graph.
+local tactics within its region.
+
+For an independent-agent region, the workflow-declared task boundary is semantic
+rather than an exhaustive whitelist of files, actions, or hypotheses: work may
+follow evidence into another module when it remains directed toward the declared
+task and uses available authority. The independent agent MAY exercise available
+authority but MUST NOT unilaterally create additional authority. A future
+workflow semantic may authorize a capability grant explicitly; local desire
+alone cannot do so.
+
+A result of local work MAY select among continuations related to the result by
+executable workflow semantics; it does not thereby create a new orchestration
+possibility, skip a phase, rewrite the enclosing graph, or make the agent owner
+of global progression.
 
 Every decision required for global workflow progression MUST be represented by
 executable workflow semantics. Those semantics MAY explicitly delegate a
@@ -378,14 +389,32 @@ Conceptually:
 
 ```text
 workflow
-  → construct bounded task/context
-  → start independent agent
-  → agent performs autonomous multi-turn work
-  → return result to workflow
-  → workflow continues
+  → declare local task and explicit initial cognitive context
+  → start a fresh independent cognitive lineage
+  → agent performs autonomous multi-turn local work
+  → if normal completion occurs, TURNLOCK recognizes it
+  → required output, if any, becomes available
+  → workflow follows its declared continuation
 ```
 
-The independent agent exists precisely because a cognitive fork can be useful. Its task may be bounded more tightly than the main session, its context may be selected specifically for the job, and its intermediate exploration does not need to become part of the main-agent lineage.
+The independent agent exists precisely because a cognitive fork can be useful.
+Its initial cognitive context is supplied explicitly through workflow semantics
+rather than inherited implicitly from the main-agent lineage. The workflow may
+supply main-agent-derived summaries, artifacts, files, prior results, or other
+declared information, and the agent may acquire further information during its
+own work. Its intermediate exploration does not need to become part of the
+main-agent lineage.
+
+The workflow owns the declared task and global continuation; the agent owns its
+local strategy and tactics. The task is a semantic mission boundary, not an
+exhaustive file or action whitelist. The agent may exercise available authority
+but cannot expand that authority unilaterally. None of these structural and
+authority boundaries requires a maximum turn, token, tool-call, cost, or
+wall-clock budget, a timeout, cancellation rule, or guaranteed completion.
+
+A child agent spawned internally by the main agent remains part of that main
+agent's ordinary local delegation unless the workflow explicitly declares the
+child as a first-class TURNLOCK independent-agent region.
 
 TURNLOCK MUST also be able to express parallel independent-agent work under workflow ownership. Parallel agents may receive:
 
@@ -415,14 +444,23 @@ Some semantic tasks do not require an agentic loop at all. When the workflow alr
 Conceptually:
 
 ```text
-instruction + explicit context
-          ↓
-       LLM call
-          ↓
-        result
+explicit instruction + explicit context
+                  ↓
+       one semantic inference operation
+                  ↓
+                result
 ```
 
-A raw LLM call does not imply an autonomous observe/reason/act loop, persistent cognitive lineage, interactive session continuity, or access to the ordinary main-agent harness loop. It is intentionally narrower.
+A raw LLM call does not imply an autonomous observe/reason/act loop, persistent
+independent cognitive lineage, interactive session continuity, or access to the
+ordinary main-agent harness loop. It is intentionally narrower, and its result
+boundary is constitutive of the primitive.
+
+`One-shot` describes this TURNLOCK semantic operation rather than its physical
+provider realization. It does not require exactly one HTTP request, provider
+attempt, model call, or response-delivery mode. `Bounded` likewise introduces no
+maximum tokens, cost, time, retries, or other resource budget and no guarantee
+that every started operation completes.
 
 Representative uses include classification, extraction, summarization, scoring, ranking, rewriting, adjudication, or another bounded semantic transformation for which one inference is sufficient.
 
@@ -857,13 +895,23 @@ a proprietary builder is required to express core TURNLOCK workflow behavior
 
 a workflow whose declared topology requires independent agents must hand orchestration to the main agent merely to spawn, synchronize, or collect those agents
 
-independent-agent execution silently inherits the entire main-agent cognitive lineage when the workflow requested a bounded independent task
+a workflow-declared independent agent implicitly inherits main-agent cognitive context instead of receiving initial cognitive context through explicit workflow semantics
+
+an internally spawned child of the main agent is automatically reclassified as a first-class TURNLOCK independent-agent region
+
+an independent agent can unilaterally expand its authority or rewrite global workflow progression because it owns local tactics
+
+normal completion of an independent-agent region is rejected solely because its declared contract requires no non-empty business payload
+
+structural or authority boundedness is treated as a concrete resource limit or a universal completion guarantee
 
 a bounded one-shot semantic task can only be expressed by creating a multi-turn agent or yielding to the main agent
 
 parallel independent semantic work cannot be expressed as workflow-owned fan-out/fan-in
 
 a heterogeneous fan-out cannot combine mechanical, raw-LLM, and independent-agent branches while preserving each branch's distinct semantics
+
+one semantic raw-LLM operation is required to equal exactly one provider request, physical model call, or attempt
 
 probabilistic semantic leaves are treated as if they necessarily transfer global orchestration authority away from the workflow
 
@@ -1066,6 +1114,7 @@ prose:
 | ----------- | -------------- | ---------------- | ---------------- | ------------------ | -------------- |
 | `main-agent` | `main agent` | [`term-main-agent`](#term-main-agent) | `main coding agent`; `existing main agent` | — | base |
 | `workflow` | `workflow` | [`term-workflow`](#term-workflow) | — | — | base |
+| `execution-region` | `execution region` | [`term-execution-region`](#term-execution-region) | `workflow execution region` | — | compound |
 | `workflow-invocation-surface` | `workflow invocation surface` | [`term-workflow-invocation-surface`](#term-workflow-invocation-surface) | `slash-command invocation surface` | — | compound |
 | `workflow-artifact` | `workflow artifact` | [`term-workflow-artifact`](#term-workflow-artifact) | `workflow code` | — | compound |
 | `turnlock-primitives` | `TURNLOCK primitives` | [`term-turnlock-primitives`](#term-turnlock-primitives) | `workflow primitives` | — | compound |
@@ -1139,6 +1188,21 @@ It is not merely a prompt describing desired sequencing.
 
 The workflow must retain enough execution truth to resume after temporary main-agent control.
 
+## 2.2A Execution region
+
+<a id="term-execution-region"></a>
+
+An **execution region** is a workflow-declared semantic scope in which one
+execution form performs declared work with local execution authority, without
+thereby acquiring authority over the enclosing workflow's global orchestration.
+The declaration identifies the region's place and continuation in workflow
+semantics; a runtime occurrence is one execution of that declared region.
+
+This distinction requires no `Region` data type, stable activation identifier,
+process, thread, coroutine, or other runtime representation. It provides only
+the structural boundary needed to distinguish entry, local activity, and an
+applicable completion transition without implying that completion must occur.
+
 ## 2.3 Workflow invocation surface
 
 <a id="term-workflow-invocation-surface"></a>
@@ -1189,22 +1253,30 @@ including a main-agent step.
 
 <a id="term-raw-llm-inference"></a>
 
-**Raw LLM inference** is a bounded stateless semantic computation in which an
-instruction and explicit context are supplied to a model and a result is
-received without requesting an autonomous multi-turn agent loop or continuation
-of the main interactive agent. Statelessness here denotes the absence of that
-autonomous loop and of a persistent cognitive lineage; it does not select a
-provider mechanism, retry policy, cache policy, or concrete resource budget.
+**Raw LLM inference** is a bounded, non-agentic semantic operation in which an
+explicit instruction and explicit context are supplied to a model and produce a
+result. `Bounded` identifies one declared TURNLOCK operation with an input and
+result boundary. It does not establish an autonomous observe/reason/act loop, a
+persistent independent cognitive lineage, or global workflow-orchestration
+authority.
+
+The operation is one-shot at the TURNLOCK semantic level only. It does not
+require exactly one provider request, one physical model call, one attempt, no
+internal retry, or no streaming. Nor does its boundary select a token, cost,
+time, request, or other resource limit or guarantee that an occurrence
+completes. If and when a result is produced, workflow semantics may consume it
+only through declared progression.
 
 <a id="term-raw-llm-inference-step"></a>
 
-A **raw LLM inference step** is the workflow phase that supplies the inputs to
-and receives the result from raw LLM inference.
+A **raw LLM inference step** is the workflow phase that supplies the explicit
+instruction and context to, and receives the constitutive result of, raw LLM
+inference.
 
 Its semantic shape is:
 
 ```text
-explicit input/context → model inference → result
+explicit instruction + explicit context → model inference → result
 ```
 
 It may be executed singly or as part of declared parallel fan-out.
@@ -1214,25 +1286,63 @@ It may be executed singly or as part of declared parallel fan-out.
 <a id="term-independent-agent"></a>
 
 An **independent agent** is an agentic execution resource that operates within a
-new bounded cognitive lineage created for a declared task. It may perform
-autonomous multi-turn reasoning, tool use, observation, and adaptation within
-the capabilities granted to its workflow phase.
+fresh cognitive lineage distinct from the main agent for a workflow-declared
+local task. Its initial cognitive context consists only of information supplied
+explicitly through workflow semantics; it receives no implicit inheritance of
+the main agent's cognitive history. It may then acquire information through the
+capabilities available during its autonomous multi-turn reasoning, tool use,
+observation, and adaptation.
+
+For independent-agent execution, `bounded` means that the workflow declares the
+local task, initial cognitive-context provenance, place in the workflow, and
+continuation, while the agent exercises only local available authority. It does
+not mean that all physical effects remain inside the region, impose a maximum
+number of turns, tokens, tool calls, cost, or time, require a timeout or
+cancellation rule, or guarantee completion.
+
+The workflow owns the declared task boundary. The agent owns its local plan,
+tactics, exploration, ordering of local actions, and hypothesis changes while
+exercising available authority. It cannot create additional authority merely by
+wanting it and cannot acquire global workflow-orchestration authority through
+local autonomy. These rules do not prescribe a capability manifest, tool list,
+permission system, context format, or resource budget.
 
 <a id="term-independent-agent-step"></a>
 
-An **independent-agent step** is the workflow phase that creates an independent
-agent for a declared task and returns its result to the workflow.
-
-Its semantic shape is:
+An **independent-agent step** is the execution region in which workflow semantics
+declare the local task, initial cognitive context, and continuation for an
+independent agent. Its semantic shape is:
 
 ```text
-bounded task/context
-→ independent agentic loop
-→ result
-→ workflow continuation
+workflow-declared local task
++ fresh distinct cognitive lineage
++ explicitly supplied initial cognitive context
+→ autonomous multi-turn local work
+→ normal completion if reached
+→ optional declared output
+→ workflow-owned continuation
 ```
 
-An independent-agent step intentionally does **not** preserve main-agent cognitive lineage. That isolation is part of the capability, not a defect. Multiple independent-agent steps may execute concurrently, whether they perform the same task or different tasks.
+Effects, output, and completion are distinct. Effects are changes caused during
+execution and may persist beyond the region. Output is a business value exposed
+to workflow semantics when the declared contract requires one; a non-empty
+business payload is otherwise not mandatory. Completion is the fact that a
+runtime occurrence reached its normal boundary. If normal completion occurs,
+TURNLOCK can recognize it, workflow-owned progression follows the declared
+continuation, and any contract-required output becomes available. This
+conditional rule does not guarantee that every started occurrence completes.
+
+Fresh lineage does not mean absence of runtime or system instructions, tool
+descriptions, harness environment, or technical execution state. Explicitly
+supplying main-agent-derived summaries, artifacts, files, or prior results also
+does not constitute implicit lineage inheritance.
+
+An agent spawned internally by the main agent during a main-agent region remains
+local delegation under ordinary main-agent agency unless workflow semantics
+explicitly declare it as a first-class TURNLOCK independent-agent region. The
+fresh-lineage context-provenance rule does not automatically apply to such an
+internal child. Multiple workflow-declared independent-agent steps may execute
+concurrently, whether they perform the same task or different tasks.
 
 ## 2.5 Main-agent handoff and main-agent step
 
@@ -1612,13 +1722,36 @@ This invariant does not require main-agent continuation to be an ordinary parall
 
 TURNLOCK MUST allow a workflow to declare bounded independent-agent execution directly. The workflow MUST NOT be required to yield to the main agent merely so that the main agent can decide to create an agent that the workflow topology already requires.
 
-Independent-agent execution creates a distinct cognitive lineage by design and returns a result to workflow-owned progression.
+Each workflow-declared independent-agent region has a declared local task,
+creates a fresh cognitive lineage distinct from the main agent, and permits
+autonomous multi-turn local work within available authority. If a runtime
+occurrence reaches normal completion, TURNLOCK MUST recognize that completion
+and follow the workflow-declared continuation. A business output is optional
+unless the region contract requires one; any required output MUST become
+available on normal completion. Effects MAY persist independently of whether a
+business output is required.
 
-## 3.24 TL-INV-026 — Bounded-context delegation invariant
+This invariant neither grants the agent global orchestration authority nor
+requires a concrete resource bound or universal completion.
 
-An independent-agent task MUST be conceptually capable of receiving task-specific context rather than implicitly inheriting the complete main-agent cognitive lineage. The exact context-construction API remains open, but bounded context is part of the product value of independent delegation.
+## 3.24 TL-INV-026 — Independent-agent context-provenance invariant
 
-The workflow author must be able to treat cognitive isolation as intentional.
+A workflow-declared independent agent MUST receive no implicit inheritance of
+the main agent's cognitive context. Its initial cognitive context MUST consist
+only of information supplied explicitly through workflow semantics. It MAY then
+acquire additional information during its own execution through available
+capabilities.
+
+Explicit workflow input MAY contain main-agent-derived summaries, artifacts,
+files, or prior results without becoming implicit lineage inheritance. Fresh
+cognitive lineage does not require an empty runtime environment or exclude
+system instructions, tool descriptions, or technical execution state. The exact
+context-construction API, representation, serialization, and size or resource
+limits remain open.
+
+This rule applies to first-class workflow-declared independent-agent regions. It
+does not automatically govern a child agent spawned internally through ordinary
+main-agent agency.
 
 ## 3.25 TL-INV-027 — Parallel semantic fan-out/fan-in invariant
 
@@ -1634,9 +1767,17 @@ MUST NOT require the main agent to become the scheduler merely because the concu
 
 ## 3.26 TL-INV-028 — Raw-LLM inference invariant
 
-TURNLOCK MUST expose bounded non-agentic model inference as a semantic execution form distinct from independent-agent execution and main-agent continuation.
+TURNLOCK MUST expose raw LLM inference as one declared bounded non-agentic
+semantic operation with explicit instruction and context, no autonomous
+observe/reason/act loop, no persistent independent cognitive lineage, a result
+boundary, and no global workflow-orchestration authority.
 
-A workflow that needs a one-shot semantic transformation MUST NOT be forced to create a multi-turn agentic loop or hand control to the main agent solely to obtain model intelligence.
+A workflow that needs a one-shot semantic transformation MUST NOT be forced to
+create a multi-turn agentic loop or hand control to the main agent solely to
+obtain model intelligence. `One-shot` and `bounded` describe the TURNLOCK
+semantic operation; they MUST NOT be interpreted as requiring one physical
+provider call, forbidding internal retries or streaming, selecting a concrete
+resource limit, or guaranteeing completion.
 
 ## 3.27 TL-INV-029 — Minimum-sufficient cognition invariant
 
@@ -1787,6 +1928,7 @@ The following questions are important but are **not yet answered by the product 
 - Whether implementations impose explicit resource/safety limits on nesting depth, and how such limits are surfaced without changing immediate-caller return semantics.
 - What security/trust model applies to user-authored workflow code.
 - How a workflow selects models/providers and expresses inference budgets, model parameters, structured outputs, or provider fallbacks for raw LLM calls.
+- How one semantic raw-LLM operation maps to provider requests, retries, streaming, or other physical inference mechanics.
 - How independent-agent context is constructed, materialized, isolated, and size/budget constrained.
 - Which tools/capabilities an independent agent may receive and how those capabilities are declared.
 - What lifecycle limits apply to independent agents, including turn, token, time, and tool-use budgets.
@@ -1892,9 +2034,16 @@ This implication does not select a concurrency mechanism, scheduler, worker mode
 
 ## 5.12 Context construction becomes an explicit boundary
 
-Independent agents and raw LLM calls derive value from receiving deliberately bounded context. TURNLOCK therefore needs an architectural place where task inputs/context are assembled without conflating that assembly with inheritance of the main-agent conversation.
+Independent agents and raw LLM calls derive value from deliberately supplied
+context. TURNLOCK therefore needs an architectural place where instructions,
+task inputs, and context are assembled without conflating explicit workflow data
+flow with implicit inheritance of the main-agent cognitive lineage.
 
-The exact representation and dataflow API remain open.
+For a workflow-declared independent agent, initial cognitive context must be
+attributable to explicit workflow semantics. This requirement does not apply
+automatically to child agents created through ordinary local main-agent
+delegation. The exact representation, serialization, context API, and dataflow
+mechanism remain open.
 
 ## 5.13 The orchestration core must remain richer than a prompt sequencer
 
@@ -2043,7 +2192,7 @@ what context is intentionally provided?
 who owns local execution?
 who owns global progression?
 how are concurrent branches joined?
-what value returns to the workflow?
+what marks normal completion if reached, and what output does the contract require?
 ```
 
 The authoring surface must additionally prove that the same workflow can be produced through either direct developer authoring or coding-agent authoring using public TURNLOCK primitives, without requiring a privileged generator path. The Pi implementation must prove the complete reference scenarios while keeping Pi-specific mechanisms below the TURNLOCK workflow semantics boundary.
@@ -2132,7 +2281,11 @@ Focused configurations are development accelerators, not substitutes for integra
 
 A semantic change affecting the formal state machine should normally run the relevant focused checks plus an integrated smoke exploration. Larger integrated runs are governed by CI/release policy.
 
-TLC exploration is necessarily finite. "Integrated" means the formalized mechanisms are connected in the same abstract model; it does not claim exhaustive exploration of an unbounded real-world system.
+TLC exploration is necessarily finite. "Integrated" means the formalized
+mechanisms are connected in the same abstract model; it does not claim exhaustive
+exploration of an unbounded real-world system. A finite TLC domain or exploration
+bound is a formal-modeling choice, not a TURNLOCK product resource limit,
+timeout, termination guarantee, or fairness premise.
 
 Safety and liveness are distinct obligations. For example:
 
