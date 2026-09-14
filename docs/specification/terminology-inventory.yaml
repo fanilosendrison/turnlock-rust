@@ -1,0 +1,253 @@
+# Non-authoritative review inventory. This file contains no lexical definitions
+# and does not establish product meaning. Section 2 of turnlock-spec.md remains
+# the canonical terminology registry. Fingerprints force human review when a
+# likely definition-like occurrence changes; they do not prove semantic parity.
+schema_version: 1
+authority: non-authoritative-review-inventory
+source: docs/specification/turnlock-spec.md
+fingerprint:
+  algorithm: sha256
+  normalization: collapse-whitespace
+occurrences:
+- concepts:
+  - main-agent
+  section: '2.1'
+  heading: 2.1 Main agent
+  role: canonical-definition
+  fingerprint: edcce5926c58fa680b568579a4f29337592bb67ff686c328a5ebb9a4fbb2ebd0
+- concepts:
+  - workflow
+  section: '2.2'
+  heading: 2.2 Workflow
+  role: canonical-definition
+  fingerprint: e5b85496196d6d0a650cf6c57a4cfd15f90e87ef6bcd4f698dc1b57e70577441
+- concepts:
+  - workflow-invocation-surface
+  section: '2.3'
+  heading: 2.3 Workflow invocation surface
+  role: canonical-definition
+  fingerprint: dce3ff70482797f9a1cc3161f4fa970cb5bd206b965692eb11408036ffb12ac6
+- concepts:
+  - workflow-artifact
+  section: 2.3A
+  heading: 2.3A Workflow artifact and TURNLOCK primitives
+  role: canonical-definition
+  fingerprint: e7780a1d42f08c97c6890046cee85dceaed447471f9f35f87f93ef1d51a43171
+- concepts:
+  - turnlock-primitives
+  section: 2.3A
+  heading: 2.3A Workflow artifact and TURNLOCK primitives
+  role: canonical-definition
+  fingerprint: b526d118880ebeb6f15a11bd42e8c3c92b17f9f774dc3d76cfcddeee69411aa1
+- concepts:
+  - mechanical-execution
+  section: '2.4'
+  heading: 2.4 Mechanical execution and mechanical step
+  role: canonical-definition
+  fingerprint: 55e6587c09ba7b98d4bddb3cb8d26e4db61d9597f9cc3dfce8839e02d59c0739
+- concepts:
+  - mechanical-step
+  section: '2.4'
+  heading: 2.4 Mechanical execution and mechanical step
+  role: canonical-definition
+  fingerprint: 2764f8b95f6126caaa1663970701cac79b7fcec7e8be172297e6e08bbd0286ab
+- concepts:
+  - raw-llm-inference
+  section: 2.4A
+  heading: 2.4A Raw LLM inference and raw LLM inference step
+  role: canonical-definition
+  fingerprint: 322c316feeec84dac03dc46dd3abfc9bb9330f446471d2eb656188eb2ea8d3df
+- concepts:
+  - raw-llm-inference-step
+  section: 2.4A
+  heading: 2.4A Raw LLM inference and raw LLM inference step
+  role: canonical-definition
+  fingerprint: 7d41d52ed2875410bf8b770b2eec893d329cfb02d95be2ed8a67a2391dba0b9a
+- concepts:
+  - independent-agent
+  section: 2.4B
+  heading: 2.4B Independent agent and independent-agent step
+  role: canonical-definition
+  fingerprint: a542910a94e8a9f549bd42ac77c67c73d68229c21ddef93686435d7a27fc43c3
+- concepts:
+  - independent-agent-step
+  section: 2.4B
+  heading: 2.4B Independent agent and independent-agent step
+  role: canonical-definition
+  fingerprint: 64eeff1919465140b6b266bdef0261fd5ac5eb5eeec0cf05fdc90fc9cf94ba80
+- concepts:
+  - main-agent-handoff
+  section: '2.5'
+  heading: 2.5 Main-agent handoff and main-agent step
+  role: canonical-definition
+  fingerprint: b0ab602b78c5d6f73d76c35d2d08e9a35453d05d39ff7d7185874e2415b363a6
+- concepts:
+  - main-agent-step
+  section: '2.5'
+  heading: 2.5 Main-agent handoff and main-agent step
+  role: canonical-definition
+  fingerprint: 9889968c232c1106482f4d83b7bb83e8517ab63d0200decc095b6d9ca9e5c421
+- concepts:
+  - immediate-caller-context
+  section: '2.6'
+  heading: 2.6 Invocation context and caller stack
+  role: canonical-definition
+  fingerprint: 7b8c543f05999de5dd35ad06eeb2324c7e5c6016dce12eb239cfc8ceef0cbbdf
+- concepts:
+  - caller-stack
+  section: '2.6'
+  heading: 2.6 Invocation context and caller stack
+  role: canonical-definition
+  fingerprint: 528dda213a68b503af099cbed5bc9fabc1ba55724230bc0ac3cf770f34414927
+- concepts:
+  - control-ownership
+  section: '2.7'
+  heading: 2.7 Control ownership and workflow-owned control
+  role: canonical-definition
+  fingerprint: 092d0669e77467b3b3ecd3e8a0cfd5e6a154ccb068bbaf26b909bd47928e6987
+- concepts:
+  - workflow-owned-control
+  section: '2.7'
+  heading: 2.7 Control ownership and workflow-owned control
+  role: canonical-definition
+  fingerprint: 0f94b9f814576bea86c8b427a4feaebb29b1068daccea5664444b5e4050878c8
+- concepts:
+  - parallel-fan-out-fan-in
+  section: '2.8'
+  heading: 2.8 Parallel and nested composition
+  role: canonical-definition
+  fingerprint: 4355f879b30dbdf1fb5b5d9448c61c347312e71f5dc3ae0ed8201fd8b89fe56d
+- concepts:
+  - nested-workflow-invocation
+  section: '2.8'
+  heading: 2.8 Parallel and nested composition
+  role: canonical-definition
+  fingerprint: a6bb7366c92ece18776ab6586448520e890d3b2c7ae0efde6a497114851d1553
+- concepts:
+  - workflow
+  section: '0.1'
+  heading: '0.1 Product definition: user-authored workflows inside coding-agent sessions'
+  role: intent
+  fingerprint: d749800ce538a10d160c5a5e6278604a42e37d5d1ed3aa63c9d04df4dd894051
+- concepts:
+  - workflow
+  section: 0.3A
+  heading: 0.3A Workflow capabilities remain invocable whenever the main agent owns control
+  role: intent
+  fingerprint: 301e40e610399cca96eb2fa8396cec44e4c69a6994fe59c27cf71b95b122bc15
+- concepts:
+  - main-agent-step
+  section: '0.4'
+  heading: 0.4 Main-agent steps are real control handoffs
+  role: intent
+  fingerprint: c0c21f45b900fc0383b5fa0814834832a2022927316e6438e16da8f987d3b996
+- concepts:
+  - immediate-caller-context
+  section: '0.6'
+  heading: 0.6 Workflow completion returns control to the immediate caller
+  role: intent
+  fingerprint: 7702b1158d673981cc9dd2a2e4f6119023a69093b217c0585f1381f9cf5e45f6
+- concepts:
+  - immediate-caller-context
+  section: '0.6'
+  heading: 0.6 Workflow completion returns control to the immediate caller
+  role: intent
+  fingerprint: 6ec5c95f402bfb5f8d80816a93c8fd51865b43b232b480461e71083d279ffe05
+- concepts:
+  - workflow
+  section: '0.8'
+  heading: 0.8 The workflow, not the main agent, owns global progression
+  role: intent
+  fingerprint: 587ba0921d101fab019ea1e45637c3017837e83704c7936065b27a026677083d
+- concepts:
+  - independent-agent-step
+  section: '0.8'
+  heading: 0.8 The workflow, not the main agent, owns global progression
+  role: intent
+  fingerprint: aad26e3b40b13998925fd093fbf2be1d8ba4cc90bdc06423f80e98e06948d149
+- concepts:
+  - workflow
+  section: 0.8A
+  heading: 0.8A TURNLOCK executes orchestration; it does not invent it
+  role: intent
+  fingerprint: 6625653ee7fa838a8a6be2f2c2916d9625c95b3bbe85ef2c3c45539198925696
+- concepts:
+  - main-agent
+  section: '0.10'
+  heading: 0.10 Use the minimum sufficient form of computation or cognition for each workflow region
+  role: intent
+  fingerprint: 8f2feaf635d22a63f69b464f733e9b453d362d50255eb76903f1257f05e830eb
+- concepts:
+  - main-agent-step
+  section: '0.11'
+  heading: 0.11 Session continuity is part of the product value
+  role: intent
+  fingerprint: f07f37d4f1a202b97dd5e9309b7082f17180a9300d6420468ab8252c37bdc2be
+- concepts:
+  - main-agent
+  section: 0.11B
+  heading: 0.11B A main-agent phase restores ordinary interactive agency, not an AI request/response call
+  role: intent
+  fingerprint: 59bcea16001fb73a88f9f66b3db8fc11232c39edbfe9985155dcad9d4333f3d4
+- concepts:
+  - workflow
+  section: 0.13A
+  heading: 0.13A Workflow authoring is developer-native and agent-native
+  role: intent
+  fingerprint: 696068ac1b23c26f445ea9e21019f15fb1da282818cd0298718ebcc4de60ca93
+- concepts:
+  - main-agent
+  - main-agent-step
+  section: '0.14'
+  heading: 0.14 Product-intent conformance rule
+  role: intent
+  fingerprint: ce555620c7fe5aa5983f2f02a31322f6f0cc402047cfaf43b8b513729c967902
+- concepts:
+  - independent-agent
+  - main-agent-handoff
+  section: '1'
+  heading: 1. Purpose
+  role: reference
+  fingerprint: 142dad7c6c41c483eaddf6b9430392d0780ebe41e71cf0b4d5cf11610f60aab0
+- concepts:
+  - workflow
+  section: '2.3'
+  heading: 2.3 Workflow invocation surface
+  role: reference
+  fingerprint: dce3ff70482797f9a1cc3161f4fa970cb5bd206b965692eb11408036ffb12ac6
+- concepts:
+  - independent-agent
+  section: '2.5'
+  heading: 2.5 Main-agent handoff and main-agent step
+  role: reference
+  fingerprint: b0ab602b78c5d6f73d76c35d2d08e9a35453d05d39ff7d7185874e2415b363a6
+- concepts:
+  - immediate-caller-context
+  section: '2.8'
+  heading: 2.8 Parallel and nested composition
+  role: reference
+  fingerprint: a6bb7366c92ece18776ab6586448520e890d3b2c7ae0efde6a497114851d1553
+- concepts:
+  - main-agent-step
+  section: '3.5'
+  heading: 3.5 TL-INV-006 — Enclosing-workflow invariant
+  role: obligation
+  fingerprint: ae75e2320be69dbbb92ce7ab415c5f5f60b2e1b0cfc4d35edfa1902d369fa24f
+- concepts:
+  - immediate-caller-context
+  section: '3.7'
+  heading: 3.7 TL-INV-008 — Invocation/return continuity invariant
+  role: obligation
+  fingerprint: 65513193493d3049bb571cebe673528cb3af6a4187732db37e69d2bf20c6dbb4
+- concepts:
+  - main-agent
+  section: '3.15'
+  heading: 3.15 TL-INV-016 — Workflow-availability invariant
+  role: obligation
+  fingerprint: 8e562f757e5bc156b913f0554e98a14c00d7a022d7dfa62557b1d8c7d451f269
+- concepts:
+  - nested-workflow-invocation
+  section: '4'
+  heading: 4. Current boundaries — intentionally not yet specified
+  role: reference
+  fingerprint: d4370e02198ce841eeb96b603f4ad669fbf356c632b9be53d09d2ce1634c3b4e

@@ -231,8 +231,10 @@ For top-level workflows, this preserves the original promise that the ordinary i
 ## 0.7 Mechanical work must not require agent interpretation
 
 A workflow may contain steps whose progression is sufficiently specified that it
-can execute mechanically. Mechanical execution is defined by execution and
-control authority, not by computational determinism.
+can execute mechanically. Section 2.4 owns the canonical meanings of
+**mechanical execution** and **mechanical step**. In this product-intent context,
+the consequence is that execution and control authority, rather than
+computational determinism, distinguishes mechanical work.
 
 Examples may eventually include commands, checks, transformations, waiting,
 event handling, branching, state transitions, validation, or other executable
@@ -295,7 +297,12 @@ the remaining control-flow graph after every agentic phase.
 
 ## 0.8A TURNLOCK executes orchestration; it does not invent it
 
-The phrase **“the workflow owns orchestration”** refers to ownership of the declared orchestration logic, not to TURNLOCK being absent from execution. TURNLOCK is the runtime/engine that interprets or executes the workflow program, tracks its declared progression, and realizes its primitives against the available harness and execution resources.
+Section 2.7 owns the canonical meanings of **control ownership** and
+**workflow-owned control**. At the product-intent level, the workflow's ownership
+of declared orchestration logic does not make TURNLOCK absent from execution.
+TURNLOCK is the runtime/engine that interprets or executes the workflow program,
+tracks its declared progression, and realizes its primitives against the
+available harness and execution resources.
 
 The roles are therefore:
 
@@ -911,6 +918,71 @@ execution resources becomes the global orchestrator merely by being used.
 
 # 2. Core mental model
 
+Section 2 is the canonical terminology registry for this specification. It owns
+lexical definitions, but it is not the sole owner of product meaning:
+
+```text
+Section 0 = normative product intent and promise
+Section 2 = canonical lexical definitions
+Section 3 = normative obligations and stable invariant identities
+Section 5 = architectural implications derived from the intent and invariants
+Section 8 = non-authoritative derived synopsis
+accepted ADRs = immutable decision history
+```
+
+Every normative concept that receives a lexical definition is registered here,
+and one normative concept has exactly one canonical lexical definition,
+identified below by a unique local concept key and stable `term-*` anchor. Other
+sections may use a registered concept, state product intent, impose obligations, or
+explain consequences, but they do not assign it an independent lexical meaning.
+References to a concept therefore use its Section 2 meaning unless an explicit
+later authority change updates this registry.
+
+A canonical term is the preferred wording for its registered concept. An
+accepted alias points to that same concept and definition. Deprecated wording
+is retained only to identify wording that must not be treated as canonical.
+Compound terms remain distinct registered concepts when the compound carries a
+more specific identity than its component terms. A word used in several
+compounds is not forced into one shared meaning: each distinct normative concept
+receives its own key and destination. In particular, repeated use of a modifier
+such as `bounded` does not make all containing compounds equivalent; the
+relevant compound entries are the canonical destinations for any later
+clarification of that modifier.
+
+The registry identifies definitions; it does not summarize or replace their
+prose:
+
+<!-- normative-terminology-registry:start -->
+| Concept key | Canonical term | Canonical anchor | Accepted aliases | Deprecated wording | Term structure |
+| ----------- | -------------- | ---------------- | ---------------- | ------------------ | -------------- |
+| `main-agent` | `main agent` | [`term-main-agent`](#term-main-agent) | `main coding agent`; `existing main agent` | — | base |
+| `workflow` | `workflow` | [`term-workflow`](#term-workflow) | — | — | base |
+| `workflow-invocation-surface` | `workflow invocation surface` | [`term-workflow-invocation-surface`](#term-workflow-invocation-surface) | `slash-command invocation surface` | — | compound |
+| `workflow-artifact` | `workflow artifact` | [`term-workflow-artifact`](#term-workflow-artifact) | `workflow code` | — | compound |
+| `turnlock-primitives` | `TURNLOCK primitives` | [`term-turnlock-primitives`](#term-turnlock-primitives) | `workflow primitives` | — | compound |
+| `mechanical-execution` | `mechanical execution` | [`term-mechanical-execution`](#term-mechanical-execution) | `mechanical work` | `deterministic execution` | compound |
+| `mechanical-step` | `mechanical step` | [`term-mechanical-step`](#term-mechanical-step) | `mechanical phase`; `mechanical region` | — | compound |
+| `raw-llm-inference` | `raw LLM inference` | [`term-raw-llm-inference`](#term-raw-llm-inference) | `raw LLM call` | — | compound; overloaded modifier: `bounded` |
+| `raw-llm-inference-step` | `raw LLM inference step` | [`term-raw-llm-inference-step`](#term-raw-llm-inference-step) | — | — | compound of `raw-llm-inference` |
+| `independent-agent` | `independent agent` | [`term-independent-agent`](#term-independent-agent) | — | — | compound; overloaded modifier: `bounded` |
+| `independent-agent-step` | `independent-agent step` | [`term-independent-agent-step`](#term-independent-agent-step) | `independent-agent phase`; `independent-agent region` | — | compound of `independent-agent` |
+| `main-agent-handoff` | `main-agent handoff` | [`term-main-agent-handoff`](#term-main-agent-handoff) | `control handoff`; `handoff to the main agent` | — | compound |
+| `main-agent-step` | `main-agent step` | [`term-main-agent-step`](#term-main-agent-step) | `main-agent phase`; `main-agent region`; `main-agent continuation` | — | compound |
+| `immediate-caller-context` | `immediate caller context` | [`term-immediate-caller-context`](#term-immediate-caller-context) | `immediate caller`; `invocation context`; `caller context` | — | compound |
+| `caller-stack` | `caller stack` | [`term-caller-stack`](#term-caller-stack) | `structured caller stack` | — | compound |
+| `control-ownership` | `control ownership` | [`term-control-ownership`](#term-control-ownership) | `local control`; `phase-local control` | — | compound |
+| `workflow-owned-control` | `workflow-owned control` | [`term-workflow-owned-control`](#term-workflow-owned-control) | `the workflow owns orchestration`; `workflow owns global progression` | `deterministic orchestration` | compound |
+| `parallel-fan-out-fan-in` | `parallel fan-out/fan-in` | [`term-parallel-fan-out-fan-in`](#term-parallel-fan-out-fan-in) | `fan-out/fan-in`; `parallel region` | — | compound |
+| `nested-workflow-invocation` | `nested workflow invocation` | [`term-nested-workflow-invocation`](#term-nested-workflow-invocation) | `nested invocation` | — | compound |
+<!-- normative-terminology-registry:end -->
+
+Definition-like occurrences outside their canonical destinations are reviewed in
+`terminology-inventory.yaml`. That inventory records locations,
+responsibility-based roles, and text fingerprints only. It is a review aid, not
+a glossary or semantic authority. The associated checker detects likely
+competing definitions conservatively; passing it establishes structural and
+inventory consistency, not semantic equivalence.
+
 The system must not treat these concepts as equivalent:
 
 ```text
@@ -933,6 +1005,8 @@ They are distinct product concepts.
 
 ## 2.1 Main agent
 
+<a id="term-main-agent"></a>
+
 The **main agent** is the coding agent participating in the user's surrounding interactive session.
 
 It is the agent that has the user-facing conversational continuity before workflow entry and to which the workflow returns when execution finishes.
@@ -942,6 +1016,8 @@ A main-agent step temporarily makes that agent active inside workflow execution.
 The main agent does not thereby become the owner of the workflow's global control flow.
 
 ## 2.2 Workflow
+
+<a id="term-workflow"></a>
 
 A **workflow** is an executable user-defined process that owns progression across its steps after entry and until termination.
 
@@ -953,6 +1029,8 @@ The workflow must retain enough execution truth to resume after temporary main-a
 
 ## 2.3 Workflow invocation surface
 
+<a id="term-workflow-invocation-surface"></a>
+
 A **workflow invocation surface** is the session-local user interaction through which a TURNLOCK workflow is selected and started.
 
 For supported coding-agent harnesses, the ordinary invocation surface is a **natural slash command comparable to invoking a native skill**. The concrete command name, namespace, registration mechanism, and mapping between commands and workflows are intentionally not fixed yet.
@@ -961,24 +1039,33 @@ The invocation surface should be small in semantic responsibility: it selects/st
 
 ## 2.3A Workflow artifact and TURNLOCK primitives
 
+<a id="term-workflow-artifact"></a>
+
 A **workflow artifact** is the developer-readable executable representation of a TURNLOCK workflow. A developer may author it directly or a coding agent may author it on the developer's behalf. Those are two authorship paths to the same semantic object, not two workflow classes.
+
+<a id="term-turnlock-primitives"></a>
 
 **TURNLOCK primitives** are the author-facing operations that express TURNLOCK's control semantics. Their exact syntax and full set are not fixed yet, but they must represent product concepts at TURNLOCK level rather than require workflow authors to reproduce harness-specific control plumbing.
 
 Pi-specific APIs may implement these primitives in the first integration; they are not themselves automatically TURNLOCK primitives.
 
-## 2.4 Mechanical step
+## 2.4 Mechanical execution and mechanical step
 
-A **mechanical step** is a workflow phase whose progression follows executable
-workflow semantics together with runtime inputs, results, state, or events,
-rather than requiring discretionary agent judgment to supply missing
-orchestration decisions.
+<a id="term-mechanical-execution"></a>
 
-Mechanical describes non-agent-mediated execution, not computational or output
-determinism. A mechanical step may be deterministic, nondeterministic,
-probabilistic, dependent on external state, or event-driven. It may consume an
-LLM or agent result without inheriting the producer's local authority; a declared
-rule that branches on that result remains mechanical.
+**Mechanical execution** is non-agent-mediated progression governed by
+executable workflow semantics together with runtime inputs, results, state, or
+events. The term identifies execution and control authority, not computational
+or output determinism. Mechanical execution may be deterministic,
+nondeterministic, probabilistic, dependent on external state, or event-driven.
+
+<a id="term-mechanical-step"></a>
+
+A **mechanical step** is a workflow phase that uses mechanical execution. Its
+progression does not require discretionary agent judgment to supply a missing
+orchestration decision. It may consume an LLM or agent result without inheriting
+the producer's local authority; a declared rule that branches on that result
+remains mechanical.
 
 This specification intentionally does not yet fix which mechanical primitives
 exist or how they are expressed.
@@ -986,9 +1073,21 @@ exist or how they are expressed.
 A mechanical step may produce state or evidence consumed by later steps,
 including a main-agent step.
 
-## 2.4A Raw LLM inference step
+## 2.4A Raw LLM inference and raw LLM inference step
 
-A **raw LLM inference step** is a bounded semantic computation in which the workflow supplies an instruction and explicit context to a model and receives a result without requesting an autonomous multi-turn agent loop or continuation of the main interactive agent.
+<a id="term-raw-llm-inference"></a>
+
+**Raw LLM inference** is a bounded stateless semantic computation in which an
+instruction and explicit context are supplied to a model and a result is
+received without requesting an autonomous multi-turn agent loop or continuation
+of the main interactive agent. Statelessness here denotes the absence of that
+autonomous loop and of a persistent cognitive lineage; it does not select a
+provider mechanism, retry policy, cache policy, or concrete resource budget.
+
+<a id="term-raw-llm-inference-step"></a>
+
+A **raw LLM inference step** is the workflow phase that supplies the inputs to
+and receives the result from raw LLM inference.
 
 Its semantic shape is:
 
@@ -998,9 +1097,19 @@ explicit input/context → model inference → result
 
 It may be executed singly or as part of declared parallel fan-out.
 
-## 2.4B Independent-agent step
+## 2.4B Independent agent and independent-agent step
 
-An **independent-agent step** creates a new bounded cognitive lineage for a declared task. The agent may perform autonomous multi-turn reasoning, tool use, observation, and adaptation within the capabilities granted to that step, then returns its result to the workflow.
+<a id="term-independent-agent"></a>
+
+An **independent agent** is an agentic execution resource that operates within a
+new bounded cognitive lineage created for a declared task. It may perform
+autonomous multi-turn reasoning, tool use, observation, and adaptation within
+the capabilities granted to its workflow phase.
+
+<a id="term-independent-agent-step"></a>
+
+An **independent-agent step** is the workflow phase that creates an independent
+agent for a declared task and returns its result to the workflow.
 
 Its semantic shape is:
 
@@ -1013,10 +1122,19 @@ bounded task/context
 
 An independent-agent step intentionally does **not** preserve main-agent cognitive lineage. That isolation is part of the capability, not a defect. Multiple independent-agent steps may execute concurrently, whether they perform the same task or different tasks.
 
-## 2.5 Main-agent step
+## 2.5 Main-agent handoff and main-agent step
 
-A **main-agent step** is a workflow phase in which control is temporarily transferred to the main agent.
+<a id="term-main-agent-handoff"></a>
 
+A **main-agent handoff** is the temporary transfer of local execution authority
+from an active workflow to the main agent defined in Section 2.1, followed by a
+return of execution authority to the workflow at the declared continuation. It
+uses the existing main-agent cognitive lineage and ordinary interactive agency;
+a raw LLM call or fresh independent agent is not an equivalent handoff.
+
+<a id="term-main-agent-step"></a>
+
+A **main-agent step** is the workflow phase bounded by that handoff and return.
 Its defining lifecycle is:
 
 ```text
@@ -1031,9 +1149,17 @@ The completion boundary mechanism is not specified yet.
 
 ## 2.6 Invocation context and caller stack
 
-Every workflow invocation has an **immediate caller context**: the execution context that invoked that workflow and to which normal completion returns.
+<a id="term-immediate-caller-context"></a>
 
-For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow invoked from a main-agent region, the caller is that main-agent region. Nested invocations therefore form a structured caller stack conceptually:
+An **immediate caller context** is the execution context that invoked a workflow and to which normal completion of that workflow returns.
+
+For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow invoked from a main-agent region, the caller is that main-agent region.
+
+<a id="term-caller-stack"></a>
+
+A **caller stack** is the conceptual structured nesting of suspended immediate
+caller contexts and active workflow invocations. Nested invocations therefore
+form a caller stack conceptually:
 
 ```text
 main session
@@ -1051,9 +1177,21 @@ main session
 
 This is a semantic model, not a requirement to implement a literal process stack. The invariant is structured suspension and return to the immediate caller.
 
-## 2.7 Control ownership
+## 2.7 Control ownership and workflow-owned control
 
-Control ownership is phase-local, workflow progression is globally declared by the workflow program, and TURNLOCK is the engine that executes and tracks that progression.
+<a id="term-control-ownership"></a>
+
+**Control ownership** is the authority to direct execution within the currently
+active phase or context. It is phase-local and does not by itself grant authority
+over the enclosing workflow's global progression.
+
+<a id="term-workflow-owned-control"></a>
+
+**Workflow-owned control** is the arrangement in which the workflow program is
+the source of truth for declared global orchestration decisions, topology, and
+permitted continuations, while TURNLOCK is the engine that executes and tracks
+that progression. Runtime inputs, results, state, or events may select among
+those declared possibilities; they do not create undeclared continuations.
 
 ```text
 outside workflow:
@@ -1079,6 +1217,22 @@ after workflow termination:
 ```
 
 This distinction is central to TURNLOCK.
+
+## 2.8 Parallel and nested composition
+
+<a id="term-parallel-fan-out-fan-in"></a>
+
+**Parallel fan-out/fan-in** is workflow-declared composition in which independent
+branches may execute concurrently and are synchronized or collected before the
+workflow takes its declared continuation. Each branch retains the semantics of
+its execution form, and the workflow owns the branch topology and join.
+
+<a id="term-nested-workflow-invocation"></a>
+
+A **nested workflow invocation** is a workflow invocation made from a main-agent
+region while that immediate caller context is suspended. The nested workflow
+owns its own declared progression, and normal completion returns to that same
+immediate caller context.
 
 # 3. Derived invariants
 
@@ -1664,37 +1818,33 @@ what value returns to the workflow?
 
 The authoring surface must additionally prove that the same workflow can be produced through either direct developer authoring or coding-agent authoring using public TURNLOCK primitives, without requiring a privileged generator path. The Pi implementation must prove the complete reference scenarios while keeping Pi-specific mechanisms below the TURNLOCK workflow semantics boundary.
 
-# 8. Short form
+# 8. Derived synopsis
+
+This section is a non-authoritative synopsis derived from the specification's
+owning sections. It introduces no lexical definition, product promise, or
+invariant. If compressed wording here diverges, Section 0 governs product intent,
+Section 2 governs terminology, and Section 3 governs obligations and stable
+invariant identities.
 
 TURNLOCK can currently be summarized as:
 
 > **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it. Pi is the first reference harness used to prove the model.**
 
-Or as a control equation:
+The synopsis uses these canonical destinations:
 
-```text
-workflow program = declared orchestration logic / orchestration program
-TURNLOCK = orchestration engine / runtime that executes it
+- workflow, workflow artifact, and TURNLOCK primitives: Sections 2.2 and 2.3A;
+- mechanical execution and mechanical step: Section 2.4;
+- raw LLM inference and raw LLM inference step: Section 2.4A;
+- independent agent and independent-agent step: Section 2.4B;
+- main agent, main-agent handoff, and main-agent step: Sections 2.1 and 2.5;
+- immediate caller context and caller stack: Section 2.6;
+- control ownership and workflow-owned control: Section 2.7;
+- workflow invocation surface: Section 2.3; and
+- parallel fan-out/fan-in and nested workflow invocation: Section 2.8.
 
-mechanical execution = executable progression without missing agent-supplied orchestration decisions
-raw LLM inference = bounded stateless semantic function
-independent agent = bounded autonomous cognitive fork
-main agent = continuation of the existing interactive cognitive lineage
-
-parallelism = workflow-owned fan-out / join
-nested workflow = suspended caller + independent workflow progression + caller resumption
-slash-command invocation = natural session-local workflow invocation surface
-workflow end = structured return to immediate caller
-workflow authoring = developer or coding agent → same TURNLOCK artifact/primitives
-workflow authorship != workflow execution ownership
-Pi = first reference integration, not the semantic definition
-```
-
-The guiding allocation rule is:
-
-```text
-use the minimum sufficient form of computation or cognition for each region
-```
+The guiding allocation rule remains the product principle in Section 0.10 and
+the obligation in `TL-INV-029`: use the minimum sufficient form of computation
+or cognition for each region.
 
 The product is successful only if these roles remain distinct in the real execution model and if known orchestration decisions can remain in the workflow rather than being pushed back into an agent merely because the workflow lacks expressive power.
 
