@@ -34,6 +34,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | Evolve the normative and formal specifications together | accepted | 2026-09-13 | complete | formal-specification workflow, invariant traceability, TLC model-checking organization |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | Separate workflow authorship from runtime execution authority | accepted | 2026-09-13 | complete | Relationship between workflow authorship and runtime orchestration authority |
 | [ADR-017](adr-017-adopt-validated-okf-architecture-decision-record-metadata.md) | Adopt validated OKF Architecture Decision Record metadata | accepted | 2026-09-13 | complete | Architecture Decision Record metadata, lifecycle, integrity, and generated projections<br>Semantics-preserving migration of accepted TURNLOCK ADR metadata<br>Repository-local validation of the adopted OKF ADR profile |
+| [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | Require completed workflow execution inspectability | accepted | 2026-09-14 | complete | Minimum inspectability of completed workflow executions and separation of execution truth from evaluation and optimization |
 
 ## Recorded outgoing relations
 

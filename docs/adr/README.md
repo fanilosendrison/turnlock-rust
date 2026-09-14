@@ -55,9 +55,15 @@ Later ADRs record subsequently accepted decisions.
     byte-identical vendored base schema plus a local overlay, authorizes a
     body-preserving metadata migration, stores outgoing relations only, and
     separates the generated mechanical projection from this annotated history.
+18. [ADR-018: Require completed workflow execution inspectability][18] —
+    **Accepted**. Completed executions expose enough actual TURNLOCK-visible
+    behavior for user- or system-led evaluation and iterative refinement,
+    without making TURNLOCK itself the evaluator or optimizer or selecting a
+    tracing, storage, replay, comparison, or reproducibility mechanism.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
+[18]: adr-018-require-completed-workflow-execution-inspectability.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -81,6 +87,21 @@ authorship != runtime orchestration authority
 An authoring agent may later be invoked through an explicit workflow region,
 including continuation of the same main-agent lineage, without becoming the
 workflow's global scheduler.
+
+ADR-018 extends the product loop beyond correct execution:
+
+```text
+author workflow
+→ execute workflow
+→ inspect and evaluate actual behavior
+→ refine workflow
+→ execute again
+```
+
+TURNLOCK exposes sufficient truth about behavior at its own semantic boundary.
+The user or a higher-level system owns evaluation criteria, comparison where
+appropriate, and workflow changes. Native TURNLOCK evaluation or optimization
+remains a separate product question.
 
 ## Governing reference scenario
 

@@ -11,11 +11,13 @@ name: "Future workflow run-evaluation design space"
 
 > - **Status:** Non-normative future consideration
 > - **Authority:** None
-> - **Accepted product decision:** No
+> - **Normative baseline:** Minimum completed-execution inspectability is accepted
+>   by ADR-018 and the TURNLOCK specification
 > - **Creates TURNLOCK semantics:** No
 > - **Creates invariants:** No
 >
-> This note preserves an exploratory design space. It does not amend the
+> This note preserves an exploratory design space beyond that accepted minimum.
+> It does not amend the
 > [TURNLOCK specification](../specification/turnlock-spec.md), record an accepted
 > [architecture decision](../adr/README.md), define formal-verification intent,
 > or provide execution evidence. If it conflicts with any authoritative source,
@@ -23,9 +25,12 @@ name: "Future workflow run-evaluation design space"
 
 ## 1. Purpose and classification
 
-The repository currently leaves observability, tracing, replay, and debugging
-open. This note prevents a related line of reasoning from being lost without
-promoting it into the product contract.
+ADR-018 and `TL-INV-033` now require minimum inspectability of completed
+execution at TURNLOCK's semantic boundary. Detailed tracing, event schemas,
+retention, storage, telemetry, replay, cross-run comparison, reproducibility,
+execution proofs, debugger UI, evaluation APIs, metrics, and automatic
+optimization remain open. This note prevents that stronger design space from
+being lost without promoting it into the product contract.
 
 Preserving this exploration is classified as `no-normative-impact` in the
 `repository-governance-or-documentation` layer. Any proposal to require a run
@@ -33,7 +38,9 @@ model, event contract, stable identifier, comparison profile, replay behavior,
 or execution proof would be a separate `decision-required` discovery unless it
 were independently derived from accepted product intent.
 
-No such decision is made here.
+No such stronger decision is made here. Whether TURNLOCK itself should provide
+native evaluation or optimization facilities is tracked separately by Issue
+#12.
 
 ## 2. Motivation
 
@@ -110,10 +117,12 @@ accepted ADRs, not to this note. Orchestration correctness does not imply
 computational determinism, identical outputs, one path, one schedule, or one
 trace.
 
-### 3.2 Run observability
+### 3.2 Execution inspectability and stronger run observability
 
-A future observability layer might make selected execution facts reconstructible,
-for example:
+The accepted minimum requires enough actual TURNLOCK-visible behavior to remain
+inspectable after completion for external understanding and evaluation. It does
+not enumerate a universal event set. A stronger future observability layer might
+standardize facts such as:
 
 ```text
 workflow invocation
@@ -125,16 +134,18 @@ completion
 termination
 ```
 
-Observing such events would not promise that two invocations with apparently
-identical inputs produce the same results. It would also remain distinct from:
+Standardizing or retaining such events would not promise that two invocations
+with apparently identical inputs produce the same results. It would also remain
+distinct from:
 
 - harness conformance evidence;
 - repository validation output;
 - TLC result evidence under `formal/results/`;
 - proof that an implementation satisfies every TURNLOCK invariant.
 
-The event set, retention model, ordering guarantees, and observation boundary
-inside agentic regions remain undecided.
+The concrete event set, retention model, ordering guarantees, and any
+observation boundary inside agentic regions beyond explicitly exposed results
+and progression-relevant TURNLOCK-visible facts remain undecided.
 
 ### 3.3 Run comparability
 
@@ -193,7 +204,7 @@ TURNLOCK core
     = generic explicit workflow / control semantics
 
 optional future evaluation profiles
-    = observability / comparability / reproducibility constraints
+    = stronger observability / comparability / reproducibility constraints
 
 specialized workflow classes
     = potentially YADA-core-like highly evaluable workflows
@@ -206,13 +217,16 @@ remain outside TURNLOCK's scope. Any later boundary requires its own authority
 and derivation.
 
 A RAG pipeline could eventually be one specialized workflow class that opts
-into stronger evaluation guarantees. That possibility creates no requirement
-for generic TURNLOCK workflows today.
+into stronger evaluation guarantees. That possibility creates no generic
+requirement beyond the accepted minimum completed-execution inspectability
+obligation.
 
 ## 5. Forward-compatibility observations
 
-Several abstractions might be required by TURNLOCK core for independent reasons
-and could also become useful to future run evaluation:
+The accepted minimum creates a need for sufficient boundary-level execution
+truth, but it does not uniquely require any abstraction in the following list.
+These abstractions might be selected for independent reasons and could also
+become useful to future run evaluation:
 
 ```text
 workflow invocation identity
@@ -265,20 +279,22 @@ every run must produce a proof
 external operations must be replayable
 ```
 
-Conversely, current core orchestration semantics do not imply that TURNLOCK can
-never offer stronger evaluation guarantees. Computational determinism, output
-determinism, run reproducibility, observability profiles, and comparison
-profiles remain orthogonal questions unless future authority connects them.
+Conversely, required minimum inspectability does not prevent TURNLOCK from
+later offering stronger evaluation guarantees. Computational determinism,
+output determinism, run reproducibility, stronger observability profiles, and
+comparison profiles remain orthogonal questions unless future authority
+connects them.
 
 ## 7. Open questions
 
 The following questions are intentionally unanswered:
 
 1. Should TURNLOCK ever expose a standard `run` model?
-2. Which control events, if any, should be observable?
+2. Which concrete control events, if any, should standardize or extend the
+   accepted minimum inspectability surface?
 3. Is a stable workflow definition or revision identity necessary?
-4. What should be observed inside an agentic region, if anything beyond its
-   boundaries?
+4. What should be observed inside an agentic region, if anything beyond
+   explicitly exposed results and progression-relevant boundary facts?
 5. Should comparability be an optional profile?
 6. Should reproducibility be expressed in levels rather than as a Boolean?
 7. Can agentic workflows be evaluated usefully without attempting to reproduce
