@@ -79,7 +79,11 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   binds the shared engineering-discovery process to Turnlock-Rust authority,
   artifacts, and validation.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
-  intent, promises, invariants, boundaries, and architectural implications.
+  intent, canonical terminology, promises, invariants, boundaries, and
+  architectural implications.
+- [Terminology review inventory](docs/specification/terminology-inventory.yaml)
+  records non-authoritative locations and fingerprints for reviewed
+  definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
   chronological decision narrative and links to ADR-001 through ADR-017.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
@@ -101,6 +105,11 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Traceability checker](scripts/check-formal-traceability.py) validates
   invariant IDs, ADR references, manifest statuses, and generated mapping
   freshness.
+- [Terminology governance checker](scripts/check-normative-terminology.py)
+  validates canonical anchors and review-inventory freshness while reporting
+  only heuristic, not semantic, detection of competing definitions.
+- [Terminology checker tests](scripts/tests/test-normative-terminology.py) cover
+  structural drift, stale inventory, and likely competing definitions.
 - [Mapping renderer](scripts/render-formal-mapping.py) regenerates the
   human-readable mapping from the manifest.
 - [Pinned tooling dependencies](requirements.txt) support ADR metadata and

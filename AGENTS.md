@@ -53,11 +53,14 @@ Use each source only for the responsibility it owns:
 6. Generated mappings, generated ADR indexes, and README files explain or
    project authoritative sources; they do not create product semantics or
    verification claims.
-7. `docs/repository-governance/turnlock-rust-discovery-classification.md`
+7. `docs/specification/terminology-inventory.yaml` records reviewed lexical
+   candidates and fingerprints only. It is not a glossary or semantic authority;
+   Section 2 of the normative specification owns canonical terminology.
+8. `docs/repository-governance/turnlock-rust-discovery-classification.md`
    binds the shared procedural classification of material discoveries to this
    repository; it creates no product semantics, accepted decision, or
    formal-verification evidence.
-8. `docs/vision/turnlock-vision.md` explains non-normative motivation and
+9. `docs/vision/turnlock-vision.md` explains non-normative motivation and
    long-term direction; it never overrides the specification, ADRs, or formal
    governance.
 
@@ -112,7 +115,9 @@ turnlock-rust/
 │   ├── tlc-result.schema.json
 │   └── verification.yaml
 └── scripts/
+    ├── check-normative-terminology.py
     └── tests/
+        └── test-normative-terminology.py
 ```
 
 Do not create speculative implementation directories or manifests before an
@@ -273,7 +278,9 @@ After every intentional repository change, run:
 
 ```bash
 .venv/bin/python scripts/tests/test-adr-metadata.py
+.venv/bin/python scripts/tests/test-normative-terminology.py
 .venv/bin/python scripts/adr-metadata.py check
+.venv/bin/python scripts/check-normative-terminology.py
 .venv/bin/python scripts/check-formal-traceability.py
 git diff --check
 ```
@@ -292,6 +299,10 @@ change.
 - Repository overview: `README.md`
 - Non-normative architectural vision: `docs/vision/turnlock-vision.md`
 - Normative product specification: `docs/specification/turnlock-spec.md`
+- Non-authoritative terminology review inventory:
+  `docs/specification/terminology-inventory.yaml`
+- Terminology governance checker: `scripts/check-normative-terminology.py`
+- Terminology checker tests: `scripts/tests/test-normative-terminology.py`
 - Annotated decision history and guide: `docs/adr/README.md`
 - ADR metadata profile: `docs/adr/adr-profile.yaml`
 - Generated ADR index: `docs/adr/index.md`
