@@ -490,7 +490,7 @@ Within that fan-out:
 - multiple raw LLM branches MAY perform the same task or different tasks;
 - multiple independent-agent branches MAY perform the same task or different tasks;
 - raw LLM, independent-agent, and mechanical branches MAY coexist in the same declared parallel region;
-- each branch retains the lifecycle, context, authority, and result semantics of its own execution form;
+- each branch retains the lifecycle, context, authority, completion, effects, and declared output semantics of its own execution form;
 - the workflow owns branch creation, synchronization, collection, and declared continuation.
 
 This capability matters because the workflow author may want to combine cheap
@@ -1714,7 +1714,7 @@ A future second-harness implementation is expected to act as an abstraction test
 
 ## 3.22A TL-INV-024 — Heterogeneous parallel composition invariant
 
-TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch types, including mechanical execution, bounded raw LLM inference, and bounded independent-agent execution. Branches of the same semantic type MAY perform the same task or different tasks. Mixed fan-out MUST preserve the lifecycle, context, authority, and result contract of each branch type while keeping fan-out, synchronization, collection, and continuation under workflow ownership.
+TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch types, including mechanical execution, bounded raw LLM inference, and bounded independent-agent execution. Branches of the same semantic type MAY perform the same task or different tasks. Mixed fan-out MUST preserve the lifecycle, context, authority, completion, effects, and declared output semantics of each branch type while keeping fan-out, synchronization, collection, and continuation under workflow ownership.
 
 This invariant does not require main-agent continuation to be an ordinary parallel branch; that question remains separately open.
 
