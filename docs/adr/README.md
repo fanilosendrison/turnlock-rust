@@ -61,9 +61,18 @@ Later ADRs record subsequently accepted decisions.
     without making TURNLOCK itself the evaluator or optimizer or selecting a
     tracing, storage, replay, comparison, or reproducibility mechanism.
 
+19. [ADR-019: Keep evaluation and optimization policy outside TURNLOCK core][19] —
+    **Accepted**. TURNLOCK remains the execution substrate: it exposes
+    sufficient actual execution truth under ADR-018 but does not define
+    universal evaluation criteria, own comparison or experiment policy, or
+    optimize workflow artifacts. Evaluation and optimization may be performed
+    by a user, coding agent, evaluator, higher-level system, or ordinary
+    TURNLOCK workflow, and any resulting refinement is ordinary authorship.
+
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
 [18]: adr-018-require-completed-workflow-execution-inspectability.md
+[19]: adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -100,8 +109,10 @@ author workflow
 
 TURNLOCK exposes sufficient truth about behavior at its own semantic boundary.
 The user or a higher-level system owns evaluation criteria, comparison where
-appropriate, and workflow changes. Native TURNLOCK evaluation or optimization
-remains a separate product question.
+appropriate, and workflow changes. ADR-019 fixes the boundary that ADR-018
+reserved: TURNLOCK core does not own evaluation or optimization policy, and
+behavior that evaluates or refines a workflow remains ordinary authored
+execution.
 
 ## Governing reference scenario
 

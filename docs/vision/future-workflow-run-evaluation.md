@@ -12,7 +12,8 @@ name: "Future workflow run-evaluation design space"
 > - **Status:** Non-normative future consideration
 > - **Authority:** None
 > - **Normative baseline:** Minimum completed-execution inspectability is accepted
->   by ADR-018 and the TURNLOCK specification
+>   by ADR-018 and the TURNLOCK specification; ADR-019 keeps evaluation and
+>   optimization policy outside TURNLOCK core
 > - **Creates TURNLOCK semantics:** No
 > - **Creates invariants:** No
 >
@@ -38,9 +39,24 @@ model, event contract, stable identifier, comparison profile, replay behavior,
 or execution proof would be a separate `decision-required` discovery unless it
 were independently derived from accepted product intent.
 
-No such stronger decision is made here. Whether TURNLOCK itself should provide
-native evaluation or optimization facilities is tracked separately by Issue
-#12.
+No such stronger decision is made here. ADR-019 fixes the boundary ADR-018
+reserved: TURNLOCK core remains the execution substrate and does not own
+evaluation or optimization policy. Evaluation objectives and refinement
+decisions belong to an explicitly responsible user, coding agent, evaluator,
+higher-level system, or ordinary authored workflow. A future native evaluation
+or optimization facility would require its own accepted decision; it is not
+part of the current core product contract.
+
+```text
+current TURNLOCK core
+  = execution semantics + accepted inspectability semantics
+
+evaluation / optimization policy
+  = ordinary workflow / user / higher-level-system concern
+
+future native evaluation facilities
+  = require new accepted authority
+```
 
 ## 2. Motivation
 
@@ -211,10 +227,12 @@ specialized workflow classes
 ```
 
 This is not an accepted architecture. TURNLOCK is not currently declared to
-replace, subsume, or provide all properties of YADA-core. The note also does not
-decide that evaluation, comparison, reproducibility, or evidence must always
-remain outside TURNLOCK's scope. Any later boundary requires its own authority
-and derivation.
+replace, subsume, or provide all properties of YADA-core. ADR-019 assigns
+evaluation and optimization policy outside the current TURNLOCK core product
+contract, while leaving possible future TURNLOCK-adjacent tooling to a new
+accepted decision. The note does not decide that comparison, reproducibility,
+or evidence must always remain outside TURNLOCK's scope, and any later boundary
+change requires its own authority and derivation.
 
 A RAG pipeline could eventually be one specialized workflow class that opts
 into stronger evaluation guarantees. That possibility creates no generic

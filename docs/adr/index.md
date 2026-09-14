@@ -35,6 +35,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | Separate workflow authorship from runtime execution authority | accepted | 2026-09-13 | complete | Relationship between workflow authorship and runtime orchestration authority |
 | [ADR-017](adr-017-adopt-validated-okf-architecture-decision-record-metadata.md) | Adopt validated OKF Architecture Decision Record metadata | accepted | 2026-09-13 | complete | Architecture Decision Record metadata, lifecycle, integrity, and generated projections<br>Semantics-preserving migration of accepted TURNLOCK ADR metadata<br>Repository-local validation of the adopted OKF ADR profile |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | Require completed workflow execution inspectability | accepted | 2026-09-14 | complete | Minimum inspectability of completed workflow executions and separation of execution truth from evaluation and optimization |
+| [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | Keep evaluation and optimization policy outside TURNLOCK core | accepted | 2026-09-14 | complete | Ownership boundary between TURNLOCK execution and workflow evaluation or optimization policy |
 
 ## Recorded outgoing relations
 
@@ -56,6 +57,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | clarifies | [ADR-003](adr-003-make-product-intent-and-derived-invariants-govern-implementation.md) |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarifies | [ADR-009](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarifies | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
+| [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | clarifies | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) |
 
 ## Derived incoming relations
 
@@ -77,3 +79,4 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-009](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
+| [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |

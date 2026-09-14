@@ -138,8 +138,7 @@ occurrences:
 - concepts:
   - workflow
   section: 0.3A
-  heading: 0.3A Workflow capabilities remain invocable whenever the main agent owns
-    control
+  heading: 0.3A Workflow capabilities remain invocable whenever the main agent owns control
   role: intent
   fingerprint: 301e40e610399cca96eb2fa8396cec44e4c69a6994fe59c27cf71b95b122bc15
 - concepts:
@@ -181,8 +180,7 @@ occurrences:
 - concepts:
   - main-agent
   section: '0.10'
-  heading: 0.10 Use the minimum sufficient form of computation or cognition for each
-    workflow region
+  heading: 0.10 Use the minimum sufficient form of computation or cognition for each workflow region
   role: intent
   fingerprint: 8f2feaf635d22a63f69b464f733e9b453d362d50255eb76903f1257f05e830eb
 - concepts:
@@ -194,8 +192,7 @@ occurrences:
 - concepts:
   - main-agent
   section: 0.11B
-  heading: 0.11B A main-agent phase restores ordinary interactive agency, not an AI
-    request/response call
+  heading: 0.11B A main-agent phase restores ordinary interactive agency, not an AI request/response call
   role: intent
   fingerprint: 59bcea16001fb73a88f9f66b3db8fc11232c39edbfe9985155dcad9d4333f3d4
 - concepts:
@@ -216,7 +213,7 @@ occurrences:
   section: '0.14'
   heading: 0.14 Product-intent conformance rule
   role: intent
-  fingerprint: ce555620c7fe5aa5983f2f02a31322f6f0cc402047cfaf43b8b513729c967902
+  fingerprint: b45c884f6c11d6c2259d4762ef69a96d99f8098cd0a39536293bf327793bfb7a
 - concepts:
   - independent-agent
   - main-agent-handoff
@@ -245,24 +242,30 @@ occurrences:
 - concepts:
   - main-agent-step
   section: '3.5'
-  heading: "3.5 TL-INV-006 \u2014 Enclosing-workflow invariant"
+  heading: 3.5 TL-INV-006 — Enclosing-workflow invariant
   role: obligation
   fingerprint: ae75e2320be69dbbb92ce7ab415c5f5f60b2e1b0cfc4d35edfa1902d369fa24f
 - concepts:
   - immediate-caller-context
   section: '3.7'
-  heading: "3.7 TL-INV-008 \u2014 Invocation/return continuity invariant"
+  heading: 3.7 TL-INV-008 — Invocation/return continuity invariant
   role: obligation
   fingerprint: 65513193493d3049bb571cebe673528cb3af6a4187732db37e69d2bf20c6dbb4
 - concepts:
   - main-agent
   section: '3.15'
-  heading: "3.15 TL-INV-016 \u2014 Workflow-availability invariant"
+  heading: 3.15 TL-INV-016 — Workflow-availability invariant
   role: obligation
   fingerprint: 8e562f757e5bc156b913f0554e98a14c00d7a022d7dfa62557b1d8c7d451f269
 - concepts:
+  - workflow-artifact
+  section: '3.32'
+  heading: 3.32 TL-INV-034 — Evaluation/optimization-policy boundary invariant
+  role: obligation
+  fingerprint: 0464c9e5728aa38c806d1b89797397d901ce53ac061d8d02cb68e20cba1c2658
+- concepts:
   - nested-workflow-invocation
   section: '4'
-  heading: "4. Current boundaries \u2014 intentionally not yet specified"
+  heading: 4. Current boundaries — intentionally not yet specified
   role: reference
-  fingerprint: 5610fffe40ec296598f9bebbc406232b801f1997b3f8bcc9d2fb964951521e6f
+  fingerprint: 9037431878bc26d75444240e362718c08005644f18164f7d40e705287284b53f

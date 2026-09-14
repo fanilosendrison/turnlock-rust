@@ -75,7 +75,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Future workflow run-evaluation design space](docs/vision/future-workflow-run-evaluation.md)
   preserves an explicitly non-normative exploration of stronger observability,
   comparability, reproducibility, and execution-evidence profiles beyond the
-  accepted minimum inspectability obligation.
+  accepted minimum inspectability obligation and the accepted
+  evaluation/optimization-policy boundary.
 - [Repository governance](docs/repository-governance/turnlock-rust-engineering.md)
   defines GitHub Engineering Project routing and workflow policy.
 - [Discovery classification profile](docs/repository-governance/turnlock-rust-discovery-classification.md)
@@ -88,7 +89,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-018.
+  chronological decision narrative and links to ADR-001 through ADR-019.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
@@ -147,7 +148,9 @@ in executable workflow logic even when runtime results are probabilistic,
 nondeterministic, externally dependent, or produced by locally autonomous
 cognition. Completed workflow execution must expose enough actual
 TURNLOCK-visible behavior for external understanding and evaluation without
-making TURNLOCK itself the evaluator or optimizer.
+making TURNLOCK itself the evaluator or optimizer. Evaluation objectives and
+optimization policy come from an explicitly responsible actor or authored
+workflow, never from core TURNLOCK runtime policy.
 
 ## Formal verification organization
 

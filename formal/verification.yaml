@@ -792,3 +792,25 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-034
+  title: Evaluation/optimization-policy boundary invariant
+  spec_section: '3.32'
+  adrs:
+  - ADR-019
+  kind: architecture+conformance
+  formalization: not-applicable
+  formalization_note: This boundary constrains product responsibility and implementation conformance rather than
+    an executable state predicate. The state-machine consequences of silently changing declared progression are already
+    covered by TL-INV-001, TL-INV-002, TL-INV-013, TL-INV-030, and TL-INV-032; a core evaluator, metric, comparison,
+    experiment, or optimizer facility is constrained by product scope and conformance review, not by a new TLA+ property.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []

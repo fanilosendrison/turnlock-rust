@@ -750,6 +750,65 @@ computational or output determinism, identical traces, cross-run comparability,
 reproducibility, permanent retention, execution proofs, or a particular tracing,
 storage, telemetry, or user-interface mechanism.
 
+## 0.13C Evaluation and optimization policy remain outside TURNLOCK core
+
+Section 0.13B requires TURNLOCK to expose enough actual execution truth for
+evaluation. Exposing that truth is distinct from owning evaluation or
+optimization policy, and the product does not treat those responsibilities as
+one implied package.
+
+TURNLOCK core is the workflow execution substrate. It MUST NOT define a
+universal evaluation objective, universal quality metrics, a default
+superiority relation between workflows or executions, experiment policy, or an
+autonomous workflow optimizer. Nothing in the product definition requires a
+privileged evaluator abstraction, and neither workflow evaluation nor workflow
+optimization becomes a core TURNLOCK capability merely because completed
+executions are inspectable.
+
+Evaluation objectives and criteria are supplied and owned outside TURNLOCK core
+policy by an explicitly responsible user, coding agent, evaluator, higher-level
+system, or ordinary TURNLOCK workflow. Those actors may interpret execution
+truth, form assessments, compare executions where their own contracts make
+comparison meaningful, and propose or author an improved workflow.
+
+Evaluation or optimization logic MAY itself be expressed as an ordinary
+TURNLOCK workflow. That execution is ordinary authored behavior under the same
+TURNLOCK semantics and authority boundaries as any other workflow; it does not
+become privileged runtime machinery merely because it evaluates another
+execution or proposes a workflow change.
+
+If evaluation or optimization produces an improved workflow artifact, that
+result is workflow authorship. It does not authorize the TURNLOCK runtime to
+mutate the orchestration of a currently executing invocation, and it does not
+transfer execution authority to the evaluator or optimizer.
+
+The product rule is:
+
+```text
+TURNLOCK makes workflows evaluable and optimizable
+!=
+TURNLOCK core is the evaluator or optimizer
+```
+
+The relationship is:
+
+```text
+workflow W
+    → TURNLOCK executes W
+    → inspectable actual execution truth
+    → user / coding agent / evaluator / higher-level system / ordinary workflow
+    → evaluation against an explicitly supplied objective
+    → possible authoring of workflow W'
+    → TURNLOCK later executes W'
+```
+
+This boundary does not prohibit future TURNLOCK-adjacent modules, libraries,
+profiles, or tools for evaluation and optimization. It establishes that they
+are not part of the current core product contract and that any future proposal
+adding native evaluator interfaces, experiment concepts, comparison contracts,
+optimizer machinery, privileged mutation authority, or stronger evaluation
+guarantees requires its own accepted product decision.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -807,6 +866,12 @@ parallel independent semantic work cannot be expressed as workflow-owned fan-out
 a heterogeneous fan-out cannot combine mechanical, raw-LLM, and independent-agent branches while preserving each branch's distinct semantics
 
 probabilistic semantic leaves are treated as if they necessarily transfer global orchestration authority away from the workflow
+
+evaluation or optimization policy must be owned by TURNLOCK core for workflow refinement to be correct
+
+conforming evaluation must rely on a TURNLOCK-defined universal objective, quality metric, or superiority relation
+
+an evaluator or optimizer must receive privileged runtime authority to assess an execution or propose a workflow change
 ```
 
 A conforming implementation may use different internal mechanisms per harness, but those mechanisms exist to realize the same control contract.
@@ -1675,6 +1740,27 @@ It does not make TURNLOCK the evaluator or optimizer and does not imply replay,
 computational or output determinism, identical traces, cross-run comparability,
 reproducibility, permanent retention, or execution proofs.
 
+## 3.32 TL-INV-034 — Evaluation/optimization-policy boundary invariant
+
+TURNLOCK core MUST NOT define a universal evaluation objective, universal
+quality metrics, a default superiority relation between workflows or
+executions, experiment policy, or an autonomous workflow optimizer. Evaluation
+objectives MUST be supplied by an explicitly responsible actor or artifact
+outside core TURNLOCK policy.
+
+Evaluation or optimization behavior expressed as an ordinary TURNLOCK workflow
+remains ordinary authored execution under existing workflow semantics. It
+receives no privileged runtime authority, and any resulting improvement to a
+workflow artifact is authorship subject to `TL-INV-032`, not implicit runtime
+replanning.
+
+This invariant preserves `TL-INV-001` and `TL-INV-002`: TURNLOCK executes
+declared orchestration and does not invent it. It does not prohibit
+TURNLOCK-adjacent evaluation or optimization tooling; it establishes that such
+capability is outside the current core product contract until a future accepted
+decision changes that boundary. It does not require, forbid, or prescribe any
+storage, telemetry, metric, comparison, experiment, or optimizer mechanism.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -1691,10 +1777,10 @@ The following questions are important but are **not yet answered by the product 
 - What exact continuity guarantee is achievable or required per supported harness.
 - Whether a temporarily unavailable main-agent handoff can be retried, degraded, or must fail closed.
 - Which concrete inspection facts and sufficiency rules different workflow shapes require beyond the accepted minimum execution-inspectability obligation.
-- What detailed tracing, event schemas, ordering guarantees, storage, retention, telemetry, debugger UI, or evaluation API should realize or extend minimum inspectability.
+- What detailed tracing, event schemas, ordering guarantees, storage, retention, telemetry, debugger UI, or evaluation tooling should exist above the execution substrate; native evaluation or optimization policy remains outside TURNLOCK core under `TL-INV-034`.
 - Whether completed-execution inspectability extends to failed, cancelled, interrupted, or otherwise non-completed executions, and with what outcome-specific semantics.
 - How a workflow definition binds to an active invocation and how inspection establishes correspondence between actual execution and any definition it presents.
-- Whether TURNLOCK itself should provide evaluation, metrics, cross-run comparison, experiment support, or workflow optimization; that remains a separate product question.
+- Whether future TURNLOCK-adjacent capabilities should introduce native evaluator interfaces, universal metrics, cross-run comparison, experiment support, or optimizer machinery; the current product definition assigns evaluation and optimization policy outside TURNLOCK core, and any such addition requires a new accepted product decision.
 - Whether replay, cross-run comparability, reproducibility profiles, or execution proofs should ever be supported.
 - Whether visibility inside an agentic region should extend beyond explicitly exposed results and TURNLOCK-visible facts relevant to declared progression.
 - Whether multiple sibling/top-level workflows may execute concurrently in one interactive coding-agent session; structured nested invocation is already allowed.
@@ -1847,6 +1933,25 @@ This implication requires neither a persistent event log nor a specific event,
 storage, identifier, telemetry, retention, query, or user-interface design. Such
 mechanisms remain replaceable and require their own derivation or decision.
 
+## 5.16 Evaluation and optimization are layered above the execution substrate
+
+Because evaluation objectives and optimization policy are not core TURNLOCK
+semantics, the architecture must let evaluation and optimization be composed
+above the execution substrate. TURNLOCK's responsibility ends at executing
+declared workflow semantics and exposing sufficient actual execution truth at
+its semantic boundary (`TL-INV-033`).
+
+Evaluation or optimization logic requires no privileged runtime interface. It
+can be implemented by a user, the main agent, an external evaluator, or another
+higher-level system, and, where expressible using accepted primitives, by an
+ordinary TURNLOCK workflow. Such behavior remains ordinary authored execution
+and gains no runtime authority over the executions it inspects or the
+workflows it proposes to change. Any resulting workflow refinement is authored
+through the same artifact class as any other workflow change.
+
+This implication does not select an evaluation API, metric set, experiment
+model, comparison contract, optimizer algorithm, storage, or user interface.
+
 # 6. Non-goals implied by the current product intent
 
 At the current stage, TURNLOCK is not defined as:
@@ -1861,7 +1966,8 @@ At the current stage, TURNLOCK is not defined as:
 - a harness-specific feature whose semantics are valid only inside one vendor's coding client;
 - a mandatory graphical/no-code workflow builder;
 - a separate agent-only workflow language distinct from the artifact developers edit;
-- an evaluator, benchmark system, run comparator, experiment manager, or workflow optimizer merely because execution is inspectable;
+- an evaluator, benchmark system, run comparator, experiment manager, or workflow optimizer, including as a consequence of making completed executions inspectable;
+- an owner of a universal evaluation objective, universal quality metrics, or a default superiority relation between workflows or executions;
 - a replay, cross-run comparability, reproducibility, or execution-proof system;
 - a requirement to expose private agent reasoning or record every tool call inside an agentic region.
 
@@ -1949,6 +2055,14 @@ recollection, must not substitute a current workflow definition for execution
 truth, and need not disclose private agent reasoning or establish replay,
 comparability, reproducibility, or proof.
 
+When evaluation or optimization is part of a use case, the architecture must
+identify who supplied the objective and must keep evaluation and optimization
+policy outside TURNLOCK core runtime authority. Behavior that evaluates another
+execution or proposes a refined workflow remains ordinary authored execution;
+it must not obtain privileged control over the workflow it assesses, and any
+resulting refinement is authored through the same artifact class as any other
+workflow change.
+
 # 8. Derived synopsis
 
 This section is a non-authoritative synopsis derived from the specification's
@@ -1977,6 +2091,10 @@ The synopsis uses these canonical destinations:
 The guiding allocation rule remains the product principle in Section 0.10 and
 the obligation in `TL-INV-029`: use the minimum sufficient form of computation
 or cognition for each region.
+
+Evaluation and optimization policy remain outside TURNLOCK core: evaluation
+objectives come from an explicitly responsible actor or authored workflow, and
+the runtime never silently optimizes authored orchestration.
 
 The product is successful only if these roles remain distinct in the real execution model and if known orchestration decisions can remain in the workflow rather than being pushed back into an agent merely because the workflow lacks expressive power.
 

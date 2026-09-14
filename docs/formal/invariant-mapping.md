@@ -44,6 +44,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-031` | Workflow expressive-power invariant | capability | partial | pending-model | `RequiredCoreFormsComposable` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013, ADR-014 |
 | `TL-INV-032` | Authorship / execution-authority separation invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009, ADR-014, ADR-016 |
 | `TL-INV-033` | Completed-execution inspectability invariant | safety+semantic-quality+conformance | partial | pending-model | `CompletedExecutionExposesActualBoundaryFacts` | — | — | not-yet-modeled | ADR-018 |
+| `TL-INV-034` | Evaluation/optimization-policy boundary invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-019 |
 
 ## Reverse traceability
 
