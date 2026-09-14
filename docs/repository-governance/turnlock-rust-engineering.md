@@ -115,6 +115,23 @@ Use `Priority` according to this Project contract:
 Priority controls scheduling only. It never overrides the normative
 specification, accepted decisions, prerequisites, or evidence requirements.
 
+An open product or specification semantic decision defaults to `P0` when it is
+recorded as a `Finding` classified to `Phase: Specification`. This applies the
+authority-protection branch of `P0`: while the decision remains open,
+downstream artifacts can acquire unratified product or specification meaning
+unless every reviewer independently notices the reservation. Do not classify an
+open semantic decision below `P0` merely because it does not block a specific
+downstream deliverable, including the first safety-only formal model.
+
+A `Follow-up` that operationalizes an already accepted decision without
+introducing new product meaning does not inherit that default. Classify it by
+its actual effect on current-phase progress.
+
+Record an explicit rationale on the Issue when deviating from either default.
+Priority remains a work-management judgment: it neither creates nor indicates a
+semantic blocking relationship, and it must not be cited as evidence that the
+decision itself has been accepted or rejected.
+
 ## Project views
 
 The intended views are:
