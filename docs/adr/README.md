@@ -38,8 +38,8 @@ Later ADRs record subsequently accepted decisions.
 8. [ADR-008: Allow nested workflow invocation from main-agent regions and return to the immediate caller](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) — **Accepted**. Skill-like session capabilities remain available during main-agent regions; nested workflows suspend their callers, own their own progression, and return to the immediate invocation context.
 9. [ADR-009: Use the same TURNLOCK primitives for developer-authored and coding-agent-authored workflows](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) — **Accepted**. Workflow authoring is developer-native: the developer may write the workflow directly or ask the coding agent to write it, but both use the same public TURNLOCK primitives and artifact semantics.
 10. [ADR-010: Keep workflow semantics harness-independent and use Pi as the first reference integration](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) — **Accepted**. TURNLOCK remains harness-agnostic at the semantic layer while Pi is used as the first implementation and conformance environment.
-11. [ADR-011: Make independent agents first-class workflow resources and support workflow-owned parallel fan-out/fan-in](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) — **Accepted**. Independent bounded cognitive lineages are required workflow resources; declared subagent fan-out/fan-in remains owned by deterministic workflow control and may run same-task or different-task branches concurrently.
-12. [ADR-012: Make bounded raw LLM inference first-class and allocate the minimum sufficient cognition](adr-012-make-bounded-raw-llm-inference-first-class-and-allocate-minimum-sufficient-cognition.md) — **Accepted**. One-shot semantic inference is distinct from autonomous agents and main-agent continuation; workflows choose the minimum sufficient cognition form while retaining deterministic orchestration over probabilistic leaves.
+11. [ADR-011: Make independent agents first-class workflow resources and support workflow-owned parallel fan-out/fan-in](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) — **Accepted**. Independent bounded cognitive lineages are required workflow resources; declared subagent fan-out/fan-in remains under workflow-owned control and may run same-task or different-task branches concurrently.
+12. [ADR-012: Make bounded raw LLM inference first-class and allocate the minimum sufficient cognition](adr-012-make-bounded-raw-llm-inference-first-class-and-allocate-minimum-sufficient-cognition.md) — **Accepted**. One-shot semantic inference is distinct from autonomous agents and main-agent continuation; workflows choose the minimum sufficient cognition form while retaining workflow-owned control over probabilistic results.
 13. [ADR-013: Allow heterogeneous parallel fan-out across execution forms](adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md) — **Accepted**. A single workflow-owned parallel region may mix mechanical, raw-LLM, and independent-agent branches while preserving each branch type's semantics; same-task and different-task semantic branches are both supported.
 14. [ADR-014: Define TURNLOCK as the orchestration engine and the workflow as the orchestration program](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) — **Accepted**. The workflow artifact owns declared orchestration decisions and topology; TURNLOCK is the engine/runtime that executes, coordinates, and tracks them without silently inventing undeclared global strategy.
 15. [ADR-015: Evolve the normative and formal specifications together](adr-015-evolve-the-normative-and-formal-specifications-together.md) — **Accepted**. State/control/concurrency semantics are formalized in parallel with the prose specification; stable invariant IDs map machine-readably to TLA+ properties and, once modeled, their state variables/actions and TLC configs; the mapping is reversible for impact analysis; actual TLC run evidence is stored separately from verification intent; focused exploration never replaces integrated exploration.
@@ -131,13 +131,25 @@ ADR-011 and ADR-012 extend the reference model beyond the original mechanical/ma
 
 ```text
 TURNLOCK workflow owns global orchestration
-  ├─ deterministic computation
+  ├─ mechanical execution
   ├─ bounded raw LLM inference
   ├─ bounded independent agentic execution
   └─ continuation of the main interactive agent
 ```
 
-Independent agents and raw LLM calls may be fanned out concurrently under workflow control, either homogeneously or together with mechanical branches in the same heterogeneous fan-out. Same-type semantic branches may perform the same task or different tasks. The forms are intentionally non-equivalent: the author selects the minimum sufficient form for each region.
+Independent agents and raw LLM calls may be fanned out concurrently under
+workflow control, either homogeneously or together with mechanical branches in
+the same heterogeneous fan-out. Same-type semantic branches may perform the
+same task or different tasks. The forms are intentionally non-equivalent: the
+author selects the minimum sufficient form for each region.
+
+Accepted ADR bodies retain their historical wording, including uses of
+“deterministic computation” and “deterministic orchestration.” The current
+normative specification clarifies those passages through the authority and
+control distinction already present in ADR-004, ADR-012, and ADR-014:
+mechanical execution is non-agent-mediated but need not have deterministic
+results, and workflow-owned control restricts global progression to declared
+possibilities without requiring one output, path, or trace.
 
 ## Formal-specification governance
 

@@ -80,6 +80,8 @@ invariants:
   - ADR-014
   kind: safety
   formalization: planned
+  formalization_note: A future formula must constrain global progression to workflow-authorized transitions without
+    requiring one successor, output, schedule, or trace.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -100,6 +102,8 @@ invariants:
   - ADR-014
   kind: safety
   formalization: planned
+  formalization_note: A future formula must distinguish executing a declared continuation selected through runtime data from
+    inventing an unauthorized continuation or topology.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -120,6 +124,9 @@ invariants:
   - ADR-004
   kind: safety
   formalization: planned
+  formalization_note: Mechanical denotes non-agent-mediated executable progression, not deterministic outputs or traces.
+    A future formula must permit declared transitions driven by probabilistic, nondeterministic, external, event, LLM, or
+    agent results.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -331,6 +338,8 @@ invariants:
   - ADR-014
   kind: safety
   formalization: planned
+  formalization_note: A future formula must distinguish legitimate local discretion inside a declared agentic region from
+    an agent advancing, creating, or reconstructing undeclared global control.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -686,13 +695,17 @@ invariants:
   implementation:
     tests: []
 - id: TL-INV-030
-  title: Deterministic-orchestration / probabilistic-leaf invariant
+  title: Workflow-owned-control / probabilistic-result invariant
   spec_section: '3.28'
   adrs:
   - ADR-012
   - ADR-014
   kind: safety
   formalization: planned
+  formalization_note: A future formula must constrain every global control transition to workflow-authorized semantics while
+    permitting runtime results to select among declared continuations. It must not assert one enabled transition, output,
+    schedule, trace, or replay. The existing planned property name is retained for GitHub Issue 1's property-level review
+    and must not be read as exhaustive.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model

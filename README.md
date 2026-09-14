@@ -2,8 +2,8 @@
 
 ## A runtime for programs that call cognition
 
-TURNLOCK is a runtime for executable workflows that compose deterministic
-computation and cognition inside an existing interactive coding-agent session.
+TURNLOCK is a runtime for executable workflows that compose mechanical
+execution and cognition inside an existing interactive coding-agent session.
 A workflow program owns its declared control flow; TURNLOCK executes,
 coordinates, and tracks that control flow. Cognition is an explicit execution
 resource rather than the implicit global scheduler.
@@ -11,11 +11,15 @@ resource rather than the implicit global scheduler.
 A workflow may compose four distinct execution forms:
 
 ```text
-deterministic computation
+mechanical execution
 bounded raw LLM inference
 bounded independent agents
 continuation of the user's existing main coding agent
 ```
+
+Mechanical execution means progression governed by executable workflow
+semantics rather than missing agent-supplied orchestration decisions. It does
+not imply deterministic outputs, paths, traces, or replay.
 
 The fourth form is product-defining. TURNLOCK can temporarily return local
 control to the same main coding agent and later resume workflow-owned
@@ -66,6 +70,9 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   for coding agents.
 - [Architectural vision](docs/vision/turnlock-vision.md) explains the
   non-normative long-term thesis and motivation.
+- [Future workflow run-evaluation design space](docs/vision/future-workflow-run-evaluation.md)
+  preserves an explicitly non-normative exploration of optional observability,
+  comparability, reproducibility, and execution-evidence profiles.
 - [Repository governance](docs/repository-governance/turnlock-rust-engineering.md)
   defines GitHub Engineering Project routing and workflow policy.
 - [Discovery classification profile](docs/repository-governance/turnlock-rust-discovery-classification.md)
@@ -116,7 +123,7 @@ the authoring agent.
 The execution forms remain semantically distinct:
 
 ```text
-deterministic computation = non-semantic executable work
+mechanical execution = executable, non-agent-mediated progression
 raw LLM inference = bounded non-agentic semantic computation
 independent agent = bounded autonomous cognitive fork
 main agent = continuation of the existing interactive cognitive lineage
@@ -124,8 +131,9 @@ main agent = continuation of the existing interactive cognitive lineage
 
 The guiding allocation rule is to use the minimum sufficient form of
 computation or cognition for each workflow region. Known orchestration remains
-in executable workflow logic even when a leaf is probabilistic or locally
-autonomous.
+in executable workflow logic even when runtime results are probabilistic,
+nondeterministic, externally dependent, or produced by locally autonomous
+cognition.
 
 ## Formal verification organization
 

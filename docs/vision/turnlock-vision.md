@@ -16,6 +16,10 @@ name: "TURNLOCK architectural vision"
 > remain governed by the [formal-specification policy](../formal/README.md) and
 > [ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md).
 > If this vision conflicts with one of those authorities, this document yields.
+>
+> The separate [future workflow run-evaluation design space](future-workflow-run-evaluation.md)
+> preserves another non-normative exploration. It does not extend this vision or
+> the product contract.
 
 ## 1. Why TURNLOCK exists
 
@@ -27,9 +31,10 @@ Its long-term architectural thesis is:
 > **TURNLOCK makes it possible to build programs that call cognition.**
 
 For the motivating software-development use case, this means that a production
-process can itself become a program. Deterministic parts execute as code, while
-judgment, interpretation, synthesis, invention, and open-ended problem solving
-are requested explicitly where they are needed.
+process can itself become a program. Mechanical regions progress through
+executable semantics, while judgment, interpretation, synthesis, invention, and
+open-ended problem solving are requested explicitly where they are needed.
+Mechanical execution need not produce deterministic outputs or traces.
 
 TURNLOCK does not define that production process. It supplies the lower-level
 workflow runtime and execution semantics on which a developer, organization,
@@ -62,7 +67,7 @@ control flow into an executable workflow program:
 TURNLOCK
 
 workflow program
-  ├── deterministic computation
+  ├── mechanical execution
   ├── bounded raw LLM inference
   ├── bounded independent agents
   └── existing main agent
@@ -92,7 +97,7 @@ policy / intent / methodology / generated strategy
                     ↓
                  TURNLOCK
                     ↓
-    deterministic computation
+    mechanical execution
     bounded raw LLM inference
     bounded independent agents
     continuation of the existing main coding agent
@@ -247,7 +252,7 @@ TURNLOCK treats computation and cognition as deliberately allocated resources.
 The current execution spectrum is:
 
 ```text
-0. deterministic computation
+0. mechanical execution
 1. bounded raw LLM inference
 2. bounded independent-agent execution
 3. continuation of the existing main interactive agent
@@ -256,8 +261,8 @@ The current execution spectrum is:
 The guiding principle is to use the minimum sufficient form for each workflow
 region:
 
-- Known mechanical work should execute deterministically rather than depend on
-  agent interpretation.
+- Known mechanical work should progress through executable semantics rather
+  than depend on agent interpretation. Its results may still vary.
 - A bounded semantic transformation should use raw inference when one inference
   is enough.
 - A cognitively isolated task may use an independent agent when autonomous,

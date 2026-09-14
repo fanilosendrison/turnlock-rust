@@ -265,7 +265,8 @@ Conceptually:
 workflow owns global progression
 
 mechanical phase:
-  workflow executes directly
+  TURNLOCK executes mechanical semantics
+  workflow semantics govern permitted progression
 
 main-agent phase:
   workflow yields local control
@@ -1059,7 +1060,8 @@ outside workflow:
   main agent owns ordinary interaction
 
 inside mechanical phase:
-  workflow owns execution
+  workflow semantics govern permitted progression
+  TURNLOCK performs mechanical execution
 
 inside raw-LLM phase:
   workflow owns progression and the model produces a bounded semantic result
@@ -1091,7 +1093,11 @@ declared global orchestration logic = workflow program
 execution of that logic = TURNLOCK engine
 ```
 
-The main agent MUST NOT be required to act as the global step scheduler for the workflow, and TURNLOCK MUST NOT silently invent undeclared global strategy merely because it executes the workflow.
+The main agent MUST NOT be required to act as the global step scheduler for the
+workflow, and TURNLOCK MUST NOT silently invent undeclared global strategy
+merely because it executes the workflow. Workflow-owned control MAY admit
+multiple runtime results and continuations; every resulting change in global
+control MUST be authorized by executable workflow semantics.
 
 ## 3.1A TL-INV-002 — Engine / decision-owner separation invariant
 
@@ -1101,7 +1107,12 @@ TURNLOCK MUST provide the runtime authority needed to execute, schedule, coordin
 TURNLOCK executes orchestration != TURNLOCK invents orchestration
 ```
 
-A runtime optimization or harness adapter MAY choose equivalent execution mechanisms, but it MUST NOT change the declared topology or substitute new global decisions without an explicit workflow semantic that grants such authority.
+A runtime optimization or harness adapter MAY choose equivalent execution
+mechanisms, but it MUST NOT change the declared topology or substitute new
+global decisions without an explicit workflow semantic that grants such
+authority. Evaluating a declared rule against a runtime result and selecting one
+of its permitted continuations is execution of workflow semantics, not invention
+of topology.
 
 ## 3.2 TL-INV-003 — Mechanical-execution invariant
 
