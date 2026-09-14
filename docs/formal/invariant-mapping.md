@@ -45,7 +45,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-032` | Authorship / execution-authority separation invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009, ADR-014, ADR-016 |
 | `TL-INV-033` | Completed-execution inspectability invariant | safety+semantic-quality+conformance | partial | pending-model | `CompletedExecutionExposesActualBoundaryFacts` | — | — | not-yet-modeled | ADR-018 |
 | `TL-INV-034` | Evaluation/optimization-policy boundary invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-019 |
-| `TL-INV-035` | Declared-invocation invariant | capability+safety | planned | pending-model | `DeclaredInvocationAuthorizedByWorkflowProgram`, `DeclaredInvocationDoesNotRequireAgentHandoff`, `OnlyCallingContinuationSuspended`, `DeclaredInvocationReturnsToImmediateCaller` | — | — | not-yet-modeled | ADR-022 |
+| `TL-INV-035` | Declared-invocation invariant | capability+safety | planned | pending-model | `DeclaredInvocationAuthorizedByWorkflowProgram`, `DeclaredInvocationDoesNotRequireAgentHandoff`, `OnlyCallingContinuationSuspended`, `DeclaredInvocationReturnsToImmediateCaller`, `NestedInvocationCannotRewriteOuterContinuation` | — | — | not-yet-modeled | ADR-022, ADR-023 |
 
 ## Reverse traceability
 
@@ -77,7 +77,7 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 - `MixedBranchSemanticsPreserved` → `TL-INV-024`
 - `MixedBranchTypesCanCoexist` → `TL-INV-024`
 - `MultipleHandoffsRepresentable` → `TL-INV-005`
-- `NestedInvocationCannotRewriteOuterContinuation` → `TL-INV-019`
+- `NestedInvocationCannotRewriteOuterContinuation` → `TL-INV-019`, `TL-INV-035`
 - `NestedInvocationSuspendsCaller` → `TL-INV-017`
 - `NoPrematureJoin` → `TL-INV-027`
 - `OnlyCallingContinuationSuspended` → `TL-INV-035`

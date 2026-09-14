@@ -836,13 +836,16 @@ invariants:
   spec_section: '3.33'
   adrs:
   - ADR-022
+  - ADR-023
   kind: capability+safety
   formalization: planned
   formalization_note: A future formalization must represent a workflow-declared invocation as authorized by the declared
-    topology, executed without an agent handoff solely to reproduce the declared call, preserving the caller's continuation
-    and returning to the same immediate caller context on normal completion, with suspension local to the calling
-    continuation. It must not assert universal completion, interpret suspension as whole-workflow suspension, or decide
-    recursive/cyclic admissibility, restricted placements, or concrete depth/resource limits.
+    topology and executed without an agent handoff solely to reproduce the declared call. It must keep the caller context
+    and its preserved return-bearing continuation distinct, suspend only that calling continuation, execute the callee's
+    own declared progression, and return to the same immediate caller context on normal completion, making only the
+    preserved workflow-declared post-call continuation eligible for that caller. It must not assert universal completion,
+    interpret suspension as whole-workflow suspension, disable independently active concurrent contexts permitted by the
+    declared topology, or decide recursive/cyclic admissibility, restricted placements, or concrete depth/resource limits.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -855,6 +858,8 @@ invariants:
     - name: OnlyCallingContinuationSuspended
       status: planned
     - name: DeclaredInvocationReturnsToImmediateCaller
+      status: planned
+    - name: NestedInvocationCannotRewriteOuterContinuation
       status: planned
     state_variables: []
     actions: []
