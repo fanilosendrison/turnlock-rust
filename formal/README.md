@@ -57,7 +57,10 @@ Planned property names may appear before `Turnlock.tla` exists. State-variable a
 
 `results/` answers **what TLC actually checked**. A passing record must identify at least the repository revision, model config, TLA+ module, TLC version, checked properties, mapped invariant IDs, finite bounds, and outcome.
 
-A manifest entry must never be interpreted as a successful verification run. `checked` requires matching run evidence.
+A manifest entry must never be interpreted as a successful verification run.
+`checked` requires matching run evidence. Finite domains or bounds used to make
+TLC exploration possible remain formal-model choices; they are not product
+resource limits, fairness premises, or termination guarantees.
 
 ## Integrated exploration remains mandatory
 
