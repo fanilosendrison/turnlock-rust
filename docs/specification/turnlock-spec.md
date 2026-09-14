@@ -9,9 +9,10 @@
 This section is normative for the current product direction. It states the
 product outcome that lower-level design exists to serve. It is ratified by
 ADR-001 through ADR-014 and ADR-016 in `../adr/`, which record the chronological
-product decisions that produced the current contract. ADR-015 governs how this
-normative specification co-evolves with the formal TLA+/TLC model and
-verification manifest.
+product decisions that produced the current contract. ADR-018 establishes
+minimum completed-execution inspectability. ADR-015 governs how this normative
+specification co-evolves with the formal TLA+/TLC model and verification
+manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -75,11 +76,14 @@ Any of these regions may be composed with explicit workflow control,
 including fan-out/fan-in and nested workflows.
 
 When an invocation finishes, control returns to its immediate caller.
+
+The completed execution remains sufficiently inspectable at TURNLOCK's
+semantic boundary for user- or system-led evaluation and iterative refinement.
 ```
 
 The governing promise is:
 
-> **The workflow program owns the declared orchestration logic; TURNLOCK is the orchestration engine that executes it. The workflow can compose mechanical execution, bounded LLM inference, bounded independent agency, and continuation of the main interactive agent as distinct execution forms. Probabilistic or autonomous regions do not become the global orchestration decision-maker merely by being invoked, and completed workflows return structurally to their immediate caller.**
+> **The workflow program owns the declared orchestration logic; TURNLOCK is the orchestration engine that executes it. The workflow can compose mechanical execution, bounded LLM inference, bounded independent agency, and continuation of the main interactive agent as distinct execution forms. Probabilistic or autonomous regions do not become the global orchestration decision-maker merely by being invoked, completed workflows return structurally to their immediate caller, and completed execution exposes enough actual TURNLOCK-visible behavior for external understanding, evaluation, and iterative refinement.**
 
 ## 0.3 Workflow invocation is a natural slash-command surface inside the coding-agent session
 
@@ -706,6 +710,46 @@ control flow is expressed through TURNLOCK semantics rather than harness plumbin
 
 TURNLOCK MAY later provide higher-level authoring tools, templates, or visualizations, but they are optional layers over the same underlying workflow artifact and primitives. They MUST NOT become necessary to express the core execution model.
 
+## 0.13B Completed execution remains inspectable for iterative refinement
+
+A TURNLOCK workflow is a reusable executable representation of part of a user's
+working method. Its execution MUST NOT become an opaque event after completion.
+A completed execution must make enough of its actual TURNLOCK-visible behavior
+inspectable for a user or higher-level system to understand and evaluate how the
+workflow progressed in practice without reconstructing it from human or agent
+recollection.
+
+The broader product loop is:
+
+```text
+author workflow
+→ execute workflow
+→ inspect and evaluate actual behavior
+→ refine workflow
+→ execute again
+↺
+```
+
+Debugging is one use of this capability, not its complete purpose. The product
+value is that real execution can inform user- or system-led iterative refinement
+of the reusable workflow artifact.
+
+TURNLOCK owns the minimum execution-truth responsibility at its semantic
+boundary. That boundary includes workflow-mediated structure, execution
+boundaries, explicitly exposed inputs and results, and TURNLOCK-visible facts
+relevant to declared progression. A user, the main agent, an external evaluator,
+or a higher-level workflow or system defines what good means, performs any
+evaluation or comparison, decides what should change, and modifies or optimizes
+the workflow.
+
+This requirement does not make TURNLOCK itself an evaluator, benchmark system,
+run comparator, experiment manager, or workflow optimizer. It does not require
+disclosure of private agent reasoning or automatically require every tool call
+inside an agentic region to be recorded. Nor does it imply replay,
+computational or output determinism, identical traces, cross-run comparability,
+reproducibility, permanent retention, execution proofs, or a particular tracing,
+storage, telemetry, or user-interface mechanism.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -974,6 +1018,7 @@ prose:
 | `workflow-owned-control` | `workflow-owned control` | [`term-workflow-owned-control`](#term-workflow-owned-control) | `the workflow owns orchestration`; `workflow owns global progression` | `deterministic orchestration` | compound |
 | `parallel-fan-out-fan-in` | `parallel fan-out/fan-in` | [`term-parallel-fan-out-fan-in`](#term-parallel-fan-out-fan-in) | `fan-out/fan-in`; `parallel region` | — | compound |
 | `nested-workflow-invocation` | `nested workflow invocation` | [`term-nested-workflow-invocation`](#term-nested-workflow-invocation) | `nested invocation` | — | compound |
+| `execution-inspectability` | `execution inspectability` | [`term-execution-inspectability`](#term-execution-inspectability) | `completed-execution inspectability` | — | compound |
 <!-- normative-terminology-registry:end -->
 
 Definition-like occurrences outside their canonical destinations are reviewed in
@@ -999,6 +1044,8 @@ workflow state == chat context
 workflow completion == agent-session completion
 local agent discretion == global orchestration authority
 probabilistic result == a new orchestration possibility
+execution inspectability == evaluation or optimization
+execution inspectability == replay, reproducibility, or execution proof
 ```
 
 They are distinct product concepts.
@@ -1233,6 +1280,28 @@ A **nested workflow invocation** is a workflow invocation made from a main-agent
 region while that immediate caller context is suspended. The nested workflow
 owns its own declared progression, and normal completion returns to that same
 immediate caller context.
+
+## 2.9 Execution inspectability
+
+<a id="term-execution-inspectability"></a>
+
+**Execution inspectability** is the property of a completed workflow execution
+that makes enough of its actual TURNLOCK-visible behavior available for a user
+or higher-level system to understand and evaluate how the workflow progressed in
+practice without reconstructing the execution from human or agent recollection.
+
+Its semantic boundary comprises workflow-mediated structure, execution
+boundaries, explicitly exposed inputs and results, and TURNLOCK-visible facts
+relevant to declared progression. It excludes private or internal reasoning of
+raw LLM inference, independent agents, and the main agent unless information
+from such a region becomes an explicitly exposed result or another
+TURNLOCK-visible progression fact.
+
+Execution inspectability enables evaluation and refinement; it does not mean
+that TURNLOCK defines evaluation criteria, compares executions, or optimizes the
+workflow. The term does not prescribe a run model, event schema, identifier,
+storage, telemetry, retention, replay, reproducibility, proof, or user-interface
+mechanism.
 
 # 3. Derived invariants
 
@@ -1581,6 +1650,31 @@ main-agent region MAY continue that same cognitive lineage for bounded local
 work. Authorship does not grant global progression authority, and the workflow
 resumes at its declared continuation after the region completes.
 
+## 3.31 TL-INV-033 — Completed-execution inspectability invariant
+
+Every completed TURNLOCK workflow execution MUST expose enough of its actual
+TURNLOCK-visible behavior for a user or higher-level system to understand and
+evaluate how the workflow progressed in practice without reconstructing the
+execution from human or agent recollection.
+
+The obligation covers enough workflow-mediated structure, execution boundaries,
+explicitly exposed inputs and results, and TURNLOCK-visible facts relevant to
+declared progression to satisfy execution inspectability. It does not require a
+universal event catalog, visibility into private agent reasoning, recording of
+every agent tool call, or any particular tracing, storage, retention, telemetry,
+or user-interface mechanism.
+
+An inspection surface MUST NOT present a later or current workflow definition as
+proof of what a previous execution actually did. This prohibition preserves the
+distinction between actual execution behavior and a definition shown during
+inspection; it does not decide how workflow definitions bind to active
+invocations or how correspondence is represented.
+
+This invariant enables user- or system-led evaluation and iterative refinement.
+It does not make TURNLOCK the evaluator or optimizer and does not imply replay,
+computational or output determinism, identical traces, cross-run comparability,
+reproducibility, permanent retention, or execution proofs.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -1596,7 +1690,13 @@ The following questions are important but are **not yet answered by the product 
 - How permissions and tool authority transfer during a main-agent phase.
 - What exact continuity guarantee is achievable or required per supported harness.
 - Whether a temporarily unavailable main-agent handoff can be retried, degraded, or must fail closed.
-- How observability, tracing, replay, and debugging should work.
+- Which concrete inspection facts and sufficiency rules different workflow shapes require beyond the accepted minimum execution-inspectability obligation.
+- What detailed tracing, event schemas, ordering guarantees, storage, retention, telemetry, debugger UI, or evaluation API should realize or extend minimum inspectability.
+- Whether completed-execution inspectability extends to failed, cancelled, interrupted, or otherwise non-completed executions, and with what outcome-specific semantics.
+- How a workflow definition binds to an active invocation and how inspection establishes correspondence between actual execution and any definition it presents.
+- Whether TURNLOCK itself should provide evaluation, metrics, cross-run comparison, experiment support, or workflow optimization; that remains a separate product question.
+- Whether replay, cross-run comparability, reproducibility profiles, or execution proofs should ever be supported.
+- Whether visibility inside an agentic region should extend beyond explicitly exposed results and TURNLOCK-visible facts relevant to declared progression.
 - Whether multiple sibling/top-level workflows may execute concurrently in one interactive coding-agent session; structured nested invocation is already allowed.
 - Whether implementations impose explicit resource/safety limits on nesting depth, and how such limits are surfaced without changing immediate-caller return semantics.
 - What security/trust model applies to user-authored workflow code.
@@ -1728,6 +1828,25 @@ runtime execution / scheduling machinery
 
 A scheduler, adapter, optimizer, or execution backend may select equivalent mechanisms for fulfilling a declared primitive, but it must not silently become a policy engine that invents a different workflow.
 
+## 5.15 Completed execution requires an inspection boundary
+
+Because completed execution must remain inspectable, the architecture must make
+sufficient actual TURNLOCK-visible behavior available at an inspection boundary.
+That behavior includes enough workflow-mediated structure, execution boundaries,
+explicitly exposed inputs and results, and progression-relevant facts to support
+the obligation in `TL-INV-033`.
+
+The inspection boundary must preserve the distinction between actual execution
+facts and a workflow definition displayed later. It may show a current or later
+definition, but it cannot use that definition alone as proof of previous
+execution behavior. This pressure makes the separate workflow-definition
+binding decision consequential without selecting snapshot semantics, live-edit
+semantics, revision identity, copy-on-start, or another binding mechanism.
+
+This implication requires neither a persistent event log nor a specific event,
+storage, identifier, telemetry, retention, query, or user-interface design. Such
+mechanisms remain replaceable and require their own derivation or decision.
+
 # 6. Non-goals implied by the current product intent
 
 At the current stage, TURNLOCK is not defined as:
@@ -1741,7 +1860,10 @@ At the current stage, TURNLOCK is not defined as:
 - an agent framework where every intelligent step is semantically interchangeable with every other agent call;
 - a harness-specific feature whose semantics are valid only inside one vendor's coding client;
 - a mandatory graphical/no-code workflow builder;
-- a separate agent-only workflow language distinct from the artifact developers edit.
+- a separate agent-only workflow language distinct from the artifact developers edit;
+- an evaluator, benchmark system, run comparator, experiment manager, or workflow optimizer merely because execution is inspectable;
+- a replay, cross-run comparability, reproducibility, or execution-proof system;
+- a requirement to expose private agent reasoning or record every tool call inside an agentic region.
 
 Future features may include some adjacent capabilities, but they must not blur the control model that defines the product.
 
@@ -1773,6 +1895,8 @@ who decides what phase comes next?
 where is continuation state held?
 what exactly makes an "agent step" the main agent rather than another agent?
 how does control return after the phase?
+what actual TURNLOCK-visible behavior remains inspectable after completion?
+can the inspection distinguish execution facts from a later/current definition?
 ```
 
 If the answer to "who decides what comes next?" is repeatedly "the main agent reads the remaining instructions and decides", the architecture has drifted away from TURNLOCK's product intent.
@@ -1818,6 +1942,13 @@ what value returns to the workflow?
 
 The authoring surface must additionally prove that the same workflow can be produced through either direct developer authoring or coding-agent authoring using public TURNLOCK primitives, without requiring a privileged generator path. The Pi implementation must prove the complete reference scenarios while keeping Pi-specific mechanisms below the TURNLOCK workflow semantics boundary.
 
+After a reference execution completes, the architecture must also demonstrate
+that enough actual boundary-level behavior remains inspectable to understand how
+the workflow progressed. That demonstration must not rely on human or agent
+recollection, must not substitute a current workflow definition for execution
+truth, and need not disclose private agent reasoning or establish replay,
+comparability, reproducibility, or proof.
+
 # 8. Derived synopsis
 
 This section is a non-authoritative synopsis derived from the specification's
@@ -1828,7 +1959,7 @@ invariant identities.
 
 TURNLOCK can currently be summarized as:
 
-> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it. Pi is the first reference harness used to prove the model.**
+> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it and keeps completed execution sufficiently inspectable for external evaluation and iterative refinement. Pi is the first reference harness used to prove the model.**
 
 The synopsis uses these canonical destinations:
 
@@ -1840,7 +1971,8 @@ The synopsis uses these canonical destinations:
 - immediate caller context and caller stack: Section 2.6;
 - control ownership and workflow-owned control: Section 2.7;
 - workflow invocation surface: Section 2.3; and
-- parallel fan-out/fan-in and nested workflow invocation: Section 2.8.
+- parallel fan-out/fan-in and nested workflow invocation: Section 2.8; and
+- execution inspectability: Section 2.9.
 
 The guiding allocation rule remains the product principle in Section 0.10 and
 the obligation in `TL-INV-029`: use the minimum sufficient form of computation

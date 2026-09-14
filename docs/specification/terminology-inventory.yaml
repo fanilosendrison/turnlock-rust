@@ -124,6 +124,12 @@ occurrences:
   role: canonical-definition
   fingerprint: a6bb7366c92ece18776ab6586448520e890d3b2c7ae0efde6a497114851d1553
 - concepts:
+  - execution-inspectability
+  section: '2.9'
+  heading: 2.9 Execution inspectability
+  role: canonical-definition
+  fingerprint: 5b0997e46662b0da4b4882347bbe80729d04521b4c07ef6f7c8f12f88e232bde
+- concepts:
   - workflow
   section: '0.1'
   heading: '0.1 Product definition: user-authored workflows inside coding-agent sessions'
@@ -132,7 +138,8 @@ occurrences:
 - concepts:
   - workflow
   section: 0.3A
-  heading: 0.3A Workflow capabilities remain invocable whenever the main agent owns control
+  heading: 0.3A Workflow capabilities remain invocable whenever the main agent owns
+    control
   role: intent
   fingerprint: 301e40e610399cca96eb2fa8396cec44e4c69a6994fe59c27cf71b95b122bc15
 - concepts:
@@ -174,7 +181,8 @@ occurrences:
 - concepts:
   - main-agent
   section: '0.10'
-  heading: 0.10 Use the minimum sufficient form of computation or cognition for each workflow region
+  heading: 0.10 Use the minimum sufficient form of computation or cognition for each
+    workflow region
   role: intent
   fingerprint: 8f2feaf635d22a63f69b464f733e9b453d362d50255eb76903f1257f05e830eb
 - concepts:
@@ -186,7 +194,8 @@ occurrences:
 - concepts:
   - main-agent
   section: 0.11B
-  heading: 0.11B A main-agent phase restores ordinary interactive agency, not an AI request/response call
+  heading: 0.11B A main-agent phase restores ordinary interactive agency, not an AI
+    request/response call
   role: intent
   fingerprint: 59bcea16001fb73a88f9f66b3db8fc11232c39edbfe9985155dcad9d4333f3d4
 - concepts:
@@ -195,6 +204,12 @@ occurrences:
   heading: 0.13A Workflow authoring is developer-native and agent-native
   role: intent
   fingerprint: 696068ac1b23c26f445ea9e21019f15fb1da282818cd0298718ebcc4de60ca93
+- concepts:
+  - workflow
+  section: 0.13B
+  heading: 0.13B Completed execution remains inspectable for iterative refinement
+  role: intent
+  fingerprint: 613fffb1b2eca1245413c79210fc4b392a6145469e249697eb12c74a0570009e
 - concepts:
   - main-agent
   - main-agent-step
@@ -230,24 +245,24 @@ occurrences:
 - concepts:
   - main-agent-step
   section: '3.5'
-  heading: 3.5 TL-INV-006 — Enclosing-workflow invariant
+  heading: "3.5 TL-INV-006 \u2014 Enclosing-workflow invariant"
   role: obligation
   fingerprint: ae75e2320be69dbbb92ce7ab415c5f5f60b2e1b0cfc4d35edfa1902d369fa24f
 - concepts:
   - immediate-caller-context
   section: '3.7'
-  heading: 3.7 TL-INV-008 — Invocation/return continuity invariant
+  heading: "3.7 TL-INV-008 \u2014 Invocation/return continuity invariant"
   role: obligation
   fingerprint: 65513193493d3049bb571cebe673528cb3af6a4187732db37e69d2bf20c6dbb4
 - concepts:
   - main-agent
   section: '3.15'
-  heading: 3.15 TL-INV-016 — Workflow-availability invariant
+  heading: "3.15 TL-INV-016 \u2014 Workflow-availability invariant"
   role: obligation
   fingerprint: 8e562f757e5bc156b913f0554e98a14c00d7a022d7dfa62557b1d8c7d451f269
 - concepts:
   - nested-workflow-invocation
   section: '4'
-  heading: 4. Current boundaries — intentionally not yet specified
+  heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: d4370e02198ce841eeb96b603f4ad669fbf356c632b9be53d09d2ce1634c3b4e
+  fingerprint: 5610fffe40ec296598f9bebbc406232b801f1997b3f8bcc9d2fb964951521e6f
