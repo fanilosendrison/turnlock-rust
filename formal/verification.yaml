@@ -768,3 +768,27 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-033
+  title: Completed-execution inspectability invariant
+  spec_section: '3.31'
+  adrs:
+  - ADR-018
+  kind: safety+semantic-quality+conformance
+  formalization: partial
+  formalization_note: A future abstract model can require a completed execution to expose boundary-level facts corresponding
+    to its actual declared progression and can forbid treating a later or current definition alone as those facts. TLA+ cannot
+    prove that an inspection surface is sufficient for every user or evaluation purpose, and the model must not invent a concrete
+    event schema, storage mechanism, retention policy, or workflow-definition binding rule.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: CompletedExecutionExposesActualBoundaryFacts
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
