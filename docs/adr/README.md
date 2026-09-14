@@ -68,11 +68,23 @@ Later ADRs record subsequently accepted decisions.
     optimize workflow artifacts. Evaluation and optimization may be performed
     by a user, coding agent, evaluator, higher-level system, or ordinary
     TURNLOCK workflow, and any resulting refinement is ordinary authorship.
+20. [ADR-020: Define independent-agent context provenance][20] — **Accepted**.
+    A workflow-declared independent agent begins a fresh cognitive lineage with
+    initial cognitive context supplied explicitly through workflow semantics,
+    while main-agent-internal child delegation remains ordinary local agency
+    unless the workflow declares it as a first-class TURNLOCK region.
+21. [ADR-021: Separate independent-agent completion, output, and effects][21] —
+    **Accepted**. Normal completion is workflow-recognizable and follows the
+    declared continuation; business output is optional unless required by the
+    region contract, effects may persist, and no universal completion or
+    resource-bound guarantee is introduced.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
 [18]: adr-018-require-completed-workflow-execution-inspectability.md
 [19]: adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md
+[20]: adr-020-define-independent-agent-context-provenance.md
+[21]: adr-021-separate-independent-agent-completion-output-and-effects.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -174,6 +186,15 @@ workflow control, either homogeneously or together with mechanical branches in
 the same heterogeneous fan-out. Same-type semantic branches may perform the
 same task or different tasks. The forms are intentionally non-equivalent: the
 author selects the minimum sufficient form for each region.
+
+ADR-020 and ADR-021 make the independent-agent boundary precise. A
+workflow-declared independent agent receives no implicit main-agent cognitive
+context, but may receive explicitly declared main-agent-derived information and
+acquire information during its own work. If normal completion occurs, TURNLOCK
+recognizes it and follows the declared continuation; a business payload is
+required only when the region contract requires one, while effects remain a
+separate concern. These structural semantics introduce neither a concrete
+resource bound nor a universal completion guarantee.
 
 Accepted ADR bodies retain their historical wording, including uses of
 “deterministic computation” and “deterministic orchestration.” The current
