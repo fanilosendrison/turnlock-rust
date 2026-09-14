@@ -78,6 +78,13 @@ Later ADRs record subsequently accepted decisions.
     declared continuation; business output is optional unless required by the
     region contract, effects may persist, and no universal completion or
     resource-bound guarantee is introduced.
+22. [ADR-022: Allow workflow-declared invocation with structured call/return
+    semantics][22] — **Accepted**. A workflow program may declaratively invoke
+    another workflow, and TURNLOCK executes the declared call directly rather
+    than reproducing a known decision through a main-agent handoff. The
+    calling continuation is suspended locally, normal completion returns to the
+    same immediate caller, and decision ownership remains distinct from
+    ADR-008 agent-selected invocation.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -85,6 +92,7 @@ Later ADRs record subsequently accepted decisions.
 [19]: adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md
 [20]: adr-020-define-independent-agent-context-provenance.md
 [21]: adr-021-separate-independent-agent-completion-output-and-effects.md
+[22]: adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -195,6 +203,14 @@ recognizes it and follows the declared continuation; a business payload is
 required only when the region contract requires one, while effects remain a
 separate concern. These structural semantics introduce neither a concrete
 resource bound nor a universal completion guarantee.
+
+ADR-022 generalizes nested invocation without relocating decision ownership. A
+workflow-declared invocation belongs to the workflow program, while an
+agent-selected invocation still belongs to the main agent during a main-agent
+region. Both preserve the calling context's continuation and return to the same
+immediate caller on normal completion, and suspension stays local to the
+calling continuation rather than blocking independently declared concurrent
+contexts.
 
 Accepted ADR bodies retain their historical wording, including uses of
 “deterministic computation” and “deterministic orchestration.” The current
