@@ -32,8 +32,14 @@ jobs:
       - name: Test ADR metadata tooling
         run: python3 scripts/tests/test-adr-metadata.py
 
+      - name: Test normative terminology tooling
+        run: python3 scripts/tests/test-normative-terminology.py
+
       - name: Check ADR metadata
         run: python3 scripts/adr-metadata.py check
+
+      - name: Check normative terminology
+        run: python3 scripts/check-normative-terminology.py
 
       - name: Check formal traceability
         run: python3 scripts/check-formal-traceability.py
