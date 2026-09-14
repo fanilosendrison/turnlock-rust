@@ -35,8 +35,8 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-022` | Harness-independence invariant | architecture | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
 | `TL-INV-023` | Pi-reference invariant | architecture | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
 | `TL-INV-024` | Heterogeneous parallel composition invariant | safety+reachability | planned | pending-model | `MixedBranchTypesCanCoexist`, `MixedBranchSemanticsPreserved` | — | — | not-yet-modeled | ADR-013 |
-| `TL-INV-025` | Independent-agent first-class invariant | reachability+safety | planned | pending-model | `IndependentAgentCanBeWorkflowDeclared`, `IndependentAgentHasDistinctLineage` | — | — | not-yet-modeled | ADR-011 |
-| `TL-INV-026` | Bounded-context delegation invariant | semantic-boundary | partial | pending-model | `IndependentAgentContextIsExplicitlyDeclared` | — | — | not-yet-modeled | ADR-011 |
+| `TL-INV-025` | Independent-agent first-class invariant | reachability+safety | planned | pending-model | `IndependentAgentCanBeWorkflowDeclared`, `IndependentAgentHasDistinctLineage` | — | — | not-yet-modeled | ADR-011, ADR-020, ADR-021 |
+| `TL-INV-026` | Independent-agent context-provenance invariant | semantic-boundary | partial | pending-model | `IndependentAgentContextIsExplicitlyDeclared` | — | — | not-yet-modeled | ADR-011, ADR-020 |
 | `TL-INV-027` | Parallel semantic fan-out/fan-in invariant | safety+liveness | planned | pending-model | `NoPrematureJoin`, `BranchCompletesAtMostOnce`, `JoinEventuallyReleasesUnderFairness` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013 |
 | `TL-INV-028` | Raw-LLM inference invariant | reachability+safety | planned | pending-model | `RawLLMIsBoundedLeaf`, `RawLLMDoesNotCreateAgentLoop` | — | — | not-yet-modeled | ADR-012 |
 | `TL-INV-029` | Minimum-sufficient cognition invariant | authoring-principle | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-012 |

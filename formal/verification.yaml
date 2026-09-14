@@ -587,8 +587,15 @@ invariants:
   spec_section: '3.23'
   adrs:
   - ADR-011
+  - ADR-020
+  - ADR-021
   kind: reachability+safety
   formalization: planned
+  formalization_note: A future formalization must represent direct workflow declaration as a positive capability and preserve
+    a fresh distinct lineage, a declared local task, autonomous multi-turn local authority, recognizable normal completion
+    if reached, optional contract output, possible persistent effects, and workflow-owned continuation. It must not treat
+    local autonomy as global orchestration authority, equate boundedness with a concrete resource limit, or assert universal
+    completion. Issue 1 owns property-level obligation classification and any split or rename.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -605,14 +612,17 @@ invariants:
   implementation:
     tests: []
 - id: TL-INV-026
-  title: Bounded-context delegation invariant
+  title: Independent-agent context-provenance invariant
   spec_section: '3.24'
   adrs:
   - ADR-011
+  - ADR-020
   kind: semantic-boundary
   formalization: partial
-  formalization_note: TLA+ can model explicitly declared context references and non-inheritance; it cannot prove semantic
-    sufficiency or quality of supplied context.
+  formalization_note: TLA+ can represent that a workflow-declared independent agent has a distinct lineage, receives no
+    implicit main-agent cognitive context, and begins with cognitive context supplied explicitly through workflow semantics.
+    It cannot prove semantic sufficiency or quality, govern children spawned only through local main-agent delegation, or
+    select a context API, representation, serialization, quantitative context limit, or resource budget.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -659,6 +669,11 @@ invariants:
   - ADR-012
   kind: reachability+safety
   formalization: planned
+  formalization_note: A future formalization must preserve one declared non-agentic semantic operation with explicit
+    instruction and context, no autonomous agent loop or persistent independent lineage, a result boundary if and when
+    the operation completes, and no global orchestration authority. The semantic boundary does not mean one physical provider request or attempt,
+    select a concrete turn, token, tool-call, cost, time, retry, or other resource limit, or assert universal completion.
+    Existing planned property names remain non-exhaustive inputs to Issue 1's property-level review.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -703,9 +718,11 @@ invariants:
   kind: safety
   formalization: planned
   formalization_note: A future formula must constrain every global control transition to workflow-authorized semantics while
-    permitting runtime results to select among declared continuations. It must not assert one enabled transition, output,
-    schedule, trace, or replay. The existing planned property name is retained for GitHub Issue 1's property-level review
-    and must not be read as exhaustive.
+    permitting runtime results to select among declared continuations and independent agents to exercise declared local
+    authority. Progression after a raw-LLM result or independent-agent normal completion is conditional on that event and
+    does not assert that it universally occurs. The formula must not assert one enabled transition, output, schedule, trace,
+    replay, resource budget, or termination guarantee. The existing planned property name is retained for GitHub Issue 1's
+    property-level review and must not be read as exhaustive.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model

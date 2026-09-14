@@ -77,7 +77,13 @@ A semantic state-machine change should normally run the relevant focused configu
 
 ## Finite bounds and temporal properties
 
-TLC cannot exhaust an unbounded real-world TURNLOCK system. An integrated configuration means all currently formalized mechanisms are connected in one abstract model and explored exhaustively within explicit finite bounds. Safety and liveness are separate obligations where both matter.
+TLC cannot exhaust an unbounded real-world TURNLOCK system. An integrated
+configuration means all currently formalized mechanisms are connected in one
+abstract model and explored exhaustively within explicit finite bounds. A finite
+state-space domain or bound is a modeling choice; it is not a TURNLOCK runtime
+limit on turns, tokens, tools, cost, time, retries, or context, and it does not
+establish eventual completion. Safety and liveness are separate obligations
+where both matter.
 
 ## Generated mapping
 
