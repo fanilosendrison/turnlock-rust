@@ -146,7 +146,7 @@ occurrences:
   section: '2.10'
   heading: 2.10 Effective execution-condition provenance
   role: canonical-definition
-  fingerprint: 726d116e1145b7723ad55b6e0bd4782f4838d4e172842eb76806e13c9018c05b
+  fingerprint: 86306ca4d7e0574b4ef7016d095c42c4352894722a42b038db58ea1977225b6d
 - concepts:
   - workflow
   section: '0.1'
