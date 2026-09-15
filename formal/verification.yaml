@@ -873,17 +873,20 @@ invariants:
   adrs:
   - ADR-024
   - ADR-025
+  - ADR-026
   kind: safety+semantic-boundary+conformance
   formalization: partial
   formalization_note: A future abstract model can represent that an effective condition TURNLOCK selects, binds, explicitly
     supplies, or resolves governs an execution scope, preserve that attribution instead of substituting unrelated later
     state, and distinguish unknown or unavailable provenance from a known condition occurrence bound to its governed scope,
-    including a protected state that is not substituted by generic loss before or during the boundary capture opportunity.
-    The abstraction must not imply post-boundary lifetime, exact-value disclosure, stable cross-run identity, or underlying-
-    value equality and difference evidence. TLA+ cannot establish real provider, harness,
-    or adapter metadata exposure, protection against information leakage, semantic sufficiency at a concrete boundary,
-    authorization, privacy, serialization, storage, retention, or UI behavior. No property, state variable, action, or config
-    identifier is recorded before the executable shared model introduces it.
+    including a protected state that is not substituted by generic loss before or during the required realizable capture
+    handoff. It can also represent that an owed provenance obligation cannot be irreversibly lost before its abstract capture
+    handoff is discharged and that this invariant alone imposes no post-handoff availability requirement. The abstraction
+    must not imply post-handoff lifetime, exact-value disclosure, stable cross-run identity, underlying-value equality and
+    difference evidence, delivery acknowledgment, persistence, retention, or a concrete capture mechanism. TLA+ cannot
+    establish real provider, harness, or adapter metadata exposure, protection against information leakage, semantic
+    sufficiency at a concrete boundary, authorization, privacy, serialization, storage, retention, or UI behavior. No
+    property, state variable, action, or config identifier is recorded before the executable shared model introduces it.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
