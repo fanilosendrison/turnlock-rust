@@ -867,3 +867,27 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-036
+  title: Effective execution-condition provenance invariant
+  spec_section: '3.34'
+  adrs:
+  - ADR-024
+  kind: safety+semantic-boundary+conformance
+  formalization: partial
+  formalization_note: A future abstract model can represent that an effective condition TURNLOCK selects, binds, explicitly
+    supplies, or resolves governs an execution scope, preserve that attribution instead of substituting unrelated later
+    state, and distinguish known attribution from unavailable or unknown information. TLA+ cannot establish real provider,
+    harness, or adapter metadata exposure, semantic sufficiency at a concrete inspection boundary, privacy, serialization,
+    storage, retention, or UI behavior. No property, state variable, action, or config identifier is recorded before the
+    executable shared model introduces it.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
