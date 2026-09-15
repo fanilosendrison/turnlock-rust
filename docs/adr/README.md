@@ -93,11 +93,19 @@ Later ADRs record subsequently accepted decisions.
     main-agent region; neither return disables independently active concurrent
     contexts.
 24. [ADR-024: Preserve effective execution-condition provenance][24] —
-    **Accepted**. Conditions TURNLOCK selects, binds, explicitly supplies, or
-    resolves remain attributable to the execution scopes they govern and
-    exposable or capturable at its semantic boundary. Unknown external
-    conditions may remain unknown; persistence, replay, reproducibility,
-    comparison policy, and optimization policy are not implied.
+    **Accepted**, clarified by ADR-025. Conditions TURNLOCK selects, binds,
+    explicitly supplies, or resolves remain attributable to the execution
+    scopes they govern and exposable or capturable at its semantic boundary.
+    Unknown external conditions may remain unknown; persistence, replay,
+    reproducibility, comparison policy, and optimization policy are not implied.
+25. [ADR-025: Preserve condition-specific provenance without requiring
+    protected-value disclosure][25] — **Accepted**. Exact protected values need
+    not be disclosed, but before or during the required boundary capture
+    opportunity protection cannot substitute away condition-specific information
+    TURNLOCK possessed about known effective conditions. A condition-specific
+    representation remains scope-attributable and capturable; consumer views may
+    be more restrictive without defining stable cross-run identity, equality,
+    authorization, persistence, or a protection mechanism.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -108,6 +116,7 @@ Later ADRs record subsequently accepted decisions.
 [22]: adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md
 [23]: adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md
 [24]: adr-024-preserve-effective-execution-condition-provenance.md
+[25]: adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -157,11 +166,22 @@ condition TURNLOCK selects / binds / explicitly supplies / resolves
 → attribution remains exposable or capturable at TURNLOCK's boundary
 ```
 
-This does not make TURNLOCK the evaluator, define which conditions matter to a
-property, or require persistence, replay, reproducibility, or a comparison
-contract. It complements ADR-018 without claiming that completed-execution
-inspectability had already entailed governing-condition provenance, and it
-confirms ADR-019's policy boundary.
+ADR-025 clarifies that floor for protected values:
+
+```text
+exact-value disclosure is not universally required
++
+protection cannot substitute away TURNLOCK-known condition-specific provenance
+before or during the boundary capture opportunity
+```
+
+A consumer may receive a restricted view, but a generic protected marker cannot
+be the sole provenance representation when it substitutes away more specific
+condition information TURNLOCK possessed before or during the boundary capture
+opportunity. This clarification creates no stable cross-run
+identity, equality evidence, authorization model, persistence, replay,
+reproducibility, or comparison contract. Together the decisions complement
+ADR-018 without absorbing Issue #13 and preserve ADR-019's policy boundary.
 
 ## Governing reference scenario
 
