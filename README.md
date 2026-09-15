@@ -14,8 +14,8 @@ boundary. Protected values need not be disclosed, but protection cannot substitu
 condition-specific provenance TURNLOCK possessed before or during its required
 boundary capture opportunity. This
 creates no persistence, replay, reproducibility, stable cross-run identity, or
-comparison guarantee. Cognition is an explicit execution resource rather than the implicit
-global scheduler.
+comparison guarantee. Cognition is an explicit execution resource rather than
+the implicit global scheduler.
 
 A workflow may compose four distinct execution forms:
 
@@ -163,8 +163,8 @@ boundary. Protected values need not be disclosed, but before or during the requi
 boundary capture opportunity a generic protected view cannot replace more
 specific provenance TURNLOCK knew. This does
 not impose stable cross-run identity, equality evidence, persistence, or make
-TURNLOCK the evaluator or optimizer. Evaluation objectives, property-relative relevance, comparison
-judgments, and optimization policy come from an explicitly responsible actor or
+TURNLOCK the evaluator or optimizer. Evaluation objectives, property-relative
+relevance, comparison judgments, and optimization policy come from an explicitly responsible actor or
 authored workflow, never from core TURNLOCK runtime policy.
 
 ## Formal verification organization
