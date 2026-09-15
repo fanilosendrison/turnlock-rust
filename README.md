@@ -12,7 +12,9 @@ that TURNLOCK selects, binds, explicitly supplies, or resolves remain
 attributable to the execution scopes they govern and capturable at that
 boundary. Protected values need not be disclosed, but protection cannot substitute away
 condition-specific provenance TURNLOCK possessed before or during its required
-boundary capture opportunity. This
+realizable semantic-boundary capture handoff. The handoff is not a retention
+interval: no consumer, delivery acknowledgment, or post-handoff availability is
+required by the universal floor. This
 creates no persistence, replay, reproducibility, stable cross-run identity, or
 comparison guarantee. Cognition is an explicit execution resource rather than
 the implicit global scheduler.
@@ -96,7 +98,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-025.
+  chronological decision narrative and links to ADR-001 through ADR-026.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
@@ -160,8 +162,11 @@ TURNLOCK-visible behavior for external understanding and evaluation. Effective
 conditions TURNLOCK selects, binds, explicitly supplies, or resolves remain
 attributable to their governed execution scopes and capturable at its semantic
 boundary. Protected values need not be disclosed, but before or during the required
-boundary capture opportunity a generic protected view cannot replace more
-specific provenance TURNLOCK knew. This does
+realizable semantic-boundary capture handoff a generic protected view cannot
+replace more specific provenance TURNLOCK knew. A runtime cannot satisfy that
+obligation through momentary internal existence or a race-dependent observation
+path, while consumer absence, delivery failure, persistence, and retention
+remain separate concerns. This does
 not impose stable cross-run identity, equality evidence, persistence, or make
 TURNLOCK the evaluator or optimizer. Evaluation objectives, property-relative
 relevance, comparison judgments, and optimization policy come from an explicitly responsible actor or
