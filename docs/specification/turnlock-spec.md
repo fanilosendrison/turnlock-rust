@@ -14,8 +14,10 @@ minimum completed-execution inspectability. ADR-020 and ADR-021 clarify
 independent-agent context provenance and completion/output semantics. ADR-022
 defines workflow-declared invocation and its structured call/return semantics.
 ADR-023 clarifies the caller-context and continuation distinction for nested
-workflow invocations. ADR-015 governs how this normative specification
-co-evolves with the formal TLA+/TLC model and verification manifest.
+workflow invocations. ADR-024 establishes effective execution-condition
+provenance for conditions TURNLOCK selects, binds, explicitly supplies, or
+resolves. ADR-015 governs how this normative specification co-evolves with the
+formal TLA+/TLC model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -82,11 +84,15 @@ When an invocation finishes, control returns to its immediate caller.
 
 The completed execution remains sufficiently inspectable at TURNLOCK's
 semantic boundary for user- or system-led evaluation and iterative refinement.
+
+Effective conditions TURNLOCK selects, binds, explicitly supplies, or resolves
+remain attributable to the execution scopes they govern and capturable at that
+boundary without making TURNLOCK the evaluator or optimizer.
 ```
 
 The governing promise is:
 
-> **The workflow program owns the declared orchestration logic; TURNLOCK is the orchestration engine that executes it. The workflow can compose mechanical execution, bounded LLM inference, bounded independent agency, and continuation of the main interactive agent as distinct execution forms. Probabilistic or autonomous regions do not become the global orchestration decision-maker merely by being invoked, completed workflows return structurally to their immediate caller, and completed execution exposes enough actual TURNLOCK-visible behavior for external understanding, evaluation, and iterative refinement.**
+> **The workflow program owns the declared orchestration logic; TURNLOCK is the orchestration engine that executes it. The workflow can compose mechanical execution, bounded LLM inference, bounded independent agency, and continuation of the main interactive agent as distinct execution forms. Probabilistic or autonomous regions do not become the global orchestration decision-maker merely by being invoked, completed workflows return structurally to their immediate caller, completed execution exposes enough actual TURNLOCK-visible behavior for external understanding, evaluation, and iterative refinement, and effective conditions TURNLOCK selects, binds, explicitly supplies, or resolves remain attributable to the execution scopes they govern and capturable at its semantic boundary. Evaluation and optimization policy remain external to TURNLOCK core.**
 
 ## 0.3 Workflow invocation is a natural slash-command surface inside the coding-agent session
 
@@ -862,6 +868,63 @@ adding native evaluator interfaces, experiment concepts, comparison contracts,
 optimizer machinery, privileged mutation authority, or stronger evaluation
 guarantees requires its own accepted product decision.
 
+## 0.13D Effective execution-condition provenance remains capturable
+
+TURNLOCK MUST preserve the attribution of effective execution conditions that it
+selects, binds, explicitly supplies, or resolves at its semantic boundary to the
+execution scopes they govern. That relationship must remain semantically
+distinguished and exposable or capturable at an execution boundary rather than
+existing only as hidden transient adapter state or requiring reconstruction from
+later mutable state, human recollection, or agent recollection.
+
+The product layers remain distinct:
+
+```text
+workflow execution
+        ↓
+actual execution truth
++
+effective execution-condition provenance
+        ↓
+external evaluation or optimization policy
+```
+
+This obligation exists now because evaluation, comparison, reproducibility, and
+replay features can be added later, while provenance discarded when TURNLOCK
+possesses the governing information may not be recoverable later. It does not
+accept any of those future features.
+
+The universal floor applies to conditions TURNLOCK itself selects, binds,
+explicitly supplies, or resolves. Conditions outside TURNLOCK's observation or
+control MAY remain unavailable or unknown. Unknown MUST NOT be presented as
+known-equal across executions or as evidence that no relevant difference
+exists.
+
+The relevance of a condition remains relative to an externally supplied
+property:
+
+```text
+Are executions E1 and E2 comparable for property P?
+```
+
+TURNLOCK core does not define which conditions matter to `P`, decide whether two
+executions are comparable, select a superior execution, or own the objective or
+optimization policy. Those judgments remain with the explicitly responsible
+actor under Section 0.13C.
+
+Semantic distinction, runtime availability, exposability, capture, persistence,
+and retention are separate responsibilities. This obligation requires semantic
+distinction, attribution, and an execution-boundary means of exposure or
+capture. It does not require a TURNLOCK-owned database, post-execution
+persistence, permanent retention, canonical event log, run model, replay
+facility, or reproduction guarantee.
+
+Once an effective condition governs part of an accepted invocation, its
+attribution does not become semantically nonexistent solely because the
+invocation later fails, is cancelled, or is interrupted. This rule does not
+define those terminal outcomes or the detailed inspectability of non-completed
+executions.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -935,6 +998,13 @@ evaluation or optimization policy must be owned by TURNLOCK core for workflow re
 conforming evaluation must rely on a TURNLOCK-defined universal objective, quality metric, or superiority relation
 
 an evaluator or optimizer must receive privileged runtime authority to assess an execution or propose a workflow change
+
+an effective execution condition selected, bound, explicitly supplied, or
+resolved by TURNLOCK can govern an execution scope while its attribution exists
+only in inaccessible transient adapter state
+
+an unavailable or unknown execution condition is presented as known-equal across
+executions or as evidence that no relevant difference exists
 ```
 
 A conforming implementation may use different internal mechanisms per harness, but those mechanisms exist to realize the same control contract.
@@ -1148,6 +1218,7 @@ prose:
 | `parallel-fan-out-fan-in` | `parallel fan-out/fan-in` | [`term-parallel-fan-out-fan-in`](#term-parallel-fan-out-fan-in) | `fan-out/fan-in`; `parallel region` | — | compound |
 | `nested-workflow-invocation` | `nested workflow invocation` | [`term-nested-workflow-invocation`](#term-nested-workflow-invocation) | `nested invocation` | — | compound |
 | `execution-inspectability` | `execution inspectability` | [`term-execution-inspectability`](#term-execution-inspectability) | `completed-execution inspectability` | — | compound |
+| `effective-execution-condition-provenance` | `effective execution-condition provenance` | [`term-effective-execution-condition-provenance`](#term-effective-execution-condition-provenance) | — | — | compound |
 <!-- normative-terminology-registry:end -->
 
 Definition-like occurrences outside their canonical destinations are reviewed in
@@ -1175,6 +1246,9 @@ local agent discretion == global orchestration authority
 probabilistic result == a new orchestration possibility
 execution inspectability == evaluation or optimization
 execution inspectability == replay, reproducibility, or execution proof
+effective execution-condition provenance == persistence or retention
+effective execution-condition provenance == comparability or reproducibility
+unknown execution condition == known-equal execution condition
 ```
 
 They are distinct product concepts.
@@ -1497,6 +1571,23 @@ that TURNLOCK defines evaluation criteria, compares executions, or optimizes the
 workflow. The term does not prescribe a run model, event schema, identifier,
 storage, telemetry, retention, replay, reproducibility, proof, or user-interface
 mechanism.
+
+## 2.10 Effective execution-condition provenance
+
+<a id="term-effective-execution-condition-provenance"></a>
+
+**Effective execution-condition provenance** is the semantic relationship that
+attributes a condition TURNLOCK selects, binds, explicitly supplies, or resolves
+at its semantic boundary to the execution scope that condition governs. The
+relationship remains exposable or capturable at an execution boundary rather
+than existing only in hidden transient adapter state or requiring reconstruction
+from later mutable state, human recollection, or agent recollection.
+
+The concept requires semantic distinction, attribution, and a boundary means of
+exposure or capture. It does not itself require persistence, retention, a
+canonical event or run model, replay, reproducibility, or a comparison contract.
+A condition outside TURNLOCK's observation or control may remain unavailable or
+unknown; unknown is not evidence of equality or absence of difference.
 
 # 3. Derived invariants
 
@@ -1954,6 +2045,31 @@ declared topology permits to continue.
 This invariant does not decide recursion, cyclic call graphs, restricted
 placement admissibility, or concrete depth and resource limits.
 
+## 3.34 TL-INV-036 — Effective execution-condition provenance invariant
+
+For every accepted workflow invocation, each effective execution condition that
+TURNLOCK selects, binds, explicitly supplies, or resolves at its semantic
+boundary MUST remain semantically distinguished and attributable to the
+execution scope it governs. TURNLOCK MUST provide an execution-boundary means by
+which that attribution can be exposed or captured without reconstruction from
+later mutable state, human recollection, or agent recollection.
+
+A condition outside TURNLOCK's observation or control MAY remain unavailable or
+unknown. Unknown MUST NOT be represented as known-equal across executions or as
+evidence that no relevant difference exists.
+
+If a condition governs part of an accepted invocation, later failure,
+cancellation, or interruption MUST NOT make that attribution semantically
+nonexistent. This requirement defines no terminal-outcome or detailed
+non-completed-execution inspectability semantics.
+
+This invariant does not require persistence, retention, a database, event
+schema, identifier, hash, snapshot, telemetry system, canonical run model,
+replay, cross-run comparability, reproducibility, deterministic execution,
+identical outputs, or identical traces. TURNLOCK does not determine which
+conditions are relevant to an externally supplied property `P` or whether two
+executions are comparable for that property.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -1974,7 +2090,9 @@ The following questions are important but are **not yet answered by the product 
 - Whether completed-execution inspectability extends to failed, cancelled, interrupted, or otherwise non-completed executions, and with what outcome-specific semantics.
 - How a workflow definition binds to an active invocation and how inspection establishes correspondence between actual execution and any definition it presents.
 - Whether future TURNLOCK-adjacent capabilities should introduce native evaluator interfaces, universal metrics, cross-run comparison, experiment support, or optimizer machinery; the current product definition assigns evaluation and optimization policy outside TURNLOCK core, and any such addition requires a new accepted product decision.
-- Whether replay, cross-run comparability, reproducibility profiles, or execution proofs should ever be supported.
+- Whether replay, cross-run comparability contracts or APIs, reproducibility profiles, canonical run models, experiment frameworks, or execution proofs should ever be supported.
+- Whether conditions TURNLOCK observes but does not control, or conditions an adapter or execution resource could expose, receive provenance obligations beyond the universal floor for conditions TURNLOCK selects, binds, explicitly supplies, or resolves.
+- What persistence, retention, access, privacy, and capture-consumer guarantees apply above the required execution-boundary means of exposure or capture.
 - Whether visibility inside an agentic region should extend beyond explicitly exposed results and TURNLOCK-visible facts relevant to declared progression.
 - Whether multiple sibling/top-level workflows may execute concurrently in one interactive coding-agent session; structured nested invocation is already allowed.
 - Whether implementations impose explicit resource/safety limits on nesting depth, and how such limits are surfaced without changing immediate-caller return semantics.
@@ -2139,9 +2257,11 @@ mechanisms remain replaceable and require their own derivation or decision.
 
 Because evaluation objectives and optimization policy are not core TURNLOCK
 semantics, the architecture must let evaluation and optimization be composed
-above the execution substrate. TURNLOCK's responsibility ends at executing
-declared workflow semantics and exposing sufficient actual execution truth at
-its semantic boundary (`TL-INV-033`).
+above the execution substrate. TURNLOCK's responsibility includes executing
+declared workflow semantics, exposing sufficient actual execution truth
+(`TL-INV-033`), and preserving effective execution-condition provenance
+(`TL-INV-036`) at its semantic boundary. It does not extend to owning evaluation
+or optimization policy.
 
 Evaluation or optimization logic requires no privileged runtime interface. It
 can be implemented by a user, the main agent, an external evaluator, or another
@@ -2153,6 +2273,26 @@ through the same artifact class as any other workflow change.
 
 This implication does not select an evaluation API, metric set, experiment
 model, comparison contract, optimizer algorithm, storage, or user interface.
+
+## 5.17 Effective governing conditions require an attribution boundary
+
+Because TURNLOCK must preserve effective execution-condition provenance, runtime
+and adapter architecture must keep each condition TURNLOCK selects, binds,
+explicitly supplies, or resolves attributable to the execution scope it governs
+and provide a semantic boundary through which a consumer can capture that
+relationship.
+
+The architecture may distinguish unavailable or unknown conditions and need not
+observe conditions outside TURNLOCK's boundary. It must not manufacture known
+equality from missing information. Whichever workflow definition Issue #4's
+future semantics make effective must remain attributable when TURNLOCK binds or
+resolves it, without this implication selecting the binding rule or a revision
+representation.
+
+This boundary does not select who captures the attribution, how long it remains
+available, whether another layer persists it, or any database, event, identifier,
+hash, snapshot, telemetry, run-model, replay, comparison, or reproduction
+mechanism.
 
 # 6. Non-goals implied by the current product intent
 
@@ -2171,6 +2311,8 @@ At the current stage, TURNLOCK is not defined as:
 - an evaluator, benchmark system, run comparator, experiment manager, or workflow optimizer, including as a consequence of making completed executions inspectable;
 - an owner of a universal evaluation objective, universal quality metrics, or a default superiority relation between workflows or executions;
 - a replay, cross-run comparability, reproducibility, or execution-proof system;
+- a universal execution record or a guarantee that TURNLOCK observes every causal, environmental, external, context, tool, or scheduling determinant;
+- a persistence or retention system for effective execution-condition provenance;
 - a requirement to expose private agent reasoning or record every tool call inside an agentic region.
 
 Future features may include some adjacent capabilities, but they must not blur the control model that defines the product.
@@ -2205,6 +2347,10 @@ what exactly makes an "agent step" the main agent rather than another agent?
 how does control return after the phase?
 what actual TURNLOCK-visible behavior remains inspectable after completion?
 can the inspection distinguish execution facts from a later/current definition?
+which effective conditions did TURNLOCK select, bind, explicitly supply, or
+resolve for this execution scope?
+can their attribution be exposed or captured without later reconstruction?
+which candidate conditions remain unavailable or unknown?
 ```
 
 If the answer to "who decides what comes next?" is repeatedly "the main agent reads the remaining instructions and decides", the architecture has drifted away from TURNLOCK's product intent.
@@ -2265,6 +2411,13 @@ it must not obtain privileged control over the workflow it assesses, and any
 resulting refinement is authored through the same artifact class as any other
 workflow change.
 
+The architecture must separately demonstrate effective execution-condition
+provenance. For a condition TURNLOCK selects, binds, explicitly supplies, or
+resolves, it must identify the governed execution scope and the boundary means
+by which a consumer can capture that attribution. This demonstration may report
+other conditions as unavailable or unknown and need not establish persistence,
+replay, reproducibility, or comparability.
+
 # 8. Derived synopsis
 
 This section is a non-authoritative synopsis derived from the specification's
@@ -2275,7 +2428,7 @@ invariant identities.
 
 TURNLOCK can currently be summarized as:
 
-> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it and keeps completed execution sufficiently inspectable for external evaluation and iterative refinement. Pi is the first reference harness used to prove the model.**
+> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it, keeps completed execution sufficiently inspectable, and preserves effective execution-condition provenance for conditions it selects, binds, explicitly supplies, or resolves. External actors retain evaluation and optimization policy. Pi is the first reference harness used to prove the model.**
 
 The synopsis uses these canonical destinations:
 
@@ -2287,8 +2440,9 @@ The synopsis uses these canonical destinations:
 - immediate caller context and caller stack: Section 2.6;
 - control ownership and workflow-owned control: Section 2.7;
 - workflow invocation surface: Section 2.3; and
-- parallel fan-out/fan-in and nested workflow invocation: Section 2.8; and
-- execution inspectability: Section 2.9.
+- parallel fan-out/fan-in and nested workflow invocation: Section 2.8;
+- execution inspectability: Section 2.9; and
+- effective execution-condition provenance: Section 2.10.
 
 The guiding allocation rule remains the product principle in Section 0.10 and
 the obligation in `TL-INV-029`: use the minimum sufficient form of computation
@@ -2296,7 +2450,9 @@ or cognition for each region.
 
 Evaluation and optimization policy remain outside TURNLOCK core: evaluation
 objectives come from an explicitly responsible actor or authored workflow, and
-the runtime never silently optimizes authored orchestration.
+the runtime never silently optimizes authored orchestration. TURNLOCK preserves
+its own effective governing-condition attribution without deciding which
+conditions matter to a property or whether executions are comparable.
 
 The product is successful only if these roles remain distinct in the real execution model and if known orchestration decisions can remain in the workflow rather than being pushed back into an agent merely because the workflow lacks expressive power.
 

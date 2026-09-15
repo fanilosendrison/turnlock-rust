@@ -136,6 +136,12 @@ occurrences:
   role: canonical-definition
   fingerprint: 5b0997e46662b0da4b4882347bbe80729d04521b4c07ef6f7c8f12f88e232bde
 - concepts:
+  - effective-execution-condition-provenance
+  section: '2.10'
+  heading: 2.10 Effective execution-condition provenance
+  role: canonical-definition
+  fingerprint: d228cd865e358c17491245d901bcda3fe7f824cf890225dd9f13a4a287a927b6
+- concepts:
   - workflow
   section: '0.1'
   heading: '0.1 Product definition: user-authored workflows inside coding-agent sessions'
@@ -235,7 +241,7 @@ occurrences:
   section: '0.14'
   heading: 0.14 Product-intent conformance rule
   role: intent
-  fingerprint: 66f89f910113f2959e46c4907962dc0e65145376f9c9fe064370646c6f7e2f12
+  fingerprint: 6c25f0a6b0db7b87f0ca5eade5635eb1dbaccb5e63f3cb67ced646a7422a14c6
 - concepts:
   - independent-agent
   - main-agent-handoff
@@ -284,4 +290,4 @@ occurrences:
   section: '4'
   heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: 98cd241bac350c5668160ca18bfcdb205b5a6625688bd94ae565511f4681bdcb
+  fingerprint: 49000748104189b3b77c9a807885debd3f95bb94d19b33d2d0a5df483fc338fe
