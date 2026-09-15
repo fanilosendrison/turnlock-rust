@@ -92,6 +92,12 @@ Later ADRs record subsequently accepted decisions.
     normal return, while an agent-selected invocation resumes the same
     main-agent region; neither return disables independently active concurrent
     contexts.
+24. [ADR-024: Preserve effective execution-condition provenance][24] —
+    **Accepted**. Conditions TURNLOCK selects, binds, explicitly supplies, or
+    resolves remain attributable to the execution scopes they govern and
+    exposable or capturable at its semantic boundary. Unknown external
+    conditions may remain unknown; persistence, replay, reproducibility,
+    comparison policy, and optimization policy are not implied.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -101,6 +107,7 @@ Later ADRs record subsequently accepted decisions.
 [21]: adr-021-separate-independent-agent-completion-output-and-effects.md
 [22]: adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md
 [23]: adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md
+[24]: adr-024-preserve-effective-execution-condition-provenance.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -141,6 +148,20 @@ appropriate, and workflow changes. ADR-019 fixes the boundary that ADR-018
 reserved: TURNLOCK core does not own evaluation or optimization policy, and
 behavior that evaluates or refines a workflow remains ordinary authored
 execution.
+
+ADR-024 adds a separate forward-compatibility floor:
+
+```text
+condition TURNLOCK selects / binds / explicitly supplies / resolves
+→ governs execution scope
+→ attribution remains exposable or capturable at TURNLOCK's boundary
+```
+
+This does not make TURNLOCK the evaluator, define which conditions matter to a
+property, or require persistence, replay, reproducibility, or a comparison
+contract. It complements ADR-018 without claiming that completed-execution
+inspectability had already entailed governing-condition provenance, and it
+confirms ADR-019's policy boundary.
 
 ## Governing reference scenario
 

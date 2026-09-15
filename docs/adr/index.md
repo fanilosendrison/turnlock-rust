@@ -40,6 +40,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-021](adr-021-separate-independent-agent-completion-output-and-effects.md) | Separate independent-agent completion, output, and effects | accepted | 2026-09-14 | complete | Normal-completion, optional-output, and persistent-effect semantics for independent-agent regions |
 | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | Allow workflow-declared invocation with structured call/return semantics | accepted | 2026-09-15 | complete | Declared workflow-to-workflow invocation capability, structured caller/return semantics, and the decision-owner boundary with agent-selected invocation |
 | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) | Clarify caller-context and continuation semantics across nested workflow invocations | accepted | 2026-09-15 | complete | Caller-context and call-continuation distinction, and decision-owner-specific post-return behavior for nested workflow invocations |
+| [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | Preserve effective execution-condition provenance | accepted | 2026-09-15 | complete | Attribution and boundary exposability of effective execution conditions selected, bound, explicitly supplied, or resolved by TURNLOCK |
 
 ## Recorded outgoing relations
 
@@ -68,6 +69,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | clarifies | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
 | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) | amends | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
 | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) | clarifies | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
+| [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | confirms | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
 
 ## Derived incoming relations
 
@@ -95,4 +97,5 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
+| [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | confirmed by | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | amended by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
