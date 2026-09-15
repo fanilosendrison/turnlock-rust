@@ -16,7 +16,9 @@ name: "Future workflow run-evaluation design space"
 >   conditions TURNLOCK selects, binds, explicitly supplies, or resolves;
 >   ADR-025 clarifies that protected values need not be disclosed but
 >   TURNLOCK-known condition-specific provenance cannot be substituted away
->   before or during the required boundary capture opportunity; and ADR-019 keeps evaluation and optimization policy outside
+>   before or during the required boundary capture opportunity; ADR-026 defines
+>   that opportunity as a realizable semantic-boundary capture handoff; and
+>   ADR-019 keeps evaluation and optimization policy outside
 >   TURNLOCK core
 > - **Creates TURNLOCK semantics:** No
 > - **Creates invariants:** No
@@ -37,7 +39,8 @@ supplies, or resolves to remain attributable to the execution scopes they govern
 and exposable or capturable at that boundary. ADR-025 clarifies that exact-value
 disclosure is not universal, while protection cannot substitute away
 condition-specific provenance TURNLOCK knew before or during the required
-boundary capture opportunity. Detailed tracing, event schemas,
+boundary capture handoff. ADR-026 defines when that capture opportunity is
+genuinely satisfied. Detailed tracing, event schemas,
 retention, storage, telemetry, replay, cross-run identity or equality,
 comparison, reproducibility, execution proofs, debugger UI, evaluation APIs,
 metrics, and automatic optimization remain open. This note prevents that stronger design space from
@@ -202,11 +205,14 @@ quality, latency, cost, retrieval quality, or model behavior.
 ADR-024 makes TURNLOCK-known effective conditions available at the semantic
 boundary when TURNLOCK selects, binds, explicitly supplies, or resolves them.
 ADR-025 prevents protection from substituting away condition-specific
-provenance TURNLOCK possessed before or during the boundary capture opportunity, but it provides no public or cross-run stable
-identity and no equality or difference evidence. Neither decision defines which
-conditions matter to property `P`, extends the universal floor to every observed
-or externally exposable condition, or decides whether available evidence
-establishes comparability.
+provenance TURNLOCK possessed before or during the required realizable
+semantic-boundary capture handoff, and ADR-026 requires that handoff to be a
+real capability an eligible capture context could actually use rather than
+momentary internal existence or a race-dependent observation. Neither decision
+provides a public or cross-run stable identity or equality or difference
+evidence, defines which conditions matter to property `P`, extends the universal
+floor to every observed or externally exposable condition, or decides whether
+available evidence establishes comparability.
 
 This note does not define the determinant set, a canonical run description, or
 a comparison algorithm.
