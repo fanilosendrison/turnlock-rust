@@ -106,6 +106,16 @@ Later ADRs record subsequently accepted decisions.
     representation remains scope-attributable and capturable; consumer views may
     be more restrictive without defining stable cross-run identity, equality,
     authorization, persistence, or a protection mechanism.
+26. [ADR-026: Define a realizable semantic-boundary capture handoff][26] —
+    **Accepted**, clarifies ADR-024 and ADR-025. The required boundary capture
+    opportunity is satisfied only by a realizable semantic-boundary capture
+    handoff: an eligible conforming capture context could acquire the required
+    condition-specific provenance and governed-scope attribution as part of the
+    boundary interaction, not merely because the provenance existed internally
+    for some duration or because a consumer could win an accidental timing race.
+    The universal floor requires no consumer, delivery, acknowledgment,
+    retention duration, or post-handoff availability; stronger guarantees may
+    be added above it by a profile, integration, or later decision.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -117,6 +127,7 @@ Later ADRs record subsequently accepted decisions.
 [23]: adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md
 [24]: adr-024-preserve-effective-execution-condition-provenance.md
 [25]: adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md
+[26]: adr-026-define-a-realizable-semantic-boundary-capture-handoff.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -172,16 +183,37 @@ ADR-025 clarifies that floor for protected values:
 exact-value disclosure is not universally required
 +
 protection cannot substitute away TURNLOCK-known condition-specific provenance
-before or during the boundary capture opportunity
+before or during the required realizable semantic-boundary capture handoff
 ```
 
 A consumer may receive a restricted view, but a generic protected marker cannot
 be the sole provenance representation when it substitutes away more specific
 condition information TURNLOCK possessed before or during the boundary capture
-opportunity. This clarification creates no stable cross-run
+handoff. This clarification creates no stable cross-run
 identity, equality evidence, authorization model, persistence, replay,
 reproducibility, or comparison contract. Together the decisions complement
 ADR-018 without absorbing Issue #13 and preserve ADR-019's policy boundary.
+
+ADR-026 defines when that boundary capture opportunity is genuinely satisfied:
+
+```text
+required provenance
+→ realizable semantic-boundary capture handoff
+→ eligible conforming capture context could acquire it as part of the interaction
+→ universal obligation discharged
+
+no consumer, delivery acknowledgment, retention duration,
+or post-handoff availability required by the universal floor
+```
+
+A handoff is not a retention interval. Momentary internal existence, or an
+acquisition path that depends on an accidental race against inaccessible
+internal timing, does not satisfy the floor. Consumer absence, participant
+failure, and delivery failure do not by themselves impose retention, while
+stronger availability and persistence guarantees remain available above the
+floor through separate accepted decisions or integration contracts. Issue #13
+owns detailed non-completed-execution inspectability, availability, retention,
+access, and privacy.
 
 ## Governing reference scenario
 
