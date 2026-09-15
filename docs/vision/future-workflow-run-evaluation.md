@@ -13,8 +13,11 @@ name: "Future workflow run-evaluation design space"
 > - **Authority:** None
 > - **Normative baseline:** Minimum completed-execution inspectability is accepted
 >   by ADR-018; ADR-024 requires effective execution-condition provenance for
->   conditions TURNLOCK selects, binds, explicitly supplies, or resolves; and
->   ADR-019 keeps evaluation and optimization policy outside TURNLOCK core
+>   conditions TURNLOCK selects, binds, explicitly supplies, or resolves;
+>   ADR-025 clarifies that protected values need not be disclosed but
+>   TURNLOCK-known condition-specific provenance cannot be substituted away
+>   before or during the required boundary capture opportunity; and ADR-019 keeps evaluation and optimization policy outside
+>   TURNLOCK core
 > - **Creates TURNLOCK semantics:** No
 > - **Creates invariants:** No
 >
@@ -31,10 +34,13 @@ ADR-018 and `TL-INV-033` require minimum inspectability of completed execution
 at TURNLOCK's semantic boundary. ADR-024 and `TL-INV-036` additionally require
 effective execution conditions that TURNLOCK selects, binds, explicitly
 supplies, or resolves to remain attributable to the execution scopes they govern
-and exposable or capturable at that boundary. Detailed tracing, event schemas,
-retention, storage, telemetry, replay, cross-run comparison, reproducibility,
-execution proofs, debugger UI, evaluation APIs, metrics, and automatic
-optimization remain open. This note prevents that stronger design space from
+and exposable or capturable at that boundary. ADR-025 clarifies that exact-value
+disclosure is not universal, while protection cannot substitute away
+condition-specific provenance TURNLOCK knew before or during the required
+boundary capture opportunity. Detailed tracing, event schemas,
+retention, storage, telemetry, replay, cross-run identity or equality,
+comparison, reproducibility, execution proofs, debugger UI, evaluation APIs,
+metrics, and automatic optimization remain open. This note prevents that stronger design space from
 being lost without promoting it into the product contract.
 
 Preserving this exploration is classified as `no-normative-impact` in the
@@ -195,9 +201,12 @@ quality, latency, cost, retrieval quality, or model behavior.
 
 ADR-024 makes TURNLOCK-known effective conditions available at the semantic
 boundary when TURNLOCK selects, binds, explicitly supplies, or resolves them.
-It does not define which of those conditions matter to property `P`, extend the
-universal floor to every observed or externally exposable condition, or decide
-whether the available evidence establishes comparability.
+ADR-025 prevents protection from substituting away condition-specific
+provenance TURNLOCK possessed before or during the boundary capture opportunity, but it provides no public or cross-run stable
+identity and no equality or difference evidence. Neither decision defines which
+conditions matter to property `P`, extends the universal floor to every observed
+or externally exposable condition, or decides whether available evidence
+establishes comparability.
 
 This note does not define the determinant set, a canonical run description, or
 a comparison algorithm.
@@ -270,9 +279,13 @@ workflow definition or revision identity
 ```
 
 This overlap remains a forward-compatibility observation. ADR-024 requires the
-semantic attribution itself, not any listed representation. The list does not
-establish that an abstraction is required, externally visible, stable,
-persistent, globally unique, or suitable for cross-run comparison.
+semantic attribution itself, and ADR-025 requires a condition-specific
+representation when a known value is protected without choosing any listed
+abstraction. The representation need not reveal the value and establishes no
+public or cross-run stable identity, equality or difference evidence, or
+comparison sufficiency. The list does not establish that any abstraction is
+required, externally visible, stable, persistent, globally unique, or suitable
+for cross-run comparison.
 
 In particular, the core must not gain any of the following solely to prepare for
 this design space:
