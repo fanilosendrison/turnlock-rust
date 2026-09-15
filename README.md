@@ -9,9 +9,12 @@ coordinates, and tracks that control flow. A completed execution remains
 sufficiently inspectable at TURNLOCK's semantic boundary for user- or system-led
 evaluation and iterative workflow refinement. Effective execution conditions
 that TURNLOCK selects, binds, explicitly supplies, or resolves remain
-attributable to the execution scopes they govern and capturable at that boundary
-without creating a persistence, replay, reproducibility, or comparison
-guarantee. Cognition is an explicit execution resource rather than the implicit
+attributable to the execution scopes they govern and capturable at that
+boundary. Protected values need not be disclosed, but protection cannot substitute away
+condition-specific provenance TURNLOCK possessed before or during its required
+boundary capture opportunity. This
+creates no persistence, replay, reproducibility, stable cross-run identity, or
+comparison guarantee. Cognition is an explicit execution resource rather than the implicit
 global scheduler.
 
 A workflow may compose four distinct execution forms:
@@ -93,7 +96,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-024.
+  chronological decision narrative and links to ADR-001 through ADR-025.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
@@ -156,8 +159,11 @@ cognition. Completed workflow execution must expose enough actual
 TURNLOCK-visible behavior for external understanding and evaluation. Effective
 conditions TURNLOCK selects, binds, explicitly supplies, or resolves remain
 attributable to their governed execution scopes and capturable at its semantic
-boundary. This does not impose persistence or make TURNLOCK the evaluator or
-optimizer. Evaluation objectives, property-relative relevance, comparison
+boundary. Protected values need not be disclosed, but before or during the required
+boundary capture opportunity a generic protected view cannot replace more
+specific provenance TURNLOCK knew. This does
+not impose stable cross-run identity, equality evidence, persistence, or make
+TURNLOCK the evaluator or optimizer. Evaluation objectives, property-relative relevance, comparison
 judgments, and optimization policy come from an explicitly responsible actor or
 authored workflow, never from core TURNLOCK runtime policy.
 
