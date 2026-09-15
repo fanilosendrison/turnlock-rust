@@ -12,8 +12,9 @@ name: "Future workflow run-evaluation design space"
 > - **Status:** Non-normative future consideration
 > - **Authority:** None
 > - **Normative baseline:** Minimum completed-execution inspectability is accepted
->   by ADR-018 and the TURNLOCK specification; ADR-019 keeps evaluation and
->   optimization policy outside TURNLOCK core
+>   by ADR-018; ADR-024 requires effective execution-condition provenance for
+>   conditions TURNLOCK selects, binds, explicitly supplies, or resolves; and
+>   ADR-019 keeps evaluation and optimization policy outside TURNLOCK core
 > - **Creates TURNLOCK semantics:** No
 > - **Creates invariants:** No
 >
@@ -26,8 +27,11 @@ name: "Future workflow run-evaluation design space"
 
 ## 1. Purpose and classification
 
-ADR-018 and `TL-INV-033` now require minimum inspectability of completed
-execution at TURNLOCK's semantic boundary. Detailed tracing, event schemas,
+ADR-018 and `TL-INV-033` require minimum inspectability of completed execution
+at TURNLOCK's semantic boundary. ADR-024 and `TL-INV-036` additionally require
+effective execution conditions that TURNLOCK selects, binds, explicitly
+supplies, or resolves to remain attributable to the execution scopes they govern
+and exposable or capturable at that boundary. Detailed tracing, event schemas,
 retention, storage, telemetry, replay, cross-run comparison, reproducibility,
 execution proofs, debugger UI, evaluation APIs, metrics, and automatic
 optimization remain open. This note prevents that stronger design space from
@@ -49,7 +53,9 @@ part of the current core product contract.
 
 ```text
 current TURNLOCK core
-  = execution semantics + accepted inspectability semantics
+  = execution semantics
+  + accepted inspectability semantics
+  + effective execution-condition provenance floor
 
 evaluation / optimization policy
   = ordinary workflow / user / higher-level-system concern
@@ -187,6 +193,12 @@ Different properties may require different determinants. Two runs could be
 comparable for control-path conformance while not being comparable for output
 quality, latency, cost, retrieval quality, or model behavior.
 
+ADR-024 makes TURNLOCK-known effective conditions available at the semantic
+boundary when TURNLOCK selects, binds, explicitly supplies, or resolves them.
+It does not define which of those conditions matter to property `P`, extend the
+universal floor to every observed or externally exposable condition, or decide
+whether the available evidence establishes comparability.
+
 This note does not define the determinant set, a canonical run description, or
 a comparison algorithm.
 
@@ -236,15 +248,16 @@ change requires its own authority and derivation.
 
 A RAG pipeline could eventually be one specialized workflow class that opts
 into stronger evaluation guarantees. That possibility creates no generic
-requirement beyond the accepted minimum completed-execution inspectability
-obligation.
+requirement beyond the accepted minimum completed-execution inspectability and
+effective execution-condition provenance obligations.
 
 ## 5. Forward-compatibility observations
 
-The accepted minimum creates a need for sufficient boundary-level execution
-truth, but it does not uniquely require any abstraction in the following list.
-These abstractions might be selected for independent reasons and could also
-become useful to future run evaluation:
+The accepted minimums require sufficient boundary-level execution truth and
+attribution of effective conditions TURNLOCK selects, binds, explicitly
+supplies, or resolves. They do not uniquely require any abstraction in the
+following list. These abstractions might be selected for independent reasons
+and could also become useful to future run evaluation:
 
 ```text
 workflow invocation identity
@@ -256,8 +269,9 @@ completion events
 workflow definition or revision identity
 ```
 
-This overlap is only a forward-compatibility observation. It does not establish
-that any listed abstraction is already required, externally visible, stable,
+This overlap remains a forward-compatibility observation. ADR-024 requires the
+semantic attribution itself, not any listed representation. The list does not
+establish that an abstraction is required, externally visible, stable,
 persistent, globally unique, or suitable for cross-run comparison.
 
 In particular, the core must not gain any of the following solely to prepare for
@@ -324,7 +338,9 @@ The following questions are intentionally unanswered:
     evidence and implementation conformance evidence?
 11. Which determinants matter for a particular comparison property, and who
     declares them?
-12. What privacy, security, retention, and cost constraints would apply to any
+12. Which conditions TURNLOCK observes but does not control, or an adapter or
+    execution resource could expose, should receive stronger provenance duties?
+13. What privacy, security, retention, and cost constraints would apply to any
     future event or evidence capture?
 
 Listing these questions does not accept any answer, scope boundary, data model,
