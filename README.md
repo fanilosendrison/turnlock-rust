@@ -7,8 +7,12 @@ execution and cognition inside an existing interactive coding-agent session.
 A workflow program owns its declared control flow; TURNLOCK executes,
 coordinates, and tracks that control flow. A completed execution remains
 sufficiently inspectable at TURNLOCK's semantic boundary for user- or system-led
-evaluation and iterative workflow refinement. Cognition is an explicit
-execution resource rather than the implicit global scheduler.
+evaluation and iterative workflow refinement. Effective execution conditions
+that TURNLOCK selects, binds, explicitly supplies, or resolves remain
+attributable to the execution scopes they govern and capturable at that boundary
+without creating a persistence, replay, reproducibility, or comparison
+guarantee. Cognition is an explicit execution resource rather than the implicit
+global scheduler.
 
 A workflow may compose four distinct execution forms:
 
@@ -75,8 +79,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Future workflow run-evaluation design space](docs/vision/future-workflow-run-evaluation.md)
   preserves an explicitly non-normative exploration of stronger observability,
   comparability, reproducibility, and execution-evidence profiles beyond the
-  accepted minimum inspectability obligation and the accepted
-  evaluation/optimization-policy boundary.
+  accepted minimum inspectability obligation, effective execution-condition
+  provenance floor, and evaluation/optimization-policy boundary.
 - [Repository governance](docs/repository-governance/turnlock-rust-engineering.md)
   defines GitHub Engineering Project routing and workflow policy.
 - [Discovery classification profile](docs/repository-governance/turnlock-rust-discovery-classification.md)
@@ -89,7 +93,7 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-023.
+  chronological decision narrative and links to ADR-001 through ADR-024.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
@@ -149,10 +153,13 @@ itself impose finite resources or guarantee termination. Known orchestration
 remains in executable workflow logic even when runtime results are probabilistic,
 nondeterministic, externally dependent, or produced by locally autonomous
 cognition. Completed workflow execution must expose enough actual
-TURNLOCK-visible behavior for external understanding and evaluation without
-making TURNLOCK itself the evaluator or optimizer. Evaluation objectives and
-optimization policy come from an explicitly responsible actor or authored
-workflow, never from core TURNLOCK runtime policy.
+TURNLOCK-visible behavior for external understanding and evaluation. Effective
+conditions TURNLOCK selects, binds, explicitly supplies, or resolves remain
+attributable to their governed execution scopes and capturable at its semantic
+boundary. This does not impose persistence or make TURNLOCK the evaluator or
+optimizer. Evaluation objectives, property-relative relevance, comparison
+judgments, and optimization policy come from an explicitly responsible actor or
+authored workflow, never from core TURNLOCK runtime policy.
 
 ## Formal verification organization
 
