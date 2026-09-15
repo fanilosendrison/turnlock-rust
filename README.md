@@ -12,9 +12,11 @@ that TURNLOCK selects, binds, explicitly supplies, or resolves remain
 attributable to the execution scopes they govern and capturable at that
 boundary. Protected values need not be disclosed, but protection cannot substitute away
 condition-specific provenance TURNLOCK possessed before or during its required
-realizable semantic-boundary capture handoff. The handoff is not a retention
-interval: no consumer, delivery acknowledgment, or post-handoff availability is
-required by the universal floor. This
+realizable semantic-boundary capture handoff. The handoff is not a retention interval: the universal floor requires a
+structurally realizable capture capability and completion of TURNLOCK's side of
+the semantic-boundary interaction, but it does not require an actual attached
+or participating consumer, successful delivery, acknowledgment, or
+post-handoff availability. This
 creates no persistence, replay, reproducibility, stable cross-run identity, or
 comparison guarantee. Cognition is an explicit execution resource rather than
 the implicit global scheduler.
@@ -163,10 +165,12 @@ conditions TURNLOCK selects, binds, explicitly supplies, or resolves remain
 attributable to their governed execution scopes and capturable at its semantic
 boundary. Protected values need not be disclosed, but before or during the required
 realizable semantic-boundary capture handoff a generic protected view cannot
-replace more specific provenance TURNLOCK knew. A runtime cannot satisfy that
-obligation through momentary internal existence or a race-dependent observation
-path, while consumer absence, delivery failure, persistence, and retention
-remain separate concerns. This does
+replace more specific provenance TURNLOCK knew. A runtime cannot satisfy that obligation through momentary internal existence
+or a race-dependent observation path. When no consumer is attached, TURNLOCK
+still completes its side of the realizable semantic-boundary interaction
+through the structurally realizable capture capability; actual receiver
+participation is not required. Consumer absence, delivery failure, persistence,
+and retention remain separate concerns. This does
 not impose stable cross-run identity, equality evidence, persistence, or make
 TURNLOCK the evaluator or optimizer. Evaluation objectives, property-relative
 relevance, comparison judgments, and optimization policy come from an explicitly responsible actor or

@@ -113,9 +113,12 @@ Later ADRs record subsequently accepted decisions.
     condition-specific provenance and governed-scope attribution as part of the
     boundary interaction, not merely because the provenance existed internally
     for some duration or because a consumer could win an accidental timing race.
-    The universal floor requires no consumer, delivery, acknowledgment,
-    retention duration, or post-handoff availability; stronger guarantees may
-    be added above it by a profile, integration, or later decision.
+    The universal floor requires a structurally realizable capture capability
+    and completion of TURNLOCK's side of the semantic-boundary interaction, but
+    not an actual attached or participating consumer, successful delivery,
+    acknowledgment, retention duration, or post-handoff availability; stronger
+    guarantees may be added above it by a profile, integration, or later
+    decision.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -200,20 +203,25 @@ ADR-026 defines when that boundary capture opportunity is genuinely satisfied:
 required provenance
 → realizable semantic-boundary capture handoff
 → eligible conforming capture context could acquire it as part of the interaction
+→ TURNLOCK completes its side of the semantic-boundary interaction
 → universal obligation discharged
 
-no consumer, delivery acknowledgment, retention duration,
-or post-handoff availability required by the universal floor
+actual consumer participation, successful delivery, acknowledgment,
+retention duration, or post-handoff availability are not required
+by the universal floor
 ```
 
 A handoff is not a retention interval. Momentary internal existence, or an
 acquisition path that depends on an accidental race against inaccessible
-internal timing, does not satisfy the floor. Consumer absence, participant
-failure, and delivery failure do not by themselves impose retention, while
-stronger availability and persistence guarantees remain available above the
-floor through separate accepted decisions or integration contracts. Issue #13
-owns detailed non-completed-execution inspectability, availability, retention,
-access, and privacy.
+internal timing, does not satisfy or discharge the floor. When no consumer is
+attached, TURNLOCK discharges the handoff by completing its side of the
+semantic-boundary interaction through the structurally realizable capture
+capability; actual receiver participation is not required. Consumer absence,
+participant failure, and delivery failure do not by themselves impose
+retention, while stronger availability and persistence guarantees remain
+available above the floor through separate accepted decisions or integration
+contracts. Issue #13 owns detailed non-completed-execution inspectability,
+availability, retention, access, and privacy.
 
 ## Governing reference scenario
 

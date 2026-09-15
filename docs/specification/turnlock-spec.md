@@ -902,17 +902,17 @@ exists.
 
 Exact-value disclosure is not required by this provenance floor. When TURNLOCK
 knows a specific effective condition but its underlying value is protected or
-unsafe to disclose, a semantic representation containing information specific to that known
-condition MUST remain bound to its effective-condition occurrence and governed
-execution scope and capturable during TURNLOCK's required semantic-boundary
-capture opportunity. Protection or redaction MUST NOT substitute away that
-condition-specific information before or during the opportunity. An occurrence
-label or generic protected marker alone is not condition-specific information.
-Such a marker MAY be a consumer-visible view, but it is insufficient as the sole
-provenance representation when TURNLOCK possessed more specific condition
-provenance.
+unsafe to disclose, a semantic representation containing information specific
+to that known condition MUST remain bound to its effective-condition occurrence
+and governed execution scope and capturable through TURNLOCK's required
+realizable semantic-boundary capture handoff. Protection or redaction MUST NOT
+substitute away that condition-specific information before or during the
+handoff. An occurrence label or generic protected marker alone is not
+condition-specific information. Such a marker MAY be a consumer-visible view,
+but it is insufficient as the sole provenance representation when TURNLOCK
+possessed more specific condition provenance.
 
-The required semantic-boundary capture opportunity is a realizable
+The required semantic-boundary capture opportunity is the realizable
 semantic-boundary capture handoff, not a minimum storage duration or retention
 interval. Before TURNLOCK may irreversibly lose provenance required by this
 obligation, that provenance must reach a semantic-boundary interaction through
@@ -925,26 +925,38 @@ recollection. Sufficiency is therefore not defined by elapsed time, and a
 logically instantaneous opportunity may conform when capture is realizable as
 part of the boundary interaction itself.
 
+The handoff is discharged when TURNLOCK completes its side of that
+semantic-boundary interaction through a structurally realizable capture
+capability: an eligible conforming capture context could have been established
+in time to participate and acquire the required provenance, whether or not such
+a context was actually attached. Discharge does not require actual receiver
+participation, successful delivery, consumer processing, persistence, or
+acknowledgment. Mere internal existence without such a boundary interaction does
+not discharge the obligation.
+
 The universal floor does not require an actual capture consumer for every
 invocation, successful delivery, consumer processing or acknowledgment,
 retry-until-success, buffering, or TURNLOCK-operated persistence. The absence
 of an attached consumer does not by itself make a conforming runtime
 non-conforming when a real semantic capability exists through which an eligible
-capture context could have been established in time to participate.
-Conversely, a runtime that keeps required provenance only as inaccessible
-transient internal state does not satisfy this obligation.
+capture context could have been established in time to participate. In that
+no-consumer case, TURNLOCK must still complete its side of the semantic-boundary
+interaction described above; structural capability without that boundary
+interaction does not itself discharge the obligation. Conversely, a runtime
+that keeps required provenance only as inaccessible transient internal state
+does not satisfy this obligation.
 
-Once required provenance has participated in a conforming realizable
-semantic-boundary capture handoff, this obligation does not by itself require
-that provenance to remain capturable. Post-handoff availability, persistence,
-and retention remain separately governed, and another accepted invariant,
-decision, profile, or integration contract may require them.
+Once TURNLOCK has completed a conforming realizable semantic-boundary capture
+handoff as defined above, this obligation does not by itself require the
+provenance to remain capturable. Post-handoff availability, persistence, and
+retention remain separately governed, and another accepted invariant, decision,
+profile, or integration contract may require them.
 
 The contract therefore distinguishes absence of TURNLOCK knowledge from a known
 condition whose value is protected. Consumer-visible disclosure and underlying
 provenance capture capability are not equivalent: a particular consumer MAY
-receive a more restrictive view, while the boundary opportunity remains subject
-to separately governed policy. This rule defines no authorization model,
+receive a more restrictive view, while access to the underlying provenance available through the realizable
+semantic-boundary capture handoff remains subject to separately governed policy. This rule defines no authorization model,
 additional consumer context, post-boundary availability, persistence, or
 retention, and does not require disclosure through ordinary UI, logs, CLI
 output, telemetry, or inspection surfaces.
@@ -1633,14 +1645,14 @@ relationship remains exposable or capturable at an execution boundary rather
 than existing only in hidden transient adapter state or requiring reconstruction
 from later mutable state, human recollection, or agent recollection.
 
-The concept requires semantic distinction, attribution, and a boundary means of
-exposure or capture. For a specific condition TURNLOCK knows, a
+The concept requires semantic distinction, attribution, and a realizable
+semantic-boundary capture handoff. For a specific condition TURNLOCK knows, a
 semantic representation containing information specific to that known condition
-must remain bound to its occurrence and governed scope and capturable during the
-required boundary opportunity even when the underlying value is protected from
-disclosure. Protection may restrict a consumer-visible view, but it cannot
-substitute an occurrence label or generic protected marker for the more specific
-condition information before or during that opportunity. A known protected condition is
+must remain bound to its occurrence and governed scope and capturable through
+that handoff even when the underlying value is protected from disclosure.
+Protection may restrict a consumer-visible view, but it cannot substitute an
+occurrence label or generic protected marker for the more specific condition
+information before or during that handoff. A known protected condition is
 therefore distinct from an unknown condition.
 
 This occurrence-specific binding does not itself establish underlying-value
@@ -1661,9 +1673,16 @@ loses it. Such a handoff is realizable only when that context could be
 established in time to participate without depending on inaccessible transient
 internal state, accidental timing against TURNLOCK's internal execution, or
 reconstruction from later mutable state, human recollection, or agent
-recollection. Sufficiency is not a wall-clock or retention duration: capture
-may be logically instantaneous when acquisition is realizable as part of the
-boundary interaction itself.
+recollection. The handoff is discharged when TURNLOCK completes its side of
+that semantic-boundary interaction through a structurally realizable capture
+capability: an eligible conforming capture context could have been established
+in time to participate and acquire the required provenance, whether or not such
+a context was actually attached. Discharge does not require actual receiver
+participation, successful delivery, consumer processing, persistence, or
+acknowledgment. Mere internal existence without such a boundary interaction
+does not discharge the obligation. Sufficiency is not a wall-clock or retention
+duration: capture may be logically instantaneous when acquisition is realizable
+as part of the boundary interaction itself.
 
 # 3. Derived invariants
 
@@ -2149,17 +2168,21 @@ retry-until-success, buffering, or durable TURNLOCK-operated storage. A runtime
 that exposes a real semantic capability through which an eligible capture
 context could have been established and could have participated in the required
 handoff does not become non-conforming solely because no consumer was attached
-for a particular invocation, and consumer absence does not by itself create an
+for a particular invocation. In that case, the handoff is discharged when
+TURNLOCK completes its side of the semantic-boundary interaction through that
+structurally realizable capability; actual receiver participation is not
+required. Mere internal existence without that boundary interaction does not
+discharge the obligation. Consumer absence does not by itself create an
 indefinite retention obligation. A runtime that keeps required provenance only
 as inaccessible transient internal state remains non-conforming.
 
-Once required provenance has participated in a conforming realizable
-semantic-boundary capture handoff, this invariant alone does not require that
-provenance to remain capturable. Post-handoff availability, persistence, and
-retention are independently governed and may be required by another accepted
-invariant, decision, profile, or integration contract; this invariant does not
-by itself require provenance to survive until a governed scope, invocation, or
-workflow ends or until a consumer inspects or acknowledges it.
+Once TURNLOCK has completed a conforming realizable semantic-boundary capture
+handoff as defined above, this invariant alone does not require the provenance
+to remain capturable. Post-handoff availability, persistence, and retention are
+independently governed and may be required by another accepted invariant,
+decision, profile, or integration contract; this invariant does not by itself
+require provenance to survive until a governed scope, invocation, or workflow
+ends or until a consumer inspects or acknowledges it.
 
 A conforming realization MAY batch, aggregate, or group multiple
 effective-condition occurrences into one semantic-boundary interaction provided
@@ -2187,7 +2210,8 @@ NOT be represented as unknown merely because its value is not disclosed.
 
 Consumer-visible disclosure is not the same responsibility as underlying
 provenance capture capability. A consumer MAY receive less information than the
-boundary opportunity permits under separately governed policy. This permission
+underlying provenance made capturable through the realizable semantic-boundary
+capture handoff, under separately governed policy. This permission
 neither defines who is authorized or requires an additional consumer context,
 nor requires that the underlying value or the complete capturable representation
 appear in UI, logs, CLI output, telemetry, or ordinary inspection surfaces. It
@@ -2430,10 +2454,11 @@ unknown merely because its value is not disclosed. For a TURNLOCK-known
 protected condition, the boundary must preserve a representation containing
 condition-specific information rather than substitute an occurrence label or one
 generic protected marker for all known condition provenance before or during
-the capture opportunity.
+the realizable semantic-boundary capture handoff.
 
-A particular consumer may receive a more restrictive view than the boundary
-capture opportunity permits under separately governed policy. This implication
+A particular consumer MAY receive a more restrictive view than the underlying
+provenance made capturable through the realizable semantic-boundary capture
+handoff, under separately governed policy. This implication
 does not select an authorization or privacy model, require another consumer
 context, exact-value disclosure, post-boundary availability or retention, or
 that all capturable information appear through ordinary inspection surfaces. Whichever workflow
@@ -2448,13 +2473,18 @@ mechanism. It also establishes no public or cross-run stable identity and no
 equality or difference evidence.
 
 Architecture must make it structurally possible for an eligible conforming
-capture context to be established in time to participate in this handoff;
-consumer absence, participant failure, or delivery failure does not by itself
-create a universal retention obligation. Once the handoff is discharged,
-`TL-INV-036` alone does not require continued capturability, and any stronger
-post-handoff availability, persistence, or retention guarantee remains
-separately governed. The capture boundary remains distinct from delivery
-acknowledgment, ordinary inspection surfaces, and any storage mechanism.
+capture context to be established in time to participate in this handoff.
+When no consumer is attached, conformance still requires TURNLOCK to complete
+its side of the semantic-boundary interaction through that structurally
+realizable capability; mere internal existence is not a discharge event.
+Actual receiver participation, successful delivery, consumer processing, and
+acknowledgment are not required. Consumer absence, participant failure, or
+delivery failure does not by itself create a universal retention obligation.
+Once TURNLOCK has completed that conforming handoff, `TL-INV-036` alone does
+not require continued capturability, and any stronger post-handoff
+availability, persistence, or retention guarantee remains separately governed.
+The capture boundary remains distinct from delivery acknowledgment, ordinary
+inspection surfaces, and any storage mechanism.
 
 # 6. Non-goals implied by the current product intent
 
@@ -2582,15 +2612,20 @@ resolves, it must identify the governed execution scope and the realizable
 semantic-boundary capture handoff by which that attribution can be acquired
 before the required provenance is irreversibly lost. A nominal opportunity that
 depends on an inaccessible internal instant or an accidental timing race does
-not satisfy the demonstration. For a TURNLOCK-known protected
-condition, the demonstration must show that, during the required boundary
-capture opportunity, protection preserves condition-specific information bound
-to the condition occurrence and its governed-scope attribution rather than
-substituting an occurrence label or generic marker or misrepresenting it as
-unknown. It need not disclose the protected value to every consumer, preserve
-the representation after that opportunity, or establish a public or cross-run
-stable identity, underlying-value equality or difference evidence, persistence,
-replay, reproducibility, or comparability.
+not satisfy the demonstration. If no capture consumer is attached, the
+demonstration must still identify the TURNLOCK-side semantic-boundary
+interaction that discharges the handoff through the structurally realizable
+capture capability; mere internal existence is insufficient, while actual
+receiver participation, successful delivery, and acknowledgment are not
+required. For a TURNLOCK-known protected condition, the demonstration must show
+that, through the required realizable semantic-boundary capture handoff,
+protection preserves condition-specific information bound to the condition
+occurrence and its governed-scope attribution rather than substituting an
+occurrence label or generic marker or misrepresenting it as unknown. It need
+not disclose the protected value to every consumer, preserve the representation
+after that handoff, or establish a public or cross-run stable identity,
+underlying-value equality or difference evidence, persistence, replay,
+reproducibility, or comparability.
 
 # 8. Derived synopsis
 
