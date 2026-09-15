@@ -900,6 +900,27 @@ control MAY remain unavailable or unknown. Unknown MUST NOT be presented as
 known-equal across executions or as evidence that no relevant difference
 exists.
 
+Exact-value disclosure is not required by this provenance floor. When TURNLOCK
+knows a specific effective condition but its underlying value is protected or
+unsafe to disclose, a semantic representation containing information specific to that known
+condition MUST remain bound to its effective-condition occurrence and governed
+execution scope and capturable during TURNLOCK's required semantic-boundary
+capture opportunity. Protection or redaction MUST NOT substitute away that
+condition-specific information before or during the opportunity. An occurrence
+label or generic protected marker alone is not condition-specific information.
+Such a marker MAY be a consumer-visible view, but it is insufficient as the sole
+provenance representation when TURNLOCK possessed more specific condition
+provenance.
+
+The contract therefore distinguishes absence of TURNLOCK knowledge from a known
+condition whose value is protected. Consumer-visible disclosure and underlying
+provenance capture capability are not equivalent: a particular consumer MAY
+receive a more restrictive view, while the boundary opportunity remains subject
+to separately governed policy. This rule defines no authorization model,
+additional consumer context, post-boundary availability, persistence, or
+retention, and does not require disclosure through ordinary UI, logs, CLI
+output, telemetry, or inspection surfaces.
+
 The relevance of a condition remains relative to an externally supplied
 property:
 
@@ -1584,10 +1605,23 @@ than existing only in hidden transient adapter state or requiring reconstruction
 from later mutable state, human recollection, or agent recollection.
 
 The concept requires semantic distinction, attribution, and a boundary means of
-exposure or capture. It does not itself require persistence, retention, a
-canonical event or run model, replay, reproducibility, or a comparison contract.
-A condition outside TURNLOCK's observation or control may remain unavailable or
-unknown; unknown is not evidence of equality or absence of difference.
+exposure or capture. For a specific condition TURNLOCK knows, a
+semantic representation containing information specific to that known condition
+must remain bound to its occurrence and governed scope and capturable during the
+required boundary opportunity even when the underlying value is protected from
+disclosure. Protection may restrict a consumer-visible view, but it cannot
+substitute an occurrence label or generic protected marker for the more specific
+condition information before or during that opportunity. A known protected condition is
+therefore distinct from an unknown condition.
+
+This occurrence-specific binding does not itself establish underlying-value
+equality or difference across occurrences. A condition-specific representation
+does not establish a public or cross-run stable identity, equality or difference
+evidence, or comparability for any property. The concept does not require exact-value disclosure, persistence,
+retention, a canonical event or run model, replay, reproducibility, or a
+comparison contract. A condition outside TURNLOCK's observation or control may
+remain unavailable or unknown; unknown is not evidence of equality or absence
+of difference.
 
 # 3. Derived invariants
 
@@ -2058,6 +2092,27 @@ A condition outside TURNLOCK's observation or control MAY remain unavailable or
 unknown. Unknown MUST NOT be represented as known-equal across executions or as
 evidence that no relevant difference exists.
 
+When TURNLOCK knows a specific effective condition, exact-value disclosure is
+not required. If the value is protected or unsafe to disclose, a
+semantic representation containing information specific to that known condition
+MUST remain bound to its effective-condition occurrence and the scope it governed
+and capturable during TURNLOCK's required semantic-boundary capture opportunity.
+Protection or redaction MUST NOT substitute away that condition-specific
+information before or during the opportunity. An occurrence label alone does not
+satisfy this requirement. A generic known-but-protected or redacted marker MAY
+be presented to a particular consumer, but it is insufficient as the sole
+provenance representation when it would replace more specific TURNLOCK-known
+condition information. Known protected provenance MUST
+NOT be represented as unknown merely because its value is not disclosed.
+
+Consumer-visible disclosure is not the same responsibility as underlying
+provenance capture capability. A consumer MAY receive less information than the
+boundary opportunity permits under separately governed policy. This permission
+neither defines who is authorized or requires an additional consumer context,
+nor requires that the underlying value or the complete capturable representation
+appear in UI, logs, CLI output, telemetry, or ordinary inspection surfaces. It
+also requires no post-opportunity availability, persistence, or retention.
+
 If a condition governs part of an accepted invocation, later failure,
 cancellation, or interruption MUST NOT make that attribution semantically
 nonexistent. This requirement defines no terminal-outcome or detailed
@@ -2066,9 +2121,12 @@ non-completed-execution inspectability semantics.
 This invariant does not require persistence, retention, a database, event
 schema, identifier, hash, snapshot, telemetry system, canonical run model,
 replay, cross-run comparability, reproducibility, deterministic execution,
-identical outputs, or identical traces. TURNLOCK does not determine which
-conditions are relevant to an externally supplied property `P` or whether two
-executions are comparable for that property.
+identical outputs, or identical traces. Occurrence-specific provenance does not
+state whether underlying values across occurrences are equal or different. Its
+representation is not required to be globally or cross-run stable and
+establishes no underlying-value equality or difference operation or proof. TURNLOCK does not determine which conditions are
+relevant to an externally supplied property `P` or whether two executions are
+comparable for that property.
 
 # 4. Current boundaries — intentionally not yet specified
 
@@ -2092,7 +2150,7 @@ The following questions are important but are **not yet answered by the product 
 - Whether future TURNLOCK-adjacent capabilities should introduce native evaluator interfaces, universal metrics, cross-run comparison, experiment support, or optimizer machinery; the current product definition assigns evaluation and optimization policy outside TURNLOCK core, and any such addition requires a new accepted product decision.
 - Whether replay, cross-run comparability contracts or APIs, reproducibility profiles, canonical run models, experiment frameworks, or execution proofs should ever be supported.
 - Whether conditions TURNLOCK observes but does not control, or conditions an adapter or execution resource could expose, receive provenance obligations beyond the universal floor for conditions TURNLOCK selects, binds, explicitly supplies, or resolves.
-- What persistence, retention, access, privacy, and capture-consumer guarantees apply above the required execution-boundary means of exposure or capture.
+- What persistence, retention, concrete authorization, access, and privacy guarantees apply above the required execution-boundary means of capture, including which consumers may receive richer or more restrictive views.
 - Whether visibility inside an agentic region should extend beyond explicitly exposed results and TURNLOCK-visible facts relevant to declared progression.
 - Whether multiple sibling/top-level workflows may execute concurrently in one interactive coding-agent session; structured nested invocation is already allowed.
 - Whether implementations impose explicit resource/safety limits on nesting depth, and how such limits are surfaced without changing immediate-caller return semantics.
@@ -2279,20 +2337,32 @@ model, comparison contract, optimizer algorithm, storage, or user interface.
 Because TURNLOCK must preserve effective execution-condition provenance, runtime
 and adapter architecture must keep each condition TURNLOCK selects, binds,
 explicitly supplies, or resolves attributable to the execution scope it governs
-and provide a semantic boundary through which a consumer can capture that
-relationship.
+and provide a semantic boundary through which that relationship can be
+captured.
 
 The architecture may distinguish unavailable or unknown conditions and need not
 observe conditions outside TURNLOCK's boundary. It must not manufacture known
-equality from missing information. Whichever workflow definition Issue #4's
-future semantics make effective must remain attributable when TURNLOCK binds or
-resolves it, without this implication selecting the binding rule or a revision
-representation.
+equality from missing information or convert a known protected condition into
+unknown merely because its value is not disclosed. For a TURNLOCK-known
+protected condition, the boundary must preserve a representation containing
+condition-specific information rather than substitute an occurrence label or one
+generic protected marker for all known condition provenance before or during
+the capture opportunity.
+
+A particular consumer may receive a more restrictive view than the boundary
+capture opportunity permits under separately governed policy. This implication
+does not select an authorization or privacy model, require another consumer
+context, exact-value disclosure, post-boundary availability or retention, or
+that all capturable information appear through ordinary inspection surfaces. Whichever workflow
+definition Issue #4's future semantics make effective must remain attributable
+when TURNLOCK binds or resolves it, without this implication selecting the
+binding rule or a revision representation.
 
 This boundary does not select who captures the attribution, how long it remains
 available, whether another layer persists it, or any database, event, identifier,
 hash, snapshot, telemetry, run-model, replay, comparison, or reproduction
-mechanism.
+mechanism. It also establishes no public or cross-run stable identity and no
+equality or difference evidence.
 
 # 6. Non-goals implied by the current product intent
 
@@ -2313,6 +2383,9 @@ At the current stage, TURNLOCK is not defined as:
 - a replay, cross-run comparability, reproducibility, or execution-proof system;
 - a universal execution record or a guarantee that TURNLOCK observes every causal, environmental, external, context, tool, or scheduling determinant;
 - a persistence or retention system for effective execution-condition provenance;
+- universal exact-value disclosure of protected effective conditions;
+- a public or cross-run stable identity, equality operation, or difference proof for effective conditions;
+- a universal authorization, access-control, or privacy-policy system for provenance capture;
 - a requirement to expose private agent reasoning or record every tool call inside an agentic region.
 
 Future features may include some adjacent capabilities, but they must not blur the control model that defines the product.
@@ -2414,8 +2487,14 @@ workflow change.
 The architecture must separately demonstrate effective execution-condition
 provenance. For a condition TURNLOCK selects, binds, explicitly supplies, or
 resolves, it must identify the governed execution scope and the boundary means
-by which a consumer can capture that attribution. This demonstration may report
-other conditions as unavailable or unknown and need not establish persistence,
+by which that attribution can be captured. For a TURNLOCK-known protected
+condition, the demonstration must show that, during the required boundary
+capture opportunity, protection preserves condition-specific information bound
+to the condition occurrence and its governed-scope attribution rather than
+substituting an occurrence label or generic marker or misrepresenting it as
+unknown. It need not disclose the protected value to every consumer, preserve
+the representation after that opportunity, or establish a public or cross-run
+stable identity, underlying-value equality or difference evidence, persistence,
 replay, reproducibility, or comparability.
 
 # 8. Derived synopsis
