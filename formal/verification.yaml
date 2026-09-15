@@ -881,7 +881,9 @@ invariants:
     state, and distinguish unknown or unavailable provenance from a known condition occurrence bound to its governed scope,
     including a protected state that is not substituted by generic loss before or during the required realizable capture
     handoff. It can also represent that an owed provenance obligation cannot be irreversibly lost before its abstract capture
-    handoff is discharged and that this invariant alone imposes no post-handoff availability requirement. The abstraction
+    handoff is discharged, where discharge abstracts completion of TURNLOCK's side of a semantic-boundary interaction through
+    a structurally realizable capture capability and does not require actual consumer participation, successful delivery, or
+    acknowledgment. This invariant alone imposes no post-handoff availability requirement. The abstraction
     must not imply post-handoff lifetime, exact-value disclosure, stable cross-run identity, underlying-value equality and
     difference evidence, delivery acknowledgment, persistence, retention, or a concrete capture mechanism. TLA+ cannot
     establish real provider, harness, or adapter metadata exposure, protection against information leakage, semantic
