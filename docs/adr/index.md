@@ -43,6 +43,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | Preserve effective execution-condition provenance | accepted | 2026-09-15 | complete | Attribution and boundary exposability of effective execution conditions selected, bound, explicitly supplied, or resolved by TURNLOCK |
 | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) | Preserve condition-specific provenance without requiring protected-value disclosure | accepted | 2026-09-15 | complete | Minimum protected-representation semantics for TURNLOCK-known effective execution conditions<br>Separation of effective-condition provenance capture from consumer-visible disclosure |
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | Define a realizable semantic-boundary capture handoff | accepted | 2026-09-15 | complete | Minimum realizable semantic-boundary capture-handoff sufficiency for effective execution-condition provenance<br>Separation of the required provenance capture handoff from post-handoff availability, persistence, and retention |
+| [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | Bind each accepted invocation to a stable governing workflow definition | accepted | 2026-09-16 | complete | active-invocation workflow-definition binding<br>ordinary source-artifact edit visibility<br>nested-invocation governing-definition independence |
 
 ## Recorded outgoing relations
 
@@ -75,6 +76,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) | clarifies | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | clarifies | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | clarifies | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) |
+| [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | confirms | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
+| [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | confirms | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 
 ## Derived incoming relations
 
@@ -101,9 +104,11 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-021](adr-021-separate-independent-agent-completion-output-and-effects.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
+| [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | confirmed by | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | amended by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | clarified by | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | clarified by | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
+| [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) | clarified by | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |

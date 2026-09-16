@@ -119,6 +119,17 @@ Later ADRs record subsequently accepted decisions.
     acknowledgment, retention duration, or post-handoff availability; stronger
     guarantees may be added above it by a profile, integration, or later
     decision.
+27. [ADR-027: Bind each accepted invocation to a stable governing workflow
+    definition][27] — **Accepted**, confirms ADR-014 and ADR-024. Every accepted
+    invocation is bound to one governing workflow definition determined no later
+    than invocation acceptance and stable for that invocation's lifetime;
+    ordinary later edits of the source artifact do not alter it. Each nested
+    invocation establishes its own governing definition at its own acceptance,
+    so a caller's binding does not transitively freeze future callees. Live
+    source-edit visibility, implicit dynamic mutation, and root-wide transitive
+    dependency snapshots are rejected. Deliberate active-definition mutation and
+    whether an execution resource may edit a governing workflow's source
+    artifact remain separate decisions.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -131,6 +142,7 @@ Later ADRs record subsequently accepted decisions.
 [24]: adr-024-preserve-effective-execution-condition-provenance.md
 [25]: adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md
 [26]: adr-026-define-a-realizable-semantic-boundary-capture-handoff.md
+[27]: adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -222,6 +234,27 @@ retention, while stronger availability and persistence guarantees remain
 available above the floor through separate accepted decisions or integration
 contracts. Issue #13 owns detailed non-completed-execution inspectability,
 availability, retention, access, and privacy.
+
+ADR-027 fixes which definition governs an active invocation without selecting a
+representation:
+
+```text
+artifact W = D1
+accept invocation I of W
+→ governing definition(I) = D1
+artifact W later changes D1 → D2
+→ I continues under D1
+→ a later invocation J receives whatever definition applies at J's acceptance
+```
+
+Each nested invocation establishes its own governing definition, so stability
+is per invocation rather than a transitive snapshot of the entire execution
+tree. Live source-edit visibility, implicit root-wide dependency freezing, and
+implicit mutation of an active governing definition are rejected; deliberate
+active-definition mutation and whether an execution resource may edit a
+governing workflow's source artifact remain separate decisions. ADR-024,
+ADR-025, and ADR-026 continue to govern the provenance of whichever definition
+is effective.
 
 ## Governing reference scenario
 
