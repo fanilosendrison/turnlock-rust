@@ -134,6 +134,11 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   `fanilosendrison/turnlock-rust#N`.
 - Track durable future work in Turnlock-Rust Engineering and its associated
   GitHub Issues.
+- Treat GitHub Issue state, Turnlock-Rust Engineering fields, and native GitHub
+  relationships as the single live authority for work state. Reference them
+  from Issue prose; do not mirror mutable work state in Issue bodies. Apply the
+  detailed policy in
+  `docs/repository-governance/turnlock-rust-engineering.md`.
 - Revalidate every Issue and finding against current authoritative repository
   sources before implementation.
 - Never use a Project status transition or Issue closure as a substitute for
