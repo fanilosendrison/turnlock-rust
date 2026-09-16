@@ -139,6 +139,12 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   from Issue prose; do not mirror mutable work state in Issue bodies. Apply the
   detailed policy in
   `docs/repository-governance/turnlock-rust-engineering.md`.
+- Treat Project `Priority` as live portfolio-relative scheduling state. After a
+  material work-graph change, including creation of a durable Issue, revalidate
+  `Priority` across every open Turnlock-Rust Engineering Issue under
+  `docs/repository-governance/turnlock-rust-engineering.md`. For autonomous
+  pickup, select the highest-priority `Ready` Issue; `Priority` does not
+  replace dependencies or readiness.
 - Revalidate every Issue and finding against current authoritative repository
   sources before implementation.
 - Never use a Project status transition or Issue closure as a substitute for
