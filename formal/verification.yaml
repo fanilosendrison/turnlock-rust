@@ -900,3 +900,30 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-037
+  title: Active-invocation governing-definition stability invariant
+  spec_section: '3.35'
+  adrs:
+  - ADR-027
+  kind: safety
+  formalization: planned
+  formalization_note: A future abstract model must represent that once an invocation is accepted with governing definition D,
+    an ordinary source-artifact change cannot cause that invocation's governing definition to become another definition D'
+    while it remains active, and that a nested invocation J has its own governing definition determined for J rather than
+    inheriting an implicit transitive root/run snapshot. The abstraction must not select a revision, hash, snapshot, copy,
+    storage, lock, or authorization mechanism, must not forbid an explicit separately authorized future active-definition
+    mutation operation, and must not imply replay, reproducibility, or an execution record. TLA+ cannot establish real
+    filesystem edit semantics, what counts as invocation acceptance in a concrete harness, or whether an execution resource
+    is authorized to edit a source artifact. No property, state variable, action, or config identifier is recorded before
+    the executable shared model introduces it.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
