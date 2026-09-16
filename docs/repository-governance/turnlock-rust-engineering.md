@@ -72,6 +72,111 @@ product semantics or dependencies. Use the Project's `Agent Queue` as the normal
 autonomous pickup surface. A direct user request may select another item, but it
 does not ratify proposed semantics or remove unresolved prerequisites.
 
+## Live work-state ownership
+
+Live work state has exactly one canonical owner per fact. GitHub Issue state,
+Turnlock-Rust Engineering fields, and native GitHub relationships own the
+current work graph. Repository-governance prose, Issue bodies, and comments may
+reference that state; they must not maintain a second copy of it.
+
+| Information                                       | Canonical owner                        |
+| ------------------------------------------------- | -------------------------------------- |
+| Durable work item                                 | GitHub Issue                           |
+| Open/closed Issue state                           | GitHub Issue state                     |
+| Workflow state                                    | Project `Status`                       |
+| Lifecycle classification                          | Project `Phase`                        |
+| Work-item classification                          | Project `Kind`                         |
+| Scheduling priority                               | Project `Priority`                     |
+| Parent/sub-issue structure                        | Native GitHub Issue relationships      |
+| Blocking/blocked-by structure                     | Native GitHub dependency relationships |
+| Pull Request linkage                              | Native GitHub relationships            |
+| Product semantics                                 | `docs/specification/turnlock-spec.md`  |
+| Accepted decision history                         | Accepted ADRs                          |
+| Intended formal traceability/coverage             | `formal/verification.yaml`             |
+| Concrete bounded verification evidence            | `formal/results/`                      |
+| Acceptance criteria for the work owned by Issue X | Issue X body                           |
+
+Apply the governing principle for Issue bodies:
+
+```text
+Reference, do not mirror.
+```
+
+### Do not duplicate live work state
+
+An Issue body must not present as current truth:
+
+- another Issue's open, closed, completion, or reopening state;
+- `Status`, `Phase`, `Kind`, or `Priority` values;
+- parent/sub-issue membership;
+- blocked-by or blocking state;
+- Pull Request relationship state.
+
+The GitHub object or native relationship that owns the fact remains the single
+live authority. An Issue may reference another work item and explain why its
+outcome matters as a semantic input or sequencing constraint.
+
+### Keep acceptance checklists local
+
+Every acceptance checkbox in Issue X must describe an outcome that can be
+satisfied by executing Issue X. Do not write criteria whose predicate is
+another Issue's completion, resolution, closure, or current relationship.
+
+A local criterion may require Issue X's own result to consume, exclude, or
+remain compatible with the then-current authoritative outcome of related work.
+
+### Let native relationships own the work graph
+
+Use native parent, sub-issue, blocked-by, blocking, and Pull Request
+relationships for current work relationships. Issue prose may state the stable
+semantic reason an input or sequencing constraint matters, but it must not
+maintain a second copy of the current relationship state.
+
+### Let Project fields own live Project classification
+
+`Status`, `Phase`, `Kind`, and `Priority` belong exclusively to Turnlock-Rust
+Engineering as live classification state. Do not reproduce them as a Markdown
+block inside an Issue body.
+
+A required classification rationale records the reasoning without copying the
+current field values. A durable exception explanation is historical rationale,
+not another live Project record.
+
+### Let accepted authority own accepted outcomes
+
+When work produces an accepted ADR, normative specification change, formal
+contract, or other authoritative artifact, other work items must reference that
+artifact for the resulting technical meaning.
+
+Do not use `Issue #N is resolved` as technical authority for an accepted
+product or formal conclusion. A closed Issue remains available as historical
+provenance.
+
+### Bound historical snapshots explicitly
+
+A historical observation is legitimate when provenance matters, but it must be
+bounded by a date, repository revision, or equivalent immutable context and
+must be identified as a snapshot rather than current work state.
+
+Revision-scoped evidence sections are not violations merely because later
+repository state differs.
+
+### Do not maintain manual work-status dashboards
+
+Do not add tables or dashboard sections whose rows track the current state of
+multiple Issues. GitHub Issues, Project fields, and native relationships are
+the live work graph.
+
+A future projection that is genuinely required must be separately justified,
+mechanically generated from canonical live sources, and clearly marked
+non-authoritative. Never synchronize it by hand.
+
+### Treat closed Issues as historical records
+
+Do not rewrite closed Issues solely to conform to this presentation rule. Apply
+the rule prospectively and normalize the currently active Issue corpus. Change
+a closed Issue only for an independently justified reason.
+
 ## Classification fields
 
 ### Phase
@@ -151,9 +256,10 @@ A normal Turnlock-Rust Issue must state:
 
 - the observed problem or required outcome;
 - the controlling specification sections, invariants, and ADRs;
-- the relevant phase and unresolved prerequisites;
+- the stable semantic prerequisites and sequencing constraints that affect the
+  work, without restating live dependency or Project state;
 - constraints and authority boundaries;
-- mechanically checkable acceptance criteria;
+- mechanically checkable acceptance criteria that are local to the Issue;
 - required generation, traceability, formal, conformance, or implementation
   validation.
 
@@ -165,9 +271,15 @@ When useful, add a collapsed `Coding agent execution brief` with detailed
 execution guidance. Keep the Issue outcome-oriented and do not duplicate the
 only authoritative technical contract in GitHub prose.
 
-Populate `Status`, `Phase`, `Kind`, and `Priority` for every Project Issue. Use
-native GitHub parent, sub-issue, dependency, and Pull Request relationships when
-available. Do not encode the only dependency record in Project ordering.
+Populate `Status`, `Phase`, `Kind`, and `Priority` in the Project itself; an
+Issue body does not repeat them. Use native GitHub parent, sub-issue,
+dependency, and Pull Request relationships when available. Do not encode the
+only dependency record in Project ordering, and do not restate current
+dependency or relationship state in Issue prose.
+
+When a classification deviates from a default and requires a durable rationale,
+record the reasoning without copying the current field values or creating a
+second live Project record.
 
 ## Findings and durable work
 
