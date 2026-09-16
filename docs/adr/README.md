@@ -130,6 +130,17 @@ Later ADRs record subsequently accepted decisions.
     dependency snapshots are rejected. Deliberate active-definition mutation and
     whether an execution resource may edit a governing workflow's source
     artifact remain separate decisions.
+28. [ADR-028: Clarify that TL-INV-037 forbids governing-definition changes
+    under current semantics][28] — **Accepted**, clarifies ADR-027 without
+    changing its substantive meaning. Under current accepted authority,
+    `TL-INV-037` requires an accepted invocation's governing workflow
+    definition to remain unchanged for its entire active lifetime, so the
+    current formal model must forbid every represented transition that changes
+    it and must not reserve an authorization-gated exception for a future
+    active-definition-mutation capability. ADR-027's mention of a possible
+    future mutation decision is only a future-governance boundary; a future
+    decision must reconcile explicitly with `TL-INV-037` and ADR-027.
+    Issue #18's authority questions remain unresolved and unaffected.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -143,6 +154,7 @@ Later ADRs record subsequently accepted decisions.
 [25]: adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md
 [26]: adr-026-define-a-realizable-semantic-boundary-capture-handoff.md
 [27]: adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md
+[28]: adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -255,6 +267,26 @@ active-definition mutation and whether an execution resource may edit a
 governing workflow's source artifact remain separate decisions. ADR-024,
 ADR-025, and ADR-026 continue to govern the provenance of whichever definition
 is effective.
+
+ADR-028 removes an ambiguity in how ADR-027's accepted semantics must be
+represented in the current formal model:
+
+```text
+future product possibility
+!=
+current semantic permission
+
+leaving a future decision open
+!=
+reserving a present transition in the state machine
+```
+
+`TL-INV-037` is unconditional for an accepted invocation's active lifetime, so
+the current model must reject every represented transition changing its
+governing definition from `D` to another definition `D'`, with no
+authorization-gated exception path. The invariant and ADR-027's substantive
+decision are unchanged; a future active-definition-mutation decision would have
+to reconcile with both.
 
 ## Governing reference scenario
 

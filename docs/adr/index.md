@@ -44,6 +44,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) | Preserve condition-specific provenance without requiring protected-value disclosure | accepted | 2026-09-15 | complete | Minimum protected-representation semantics for TURNLOCK-known effective execution conditions<br>Separation of effective-condition provenance capture from consumer-visible disclosure |
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | Define a realizable semantic-boundary capture handoff | accepted | 2026-09-15 | complete | Minimum realizable semantic-boundary capture-handoff sufficiency for effective execution-condition provenance<br>Separation of the required provenance capture handoff from post-handoff availability, persistence, and retention |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | Bind each accepted invocation to a stable governing workflow definition | accepted | 2026-09-16 | complete | active-invocation workflow-definition binding<br>ordinary source-artifact edit visibility<br>nested-invocation governing-definition independence |
+| [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | Clarify that TL-INV-037 forbids governing-definition changes under current semantics | accepted | 2026-09-16 | complete | Current-semantics interpretation of TL-INV-037 governing-definition stability<br>Formal-model treatment of active governing-definition replacement |
 
 ## Recorded outgoing relations
 
@@ -78,6 +79,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | clarifies | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | confirms | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | confirms | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
+| [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | clarifies | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 
 ## Derived incoming relations
 
@@ -112,3 +114,4 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | clarified by | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) | clarified by | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
+| [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) |
