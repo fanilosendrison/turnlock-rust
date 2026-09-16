@@ -314,9 +314,12 @@ For an independent-agent region, the workflow-declared task boundary is semantic
 rather than an exhaustive whitelist of files, actions, or hypotheses: work may
 follow evidence into another module when it remains directed toward the declared
 task and uses available authority. The independent agent MAY exercise available
-authority but MUST NOT unilaterally create additional authority. A future
-workflow semantic may authorize a capability grant explicitly; local desire
-alone cannot do so.
+authority but MUST NOT unilaterally create additional TURNLOCK-governed semantic
+or orchestration authority; local desire alone cannot do so. A separately
+accepted TURNLOCK semantic may explicitly define a specific TURNLOCK capability,
+but general filesystem, tool, OS, repository, and sandbox permissions supplied
+by the surrounding execution environment are not owned by TURNLOCK core.
+Section 0.8B defines that responsibility boundary.
 
 A result of local work MAY select among continuations related to the result by
 executable workflow semantics; it does not thereby create a new orchestration
@@ -365,6 +368,70 @@ TURNLOCK = orchestration engine / execution machinery
 ```
 
 In ordinary industry terminology TURNLOCK may still be described broadly as an “orchestrator,” but normatively it is **not the orchestration decision-maker**. TURNLOCK executes orchestration; it does not author or invent it.
+
+## 0.8B Local execution capability is not TURNLOCK orchestration authority
+
+TURNLOCK core does not define, and MUST NOT invent, a general permission system
+over the local actions of execution resources. ACL/RBAC, filesystem permissions,
+path-based permissions, tool allowlists, capability tokens, sandboxing,
+container permissions, workflow-artifact-specific read/write rules, a generic
+local grant/revoke authority system, a special “meta-workflow” class, and a
+privileged class reserved to official TURNLOCK workflows are outside TURNLOCK
+core.
+
+```text
+TURNLOCK orchestration authority
+!=
+general operational authority over the surrounding environment
+
+filesystem/tool capability
+does not imply
+TURNLOCK orchestration authority
+```
+
+Restrictions on local access and local actions are supplied by the surrounding
+execution environment, harness, sandbox, or user-controlled environment unless
+a separately accepted TURNLOCK semantic explicitly defines a specific
+capability. If the environment of an execution resource permits modifying a
+repository file, TURNLOCK core does not add a second permission that treats a
+workflow source artifact as specially forbidden merely because it contains a
+TURNLOCK workflow.
+
+An execution resource may therefore inspect a workflow, propose a modification,
+create a workflow, modify another workflow, modify the workflow whose definition
+govers the currently active invocation, or produce a new version of a workflow
+when its environment permits those local actions. Such actions are local
+execution and authoring effects; they are not TURNLOCK orchestration authority.
+TURNLOCK MUST NOT infer a workflow's purpose or intent to decide whether it may
+modify workflows, and no meta-workflow flag or workflow-authorship permission
+flag exists.
+
+The boundary is general across execution resources:
+
+```text
+execution resource performs local action
+→ local effect may occur according to its environment
+
+BUT
+
+local effect
+↛ implicit change of the current invocation's governing orchestration
+```
+
+The governing orchestration of an accepted invocation remains immutable under
+Section 0.13E and `TL-INV-037`. A source-artifact edit is not a mutation of the
+governing definition; a later invocation may bind to the edited artifact under
+its own resolution semantics. Active replanning, active rebinding, and
+replacement of the governing workflow definition of an accepted invocation are
+outside and contrary to the current product contract, not a reserved future
+capability.
+
+TURNLOCK non-conformance is therefore not merely that an execution resource
+edited a workflow file. Non-conformance is an ordinary local action that
+changed the governing definition of an already accepted active invocation, a
+local action that introduced an undeclared global transition into the current
+invocation, or a runtime that treated local filesystem/tool capability as
+authority to replace or replan the current global orchestration.
 
 ## 0.9 The workflow must have execution continuity independent of agent memory
 
@@ -431,9 +498,12 @@ main-agent lineage.
 The workflow owns the declared task and global continuation; the agent owns its
 local strategy and tactics. The task is a semantic mission boundary, not an
 exhaustive file or action whitelist. The agent may exercise available authority
-but cannot expand that authority unilaterally. None of these structural and
-authority boundaries requires a maximum turn, token, tool-call, cost, or
-wall-clock budget, a timeout, cancellation rule, or guaranteed completion.
+but cannot expand that authority unilaterally. This boundary concerns
+TURNLOCK-governed semantic and orchestration authority; general local
+permissions are supplied by the surrounding execution environment, as defined
+in Section 0.8B. None of these structural and authority boundaries requires a
+maximum turn, token, tool-call, cost, or wall-clock budget, a timeout,
+cancellation rule, or guaranteed completion.
 
 A child agent spawned internally by the main agent remains part of that main
 agent's ordinary local delegation unless the workflow explicitly declares the
@@ -646,6 +716,17 @@ but:  workflow suspends its local execution authority
       → that region completes/yields
       → workflow resumes
 ```
+
+The restored ordinary agency can include repository edits according to the
+capabilities of the surrounding environment, including edits of workflow
+artifacts. Such local edits are authoring actions, not orchestration mutations:
+they do not alter the governing definition or the declared global progression of
+the already accepted invocation (Section 0.13E, `TL-INV-037`). A later
+invocation may bind to an edited artifact under its own resolution semantics,
+and active replanning or rebinding of the current invocation remains outside
+the current product contract. Section 0.8B defines the responsibility boundary
+between environment-provided local capability and TURNLOCK orchestration
+authority.
 
 A one-shot LLM request/response is nevertheless a valid **separate** TURNLOCK primitive when that narrower semantic execution form is what the workflow requests. The prohibition here is only against implementing a declared main-agent continuation as though it were such a call.
 
@@ -1027,17 +1108,33 @@ to a definition or whether an unqualified workflow name selects the latest
 version.
 
 Ordinary artifact editing is not an operation that mutates the governing
-definition of an active invocation. If TURNLOCK ever supports deliberate
-replacement or mutation of the governing definition of an already-active
-invocation, that capability requires its own accepted product decision and is
-not introduced here.
+definition of an active invocation. Source-artifact self-authoring may occur
+when the surrounding execution environment permits it; it does not rebind,
+replan, or replace the orchestration of the invocation that is already accepted.
+The current invocation continues under its governing definition, and a later
+invocation may bind to the edited artifact under its own resolution semantics.
+A recursive invocation follows the same rule: when the active definition's
+already-declared semantics invoke the workflow again, the new invocation
+independently resolves and binds its own governing definition.
+
+Active replanning, active rebinding, and replacement of the governing workflow
+definition of an accepted invocation are outside and contrary to the current
+product contract. They are not an open future feature, not a reserved
+transition, and not a forward-compatibility obligation. A later proposal to
+introduce such behavior would explicitly change the governing product semantics
+and would have to reconcile with `TL-INV-037` and the decisions that state this
+boundary.
 
 The requirement is distinct from replay and reproducibility: keeping one
 invocation's governing definition stable does not make execution deterministic,
 repeatable, comparable, or reproducible, and it does not require a transitive
-snapshot of an entire execution tree. Whether an execution resource is
-authorized to edit the source artifact of a workflow that currently governs it
-also remains a separate authority question.
+snapshot of an entire execution tree. Whether the surrounding environment
+permits an execution resource to edit the source artifact of a workflow that
+currently governs it is an environment and capability concern; TURNLOCK core
+does not define general repository, filesystem, or tool authorization for
+execution resources (Section 0.8B). TURNLOCK non-conformance is not the edit
+itself but a changed governing definition of an accepted active invocation or an
+undeclared global transition in the current invocation.
 
 ## 0.14 Product-intent conformance rule
 
@@ -1119,6 +1216,15 @@ only in inaccessible transient adapter state
 
 an accepted invocation silently changes its remaining declared topology merely
 because its source workflow artifact is edited
+
+an execution resource's environment-provided local capability is treated as
+TURNLOCK orchestration authority
+
+a local workflow-artifact edit is treated as a mutation of an accepted
+invocation's governing orchestration
+
+using TURNLOCK requires a TURNLOCK-owned general permission system or a
+privileged workflow class to protect its workflows
 
 an unavailable or unknown execution condition is presented as known-equal across
 executions or as evidence that no relevant difference exists
@@ -2312,24 +2418,33 @@ comparable for that property.
 For every accepted workflow invocation, TURNLOCK MUST have determined one
 governing workflow definition no later than invocation acceptance. That
 definition MUST remain the source of declared topology for the lifetime of that
-invocation and MUST NOT be replaced or altered merely because the workflow
-source artifact is subsequently edited.
+invocation and MUST NOT be replaced, rebound, rewritten, replanned, or altered
+merely because the workflow source artifact is subsequently edited.
 
 Every accepted nested invocation establishes its own governing workflow
 definition. The governing definition of its caller MUST NOT, by itself,
 transitively determine or freeze the callee's governing definition before the
 callee invocation is accepted.
 
-Ordinary artifact editing does not constitute an operation that mutates the
-governing definition of an active invocation. Any future semantic that
-deliberately replaces or mutates an active governing definition requires
-separate accepted authority.
+Ordinary artifact editing and source-artifact self-authoring do not constitute
+an operation that mutates the governing definition of an active invocation.
+Such local authoring may occur when the surrounding execution environment
+permits it and remains a local execution effect; it does not change the
+orchestration envelope authorized by the governing definition. A later
+invocation independently resolves and may bind to the edited artifact. Active
+replanning, active rebinding, and replacement of an accepted invocation's
+governing definition are outside and contrary to the current TURNLOCK product
+contract, not a reserved future capability. The current formal model MUST NOT
+contain an active-definition-mutation transition, an authorization guard for
+one, or a placeholder for one.
 
 This invariant does not decide how a governing definition is identified or
 represented, whether source artifacts or their repositories are immutable,
-whether an execution resource is authorized to edit a workflow that currently
-governs it, or whether replay, reproducibility, or transitive snapshot
-guarantees should ever exist.
+whether the surrounding execution environment supplies or restricts local
+access to a workflow that currently governs an invocation, or whether replay,
+reproducibility, or transitive snapshot guarantees should ever exist. TURNLOCK
+core does not define general repository, filesystem, or tool authorization for
+execution resources; Section 0.8B states that responsibility boundary.
 
 # 4. Current boundaries — intentionally not yet specified
 
@@ -2343,7 +2458,10 @@ The following questions are important but are **not yet answered by the product 
 - The exact set of mechanical step primitives.
 - Whether workflows are always external scripts or may have other executable representations.
 - How values/results/context cross the workflow ↔ main-agent boundary.
-- How permissions and tool authority transfer during a main-agent phase.
+- How the surrounding execution environment supplies or restricts local
+  filesystem, tool, OS, repository, and sandbox capabilities during agentic
+  regions; TURNLOCK core defines no general repository, filesystem, or tool
+  authorization for execution resources (Section 0.8B).
 - What exact continuity guarantee is achievable or required per supported harness.
 - Whether a temporarily unavailable main-agent handoff can be retried, degraded, or must fail closed.
 - Which concrete inspection facts and sufficiency rules different workflow shapes require beyond the accepted minimum execution-inspectability obligation.
@@ -2617,6 +2735,8 @@ At the current stage, TURNLOCK is not defined as:
 - universal exact-value disclosure of protected effective conditions;
 - a public or cross-run stable identity, equality operation, or difference proof for effective conditions;
 - a universal authorization, access-control, or privacy-policy system for provenance capture;
+- an owner of general filesystem, repository, OS, tool, or sandbox permissions for execution resources;
+- an authority that infers workflow purpose to grant or deny workflow authoring, or that reserves privileges to official workflows or introduces a general runtime grant/revoke protocol;
 - a requirement to expose private agent reasoning or record every tool call inside an agentic region.
 
 Future features may include some adjacent capabilities, but they must not blur the control model that defines the product.

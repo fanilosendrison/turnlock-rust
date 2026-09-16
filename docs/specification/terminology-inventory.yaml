@@ -260,7 +260,7 @@ occurrences:
   section: '0.14'
   heading: 0.14 Product-intent conformance rule
   role: intent
-  fingerprint: dd3a5dbee6dfe393a88b54c9eb947f4b60c82563def70f70f881e1c7aa367c46
+  fingerprint: a00939288819f402e280495792efaf9e946fa7025becb38a5df7cde602698baf
 - concepts:
   - independent-agent
   - main-agent-handoff
@@ -309,4 +309,4 @@ occurrences:
   section: '4'
   heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: 14ea246869609df02a7425efe95518e1ae076b018deaf3649b2af8cc45d06d4e
+  fingerprint: d7d379ac89b2629fb55e9b67c571d3e8d6dc4abf77595d044443d02fa873ac58
