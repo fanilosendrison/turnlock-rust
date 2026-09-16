@@ -45,6 +45,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | Define a realizable semantic-boundary capture handoff | accepted | 2026-09-15 | complete | Minimum realizable semantic-boundary capture-handoff sufficiency for effective execution-condition provenance<br>Separation of the required provenance capture handoff from post-handoff availability, persistence, and retention |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | Bind each accepted invocation to a stable governing workflow definition | accepted | 2026-09-16 | complete | active-invocation workflow-definition binding<br>ordinary source-artifact edit visibility<br>nested-invocation governing-definition independence |
 | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | Clarify that TL-INV-037 forbids governing-definition changes under current semantics | accepted | 2026-09-16 | complete | Current-semantics interpretation of TL-INV-037 governing-definition stability<br>Formal-model treatment of active governing-definition replacement |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | Separate local execution capabilities from immutable invocation orchestration | accepted | 2026-09-16 | complete | Responsibility boundary between local execution capabilities and TURNLOCK orchestration authority<br>Workflow source-artifact authoring versus active invocation self-replanning<br>Absence of active replanning and rebinding under current TURNLOCK semantics<br>Conformance boundary for local actions during an active invocation |
 
 ## Recorded outgoing relations
 
@@ -80,6 +81,13 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | confirms | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | confirms | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | clarifies | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-001](adr-001-make-the-workflow-own-orchestration-after-session-entry.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarifies | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) |
 
 ## Derived incoming relations
 
@@ -89,6 +97,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-001](adr-001-make-the-workflow-own-orchestration-after-session-entry.md) | clarified by | [ADR-004](adr-004-make-mechanical-steps-first-class-and-non-agent-mediated.md) |
 | [ADR-001](adr-001-make-the-workflow-own-orchestration-after-session-entry.md) | clarified by | [ADR-005](adr-005-model-main-agent-steps-as-reversible-repeatable-control-handoffs.md) |
 | [ADR-001](adr-001-make-the-workflow-own-orchestration-after-session-entry.md) | clarified by | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
+| [ADR-001](adr-001-make-the-workflow-own-orchestration-after-session-entry.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-002](adr-002-require-natural-skill-like-slash-command-invocation.md) | clarified by | [ADR-006](adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md) |
 | [ADR-002](adr-002-require-natural-skill-like-slash-command-invocation.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-003](adr-003-make-product-intent-and-derived-invariants-govern-implementation.md) | clarified by | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) |
@@ -99,6 +108,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-006](adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md) | clarified by | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) |
 | [ADR-006](adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
+| [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
 | [ADR-009](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
@@ -106,8 +116,11 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-021](adr-021-separate-independent-agent-completion-output-and-effects.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
+| [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
+| [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
+| [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | confirmed by | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | amended by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | clarified by | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) |
@@ -115,3 +128,5 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) | clarified by | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) |
+| [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |

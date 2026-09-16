@@ -140,7 +140,22 @@ Later ADRs record subsequently accepted decisions.
     active-definition-mutation capability. ADR-027's mention of a possible
     future mutation decision is only a future-governance boundary; a future
     decision must reconcile explicitly with `TL-INV-037` and ADR-027.
-    Issue #18's authority questions remain unresolved and unaffected.
+    The authority questions retained by Issue #18 were subsequently resolved
+    by ADR-029.
+29. [ADR-029: Separate local execution capabilities from immutable invocation
+    orchestration][29] — **Accepted**, clarifies ADR-001, ADR-007, ADR-014,
+    ADR-016, ADR-019, ADR-027, and ADR-028. TURNLOCK core does not own general
+    repository, filesystem, tool, OS, sandbox, ACL/RBAC, path, token, or
+    grant/revoke permissions; those restrictions belong to the surrounding
+    execution environment unless a later explicit decision introduces a
+    specific TURNLOCK capability. Local source-artifact self-authoring remains
+    an ordinary local action where the environment permits it and never
+    mutates the governing definition of an accepted active invocation. Active
+    replanning and rebinding are outside and contrary to the current product
+    contract rather than a reserved future feature, and the boundary applies
+    equally to every execution resource. No new invariant identity is created;
+    `TL-INV-037` and the existing workflow-owned-control and authorship
+    invariants remain the owners.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -155,6 +170,7 @@ Later ADRs record subsequently accepted decisions.
 [26]: adr-026-define-a-realizable-semantic-boundary-capture-handoff.md
 [27]: adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md
 [28]: adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md
+[29]: adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md
 
 ADR-014 makes the ownership terminology precise:
 
@@ -287,6 +303,35 @@ governing definition from `D` to another definition `D'`, with no
 authorization-gated exception path. The invariant and ADR-027's substantive
 decision are unchanged; a future active-definition-mutation decision would have
 to reconcile with both.
+
+ADR-029 resolves the authority question retained by Issue #18 without creating
+a TURNLOCK-owned permission layer:
+
+```text
+TURNLOCK orchestration authority
+!=
+general operational authority over the surrounding environment
+
+local agency / local effects
+!=
+TURNLOCK global orchestration authority
+
+source-artifact self-authoring
+!=
+active invocation self-replanning
+```
+
+TURNLOCK core defines no ACL/RBAC, filesystem, path, tool-allowlist,
+capability-token, sandbox, grant/revoke, meta-workflow, or official-workflow
+privilege semantics. Ordinary workflow authoring, including editing a currently governing
+source artifact, remains a local action permitted or restricted by the
+surrounding environment and never changes an accepted invocation's governing
+definition. Active replanning and rebinding are recorded as outside and
+contrary to the current product contract rather than as a reserved extension,
+and the same boundary applies to the main agent, independent agents, and every
+other execution resource. `TL-INV-037` and the existing workflow-owned-control
+and authorship invariants remain the sole owners; ADR-029 admits no new
+`TL-INV-*` identity.
 
 ## Governing reference scenario
 
