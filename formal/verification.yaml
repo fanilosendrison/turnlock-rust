@@ -715,6 +715,7 @@ invariants:
   adrs:
   - ADR-012
   - ADR-014
+  - ADR-029
   kind: safety
   formalization: planned
   formalization_note: A future formula must constrain every global control transition to workflow-authorized semantics while
@@ -768,6 +769,7 @@ invariants:
   - ADR-009
   - ADR-014
   - ADR-016
+  - ADR-029
   kind: architecture+conformance
   formalization: not-applicable
   formalization_note: Whether an authoring/runtime integration independently executes an artifact rather than returning
@@ -906,6 +908,7 @@ invariants:
   adrs:
   - ADR-027
   - ADR-028
+  - ADR-029
   kind: safety
   formalization: planned
   formalization_note: A future abstract model must represent that once an invocation is accepted with governing definition D, that
@@ -913,13 +916,17 @@ invariants:
     model that would change an active invocation's governing definition from D to another definition D' must violate the modeled
     TL-INV-037 safety property; the model must not provide an authorization-gated or otherwise reserved exception path. A nested
     invocation J has its own governing definition determined for J; caller acceptance does not imply a transitive root/run-wide
-    snapshot. No currently accepted active-definition-mutation transition exists. A future accepted decision may change the
-    normative contract, but the present formalization must not invent, reserve, or permit such a transition in advance. The
-    abstraction must not select or imply a revision mechanism, hash, snapshot representation, copy mechanism, storage choice,
-    lock mechanism, authorization implementation, replay implication, or reproducibility implication. TLA+ cannot establish
-    real filesystem edit semantics, what counts as invocation acceptance in a concrete harness, or whether an execution
-    resource is authorized to edit a source artifact. No property, state variable, action, or config identifier is recorded
-    before the executable shared model introduces it.
+    snapshot. Active replanning, active rebinding, and replacement of an accepted invocation's governing definition are outside
+    and contrary to the current product contract, so no transition, guard, or placeholder may be reserved for them. Runtime
+    results may select among continuations the governing definition already authorizes, but selecting a declared possibility is
+    not a change to the governing definition. The abstraction must not select or imply a revision mechanism, hash, snapshot
+    representation, copy mechanism, storage choice, lock mechanism, authorization implementation, replay implication, or
+    reproducibility implication. The ADR-029 responsibility boundary that general filesystem, tool, OS, repository, and sandbox
+    permissions belong to the surrounding execution environment is formalization-not-applicable, so the model must not introduce
+    permission or meta-workflow state such as workflowWritePermission, metaWorkflow, AuthorizedMutation, or ReplanPermission, or
+    any equivalent. TLA+ cannot establish real filesystem edit semantics, what counts as invocation acceptance in a concrete
+    harness, or which local restrictions the environment supplies. No property, state variable, action, or config identifier is
+    recorded before the executable shared model introduces it.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
