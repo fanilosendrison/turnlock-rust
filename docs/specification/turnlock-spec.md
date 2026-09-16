@@ -399,7 +399,7 @@ TURNLOCK workflow.
 
 An execution resource may therefore inspect a workflow, propose a modification,
 create a workflow, modify another workflow, modify the workflow whose definition
-govers the currently active invocation, or produce a new version of a workflow
+governs the currently active invocation, or produce a new version of a workflow
 when its environment permits those local actions. Such actions are local
 execution and authoring effects; they are not TURNLOCK orchestration authority.
 TURNLOCK MUST NOT infer a workflow's purpose or intent to decide whether it may
