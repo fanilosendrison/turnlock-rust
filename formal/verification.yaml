@@ -905,17 +905,21 @@ invariants:
   spec_section: '3.35'
   adrs:
   - ADR-027
+  - ADR-028
   kind: safety
   formalization: planned
-  formalization_note: A future abstract model must represent that once an invocation is accepted with governing definition D,
-    an ordinary source-artifact change cannot cause that invocation's governing definition to become another definition D'
-    while it remains active, and that a nested invocation J has its own governing definition determined for J rather than
-    inheriting an implicit transitive root/run snapshot. The abstraction must not select a revision, hash, snapshot, copy,
-    storage, lock, or authorization mechanism, must not forbid an explicit separately authorized future active-definition
-    mutation operation, and must not imply replay, reproducibility, or an execution record. TLA+ cannot establish real
-    filesystem edit semantics, what counts as invocation acceptance in a concrete harness, or whether an execution resource
-    is authorized to edit a source artifact. No property, state variable, action, or config identifier is recorded before
-    the executable shared model introduces it.
+  formalization_note: A future abstract model must represent that once an invocation is accepted with governing definition D, that
+    governing definition remains unchanged while the invocation is active. Every transition represented by the current accepted
+    model that would change an active invocation's governing definition from D to another definition D' must violate the modeled
+    TL-INV-037 safety property; the model must not provide an authorization-gated or otherwise reserved exception path. A nested
+    invocation J has its own governing definition determined for J; caller acceptance does not imply a transitive root/run-wide
+    snapshot. No currently accepted active-definition-mutation transition exists. A future accepted decision may change the
+    normative contract, but the present formalization must not invent, reserve, or permit such a transition in advance. The
+    abstraction must not select or imply a revision mechanism, hash, snapshot representation, copy mechanism, storage choice,
+    lock mechanism, authorization implementation, replay implication, or reproducibility implication. TLA+ cannot establish
+    real filesystem edit semantics, what counts as invocation acceptance in a concrete harness, or whether an execution
+    resource is authorized to edit a source artifact. No property, state variable, action, or config identifier is recorded
+    before the executable shared model introduces it.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
