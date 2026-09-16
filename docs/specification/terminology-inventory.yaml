@@ -148,6 +148,12 @@ occurrences:
   role: canonical-definition
   fingerprint: 86306ca4d7e0574b4ef7016d095c42c4352894722a42b038db58ea1977225b6d
 - concepts:
+  - governing-workflow-definition
+  section: '2.11'
+  heading: 2.11 Governing workflow definition
+  role: canonical-definition
+  fingerprint: fd065714c8013ea1deb900d160c346a1efd6a0cdcc12fe49ace7fe25217dfe53
+- concepts:
   - workflow
   section: '0.1'
   heading: '0.1 Product definition: user-authored workflows inside coding-agent sessions'
@@ -241,13 +247,20 @@ occurrences:
   role: intent
   fingerprint: 613fffb1b2eca1245413c79210fc4b392a6145469e249697eb12c74a0570009e
 - concepts:
+  - nested-workflow-invocation
+  section: 0.13E
+  heading: 0.13E An accepted invocation keeps its governing workflow definition
+  role: intent
+  fingerprint: 8f6512b771877bc4b7641e145fbbf0faf0618df081057eae215f45bc06412a49
+- concepts:
   - independent-agent-step
   - main-agent
   - main-agent-step
+  - workflow-artifact
   section: '0.14'
   heading: 0.14 Product-intent conformance rule
   role: intent
-  fingerprint: 6c25f0a6b0db7b87f0ca5eade5635eb1dbaccb5e63f3cb67ced646a7422a14c6
+  fingerprint: dd3a5dbee6dfe393a88b54c9eb947f4b60c82563def70f70f881e1c7aa367c46
 - concepts:
   - independent-agent
   - main-agent-handoff
@@ -296,4 +309,4 @@ occurrences:
   section: '4'
   heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: 658290f17b4c6f54f8378f357a81d4821fbc6b1f4850d15377e19b9a13fae383
+  fingerprint: 14ea246869609df02a7425efe95518e1ae076b018deaf3649b2af8cc45d06d4e

@@ -16,8 +16,10 @@ defines workflow-declared invocation and its structured call/return semantics.
 ADR-023 clarifies the caller-context and continuation distinction for nested
 workflow invocations. ADR-024 establishes effective execution-condition
 provenance for conditions TURNLOCK selects, binds, explicitly supplies, or
-resolves. ADR-015 governs how this normative specification co-evolves with the
-formal TLA+/TLC model and verification manifest.
+resolves. ADR-027 binds every accepted workflow invocation to a stable
+governing workflow definition determined no later than invocation acceptance.
+ADR-015 governs how this normative specification co-evolves with the formal
+TLA+/TLC model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -986,6 +988,57 @@ invocation later fails, is cancelled, or is interrupted. This rule does not
 define those terminal outcomes or the detailed inspectability of non-completed
 executions.
 
+## 0.13E An accepted invocation keeps its governing workflow definition
+
+Every accepted TURNLOCK workflow invocation has a governing workflow
+definition. TURNLOCK must determine that definition no later than invocation
+acceptance, and it remains the source of declared workflow topology for the
+lifetime of that invocation. An ordinary subsequent edit of the workflow source
+artifact does not alter the governing definition of an invocation that has
+already been accepted, so the active invocation does not silently begin
+following a later definition merely because its source artifact changed.
+
+Each nested workflow invocation is a distinct invocation. It establishes its
+own governing workflow definition no later than its own acceptance. A caller's
+governing definition does not, merely by governing the caller, transitively
+bind or freeze the definitions of workflows that may later be invoked from
+inside the caller.
+
+```text
+artifact W = D1
+
+accept invocation I of W
+→ governing definition(I) = D1
+
+artifact W later changes:
+D1 → D2
+
+I continues under D1
+
+later accept invocation J of W
+→ J receives the definition the applicable resolution semantics determine
+  for J at J's acceptance
+```
+
+This requirement concerns which definition governs an active invocation, not
+how that definition is identified or represented. It does not make source
+artifacts immutable, and it does not define how a workflow reference resolves
+to a definition or whether an unqualified workflow name selects the latest
+version.
+
+Ordinary artifact editing is not an operation that mutates the governing
+definition of an active invocation. If TURNLOCK ever supports deliberate
+replacement or mutation of the governing definition of an already-active
+invocation, that capability requires its own accepted product decision and is
+not introduced here.
+
+The requirement is distinct from replay and reproducibility: keeping one
+invocation's governing definition stable does not make execution deterministic,
+repeatable, comparable, or reproducible, and it does not require a transitive
+snapshot of an entire execution tree. Whether an execution resource is
+authorized to edit the source artifact of a workflow that currently governs it
+also remains a separate authority question.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -1063,6 +1116,9 @@ an evaluator or optimizer must receive privileged runtime authority to assess an
 an effective execution condition selected, bound, explicitly supplied, or
 resolved by TURNLOCK can govern an execution scope while its attribution exists
 only in inaccessible transient adapter state
+
+an accepted invocation silently changes its remaining declared topology merely
+because its source workflow artifact is edited
 
 an unavailable or unknown execution condition is presented as known-equal across
 executions or as evidence that no relevant difference exists
@@ -1281,6 +1337,7 @@ prose:
 | `execution-inspectability` | `execution inspectability` | [`term-execution-inspectability`](#term-execution-inspectability) | `completed-execution inspectability` | — | compound |
 | `effective-execution-condition-provenance` | `effective execution-condition provenance` | [`term-effective-execution-condition-provenance`](#term-effective-execution-condition-provenance) | — | — | compound |
 | `realizable-semantic-boundary-capture-handoff` | `realizable semantic-boundary capture handoff` | [`term-realizable-semantic-boundary-capture-handoff`](#term-realizable-semantic-boundary-capture-handoff) | — | — | compound |
+| `governing-workflow-definition` | `governing workflow definition` | [`term-governing-workflow-definition`](#term-governing-workflow-definition) | — | — | compound |
 <!-- normative-terminology-registry:end -->
 
 Definition-like occurrences outside their canonical destinations are reviewed in
@@ -1683,6 +1740,22 @@ acknowledgment. Mere internal existence without such a boundary interaction
 does not discharge the obligation. Sufficiency is not a wall-clock or retention
 duration: capture may be logically instantaneous when acquisition is realizable
 as part of the boundary interaction itself.
+
+## 2.11 Governing workflow definition
+
+<a id="term-governing-workflow-definition"></a>
+
+A **governing workflow definition** is the workflow definition that TURNLOCK
+has determined as the source of declared topology for one accepted workflow
+invocation. That relationship is stable for that invocation: ordinary later
+modification of the workflow source artifact does not change which definition
+governs the invocation's remaining declared topology.
+
+The concept identifies no concrete version, revision, hash, snapshot, copy, or
+storage representation. Each accepted invocation, including each nested
+invocation, has its own governing workflow definition; a caller's governing
+definition does not by itself determine or freeze the governing definition of a
+workflow that may later be invoked.
 
 # 3. Derived invariants
 
@@ -2234,6 +2307,30 @@ establishes no underlying-value equality or difference operation or proof. TURNL
 relevant to an externally supplied property `P` or whether two executions are
 comparable for that property.
 
+## 3.35 TL-INV-037 — Active-invocation governing-definition stability invariant
+
+For every accepted workflow invocation, TURNLOCK MUST have determined one
+governing workflow definition no later than invocation acceptance. That
+definition MUST remain the source of declared topology for the lifetime of that
+invocation and MUST NOT be replaced or altered merely because the workflow
+source artifact is subsequently edited.
+
+Every accepted nested invocation establishes its own governing workflow
+definition. The governing definition of its caller MUST NOT, by itself,
+transitively determine or freeze the callee's governing definition before the
+callee invocation is accepted.
+
+Ordinary artifact editing does not constitute an operation that mutates the
+governing definition of an active invocation. Any future semantic that
+deliberately replaces or mutates an active governing definition requires
+separate accepted authority.
+
+This invariant does not decide how a governing definition is identified or
+represented, whether source artifacts or their repositories are immutable,
+whether an execution resource is authorized to edit a workflow that currently
+governs it, or whether replay, reproducibility, or transitive snapshot
+guarantees should ever exist.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -2252,7 +2349,7 @@ The following questions are important but are **not yet answered by the product 
 - Which concrete inspection facts and sufficiency rules different workflow shapes require beyond the accepted minimum execution-inspectability obligation.
 - What detailed tracing, event schemas, ordering guarantees, storage, retention, telemetry, debugger UI, or evaluation tooling should exist above the execution substrate; native evaluation or optimization policy remains outside TURNLOCK core under `TL-INV-034`.
 - Whether completed-execution inspectability extends to failed, cancelled, interrupted, or otherwise non-completed executions, and with what outcome-specific semantics.
-- How a workflow definition binds to an active invocation and how inspection establishes correspondence between actual execution and any definition it presents.
+- How inspection represents or establishes correspondence between actual execution and the governing workflow definition remains separately open to the extent not already fixed by `TL-INV-033`, `TL-INV-036`, and `TL-INV-037`.
 - Whether future TURNLOCK-adjacent capabilities should introduce native evaluator interfaces, universal metrics, cross-run comparison, experiment support, or optimizer machinery; the current product definition assigns evaluation and optimization policy outside TURNLOCK core, and any such addition requires a new accepted product decision.
 - Whether replay, cross-run comparability contracts or APIs, reproducibility profiles, canonical run models, experiment frameworks, or execution proofs should ever be supported.
 - Whether conditions TURNLOCK observes but does not control, or conditions an adapter or execution resource could expose, receive provenance obligations beyond the universal floor for conditions TURNLOCK selects, binds, explicitly supplies, or resolves.
@@ -2409,9 +2506,10 @@ the obligation in `TL-INV-033`.
 The inspection boundary must preserve the distinction between actual execution
 facts and a workflow definition displayed later. It may show a current or later
 definition, but it cannot use that definition alone as proof of previous
-execution behavior. This pressure makes the separate workflow-definition
-binding decision consequential without selecting snapshot semantics, live-edit
-semantics, revision identity, copy-on-start, or another binding mechanism.
+execution behavior. This pressure makes the workflow-definition binding decision
+consequential; `TL-INV-037` fixes that binding rule without selecting snapshot
+semantics, live-edit semantics, revision identity, copy-on-start, or another
+binding mechanism.
 
 This implication requires neither a persistent event log nor a specific event,
 storage, identifier, telemetry, retention, query, or user-interface design. Such
@@ -2462,9 +2560,9 @@ handoff, under separately governed policy. This implication
 does not select an authorization or privacy model, require another consumer
 context, exact-value disclosure, post-boundary availability or retention, or
 that all capturable information appear through ordinary inspection surfaces. Whichever workflow
-definition Issue #4's future semantics make effective must remain attributable
-when TURNLOCK binds or resolves it, without this implication selecting the
-binding rule or a revision representation.
+definition governs an invocation under `TL-INV-037` must remain attributable
+when TURNLOCK binds or resolves it, without this implication selecting a
+concrete representation.
 
 This boundary does not select who captures the attribution, how long it remains
 available, whether another layer persists it, or any database, event, identifier,
@@ -2485,6 +2583,17 @@ not require continued capturability, and any stronger post-handoff
 availability, persistence, or retention guarantee remains separately governed.
 The capture boundary remains distinct from delivery acknowledgment, ordinary
 inspection surfaces, and any storage mechanism.
+
+## 5.18 Governing-definition stability requires execution-level attribution
+
+Because every accepted invocation must retain one governing workflow definition,
+the execution architecture must preserve a stable governing-definition
+relationship for each active invocation independently of later mutation of the
+source artifact. This implication prescribes no snapshot, hash, copy, lock,
+database, revision, or file-system mechanism; it requires only that an ordinary
+later source edit cannot silently replace the definition that governs an active
+invocation's remaining declared topology, while each nested invocation
+establishes its own governing definition at its own acceptance.
 
 # 6. Non-goals implied by the current product intent
 
