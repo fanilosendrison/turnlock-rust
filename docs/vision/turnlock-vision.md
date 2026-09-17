@@ -336,7 +336,174 @@ control flow. TURNLOCK executes it. An LLM that produced the artifact does not
 become the hidden scheduler, just as a developer who wrote the artifact does
 not personally perform its runtime progression.
 
-## 11. Long-term direction: structured cognition
+## 11. Externalized and evolvable engineering methods
+
+TURNLOCK's existing separation between workflow authorship, workflow-owned
+orchestration, and cognitive execution has a broader architectural consequence:
+a software-engineering method that initially exists only inside human or agentic
+working behavior can be externalized into an independently executable workflow
+artifact.
+
+Conceptually:
+
+```text
+developer or coding agent
+        ↓
+working method / discovered procedure
+        ↓
+workflow artifact W
+        ↓
+TURNLOCK executes W
+```
+
+TURNLOCK does not decide what the correct engineering method is. Policy, intent,
+methodology, generated strategy, and workflow selection or generation remain
+above the runtime. TURNLOCK's role begins once the resulting orchestration is
+expressed as a workflow program that it can execute.
+
+Externalizing the method does not remove cognition from the process. The same
+architecture supports the opposite direction as well:
+
+```text
+cognition
+  → authors program
+
+program
+  → calls cognition where needed
+```
+
+A coding agent may therefore author or modify a workflow and later participate
+in execution through one of TURNLOCK's declared cognitive execution forms. When
+the applicable workflow semantics request continuation of the existing main
+agent, the workflow may call back into that continuing cognitive lineage.
+Authorship still does not confer runtime orchestration authority:
+
+```text
+authoring the method
+!=
+owning global workflow progression
+```
+
+The stable governing definition of an accepted invocation also separates
+evolution of the workflow artifact from mutation of an execution already in
+progress. For example:
+
+```text
+Agent A authors W17
+        ↓
+TURNLOCK accepts an invocation governed by W17
+        ↓
+A discovers an improvement while work is occurring
+        ↓
+A authors W18
+        ↓
+the active invocation remains governed by W17
+        ↓
+a later invocation may execute W18
+```
+
+The successor artifact is therefore a new generation of the engineering method,
+not an implicit replan or rebind of the active invocation.
+
+This creates a possible cumulative loop:
+
+```text
+cognition
+    ↓
+externalized method W
+    ↓
+execution
+    ↓
+observation / external evaluation
+    ↓
+authored successor W'
+    ↓
+later execution
+```
+
+TURNLOCK allows cognition to externalize a working method into an independently
+executable artifact while allowing that artifact to call cognition back where
+needed. The method and the cognition that participates in it can then improve
+along separate axes: a better model or agent can become a better execution
+resource without forcing the engineering method back into transient cognition,
+and the engineering method can itself be refined without requiring a new model.
+
+This distinction becomes increasingly important as software engineering becomes
+more agentic. Improving an individual agent is only one way to improve an
+agentic software-engineering system. The engineering method, the explicit
+control around cognition, and the evidence available for evaluating execution
+can improve independently as well.
+
+Conceptually:
+
+```text
+better cognition
+        +
+better executable engineering method
+        +
+better control
+        +
+better evaluation
+        ↓
+better agentic software-engineering system
+```
+
+This diagram expresses complementarity, not a mathematical relationship.
+
+TURNLOCK does not primarily aim to make an individual agent more capable. Its
+role is to make engineering methods used by agentic systems executable under
+explicit workflow control, inspectable at TURNLOCK's semantic boundary, and
+amenable to external empirical evaluation and refinement.
+
+That role can support increasingly autonomous software-engineering systems.
+Without explicit process structure, one agent may otherwise be responsible for
+solving the engineering problem while also remembering the full procedure,
+scheduling every step, coordinating every transition, and policing its own
+adherence to the method. TURNLOCK permits a different allocation:
+
+```text
+workflow artifact
+  → owns declared process structure
+
+TURNLOCK
+  → executes that structure
+
+mechanical execution and cognition
+  → perform the regions allocated to them
+```
+
+This can reduce the amount of stable procedural responsibility that must remain
+inside transient agent cognition while preserving rich local cognition wherever
+the workflow explicitly requires it.
+
+TURNLOCK is not the complete system that turns human intent into software. It
+does not choose product intent, invent the correct methodology, determine the
+appropriate generated strategy, or decide which workflow should be used.
+Higher-level systems and actors retain those responsibilities.
+
+The relationship remains:
+
+```text
+policy / intent / methodology / generated strategy
+                    ↓
+             workflow program
+                    ↓
+                 TURNLOCK
+                    ↓
+    computation and distinct forms of cognition
+```
+
+Likewise, TURNLOCK core does not decide whether a successor workflow `W'` is
+better than `W`, automatically promote it, or own the optimization objective.
+Those decisions remain outside TURNLOCK core under the existing evaluation and
+optimization boundary.
+
+This section describes an architectural consequence and long-term direction
+enabled by existing TURNLOCK semantics. It introduces no new workflow primitive,
+automatic self-improvement facility, optimizer, promotion mechanism, active
+replanning behavior, active rebinding behavior, or conformance obligation.
+
+## 12. Long-term direction: structured cognition
 
 One useful, non-normative description of the direction is **structured
 cognition**. The phrase is an architectural analogy, not a new product primitive
@@ -358,7 +525,7 @@ process to implicit agent scheduling. Independent agents remain deliberate
 forks; main-agent regions remain deliberate continuations; bounded inference
 remains non-agentic semantic computation.
 
-## 12. What TURNLOCK intentionally does not define
+## 13. What TURNLOCK intentionally does not define
 
 This vision does not select:
 
