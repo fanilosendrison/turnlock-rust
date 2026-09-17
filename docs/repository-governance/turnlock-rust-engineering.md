@@ -53,7 +53,9 @@ Report every inconsistency between these sources. Resolve a semantic conflict
 through an explicit new ADR and synchronized normative and formal artifacts
 instead of treating an Issue or Project field as the decision.
 
-[`AGENTS.md`](../../AGENTS.md) owns the current implementation boundary, and
+[`AGENTS.md`](../../AGENTS.md) owns repository implementation authorization and
+guardrails; the repository tree exposes actual artifact presence; accepted ADRs
+and the normative repository authority own accepted commitments; and
 `formal/verification.yaml` owns current formal-model state. The repository name
 does not authorize a crate structure, runtime mechanism, persistence model,
 public API, or release process.

@@ -542,8 +542,8 @@ This vision does not select:
 - main-agent participation as an ordinary concurrent branch;
 - one harness's internal APIs as TURNLOCK semantics.
 
-Current artifact status is not mirrored here: `AGENTS.md` owns the current
-implementation boundary, and `formal/verification.yaml` owns current
+Current artifact status is not mirrored here: the repository tree exposes
+actual artifact presence, and `formal/verification.yaml` owns current
 formal-model and intended-verification state. Pi is the first reference harness,
 but supported harnesses realize TURNLOCK semantics rather than define them.
 

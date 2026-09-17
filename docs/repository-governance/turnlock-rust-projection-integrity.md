@@ -89,14 +89,32 @@ docs/formal/invariant-mapping.md
 formal/results/
     → concrete bounded TLC execution evidence
 
-AGENTS.md current implementation boundary
-    → repository-governance authority for the current implementation boundary
+repository filesystem/tree
+    → actual artifact presence or absence
+
+accepted ADRs and other declared repository authority
+    → accepted implementation/architecture commitments
+
+AGENTS.md
+    → repository authorization and execution guardrails
+
+scripts/check-repository-integrity.py
+    → mandatory repository validation membership and order
+
+.github/workflows/repository-integrity.yml
+    → CI environment/bootstrap plus invocation of the canonical validation suite
 
 GitHub Issue / Project / native relationships
     → live work state
 ```
 
 README files are explanatory consumers, not additional current-state owners.
+
+## Validation ownership
+
+Validation membership is mutable repository knowledge. Documentation and CI must
+reference one canonical executable validation suite rather than maintain parallel
+command lists.
 
 ## Change protocol
 

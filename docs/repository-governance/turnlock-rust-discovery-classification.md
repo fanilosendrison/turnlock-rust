@@ -36,7 +36,10 @@ Bind the shared layers as follows:
   generated projections are not successful verification evidence.
 - `architecture-or-implementation` maps to accepted implementation-specific
   decisions and future implementation artifacts. [`AGENTS.md`](../../AGENTS.md)
-  owns the current implementation boundary; this profile does not mirror it.
+  owns repository implementation authorization and guardrails; the repository
+  tree exposes actual artifact presence; accepted ADRs and the normative
+  repository authority own accepted commitments. This profile does not mirror
+  any of them.
 - `integration-or-conformance` maps to harness capability requirements, adapter
   constraints, support boundaries, and conformance evidence. Pi is a reference
   integration, not semantic authority.

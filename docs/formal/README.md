@@ -60,20 +60,9 @@ This README does not mirror those mutable values.
 
 Focused configurations are intended for fast diagnosis and iteration. Integrated configurations are required to preserve cross-feature verification. Focused checks never substitute for an integrated model.
 
-The intended integrated profiles are:
-
-```text
-integrated-smoke
-→ all currently formalized core forms, small bounds
-
-integrated-standard
-→ all currently formalized core forms, ordinary CI bounds
-
-integrated-stress
-→ deliberately larger and more expensive exploration
-```
-
-A semantic state-machine change should normally run the relevant focused configurations plus `integrated-smoke`.
+Integrated profile names, paths, lifecycle state, intents, and the default
+semantic-change check set are owned by `formal/verification.yaml` and projected
+mechanically in `docs/formal/invariant-mapping.md`.
 
 ## Finite bounds and temporal properties
 

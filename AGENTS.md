@@ -120,10 +120,7 @@ turnlock-rust/
 │   ├── results/
 │   ├── tlc-result.schema.json
 │   └── verification.yaml
-└── scripts/
-    ├── check-normative-terminology.py
-    └── tests/
-        └── test-normative-terminology.py
+└── scripts/                        # repository validation tooling and tests
 ```
 
 Do not create speculative implementation directories or manifests before an
@@ -230,8 +227,8 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   distinct.
 - Use focused configurations for diagnosis and fast feedback only. They never
   replace integrated exploration of the shared model.
-- Once the model exists, preserve integrated smoke, standard, and stress
-  profiles with explicit finite bounds.
+- Once the model exists, preserve the manifest-declared integrated profiles
+  with explicit finite bounds.
 
 ## Architectural decisions and documentation
 
@@ -264,14 +261,19 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   product semantics and formal evidence.
 - Write agent directives and public documentation in English.
 
-## Current implementation boundary
+## Implementation authorization boundary
 
-The repository currently contains no Rust crate, Cargo manifest, production
-source tree, or accepted runtime mechanism. Do not claim that any of those
-artifacts exist. Current formal-model and intended-verification state is owned by
-`formal/verification.yaml`; actual bounded verification evidence is owned by
-`formal/results/`. Do not add Rust, Cargo, runtime, API, packaging, or release
-rules until accepted repository decisions introduce them.
+Do not infer implementation structure or mechanism from the repository name.
+
+Rust, Cargo, runtime, API, packaging, release, persistence, protocol, scheduler,
+adapter, or similar implementation artifacts/rules may be introduced only when
+current repository authority establishes the corresponding responsibility and
+boundary.
+
+Use the repository tree to determine actual artifact presence. Use accepted ADRs
+and the normative repository authority to determine accepted architectural or
+implementation commitments. Use `formal/verification.yaml` for current formal
+lifecycle state and `formal/results/` for bounded verification evidence.
 
 ## Mandatory validation
 
@@ -297,21 +299,18 @@ index, regenerate it first:
 .venv/bin/python scripts/adr-metadata.py render
 ```
 
-After every intentional repository change, run:
+After every intentional repository change, run the canonical validation suite:
 
 ```bash
-.venv/bin/python scripts/tests/test-adr-metadata.py
-.venv/bin/python scripts/tests/test-normative-terminology.py
-.venv/bin/python scripts/tests/test-formal-traceability.py
-.venv/bin/python scripts/adr-metadata.py check
-.venv/bin/python scripts/check-normative-terminology.py
-.venv/bin/python scripts/check-formal-traceability.py
-git diff --check
+.venv/bin/python scripts/check-repository-integrity.py
 ```
 
+`scripts/check-repository-integrity.py` owns the mandatory repository-validation
+suite and execution order. Do not duplicate its member commands here or in CI.
+
 Inspect generated differences and confirm they follow directly from canonical
-sources. The formal traceability checker invokes its renderer and can therefore
-update `docs/formal/invariant-mapping.md`.
+sources. Diagnostic checks are side-effect free; only the explicit render
+commands above mutate generated projections.
 
 Do not fabricate Cargo, TLC, implementation-test, packaging, or CI commands
 before the corresponding artifacts and supported toolchain are introduced.
@@ -325,13 +324,13 @@ change.
 - Normative product specification: `docs/specification/turnlock-spec.md`
 - Non-authoritative terminology review inventory:
   `docs/specification/terminology-inventory.yaml`
-- Terminology governance checker: `scripts/check-normative-terminology.py`
-- Terminology checker tests: `scripts/tests/test-normative-terminology.py`
 - Annotated decision history and guide: `docs/adr/README.md`
 - ADR metadata profile: `docs/adr/adr-profile.yaml`
 - Generated ADR index: `docs/adr/index.md`
 - ADR migration evidence: `docs/adr/metadata-migration-evidence.yaml`
 - ADR metadata validator and renderer: `scripts/adr-metadata.py`
+- Canonical repository-integrity suite:
+  `scripts/check-repository-integrity.py`
 - Formal-verification policy: `docs/formal/README.md`
 - Formal workspace status: `formal/README.md`
 - Machine-readable traceability: `formal/verification.yaml`

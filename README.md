@@ -77,10 +77,10 @@ history in the [annotated ADR history](docs/adr/README.md).
 TURNLOCK is developed specification-first: normative product meaning and
 accepted decisions govern later formalization and implementation.
 
-Mutable repository artifact status is intentionally not duplicated in this
-README. `AGENTS.md` owns the current repository/implementation boundary,
-`formal/verification.yaml` owns current formal-model and intended verification
-state, and `formal/results/` contains actual bounded verification evidence.
+Actual artifact presence is read from the repository tree. `AGENTS.md` owns
+repository execution and authorization guardrails. `formal/verification.yaml`
+owns formal lifecycle and intended verification state, and `formal/results/`
+owns bounded TLC evidence.
 
 Pi is the first reference harness, while TURNLOCK workflow semantics remain
 harness-independent. Pi will be used to prove the coding-session lifecycle end
@@ -125,14 +125,17 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   coverage.
 - [Generated invariant mapping](docs/formal/invariant-mapping.md) projects the
   manifest into a human-readable view.
-- [Formal workspace](formal/README.md) records the planned model layout and its
-  current status.
+- [Formal workspace](formal/README.md) explains formal artifact roles and
+  layout conventions; current formal lifecycle state is owned by
+  `formal/verification.yaml`.
 - [ADR metadata tool](scripts/adr-metadata.py) validates ADR identity,
   provenance, lifecycle metadata, outgoing relations, body integrity, and
   generated projections.
 - [Traceability checker](scripts/check-formal-traceability.py) validates
   invariant IDs, ADR references, manifest statuses, and generated mapping
   freshness.
+- [Repository integrity suite](scripts/check-repository-integrity.py) is the
+  canonical executable repository-integrity suite used by both agents and CI.
 - [Terminology governance checker](scripts/check-normative-terminology.py)
   validates canonical anchors and review-inventory freshness while reporting
   only heuristic, not semantic, detection of competing definitions.

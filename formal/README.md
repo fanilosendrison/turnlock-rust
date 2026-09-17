@@ -17,14 +17,8 @@ formal/
 │   └── README.md                    # local run-evidence policy
 ├── Turnlock.tla
 └── models/
-    ├── focused/
-    │   ├── nested-workflows.cfg
-    │   ├── caller-return.cfg
-    │   └── parallel-fanout.cfg
-    └── integrated/
-        ├── smoke.cfg
-        ├── standard.cfg
-        └── stress.cfg
+    ├── focused/                     # manifest-declared focused TLC configurations
+    └── integrated/                  # manifest-declared integrated TLC configurations
 ```
 
 Focused and integrated configurations must target the same semantic model. Separate mini-specifications that can drift from the integrated semantics are not the intended design.
@@ -64,4 +58,4 @@ resource limits, fairness premises, or termination guarantees.
 
 ## Integrated exploration remains mandatory
 
-Focused configurations are development accelerators. They never replace integrated exploration. The planned integrated profiles remain `smoke`, `standard`, and `stress`, all exercising the same shared semantic model at different finite bounds/costs.
+Focused configurations are development accelerators. They never replace integrated exploration. The manifest owns the integrated profile set, paths, lifecycle states and intents. Focused configurations remain development accelerators and do not replace integrated exploration of the shared model.
