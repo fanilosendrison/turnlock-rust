@@ -186,8 +186,9 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
                     "GITHUB_EVENT_PATH": str(event_path),
                 },
             )
-            self.assertTrue(errors)
-            self.assertIn("before", "\n".join(errors))
+            joined = "\n".join(errors)
+            self.assertIn("cannot determine GitHub push whitespace range", joined)
+            self.assertIn("event.before/event.after missing", joined)
 
     def test_clean_github_push_range_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -210,6 +211,155 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
                     },
                 ),
             )
+
+    def test_clean_github_pull_request_range_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "first.txt").write_text("first\n", encoding="utf-8")
+            base = commit_all(fixture, "base")
+            (fixture / "second.txt").write_text("second\n", encoding="utf-8")
+            head = commit_all(fixture, "head")
+
+            event_path = write_event(
+                fixture,
+                "clean-pr-event.json",
+                {"pull_request": {"base": {"sha": base}, "head": {"sha": head}}},
+            )
+            self.assertEqual(
+                [],
+                checker.collect_errors(
+                    fixture,
+                    env={
+                        "GITHUB_EVENT_NAME": "pull_request",
+                        "GITHUB_EVENT_PATH": str(event_path),
+                    },
+                ),
+            )
+
+    def test_github_push_without_event_path_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            commit_all(fixture, "clean")
+
+            errors = checker.collect_errors(
+                fixture, env={"GITHUB_EVENT_NAME": "push"}
+            )
+            self.assertTrue(errors)
+            joined = "\n".join(errors)
+            self.assertIn("cannot determine GitHub push whitespace range", joined)
+            self.assertIn("GITHUB_EVENT_PATH is missing", joined)
+
+    def test_github_pull_request_without_event_path_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            commit_all(fixture, "clean")
+
+            errors = checker.collect_errors(
+                fixture, env={"GITHUB_EVENT_NAME": "pull_request"}
+            )
+            self.assertTrue(errors)
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub pull_request whitespace range", joined
+            )
+            self.assertIn("GITHUB_EVENT_PATH is missing", joined)
+
+    def test_github_push_with_malformed_event_json_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            commit_all(fixture, "clean")
+            event_path = fixture.parent / "malformed-push-event.json"
+            event_path.write_text("{not json", encoding="utf-8")
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "push",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+            self.assertTrue(errors)
+            joined = "\n".join(errors)
+            self.assertIn("cannot determine GitHub push whitespace range", joined)
+            self.assertIn("line 1", joined)
+
+    def test_github_pull_request_with_malformed_event_json_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            commit_all(fixture, "clean")
+            event_path = fixture.parent / "malformed-pr-event.json"
+            event_path.write_text("{not json", encoding="utf-8")
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "pull_request",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+            self.assertTrue(errors)
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub pull_request whitespace range", joined
+            )
+            self.assertIn("line 1", joined)
+
+    def test_github_event_json_must_be_object(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            commit_all(fixture, "clean")
+            event_path = fixture.parent / "non-object-event.json"
+            event_path.write_text("[]", encoding="utf-8")
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "push",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+            joined = "\n".join(errors)
+            self.assertIn("event JSON must be an object", joined)
+
+    def test_github_pull_request_with_missing_sha_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            base = commit_all(fixture, "base")
+            event_path = write_event(
+                fixture,
+                "missing-sha-pr-event.json",
+                {"pull_request": {"base": {"sha": base}, "head": {}}},
+            )
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "pull_request",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub pull-request whitespace range", joined
+            )
+            self.assertIn("base.sha/head.sha missing", joined)
+
+    def test_other_github_event_does_not_require_event_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+            (fixture / "clean.txt").write_text("clean\n", encoding="utf-8")
+            commit_all(fixture, "clean")
+
+            errors = checker.collect_errors(
+                fixture, env={"GITHUB_EVENT_NAME": "workflow_dispatch"}
+            )
+            self.assertEqual([], errors)
 
     def test_cli_returns_nonzero_on_local_whitespace_violation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
