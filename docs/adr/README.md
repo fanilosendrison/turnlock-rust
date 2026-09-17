@@ -1,8 +1,11 @@
 # TURNLOCK annotated architectural decision history
 
 This maintained history explains the chronological decision narrative and
-repository-specific qualifications. It is not a generated relationship
-authority. Canonical structured metadata lives in ADR frontmatter under
+repository-specific qualifications. Its narrative annotations remain manually
+authored, while the canonical ADR identity, name, status, path, order, and
+coverage of the marked chronological trace are mechanically validated against
+canonical ADR records. It is not an authority over ADR metadata. Canonical
+structured metadata lives in ADR frontmatter under
 [`adr-profile.yaml`](adr-profile.yaml); incoming relations are derived from
 source ADRs once the generated projection is enabled.
 
@@ -14,7 +17,8 @@ historical presentation only.
 
 The [generated ADR index](index.md) is the mechanical forward/reverse projection
 of canonical metadata. This README remains the manually maintained annotated
-history and repository guide.
+history and repository guide; `scripts/adr-metadata.py` validates the marked
+trace against the canonical ADR corpus.
 
 Architectural decisions are kept in the chronological order in which the
 product discussion established them. Decision numbers are stable identities.
@@ -27,6 +31,8 @@ the discussion but had not yet been separated into explicit decision records.
 Later ADRs record subsequently accepted decisions.
 
 ## Chronological decision trace
+
+<!-- adr-annotated-trace:start -->
 
 1. [ADR-001: Make the workflow own orchestration after session entry](adr-001-make-the-workflow-own-orchestration-after-session-entry.md) — **Accepted**. The initial problem established that a skill-like slash invocation should start a script/workflow which can later use the main agent, rather than asking the main agent to orchestrate the entire procedure.
 2. [ADR-002: Require natural skill-like slash-command invocation inside coding-agent sessions](adr-002-require-natural-skill-like-slash-command-invocation.md) — **Accepted**. The motivating `/go` string was only an example; the actual product invariant is native-feeling slash-command invocation from the active coding-agent session, comparable to invoking a skill.
@@ -175,6 +181,8 @@ Later ADRs record subsequently accepted decisions.
     environment, Core must provide the supported runtime composition path;
     lacking that path cannot itself justify classifying the alternative as
     unsupported. No new invariant or extension mechanism is introduced.
+
+<!-- adr-annotated-trace:end -->
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -467,4 +475,4 @@ focused + integrated TLC configs
 formal/results/* (actual run evidence by commit/bounds)
 ```
 
-`formal/verification.yaml` is the machine-readable desired traceability/coverage graph and is mechanically invertible for formal impact analysis. `docs/formal/invariant-mapping.md` is generated from it. Actual TLC execution evidence is a distinct artifact class under `formal/results/` governed by `formal/tlc-result.schema.json`; a mapped property is not the same thing as a verified property. Focused model-checking configurations are allowed for speed and diagnosis, but TURNLOCK must retain integrated smoke/standard/stress profiles against the shared semantic model so cross-feature interactions remain explorable after semantic changes. No invariant is currently claimed as `checked`; the executable TLA+ model is the next formalization step.
+`formal/verification.yaml` is the machine-readable desired traceability/coverage graph and is mechanically invertible for formal impact analysis. `docs/formal/invariant-mapping.md` is generated from it. Actual TLC execution evidence is a distinct artifact class under `formal/results/` governed by `formal/tlc-result.schema.json`; a mapped property is not the same thing as a verified property. Focused model-checking configurations are allowed for speed and diagnosis, but TURNLOCK must retain integrated smoke/standard/stress profiles against the shared semantic model so cross-feature interactions remain explorable after semantic changes. A `checked` claim exists only when the manifest state and matching bounded run evidence satisfy the formal traceability checker.

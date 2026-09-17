@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 import re
 import subprocess
@@ -19,6 +20,15 @@ PROFILE_PATH = Path("docs/adr/adr-profile.yaml")
 PROFILE_VERSION = "0.1.0"
 BODY_BOUNDARY = re.compile(br"(?m)^## Context(?: |$)")
 RELATION_TYPES = ("clarifies", "amends", "supersedes", "confirms")
+ANNOTATED_TRACE_ENTRY_START = re.compile(
+    r"(?m)^\s*(?P<ordinal>\d+)\.\s+\[(?P<id>ADR-(?P<number>[0-9]{3})):"
+)
+ANNOTATED_TRACE_ENTRY_HEADER = re.compile(
+    r"(?s)^\s*(?P<ordinal>\d+)\.\s+\[(?P<id>ADR-[0-9]{3}):\s*(?P<title>.*?)\]"
+    r"(?:\((?P<inline>[^)]+)\)|\[(?P<reference>[^\]]+)\])"
+)
+ANNOTATED_TRACE_STATUS = re.compile(r"\s*—\s*\*\*([^*]+)\*\*")
+MARKDOWN_LINK_DEFINITION = re.compile(r"(?m)^\s*\[([^\]]+)\]:\s*(\S+)\s*$")
 
 
 class AdrMetadataError(ValueError):
@@ -211,6 +221,17 @@ def load_profile(root: Path) -> dict[str, Any]:
     _require_string(generated_index.get("path"), "generated_index.path")
     if not isinstance(generated_index.get("required"), bool):
         raise AdrMetadataError("generated_index.required must be boolean")
+
+    annotated = _require_mapping(profile.get("annotated_history"), "annotated_history")
+    _require_string(annotated.get("path"), "annotated_history.path")
+    if not isinstance(annotated.get("required"), bool):
+        raise AdrMetadataError("annotated_history.required must be boolean")
+    _require_string(annotated.get("start_marker"), "annotated_history.start_marker")
+    _require_string(annotated.get("end_marker"), "annotated_history.end_marker")
+    if annotated["start_marker"] == annotated["end_marker"]:
+        raise AdrMetadataError(
+            "annotated_history start and end markers must differ"
+        )
 
     migration = _require_mapping(profile.get("migration_evidence"), "migration_evidence")
     _require_string(migration.get("path"), "migration_evidence.path")
@@ -450,6 +471,122 @@ def _migration_evidence_errors(
     return errors
 
 
+def _annotated_history_errors(
+    root: Path,
+    profile: dict[str, Any],
+    records_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    section = profile["annotated_history"]
+    if not section["required"]:
+        return []
+    errors: list[str] = []
+    try:
+        history_path = repository_path(root, section["path"])
+        text = history_path.read_text(encoding="utf-8")
+    except (AdrMetadataError, OSError, UnicodeError) as error:
+        return [f"annotated ADR history: {error}"]
+
+    start_marker = section["start_marker"]
+    end_marker = section["end_marker"]
+    if text.count(start_marker) != 1:
+        errors.append("annotated ADR history start marker missing or duplicated")
+    if text.count(end_marker) != 1:
+        errors.append("annotated ADR history end marker missing or duplicated")
+    if errors:
+        return errors
+
+    start_index = text.index(start_marker) + len(start_marker)
+    end_index = text.index(end_marker)
+    if start_index > end_index:
+        return ["annotated ADR history start marker must precede end marker"]
+    block = text[start_index:end_index]
+
+    definitions = dict(MARKDOWN_LINK_DEFINITION.findall(text))
+    matches = list(ANNOTATED_TRACE_ENTRY_START.finditer(block))
+    entries: list[dict[str, Any]] = []
+    for index, match in enumerate(matches):
+        next_start = (
+            matches[index + 1].start() if index + 1 < len(matches) else len(block)
+        )
+        entry_text = block[match.start() : next_start]
+        header = ANNOTATED_TRACE_ENTRY_HEADER.match(entry_text)
+        if header is None:
+            errors.append(
+                f"annotated ADR history {match.group('id')} entry is malformed"
+            )
+            continue
+        inline_target = header.group("inline")
+        reference_label = header.group("reference")
+        if inline_target is not None:
+            target = inline_target.strip()
+        elif reference_label is not None:
+            target = definitions.get(reference_label.strip())
+        else:
+            target = None
+        status_match = ANNOTATED_TRACE_STATUS.match(entry_text[header.end() :])
+        status = status_match.group(1).strip() if status_match is not None else None
+        annotation = (
+            entry_text[header.end() + status_match.end() :]
+            if status_match is not None
+            else ""
+        )
+        entries.append(
+            {
+                "ordinal": int(header.group("ordinal")),
+                "id": header.group("id"),
+                "number": int(header.group("id").split("-")[1]),
+                "title": " ".join(header.group("title").split()),
+                "target": target,
+                "status": status,
+                "annotation": annotation,
+            }
+        )
+
+    canonical_records = sorted(
+        records_by_id.values(), key=lambda record: record.get("number", 0)
+    )
+    canonical_ids = [record["id"] for record in canonical_records]
+    discovered_ids = [entry["id"] for entry in entries]
+    counts = Counter(discovered_ids)
+    for adr_id, count in sorted(counts.items()):
+        if count > 1:
+            errors.append(f"annotated ADR history contains duplicate {adr_id}")
+    for adr_id in canonical_ids:
+        if adr_id not in counts:
+            errors.append(f"annotated ADR history missing {adr_id}")
+    for adr_id in sorted(set(discovered_ids) - set(canonical_ids)):
+        errors.append(f"annotated ADR history contains unknown {adr_id}")
+    if discovered_ids != canonical_ids:
+        errors.append("annotated ADR history coverage/order mismatch")
+
+    for entry in entries:
+        adr_id = entry["id"]
+        if entry["ordinal"] != entry["number"]:
+            errors.append(f"annotated ADR history {adr_id} list ordinal mismatch")
+        record = records_by_id.get(adr_id)
+        if record is None:
+            continue
+        metadata = record.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        name = metadata.get("name")
+        if isinstance(name, str) and entry["title"] != " ".join(name.split()):
+            errors.append(f"annotated ADR history {adr_id} title mismatch")
+        if entry["target"] != record["path"].name:
+            errors.append(f"annotated ADR history {adr_id} link target mismatch")
+        status = metadata.get("status")
+        if isinstance(status, str):
+            if not isinstance(entry["status"], str) or (
+                entry["status"].lower() != status.lower()
+            ):
+                errors.append(f"annotated ADR history {adr_id} status mismatch")
+        if isinstance(entry["status"], str) and not re.search(
+            r"\w", entry["annotation"]
+        ):
+            errors.append(f"annotated ADR history {adr_id} has no narrative annotation")
+    return errors
+
+
 def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
     root = root.resolve()
     errors: list[str] = []
@@ -506,6 +643,7 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
 
         record = {
             "id": derived_id,
+            "number": number,
             "path": path,
             "relative_path": prefix,
             "data": data,
@@ -606,6 +744,7 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
                     )
 
     errors.extend(_migration_evidence_errors(root, profile, records_by_id))
+    errors.extend(_annotated_history_errors(root, profile, records_by_id))
 
     generated = profile["generated_index"]
     if check_generated and generated["required"]:

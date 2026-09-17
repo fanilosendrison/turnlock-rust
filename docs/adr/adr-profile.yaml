@@ -28,6 +28,11 @@ legacy:
 generated_index:
   path: "docs/adr/index.md"
   required: true
+annotated_history:
+  path: "docs/adr/README.md"
+  required: true
+  start_marker: "<!-- adr-annotated-trace:start -->"
+  end_marker: "<!-- adr-annotated-trace:end -->"
 migration_evidence:
   path: "docs/adr/metadata-migration-evidence.yaml"
   required: true
