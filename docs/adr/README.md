@@ -156,6 +156,17 @@ Later ADRs record subsequently accepted decisions.
     equally to every execution resource. No new invariant identity is created;
     `TL-INV-037` and the existing workflow-owned-control and authorship
     invariants remain the owners.
+30. [ADR-030: Make TURNLOCK Core a runtime-composable execution substrate][30] —
+    **Accepted**. TURNLOCK Core must permit supported concrete execution
+    realizations that are not fixed by TURNLOCK semantics to be composed at
+    runtime without making Core modification/recompilation the only substitution
+    path when the alternative preserves TURNLOCK semantics. A supported external
+    realization must become effective before its governed causal use and, once
+    accepted for that use, must not be silently bypassed by an unauthorized
+    substitute. The decision selects no plugin, hook, IPC, DI, process, or other
+    extension mechanism and preserves ADR-019's external
+    evaluation/optimization-policy boundary, ADR-029's environment-permission
+    boundary, and main-agent continuity.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -171,6 +182,7 @@ Later ADRs record subsequently accepted decisions.
 [27]: adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md
 [28]: adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md
 [29]: adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md
+[30]: adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md
 
 ADR-014 makes the ownership terminology precise:
 
