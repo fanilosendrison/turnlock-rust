@@ -217,7 +217,158 @@ available evidence establishes comparability.
 This note does not define the determinant set, a canonical run description, or
 a comparison algorithm.
 
-### 3.4 Reproducibility and evidence profiles
+### 3.4 Variance attribution and experimental efficiency
+
+Repeated trials remain necessary when an evaluated workflow contains genuinely
+stochastic or otherwise varying behavior. A simple evaluation strategy can
+therefore take the form:
+
+```text
+W1 → N runs
+W2 → N runs
+
+treat run-to-run variation as noise
+→ aggregate
+→ compare
+```
+
+That strategy is sometimes appropriate, but it can also spend executions
+averaging over variation that is not actually irreducible. Some differences
+between executions may arise from conditions that are known, attributable,
+controllable, pairable, blockable, normalizable, or otherwise capable of being
+treated explicitly by an evaluator.
+
+The execution-condition provenance preserved by current TURNLOCK semantics
+creates a future design opportunity:
+
+```text
+characterize relevant execution conditions
+        ↓
+attribute known differences to the scopes they governed
+        ↓
+control / block / pair / normalize where appropriate
+        ↓
+preserve unavailable or unknown conditions as unknown
+        ↓
+estimate residual unexplained or irreducible variance
+        ↓
+repeat statistically as required
+```
+
+Relevant variation is not limited to LLM sampling. Depending on the evaluated
+property, possible sources may include:
+
+```text
+LLM behavior
+agent behavior
+retrieval
+model or execution-resource configuration
+external dependencies
+numeric computation
+environmental state
+other execution conditions
+```
+
+This list is illustrative only. TURNLOCK does not thereby gain visibility into
+every determinant, and this note introduces no stronger provenance obligation
+than the accepted contract.
+
+A future evaluation layer could seek to increase **information per execution**
+by preventing attributable or controllable variation from being automatically
+treated as irreducible run noise.
+
+If such treatment lowers residual unexplained variance, an evaluator may need
+fewer repeated executions to reach a given comparison precision or confidence:
+
+```text
+lower residual unexplained variance
+        ↓
+potentially fewer repetitions
+for the same comparison precision / confidence
+```
+
+This is a possible statistical benefit, not a TURNLOCK guarantee. The number of
+trials required for an evaluation may still depend on the property being
+evaluated, effect size, residual variance, estimator, confidence or power
+requirements, experimental design, and other assumptions.
+
+Nothing in this hypothesis implies that TURNLOCK can make stochastic systems
+deterministic, observe every source of variance, produce an exact variance
+decomposition, canonicalize every varying value, or eliminate the need for
+repeated trials.
+
+### 3.5 Workflow generations as experimental objects
+
+The separation between workflow artifacts and the stable governing definition
+of an accepted invocation also creates a possible future experimental unit:
+successive workflow definitions can be treated as distinct generations of an
+engineering method.
+
+Conceptually:
+
+```text
+W17
+→ executions
+→ execution evidence
+
+external evaluation for property P
+→ possible authoring of W18
+
+W18
+→ separate executions
+→ execution evidence
+
+comparison where the evaluator's comparability contract permits it
+```
+
+The actor performing that refinement need not be a human. Existing TURNLOCK
+boundaries already permit a coding agent, evaluator, higher-level system, or
+ordinary authored workflow to participate in evaluation or workflow authorship.
+
+For example:
+
+```text
+coding agent
+→ authors W17
+→ uses or participates in W17
+→ inspects available execution evidence
+→ authors W18
+```
+
+Authoring `W18` does not rebind an invocation already governed by `W17`.
+Evaluation does not confer runtime orchestration authority on the evaluator, and
+TURNLOCK core does not define the evaluation objective, superiority relation, or
+promotion policy.
+
+The combination of:
+
+```text
+stable governing-definition binding
++
+execution inspectability
++
+effective execution-condition provenance
++
+external evaluation policy
+```
+
+can therefore make successive engineering-method artifacts meaningful future
+experimental objects without making TURNLOCK core an evaluator or optimizer.
+
+This matters in increasingly autonomous software-engineering systems because
+the quality of the engineering method can itself become an object of evaluation,
+alongside the quality of the cognition used inside that method. As larger
+portions of software-development execution are delegated to agentic systems,
+execution evidence may allow higher-level actors to evaluate and refine the
+method rather than relying only on confidence in unconstrained agent behavior.
+
+TURNLOCK's responsibility remains limited: it supplies execution semantics and
+the currently accepted inspectability and provenance floor. Evaluation
+objectives, comparison policy, refinement decisions, workflow promotion, and
+the degree of autonomy granted to the surrounding engineering system remain
+external.
+
+### 3.6 Reproducibility and evidence profiles
 
 An optional future profile could explore stronger, separately stated guarantees,
 such as:
