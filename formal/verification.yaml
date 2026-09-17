@@ -58,6 +58,12 @@ policy:
     semantic_correspondence_reviewed: Machine validation proves link consistency, not that a TLA+ formula faithfully captures
       prose intent; semantic correspondence remains a review obligation.
 status_vocabulary:
+  formal_model:
+    not-yet-introduced: The governed executable model path must not exist.
+    introduced: The governed executable model path exists; this does not imply complete mappings or successful TLC verification.
+  integrated_profile:
+    planned: The governed TLC configuration is intended but its path has not yet been introduced.
+    introduced: The governed TLC configuration path exists; this does not imply a successful TLC run.
   formalization:
     planned: Formalization is applicable and intended but not yet encoded.
     partial: Only a formally meaningful subset of the prose invariant is intended for TLA+.
