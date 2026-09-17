@@ -191,12 +191,30 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> tuple[list[st
                 errors.append(f"{inv['id']} is marked checked but lacks passing evidence for configs: {', '.join(missing_cfgs)}")
 
     if check_generated:
-        # Check the generated human-readable view by regenerating and comparing bytes.
-        original = mapping_path.read_text() if mapping_path.exists() else None
-        subprocess.run([sys.executable, str(root / "scripts" / "render-formal-mapping.py")], cwd=root, check=True, stdout=subprocess.DEVNULL)
-        regenerated = mapping_path.read_text()
-        if original is not None and original != regenerated:
-            errors.append("docs/formal/invariant-mapping.md was stale (it has been regenerated)")
+        # Diagnose the generated projection without mutating repository state.
+        renderer = root / "scripts" / "render-formal-mapping.py"
+        result = subprocess.run(
+            [sys.executable, str(renderer), "--stdout"],
+            cwd=root,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
+            errors.append(
+                "generated formal invariant mapping could not be rendered"
+                + (f": {detail}" if detail else f" (exit {result.returncode})")
+            )
+        elif not mapping_path.exists():
+            errors.append(
+                "generated formal invariant mapping is missing; "
+                "run python scripts/render-formal-mapping.py"
+            )
+        elif mapping_path.read_bytes() != result.stdout:
+            errors.append(
+                "generated formal invariant mapping is stale; "
+                "run python scripts/render-formal-mapping.py"
+            )
 
     return errors, len(ids)
 
