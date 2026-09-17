@@ -136,6 +136,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   freshness.
 - [Repository integrity suite](scripts/check-repository-integrity.py) is the
   canonical executable repository-integrity suite used by both agents and CI.
+- [Git whitespace checker](scripts/check-git-whitespace.py) validates Git
+  whitespace in local and CI change ranges.
 - [Terminology governance checker](scripts/check-normative-terminology.py)
   validates canonical anchors and review-inventory freshness while reporting
   only heuristic, not semantic, detection of competing definitions.
