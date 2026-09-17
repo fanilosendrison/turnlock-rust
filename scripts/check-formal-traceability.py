@@ -9,6 +9,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
+    """Return one bounded diagnostic line instead of a full subprocess traceback."""
+    text = stderr.decode("utf-8", errors="replace")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    detail = lines[-1][:500] if lines else ""
+    return f"{detail} (exit {returncode})" if detail else f"exit {returncode}"
+
+
 def collect_errors(root: Path, *, check_generated: bool = True) -> tuple[list[str], int]:
     root = root.resolve()
     manifest_path = root / "formal" / "verification.yaml"
@@ -200,10 +208,9 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> tuple[list[st
             check=False,
         )
         if result.returncode != 0:
-            detail = result.stderr.decode("utf-8", errors="replace").strip()
             errors.append(
-                "generated formal invariant mapping could not be rendered"
-                + (f": {detail}" if detail else f" (exit {result.returncode})")
+                "generated formal invariant mapping could not be rendered: "
+                + concise_subprocess_failure(result.stderr, result.returncode)
             )
         elif not mapping_path.exists():
             errors.append(

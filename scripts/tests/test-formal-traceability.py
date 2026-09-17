@@ -176,7 +176,13 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertTrue(
                 any(
                     "generated formal invariant mapping is stale" in error
-                    or "generated formal invariant mapping is missing" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(
+                any(
+                    "generated formal invariant mapping is missing" in error
                     for error in errors
                 ),
                 errors,
@@ -187,19 +193,15 @@ class FormalTraceabilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             renderer = fixture_root / "scripts" / "render-formal-mapping.py"
-            renderer.write_text("import sys\nsys.exit(4)\n", encoding="utf-8")
+            renderer.write_text('raise RuntimeError("boom")\n', encoding="utf-8")
             mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
             before = mapping_path.read_bytes()
 
             errors, _ = checker.collect_errors(fixture_root, check_generated=True)
-            self.assertTrue(
-                any(
-                    "generated formal invariant mapping could not be rendered"
-                    in error
-                    for error in errors
-                ),
-                errors,
-            )
+            joined = "\n".join(errors)
+            self.assertIn("generated formal invariant mapping could not be rendered", joined)
+            self.assertIn("RuntimeError: boom", joined)
+            self.assertNotIn("Traceback", joined)
             self.assertEqual(before, mapping_path.read_bytes())
 
     def test_fresh_generated_mapping_passes_without_mutation(self) -> None:
