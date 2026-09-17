@@ -1,43 +1,46 @@
 #!/usr/bin/env python3
+import argparse
 from collections import defaultdict
 from pathlib import Path
+import sys
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-manifest_path = ROOT / "formal" / "verification.yaml"
-out_path = ROOT / "docs" / "formal" / "invariant-mapping.md"
 
-data = yaml.safe_load(manifest_path.read_text())
-rows = []
-reverse_props = defaultdict(list)
-reverse_actions = defaultdict(list)
-reverse_vars = defaultdict(list)
 
-for inv in data["invariants"]:
-    tla = inv.get("tla", {})
-    props = tla.get("properties", []) or []
-    prop_names = [p["name"] if isinstance(p, dict) else p for p in props]
-    vars_ = tla.get("state_variables", []) or []
-    actions = tla.get("actions", []) or []
-    for name in prop_names:
-        reverse_props[name].append(inv["id"])
-    for name in vars_:
-        reverse_vars[name].append(inv["id"])
-    for name in actions:
-        reverse_actions[name].append(inv["id"])
+def render_mapping(root: Path) -> str:
+    manifest_path = root / "formal" / "verification.yaml"
+    data = yaml.safe_load(manifest_path.read_text())
+    rows = []
+    reverse_props = defaultdict(list)
+    reverse_actions = defaultdict(list)
+    reverse_vars = defaultdict(list)
 
-    props_text = ", ".join(f"`{p}`" for p in prop_names) if prop_names else "—"
-    vars_text = ", ".join(f"`{v}`" for v in vars_) if vars_ else "—"
-    actions_text = ", ".join(f"`{a}`" for a in actions) if actions else "—"
-    adrs = ", ".join(inv.get("adrs", [])) or "—"
-    rows.append(
-        f"| `{inv['id']}` | {inv['title']} | {inv.get('kind','—')} | "
-        f"{inv.get('formalization','—')} | {tla.get('mapping_status','—')} | {props_text} | "
-        f"{vars_text} | {actions_text} | {inv.get('verification','—')} | {adrs} |"
-    )
+    for inv in data["invariants"]:
+        tla = inv.get("tla", {})
+        props = tla.get("properties", []) or []
+        prop_names = [p["name"] if isinstance(p, dict) else p for p in props]
+        vars_ = tla.get("state_variables", []) or []
+        actions = tla.get("actions", []) or []
+        for name in prop_names:
+            reverse_props[name].append(inv["id"])
+        for name in vars_:
+            reverse_vars[name].append(inv["id"])
+        for name in actions:
+            reverse_actions[name].append(inv["id"])
 
-formal_model = data["policy"]["formal_model"]
-content = f'''# TURNLOCK invariant ↔ formal verification mapping
+        props_text = ", ".join(f"`{p}`" for p in prop_names) if prop_names else "—"
+        vars_text = ", ".join(f"`{v}`" for v in vars_) if vars_ else "—"
+        actions_text = ", ".join(f"`{a}`" for a in actions) if actions else "—"
+        adrs = ", ".join(inv.get("adrs", [])) or "—"
+        rows.append(
+            f"| `{inv['id']}` | {inv['title']} | {inv.get('kind','—')} | "
+            f"{inv.get('formalization','—')} | {tla.get('mapping_status','—')} | {props_text} | "
+            f"{vars_text} | {actions_text} | {inv.get('verification','—')} | {adrs} |"
+        )
+
+    formal_model = data["policy"]["formal_model"]
+    content = f'''# TURNLOCK invariant ↔ formal verification mapping
 
 > **Generated file.** Source of truth: [`../../formal/verification.yaml`](../../formal/verification.yaml).  
 > Regenerate with `python scripts/render-formal-mapping.py`.
@@ -58,38 +61,38 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 
 ### TLA+ properties → invariant IDs
 '''
-if reverse_props:
-    for name in sorted(reverse_props):
-        content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_props[name])}\n"
-else:
-    content += "- No TLA+ properties mapped yet.\n"
+    if reverse_props:
+        for name in sorted(reverse_props):
+            content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_props[name])}\n"
+    else:
+        content += "- No TLA+ properties mapped yet.\n"
 
-content += "\n### TLA+ state variables → invariant IDs\n"
-if reverse_vars:
-    for name in sorted(reverse_vars):
-        content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_vars[name])}\n"
-else:
-    content += "- No executable state-variable mappings yet.\n"
+    content += "\n### TLA+ state variables → invariant IDs\n"
+    if reverse_vars:
+        for name in sorted(reverse_vars):
+            content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_vars[name])}\n"
+    else:
+        content += "- No executable state-variable mappings yet.\n"
 
-content += "\n### TLA+ actions / transitions → invariant IDs\n"
-if reverse_actions:
-    for name in sorted(reverse_actions):
-        content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_actions[name])}\n"
-else:
-    content += "- No executable action/transition mappings yet.\n"
+    content += "\n### TLA+ actions / transitions → invariant IDs\n"
+    if reverse_actions:
+        for name in sorted(reverse_actions):
+            content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_actions[name])}\n"
+    else:
+        content += "- No executable action/transition mappings yet.\n"
 
-content += '''
+    content += '''
 
 ## Integrated verification policy
 
 Focused configurations are not substitutes for integrated exploration. The planned integrated profiles are:
 
 '''
-for profile in data["policy"]["integrated_profiles"]:
-    content += f"- **{profile['name']}** — `{profile['path']}` — {profile['status']}: {profile['intent']}\n"
+    for profile in data["policy"]["integrated_profiles"]:
+        content += f"- **{profile['name']}** — `{profile['path']}` — {profile['status']}: {profile['intent']}\n"
 
-results = data["policy"]["result_artifacts"]
-content += f'''
+    results = data["policy"]["result_artifacts"]
+    content += f'''
 
 ## Verification evidence
 
@@ -105,5 +108,32 @@ An invariant must not be considered `checked` merely because it maps to a TLA+ p
 
 Machine-readable linkage validates traceability consistency. It does **not** prove that a TLA+ formula faithfully captures the prose meaning; that semantic correspondence remains a formal-review obligation.
 '''
-out_path.write_text(content)
-print(out_path)
+    return content
+
+
+def write_mapping(root: Path) -> Path:
+    out_path = root / "docs" / "formal" / "invariant-mapping.md"
+    out_path.write_text(render_mapping(root), encoding="utf-8", newline="\n")
+    return out_path
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Render the TURNLOCK invariant mapping from the formal manifest"
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="write the rendered mapping to stdout without modifying repository files",
+    )
+    arguments = parser.parse_args(argv)
+    if arguments.stdout:
+        sys.stdout.buffer.write(render_mapping(ROOT).encode("utf-8"))
+        return 0
+    out_path = write_mapping(ROOT)
+    print(out_path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
