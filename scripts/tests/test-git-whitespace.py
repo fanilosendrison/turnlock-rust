@@ -190,6 +190,44 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
             self.assertIn("cannot determine GitHub push whitespace range", joined)
             self.assertIn("event.before/event.after missing", joined)
 
+    def test_github_push_with_missing_after_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+
+            (fixture / "clean.txt").write_text(
+                "clean\n",
+                encoding="utf-8",
+            )
+
+            before = commit_all(fixture, "before")
+
+            event_path = write_event(
+                fixture,
+                "missing-after-push-event.json",
+                {
+                    "before": before,
+                },
+            )
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "push",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub push whitespace range",
+                joined,
+            )
+
+            self.assertIn(
+                "event.before/event.after missing",
+                joined,
+            )
+
     def test_clean_github_push_range_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = make_fixture(temporary)
@@ -250,6 +288,39 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
             self.assertIn("cannot determine GitHub push whitespace range", joined)
             self.assertIn("GITHUB_EVENT_PATH is missing", joined)
 
+    def test_github_push_with_nonexistent_event_file_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+
+            (fixture / "clean.txt").write_text(
+                "clean\n",
+                encoding="utf-8",
+            )
+
+            commit_all(fixture, "clean")
+
+            event_path = fixture.parent / "does-not-exist-event.json"
+            self.assertFalse(event_path.exists())
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "push",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub push whitespace range",
+                joined,
+            )
+
+            self.assertIn(
+                "does-not-exist-event.json",
+                joined,
+            )
+
     def test_github_pull_request_without_event_path_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = make_fixture(temporary)
@@ -285,6 +356,41 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
             joined = "\n".join(errors)
             self.assertIn("cannot determine GitHub push whitespace range", joined)
             self.assertIn("line 1", joined)
+
+    def test_github_push_with_invalid_utf8_event_file_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+
+            (fixture / "clean.txt").write_text(
+                "clean\n",
+                encoding="utf-8",
+            )
+
+            commit_all(fixture, "clean")
+
+            event_path = fixture.parent / "invalid-utf8-event.json"
+            event_path.write_bytes(
+                b"\xff\xfe\xfa"
+            )
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "push",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub push whitespace range",
+                joined,
+            )
+
+            self.assertIn(
+                "utf-8",
+                joined.lower(),
+            )
 
     def test_github_pull_request_with_malformed_event_json_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -350,6 +456,49 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
             )
             self.assertIn("base.sha/head.sha missing", joined)
 
+    def test_github_pull_request_with_missing_base_sha_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+
+            (fixture / "clean.txt").write_text(
+                "clean\n",
+                encoding="utf-8",
+            )
+
+            head = commit_all(fixture, "head")
+
+            event_path = write_event(
+                fixture,
+                "missing-base-sha-pr-event.json",
+                {
+                    "pull_request": {
+                        "base": {},
+                        "head": {
+                            "sha": head,
+                        },
+                    },
+                },
+            )
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "pull_request",
+                    "GITHUB_EVENT_PATH": str(event_path),
+                },
+            )
+
+            joined = "\n".join(errors)
+            self.assertIn(
+                "cannot determine GitHub pull-request whitespace range",
+                joined,
+            )
+
+            self.assertIn(
+                "base.sha/head.sha missing",
+                joined,
+            )
+
     def test_other_github_event_does_not_require_event_payload(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = make_fixture(temporary)
@@ -360,6 +509,33 @@ class GitWhitespaceCheckerTests(unittest.TestCase):
                 fixture, env={"GITHUB_EVENT_NAME": "workflow_dispatch"}
             )
             self.assertEqual([], errors)
+
+    def test_other_github_event_still_checks_local_whitespace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_fixture(temporary)
+
+            (fixture / "clean.txt").write_text(
+                "clean\n",
+                encoding="utf-8",
+            )
+
+            commit_all(fixture, "clean")
+
+            (fixture / "clean.txt").write_text(
+                "bad   \n",
+                encoding="utf-8",
+            )
+
+            errors = checker.collect_errors(
+                fixture,
+                env={
+                    "GITHUB_EVENT_NAME": "workflow_dispatch",
+                },
+            )
+
+            joined = "\n".join(errors)
+            self.assertIn("unstaged whitespace check", joined)
+            self.assertIn("clean.txt:1", joined)
 
     def test_cli_returns_nonzero_on_local_whitespace_violation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
