@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -285,10 +286,18 @@ class RepositoryIntegrityRunnerTests(unittest.TestCase):
             shutil.copyfile(
                 ROOT / "scripts" / "check-git-whitespace.py", whitespace_checker
             )
-            errors, failed = checker.run_validation(
-                fixture,
-                [("whitespace", [sys.executable, str(whitespace_checker)])],
-            )
+            saved = {
+                key: os.environ.pop(key)
+                for key in ("GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH")
+                if key in os.environ
+            }
+            try:
+                errors, failed = checker.run_validation(
+                    fixture,
+                    [("whitespace", [sys.executable, str(whitespace_checker)])],
+                )
+            finally:
+                os.environ.update(saved)
             self.assertEqual([], errors)
             self.assertEqual([], failed)
 
