@@ -53,9 +53,10 @@ Report every inconsistency between these sources. Resolve a semantic conflict
 through an explicit new ADR and synchronized normative and formal artifacts
 instead of treating an Issue or Project field as the decision.
 
-The repository currently precedes both an executable TLA+ model and a Rust
-implementation. The repository name does not authorize a crate structure,
-runtime mechanism, persistence model, public API, or release process.
+[`AGENTS.md`](../../AGENTS.md) owns the current implementation boundary, and
+`formal/verification.yaml` owns current formal-model state. The repository name
+does not authorize a crate structure, runtime mechanism, persistence model,
+public API, or release process.
 
 ## Workflow-status mapping
 
@@ -101,6 +102,9 @@ Apply the governing principle for Issue bodies:
 ```text
 Reference, do not mirror.
 ```
+
+This is the work-state application of the repository-wide
+[projection-integrity policy](turnlock-rust-projection-integrity.md).
 
 ### Do not duplicate live work state
 

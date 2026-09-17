@@ -35,8 +35,8 @@ Bind the shared layers as follows:
   records under `formal/results/` once valid runs exist. Planned mappings and
   generated projections are not successful verification evidence.
 - `architecture-or-implementation` maps to accepted implementation-specific
-  decisions and future implementation artifacts. The repository currently has
-  no Rust crate, production source tree, or accepted runtime mechanism.
+  decisions and future implementation artifacts. [`AGENTS.md`](../../AGENTS.md)
+  owns the current implementation boundary; this profile does not mirror it.
 - `integration-or-conformance` maps to harness capability requirements, adapter
   constraints, support boundaries, and conformance evidence. Pi is a reference
   integration, not semantic authority.
@@ -95,5 +95,10 @@ verification evidence.
 
 Follow the synchronization, generation, and validation contract in
 [`AGENTS.md`](../../AGENTS.md#mandatory-validation) after every repository
-change. Classification never substitutes for ADR lifecycle, stable invariant
-identity, formal traceability, review, permission, or validation.
+change. When a synchronization step adds or updates a mutable derived
+projection, apply the
+[repository projection-integrity policy](turnlock-rust-projection-integrity.md):
+reference, generate, validate, or explicitly snapshot canonical state instead of
+manually mirroring it. Classification never substitutes for ADR lifecycle,
+stable invariant identity, formal traceability, review, permission, or
+validation.

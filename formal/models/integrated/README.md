@@ -8,4 +8,5 @@ Planned profiles:
 - `standard.cfg` — ordinary CI bounds.
 - `stress.cfg` — deliberately larger/expensive bounds.
 
-No configuration is created until the executable `Turnlock.tla` model exists; the planned paths are already recorded in `formal/verification.yaml`.
+Current profile lifecycle state is owned by `formal/verification.yaml`; this
+README intentionally does not mirror it.

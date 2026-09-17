@@ -4,7 +4,7 @@ TURNLOCK's executable TLA+/TLC artifacts live here.
 
 The machine-readable traceability source of truth is `verification.yaml`. It describes the graph from stable product-invariant IDs to their formal realization and intended TLC coverage. It is **not** evidence that TLC has actually run. Actual run evidence belongs under `results/` and is governed by `tlc-result.schema.json`.
 
-The executable core model is intentionally **not yet present**. The first formal-model pass will introduce `Turnlock.tla` and the focused/integrated TLC configurations against the semantics already identified in the normative specification. Until then, the manifest uses planned/partial/not-applicable formalization states, `pending-model` TLA+ mappings, and `not-yet-modeled` verification status.
+The governed model path and its current lifecycle state are declared in `verification.yaml`. This README intentionally does not mirror those mutable values.
 
 ## Planned layout
 
@@ -14,7 +14,7 @@ formal/
 ├── verification.yaml               # desired traceability / coverage graph
 ├── tlc-result.schema.json           # schema for actual TLC run evidence
 ├── results/
-│   └── README.md                    # no passing evidence until TLC actually runs
+│   └── README.md                    # local run-evidence policy
 ├── Turnlock.tla
 └── models/
     ├── focused/

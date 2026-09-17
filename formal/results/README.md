@@ -6,4 +6,4 @@ This directory is reserved for machine-readable evidence of **actual** TLC execu
 
 Run evidence must conform to `../tlc-result.schema.json`. A future CI integration may choose the concrete filename/layout (for example `<commit>/<profile>.yaml`), but each record must identify at least the commit, model config, TLA+ module, TLC version, result, checked properties, mapped invariant IDs, and finite bounds.
 
-No passing result files exist yet because the executable TLA+ model has not been introduced. The absence is intentional and prevents traceability metadata from being mistaken for verification evidence.
+This README does not mirror the current presence or absence of run evidence. The records actually present under `formal/results/`, validated against the result schema and traceability policy, constitute the current evidence state.

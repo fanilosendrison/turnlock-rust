@@ -31,6 +31,10 @@ parent permission, security, formatting, naming, or implementation rule.
   `docs/repository-governance/turnlock-rust-discovery-classification.md`, before
   incorporating any material discovery into normative, formal, architectural,
   implementation, or harness-conformance artifacts.
+- Apply
+  `docs/repository-governance/turnlock-rust-projection-integrity.md` whenever you
+  add or modify a statement containing mechanically derivable mutable repository
+  state.
 - When the user mentions an Issue, Project work, backlog work, or a review
   finding, apply the shared GitHub Engineering Projects operational protocol,
   then read
@@ -50,9 +54,11 @@ Use each source only for the responsibility it owns:
    formulas for its declared scope without replacing normative prose.
 5. Records under `formal/results/` are authoritative only for the bounded TLC
    runs they identify.
-6. Generated mappings, generated ADR indexes, and README files explain or
-   project authoritative sources; they do not create product semantics or
-   verification claims.
+6. Generated mappings, generated indexes, README files, and other explanatory
+   projections do not create product semantics, formal-verification claims, or
+   independent mutable repository state. Mutable derived repository facts in
+   those artifacts must follow
+   `docs/repository-governance/turnlock-rust-projection-integrity.md`.
 7. `docs/specification/terminology-inventory.yaml` records reviewed lexical
    candidates and fingerprints only. It is not a glossary or semantic authority;
    Section 2 of the normative specification owns canonical terminology.
@@ -247,8 +253,13 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   incorporating it into a semantically significant artifact. Never treat
   classification as a substitute for required ADRs, synchronization,
   traceability, review, or validation.
-- Keep generated artifacts clearly identified and derived from one canonical
-  source.
+- Prefer reference over duplication for mutable derived repository facts.
+- Keep generated projections clearly identified and derived from their
+  canonical source.
+- When a maintained narrative must duplicate mechanically derivable fields,
+  validate those fields mechanically.
+- Never rely on agent diligence alone to synchronize a mutable projection.
+- Historical snapshots must identify immutable historical scope.
 - Keep repository process under `docs/repository-governance/`, separate from
   product semantics and formal evidence.
 - Write agent directives and public documentation in English.
@@ -256,10 +267,11 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 ## Current implementation boundary
 
 The repository currently contains no Rust crate, Cargo manifest, production
-source tree, executable TLA+ model, TLC configuration, or successful TLC result.
-Do not claim that any of those artifacts exist. Do not add Rust, Cargo, runtime,
-API, packaging, or release rules until accepted repository decisions introduce
-them.
+source tree, or accepted runtime mechanism. Do not claim that any of those
+artifacts exist. Current formal-model and intended-verification state is owned by
+`formal/verification.yaml`; actual bounded verification evidence is owned by
+`formal/results/`. Do not add Rust, Cargo, runtime, API, packaging, or release
+rules until accepted repository decisions introduce them.
 
 ## Mandatory validation
 
@@ -290,6 +302,7 @@ After every intentional repository change, run:
 ```bash
 .venv/bin/python scripts/tests/test-adr-metadata.py
 .venv/bin/python scripts/tests/test-normative-terminology.py
+.venv/bin/python scripts/tests/test-formal-traceability.py
 .venv/bin/python scripts/adr-metadata.py check
 .venv/bin/python scripts/check-normative-terminology.py
 .venv/bin/python scripts/check-formal-traceability.py
@@ -327,5 +340,7 @@ change.
 - Python tooling dependency: `requirements.txt`
 - Discovery classification profile:
   `docs/repository-governance/turnlock-rust-discovery-classification.md`
+- Projection-integrity policy:
+  `docs/repository-governance/turnlock-rust-projection-integrity.md`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`

@@ -542,10 +542,10 @@ This vision does not select:
 - main-agent participation as an ordinary concurrent branch;
 - one harness's internal APIs as TURNLOCK semantics.
 
-The repository currently contains no runtime implementation, Rust architecture,
-fixed authoring syntax, executable TLA+ model, TLC configuration, or successful
-TLC result. Pi is the first reference harness, but supported harnesses realize
-TURNLOCK semantics rather than define them.
+Current artifact status is not mirrored here: `AGENTS.md` owns the current
+implementation boundary, and `formal/verification.yaml` owns current
+formal-model and intended-verification state. Pi is the first reference harness,
+but supported harnesses realize TURNLOCK semantics rather than define them.
 
 These boundaries allow the architectural thesis to remain explicit without
 turning implementation guesses, long-term hypotheses, or motivating examples

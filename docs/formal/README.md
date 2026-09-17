@@ -12,7 +12,7 @@ formal/verification.yaml
 = machine-readable desired traceability and verification coverage
 
 formal/Turnlock.tla
-= executable abstract state-machine model (planned)
+= executable abstract state-machine model at the manifest-governed path
 
 formal/models/focused/*.cfg
 = targeted TLC exploration of the shared model
@@ -50,11 +50,11 @@ The mapping is also intended to work in reverse so a change to a TLA+ property, 
 
 Machine-readable referential integrity is not semantic proof: tooling can verify that `TL-INV-018` points to an existing operator, but human/formal review must still establish that the operator faithfully represents the prose invariant.
 
-## Current status
+## Reading current status
 
-Stable invariant IDs and the schema-v2 verification manifest exist. Planned TLA+ property names are recorded where useful, but the executable `Turnlock.tla` model and TLC configurations have **not yet been introduced**. State-variable/action mappings therefore remain intentionally empty and no invariant is `checked`.
+Current formal-model and intended verification state is owned by `formal/verification.yaml`. Actual bounded verification evidence is owned by the records under `formal/results/`. Cross-artifact consistency, including lifecycle state against the filesystem, is enforced by `scripts/check-formal-traceability.py`.
 
-`formal/results/` contains no passing run evidence because TLC has not yet run against an executable TURNLOCK model. This separation is intentional.
+This README does not mirror those mutable values.
 
 ## Focused and integrated exploration
 

@@ -74,15 +74,13 @@ history in the [annotated ADR history](docs/adr/README.md).
 
 ## Repository status
 
-This repository is currently a specification, architecture, and
-formal-verification package that intentionally precedes implementation. It
-contains the normative product contract, accepted architectural decisions, and
-formal traceability for the planned model.
+TURNLOCK is developed specification-first: normative product meaning and
+accepted decisions govern later formalization and implementation.
 
-It does **not** yet contain a Rust crate, Cargo manifest, runtime source tree,
-fixed workflow-authoring syntax, executable TLA+ model, TLC configuration, or
-successful TLC result. No concrete runtime, persistence, protocol, scheduler,
-or adapter architecture has been selected.
+Mutable repository artifact status is intentionally not duplicated in this
+README. `AGENTS.md` owns the current repository/implementation boundary,
+`formal/verification.yaml` owns current formal-model and intended verification
+state, and `formal/results/` contains actual bounded verification evidence.
 
 Pi is the first reference harness, while TURNLOCK workflow semantics remain
 harness-independent. Pi will be used to prove the coding-session lifecycle end
@@ -104,6 +102,9 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Discovery classification profile](docs/repository-governance/turnlock-rust-discovery-classification.md)
   binds the shared engineering-discovery process to Turnlock-Rust authority,
   artifacts, and validation.
+- [Projection-integrity policy](docs/repository-governance/turnlock-rust-projection-integrity.md)
+  defines repository policy for mutable derived state and documentation
+  projections.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, canonical terminology, promises, invariants, boundaries, and
   architectural implications.
@@ -111,7 +112,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   records non-authoritative locations and fingerprints for reviewed
   definition-like occurrences.
 - [Annotated ADR history](docs/adr/README.md) provides the maintained
-  chronological decision narrative and links to ADR-001 through ADR-028.
+  chronological decision narrative. Its canonical ADR coverage is mechanically
+  validated against the ADR corpus.
 - [Generated ADR index](docs/adr/index.md) projects canonical status and
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
@@ -194,11 +196,11 @@ docs/specification/turnlock-spec.md   normative meaning
 docs/adr/                             decision history
 formal/verification.yaml              intended forward/reverse traceability graph
 docs/formal/invariant-mapping.md      generated human-readable mapping
-formal/Turnlock.tla                   executable abstract model (not yet present)
-formal/models/focused/                planned targeted TLC exploration
-formal/models/integrated/             planned integrated exploration profiles
-formal/tlc-result.schema.json         schema for actual TLC run evidence
-formal/results/                       actual run evidence, once TLC runs exist
+formal/Turnlock.tla                   executable abstract state-machine model at its governed path
+formal/models/focused/                targeted TLC exploration of the shared model
+formal/models/integrated/             integrated TLC exploration profiles
+formal/tlc-result.schema.json         schema for TLC run evidence
+formal/results/                       bounded TLC run evidence
 ```
 
 [ADR-015](docs/adr/adr-015-evolve-the-normative-and-formal-specifications-together.md)
@@ -207,5 +209,5 @@ records intended traceability; it is not proof that model checking occurred.
 Actual TLC evidence remains separate under `formal/results/`, and focused
 exploration never substitutes for integrated exploration of the shared model.
 
-Because the executable TLA+ model has not yet been introduced, the repository
-makes no `checked` formal-verification claim.
+A `checked` claim exists only when the manifest state and matching bounded run
+evidence satisfy the formal traceability checker.
