@@ -46,6 +46,17 @@ from prose. TURNLOCK does not prescribe those processes. Their policy,
 methodology, and topology belong in workflow programs and higher-level systems
 above the runtime.
 
+As software engineering becomes increasingly agentic, TURNLOCK is intended to
+make stable parts of engineering methods executable outside transient agent
+cognition. TURNLOCK is one substrate inside a larger engineering system:
+higher-level actors remain responsible for intent, methodology, generated
+strategy, workflow selection or generation, evaluation objectives, and
+optimization policy, while TURNLOCK executes the resulting workflow under
+explicit control semantics. This allows improvements in underlying cognition
+and improvements in the executable engineering method itself to accumulate
+independently, rather than requiring every process improvement to remain encoded
+in an agent's prompt, conversational memory, or runtime judgment.
+
 ```text
 policy / intent / methodology / generated strategy
                     ↓
