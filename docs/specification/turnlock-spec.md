@@ -18,8 +18,10 @@ workflow invocations. ADR-024 establishes effective execution-condition
 provenance for conditions TURNLOCK selects, binds, explicitly supplies, or
 resolves. ADR-027 binds every accepted workflow invocation to a stable
 governing workflow definition determined no later than invocation acceptance.
-ADR-015 governs how this normative specification co-evolves with the formal
-TLA+/TLC model and verification manifest.
+ADR-030 establishes runtime composability for supported concrete execution
+realizations not fixed by TURNLOCK semantics. ADR-015 governs how this normative
+specification co-evolves with the formal TLA+/TLC model and verification
+manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -1136,6 +1138,52 @@ execution resources (Section 0.8B). TURNLOCK non-conformance is not the edit
 itself but a changed governing definition of an accepted active invocation or an
 undeclared global transition in the current invocation.
 
+## 0.13F TURNLOCK Core is runtime-composable for external execution realizations
+
+TURNLOCK Core is intended to remain an execution substrate around which
+higher-level systems can be composed. When a concrete execution realization is
+needed to carry out TURNLOCK execution but that concrete realization is not
+itself fixed by TURNLOCK semantics, Core MUST NOT make source modification or
+recompilation the only means of supplying a supported alternative realization
+at runtime when that alternative preserves the applicable TURNLOCK semantics.
+
+Conceptually:
+
+```text
+higher-level system
+        ↓
+supported external execution realization
+        ↓
+TURNLOCK Core
+        ↓
+execution
+```
+
+A supported external realization must become effective before the first causal
+use that it is intended to govern. Once TURNLOCK has accepted an external
+realization as governing an applicable use, that use must not silently execute
+through a different realization unless the applicable TURNLOCK semantics
+explicitly authorize that alternative.
+
+This is a composability requirement, not a requirement that all execution state
+or every implementation decision be externally replaceable. TURNLOCK may still
+own decisions that are part of its semantic responsibility. External provider
+internals, environment facts, or other determinants outside TURNLOCK's
+observation or control may remain unavailable, unknown, or uncontrollable.
+
+The rule also does not turn TURNLOCK into a general environment-control system.
+Filesystem, repository, tool, OS, and sandbox restrictions remain responsibilities
+of the surrounding environment under Section 0.8B unless a separately accepted
+TURNLOCK semantic says otherwise.
+
+Runtime composability does not change the semantics of main-agent continuation:
+the existing coding-agent lineage remains the main agent where a main-agent
+region is declared. A higher-level experimental concern cannot silently replace
+that lineage with a fresh agent and claim equivalent TURNLOCK semantics.
+
+This requirement selects no plugin, hook, callback, dependency-injection, IPC,
+resource-registry, process, library, or other concrete extension mechanism.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -1228,6 +1276,14 @@ privileged workflow class to protect its workflows
 
 an unavailable or unknown execution condition is presented as known-equal across
 executions or as evidence that no relevant difference exists
+
+a supported execution-relevant realization that is not fixed by TURNLOCK
+semantics can only be substituted by modifying or recompiling TURNLOCK Core,
+even though the supported alternative could preserve the applicable semantics
+
+TURNLOCK accepts an external realization as governing an applicable use and
+then silently executes that use through a different realization not authorized
+by the applicable TURNLOCK semantics
 ```
 
 A conforming implementation may use different internal mechanisms per harness, but those mechanisms exist to realize the same control contract.
@@ -2446,6 +2502,32 @@ reproducibility, or transitive snapshot guarantees should ever exist. TURNLOCK
 core does not define general repository, filesystem, or tool authorization for
 execution resources; Section 0.8B states that responsibility boundary.
 
+## 3.36 TL-INV-038 — Runtime-realization composability invariant
+
+For an execution-relevant concrete realization that is required to carry out
+TURNLOCK execution but is not itself fixed by TURNLOCK semantics, TURNLOCK Core
+MUST NOT make modification or recompilation of Core the only means of supplying
+a supported alternative realization at runtime when that alternative preserves
+the applicable TURNLOCK semantics.
+
+A supported external realization MUST be able to become effective before the
+first causal use that it is intended to govern.
+
+Once TURNLOCK has accepted an external realization as governing an applicable
+use, that governed use MUST NOT silently execute through a different realization
+unless the applicable TURNLOCK semantics explicitly authorize that alternative.
+
+This invariant does not require every execution determinant, internal algorithm,
+scheduler decision, provider-internal state, or environment fact to be externally
+replaceable or controllable. It does not require arbitrary mid-execution
+interception, before-step or after-step hooks, a plugin system, dependency
+injection, IPC, dynamic libraries, resource registries, or any other particular
+extension mechanism.
+
+It does not change main-agent continuity semantics, does not create a general
+TURNLOCK-owned filesystem/tool/sandbox permission system, and does not move
+evaluation, experiment, comparison, or optimization policy into TURNLOCK Core.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -2484,6 +2566,12 @@ The following questions are important but are **not yet answered by the product 
 - What lifecycle limits apply to independent agents, including turn, token, time, and tool-use budgets.
 - Exact fan-out/fan-in failure semantics, partial-result behavior, cancellation propagation, and concurrency/resource limits.
 - Whether parallel branches share any mutable workflow state and, if so, under what synchronization rules.
+- The concrete mechanism through which runtime-external realizations are composed
+  with TURNLOCK Core remains unspecified. Plugin systems, hooks, callbacks,
+  dependency injection, IPC, process boundaries, resource registries, environment
+  configuration, or other mechanisms are architecture/implementation choices.
+  `TL-INV-038` does not by itself require arbitrary dynamic interception before or
+  after every workflow step.
 
 These are future derivation points. Their solutions must preserve the invariants above.
 
@@ -2713,6 +2801,30 @@ later source edit cannot silently replace the definition that governs an active
 invocation's remaining declared topology, while each nested invocation
 establishes its own governing definition at its own acceptance.
 
+## 5.19 Externalizable execution realizations require a runtime composition boundary
+
+Because `TL-INV-038` forbids Core modification or recompilation from being the
+only substitution path for supported concrete execution realizations that are
+not fixed by TURNLOCK semantics, the architecture must provide at least one
+public runtime composition capability through which such a realization can be
+supplied or established before the causal use it is intended to govern.
+
+The boundary may be realized differently by different architectures or
+supported harnesses. It does not require a plugin system, hook system,
+dependency-injection framework, IPC protocol, process topology, or resource
+registry.
+
+The architecture must also preserve the accepted realization for the governed
+use: once TURNLOCK has accepted an external realization as governing that use,
+the runtime cannot silently bypass it with another realization unless the
+applicable TURNLOCK semantics authorize that alternative.
+
+This architectural requirement concerns realizations that remain external to
+TURNLOCK's semantic responsibilities. It does not make every internal algorithm
+or external determinant replaceable, does not create a general environment
+permission system, and does not move evaluation or optimization policy into
+Core.
+
 # 6. Non-goals implied by the current product intent
 
 At the current stage, TURNLOCK is not defined as:
@@ -2737,7 +2849,10 @@ At the current stage, TURNLOCK is not defined as:
 - a universal authorization, access-control, or privacy-policy system for provenance capture;
 - an owner of general filesystem, repository, OS, tool, or sandbox permissions for execution resources;
 - an authority that infers workflow purpose to grant or deny workflow authoring, or that reserves privileges to official workflows or introduces a general runtime grant/revoke protocol;
-- a requirement to expose private agent reasoning or record every tool call inside an agentic region.
+- a requirement to expose private agent reasoning or record every tool call inside an agentic region;
+- a universal plugin platform in which every TURNLOCK implementation detail is externally replaceable;
+- arbitrary external interception before or after every workflow transition;
+- a guarantee that provider-internal or otherwise opaque external determinants can be controlled.
 
 Future features may include some adjacent capabilities, but they must not blur the control model that defines the product.
 
@@ -2856,6 +2971,21 @@ after that handoff, or establish a public or cross-run stable identity,
 underlying-value equality or difference evidence, persistence, replay,
 reproducibility, or comparability.
 
+The architecture must additionally demonstrate the runtime composition boundary.
+For each execution-relevant concrete realization it must be possible to answer:
+
+```text
+which execution-relevant concrete realizations are fixed by TURNLOCK semantics,
+and which remain external realization choices?
+
+for each supported external realization, can it be supplied or established at
+runtime without modifying/recompiling Core and before its first governed causal
+use?
+
+once an external realization is accepted for a governed use, can the runtime
+silently bypass it?
+```
+
 # 8. Derived synopsis
 
 This section is a non-authoritative synopsis derived from the specification's
@@ -2866,7 +2996,7 @@ invariant identities.
 
 TURNLOCK can currently be summarized as:
 
-> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it, keeps completed execution sufficiently inspectable, and preserves effective execution-condition provenance for conditions it selects, binds, explicitly supplies, or resolves. External actors retain evaluation and optimization policy. Pi is the first reference harness used to prove the model.**
+> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it, keeps completed execution sufficiently inspectable, and preserves effective execution-condition provenance for conditions it selects, binds, explicitly supplies, or resolves. TURNLOCK Core supports runtime composition of supported execution realizations not fixed by TURNLOCK semantics. External actors retain evaluation and optimization policy. Pi is the first reference harness used to prove the model.**
 
 The synopsis uses these canonical destinations:
 
