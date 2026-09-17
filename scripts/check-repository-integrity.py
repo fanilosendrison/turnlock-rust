@@ -43,6 +43,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             "Repository integrity tests",
             [python, "scripts/tests/test-repository-integrity.py"],
         ),
+        (
+            "Git whitespace tests",
+            [python, "scripts/tests/test-git-whitespace.py"],
+        ),
         ("ADR metadata check", [python, "scripts/adr-metadata.py", "check"]),
         (
             "Normative terminology check",
@@ -52,7 +56,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             "Formal traceability check",
             [python, "scripts/check-formal-traceability.py"],
         ),
-        ("Git whitespace check", ["git", "diff", "--check"]),
+        (
+            "Git whitespace check",
+            [python, "scripts/check-git-whitespace.py"],
+        ),
     ]
 
 
