@@ -18,10 +18,14 @@ workflow invocations. ADR-024 establishes effective execution-condition
 provenance for conditions TURNLOCK selects, binds, explicitly supplies, or
 resolves. ADR-027 binds every accepted workflow invocation to a stable
 governing workflow definition determined no later than invocation acceptance.
-ADR-030 establishes runtime composability for supported concrete execution
-realizations not fixed by TURNLOCK semantics. ADR-015 governs how this normative
-specification co-evolves with the formal TLA+/TLC model and verification
-manifest.
+ADR-030 establishes runtime composability for concrete execution realizations
+not fixed by TURNLOCK semantics. ADR-031 clarifies that pre-existing Core
+support is not a precondition for that obligation: when a semantically
+preserving alternative is technically realizable at runtime in a supported
+harness or execution environment, Core must provide the runtime composition
+path rather than using the absence of such a path to classify the alternative
+away. ADR-015 governs how this normative specification co-evolves with the
+formal TLA+/TLC model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -1143,27 +1147,38 @@ undeclared global transition in the current invocation.
 TURNLOCK Core is intended to remain an execution substrate around which
 higher-level systems can be composed. When a concrete execution realization is
 needed to carry out TURNLOCK execution but that concrete realization is not
-itself fixed by TURNLOCK semantics, Core MUST NOT make source modification or
-recompilation the only means of supplying a supported alternative realization
-at runtime when that alternative preserves the applicable TURNLOCK semantics.
+itself fixed by TURNLOCK semantics, and a semantically preserving alternative
+realization is technically realizable at runtime in a supported harness or
+execution environment, Core MUST provide a supported runtime composition path
+through which that alternative can be supplied or established without modifying
+or recompiling Core. Modification or recompilation of Core MUST NOT be the only
+substitution path in that case.
+
+The obligation is not conditioned on the alternative already being labeled
+`supported` by the current Core implementation. Core MUST NOT discharge this
+requirement by declaring an otherwise runtime-realizable, semantically
+preserving alternative unsupported solely because Core lacks the runtime
+composition path required by this section.
 
 Conceptually:
 
 ```text
 higher-level system
         ↓
-supported external execution realization
+semantically preserving external realization
+        ↓
+public runtime composition path
         ↓
 TURNLOCK Core
         ↓
 execution
 ```
 
-A supported external realization must become effective before the first causal
-use that it is intended to govern. Once TURNLOCK has accepted an external
-realization as governing an applicable use, that use must not silently execute
-through a different realization unless the applicable TURNLOCK semantics
-explicitly authorize that alternative.
+A realization supplied or established through that runtime composition path
+must become effective before the first causal use that it is intended to govern.
+Once TURNLOCK has accepted an external realization as governing an applicable
+use, that use must not silently execute through a different realization unless
+the applicable TURNLOCK semantics explicitly authorize that alternative.
 
 This is a composability requirement, not a requirement that all execution state
 or every implementation decision be externally replaceable. TURNLOCK may still
@@ -1277,9 +1292,15 @@ privileged workflow class to protect its workflows
 an unavailable or unknown execution condition is presented as known-equal across
 executions or as evidence that no relevant difference exists
 
-a supported execution-relevant realization that is not fixed by TURNLOCK
-semantics can only be substituted by modifying or recompiling TURNLOCK Core,
-even though the supported alternative could preserve the applicable semantics
+a concrete execution realization is not fixed by TURNLOCK semantics and a
+semantically preserving alternative is technically realizable at runtime in a
+supported harness or execution environment, but TURNLOCK Core provides no
+runtime composition path for that alternative and instead requires Core
+modification or recompilation
+
+TURNLOCK Core treats the absence of its own runtime composition path as
+sufficient reason to classify an otherwise runtime-realizable, semantically
+preserving alternative as unsupported and thereby escape `TL-INV-038`
 
 TURNLOCK accepts an external realization as governing an applicable use and
 then silently executes that use through a different realization not authorized
@@ -2505,13 +2526,22 @@ execution resources; Section 0.8B states that responsibility boundary.
 ## 3.36 TL-INV-038 — Runtime-realization composability invariant
 
 For an execution-relevant concrete realization that is required to carry out
-TURNLOCK execution but is not itself fixed by TURNLOCK semantics, TURNLOCK Core
-MUST NOT make modification or recompilation of Core the only means of supplying
-a supported alternative realization at runtime when that alternative preserves
-the applicable TURNLOCK semantics.
+TURNLOCK execution but is not itself fixed by TURNLOCK semantics, if a
+semantically preserving alternative realization is technically realizable at
+runtime in a supported harness or execution environment, TURNLOCK Core MUST
+provide a supported runtime composition path through which that alternative can
+be supplied or established without modifying or recompiling Core. Modification
+or recompilation of Core MUST NOT be the only substitution path in that case.
 
-A supported external realization MUST be able to become effective before the
-first causal use that it is intended to govern.
+TURNLOCK Core MUST NOT satisfy this obligation merely by declaring an otherwise
+runtime-realizable, semantically preserving alternative unsupported because Core
+lacks the runtime composition path required above. Lack of that path is a
+possible non-conformance condition when the alternative is otherwise technically
+realizable without changing the applicable TURNLOCK semantics.
+
+A realization supplied or established through the required runtime composition
+path MUST be able to become effective before the first causal use that it is
+intended to govern.
 
 Once TURNLOCK has accepted an external realization as governing an applicable
 use, that governed use MUST NOT silently execute through a different realization
@@ -2803,11 +2833,20 @@ establishes its own governing definition at its own acceptance.
 
 ## 5.19 Externalizable execution realizations require a runtime composition boundary
 
-Because `TL-INV-038` forbids Core modification or recompilation from being the
-only substitution path for supported concrete execution realizations that are
-not fixed by TURNLOCK semantics, the architecture must provide at least one
-public runtime composition capability through which such a realization can be
+Because `TL-INV-038` requires a runtime composition path when a concrete
+execution realization is not fixed by TURNLOCK semantics and a semantically
+preserving alternative is technically realizable at runtime in a supported
+harness or execution environment, the architecture must provide at least one
+public runtime composition capability through which such an alternative can be
 supplied or established before the causal use it is intended to govern.
+Modification or recompilation of Core cannot be the only substitution path in
+that case.
+
+The absence of that public runtime composition capability cannot itself be used
+to classify the otherwise runtime-realizable alternative as unsupported. A
+genuine harness or execution-environment capability limitation may bound what is
+technically realizable; a missing Core composition boundary is not such a
+limitation.
 
 The boundary may be realized differently by different architectures or
 supported harnesses. It does not require a plugin system, hook system,
@@ -2978,9 +3017,17 @@ For each execution-relevant concrete realization it must be possible to answer:
 which execution-relevant concrete realizations are fixed by TURNLOCK semantics,
 and which remain external realization choices?
 
-for each supported external realization, can it be supplied or established at
-runtime without modifying/recompiling Core and before its first governed causal
-use?
+for each external realization choice, is a semantically preserving alternative
+technically realizable at runtime in this supported harness or execution
+environment?
+
+when such an alternative is technically realizable, what public runtime
+composition path supplies or establishes it without modifying/recompiling Core
+and before its first governed causal use?
+
+if no runtime composition path exists, is the limitation genuinely imposed by
+the supported harness/environment or by semantic preservation, rather than
+merely by the current Core architecture lacking the required path?
 
 once an external realization is accepted for a governed use, can the runtime
 silently bypass it?
@@ -2996,7 +3043,7 @@ invariant identities.
 
 TURNLOCK can currently be summarized as:
 
-> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it, keeps completed execution sufficiently inspectable, and preserves effective execution-condition provenance for conditions it selects, binds, explicitly supplies, or resolves. TURNLOCK Core supports runtime composition of supported execution realizations not fixed by TURNLOCK semantics. External actors retain evaluation and optimization policy. Pi is the first reference harness used to prove the model.**
+> **A harness-independent orchestration engine for coding-agent sessions that executes workflow-declared control, using the same TURNLOCK primitives whether authored by a developer or coding agent, and composes mechanical execution, bounded raw LLM inference, bounded independent agents, continuation of the user's main coding agent, concurrency, and nested workflows. The workflow program owns the declared orchestration logic; TURNLOCK executes it, keeps completed execution sufficiently inspectable, and preserves effective execution-condition provenance for conditions it selects, binds, explicitly supplies, or resolves. TURNLOCK Core provides runtime composition for semantically preserving alternative execution realizations not fixed by TURNLOCK semantics when such composition is technically realizable in the supported harness or execution environment. External actors retain evaluation and optimization policy. Pi is the first reference harness used to prove the model.**
 
 The synopsis uses these canonical destinations:
 
