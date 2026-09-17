@@ -938,3 +938,26 @@ invariants:
     integrated_configs: []
   implementation:
     tests: []
+- id: TL-INV-038
+  title: Runtime-realization composability invariant
+  spec_section: '3.36'
+  adrs:
+  - ADR-030
+  kind: conformance
+  formalization: not-applicable
+  formalization_note: >-
+    The distinctive obligation concerns runtime composition with an already-built
+    TURNLOCK Core without requiring Core source modification or recompilation.
+    This is an architecture/conformance boundary rather than a property of the
+    core workflow state machine.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: not-applicable
+    module: null
+    properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []

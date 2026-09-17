@@ -48,6 +48,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-035` | Declared-invocation invariant | capability+safety | planned | pending-model | `DeclaredInvocationAuthorizedByWorkflowProgram`, `DeclaredInvocationDoesNotRequireAgentHandoff`, `OnlyCallingContinuationSuspended`, `DeclaredInvocationReturnsToImmediateCaller`, `NestedInvocationCannotRewriteOuterContinuation` | — | — | not-yet-modeled | ADR-022, ADR-023 |
 | `TL-INV-036` | Effective execution-condition provenance invariant | safety+semantic-boundary+conformance | partial | pending-model | — | — | — | not-yet-modeled | ADR-024, ADR-025, ADR-026 |
 | `TL-INV-037` | Active-invocation governing-definition stability invariant | safety | planned | pending-model | — | — | — | not-yet-modeled | ADR-027, ADR-028, ADR-029 |
+| `TL-INV-038` | Runtime-realization composability invariant | conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-030 |
 
 ## Reverse traceability
 
