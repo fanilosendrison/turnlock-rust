@@ -47,6 +47,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | Clarify that TL-INV-037 forbids governing-definition changes under current semantics | accepted | 2026-09-16 | complete | Current-semantics interpretation of TL-INV-037 governing-definition stability<br>Formal-model treatment of active governing-definition replacement |
 | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | Separate local execution capabilities from immutable invocation orchestration | accepted | 2026-09-16 | complete | Responsibility boundary between local execution capabilities and TURNLOCK orchestration authority<br>Workflow source-artifact authoring versus active invocation self-replanning<br>Absence of active replanning and rebinding under current TURNLOCK semantics<br>Conformance boundary for local actions during an active invocation |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | Make TURNLOCK Core a runtime-composable execution substrate | accepted | 2026-09-17 | complete | Runtime composability of execution realizations not fixed by TURNLOCK semantics<br>Public runtime composition boundary for supported external realizations<br>No Core modification or recompilation as the sole extension path for supported external realizations<br>Causal timing and no-silent-substitution requirements for accepted external realizations |
+| [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) | Clarify the runtime-realization composability trigger | accepted | 2026-09-17 | complete | Trigger condition for TL-INV-038 runtime-realization composability<br>Anti-circular interpretation of supported external realizations<br>Conformance when semantically preserving runtime substitution is technically realizable |
 
 ## Recorded outgoing relations
 
@@ -96,6 +97,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | confirms | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | confirms | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | confirms | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) | clarifies | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 
 ## Derived incoming relations
 
@@ -145,3 +147,4 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
+| [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | clarified by | [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) |

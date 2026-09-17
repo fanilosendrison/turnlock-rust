@@ -167,6 +167,14 @@ Later ADRs record subsequently accepted decisions.
     extension mechanism and preserves ADR-019's external
     evaluation/optimization-policy boundary, ADR-029's environment-permission
     boundary, and main-agent continuity.
+31. [ADR-031: Clarify the runtime-realization composability trigger][31] —
+    **Accepted**. Clarifies ADR-030 so pre-existing Core support cannot become a
+    circular precondition for `TL-INV-038`. When a concrete realization is not
+    fixed by TURNLOCK semantics and a semantically preserving alternative is
+    technically realizable at runtime in a supported harness or execution
+    environment, Core must provide the supported runtime composition path;
+    lacking that path cannot itself justify classifying the alternative as
+    unsupported. No new invariant or extension mechanism is introduced.
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md
 [17]: adr-017-adopt-validated-okf-architecture-decision-record-metadata.md
@@ -183,6 +191,7 @@ Later ADRs record subsequently accepted decisions.
 [28]: adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md
 [29]: adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md
 [30]: adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md
+[31]: adr-031-clarify-the-runtime-realization-composability-trigger.md
 
 ADR-014 makes the ownership terminology precise:
 
