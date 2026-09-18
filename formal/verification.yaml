@@ -582,9 +582,10 @@ invariants:
   adrs:
   - ADR-013
   - ADR-032
+  - ADR-035
   kind: safety+reachability
   formalization: planned
-  formalization_note: A future model must permit main-agent continuation as a heterogeneous workflow-owned parallel branch while preserving branch-specific semantics. Main-agent handoff is branch-local, and concurrent lineage non-forkability is owned separately by TL-INV-039. Silent serialization must not be modeled as a conforming repair for unordered uses of the same main-agent lineage.
+  formalization_note: A future model must permit heterogeneous workflow-owned parallel branches, including main-agent continuation, while preserving branch-specific semantics. A branch may contain nested workflow invocation as branch-local composition when that attempted invocation is independently authorized and TL-INV-041-admissible. The model must preserve enough surrounding declared topology for applicable restrictions such as TL-INV-039 to see conflicts across workflow boundaries. Main-agent handoff remains branch-local, and silent serialization or scheduler order must not be modeled as conforming repairs for inadmissible composition.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -595,6 +596,8 @@ invariants:
     - name: MixedBranchSemanticsPreserved
       status: planned
     - name: MainAgentCanParticipateInParallelRegion
+      status: planned
+    - name: NestedWorkflowCanParticipateInAdmissibleParallelBranch
       status: planned
     state_variables: []
     actions: []
@@ -863,18 +866,10 @@ invariants:
   - ADR-022
   - ADR-023
   - ADR-033
+  - ADR-035
   kind: capability+safety
   formalization: planned
-  formalization_note: A future formalization must represent a workflow-declared invocation as authorized by the declared
-    topology and executed without an agent handoff solely to reproduce the declared call. It must keep the caller context
-    and its preserved return-bearing continuation distinct, suspend only that calling continuation, execute the callee's
-    own declared progression, and return to the same immediate caller context on normal completion, making only the
-    preserved workflow-declared post-call continuation eligible for that caller. A declared invocation may target a
-    workflow already represented among its ancestors; recursive/cyclic occurrences remain distinct ordinary invocations.
-    The model must not encode workflow-definition acyclicity as a product requirement, assert universal completion,
-    interpret suspension as whole-workflow suspension, disable independently active concurrent contexts permitted by the
-    declared topology, or turn a bounded model depth into a product recursion limit. Restricted placement admissibility
-    and the general transitive composition-admissibility contract remain separately governed.
+  formalization_note: A future formalization must represent a workflow-declared invocation as authorized by the declared topology and executed without an agent handoff solely to reproduce the declared call. It must preserve the caller context, suspended return-bearing continuation, callee-local progression, immediate-caller return, and branch-local suspension semantics. Workflow-declared invocation may occur inside a parallel or otherwise restricted context when independently authorized and TL-INV-041-admissible, and may participate in recursive/cyclic call graphs under ADR-033. A rejected pre-acceptance declared invocation creates no callee and must not enable the normal successful post-call continuation. The model must not assert universal completion, disable unrelated concurrent contexts, use scheduler order to repair inadmissibility, turn bounded model depth into a product recursion limit, or select the concrete admissibility algorithm, failure policy, or workflow-reference resolution mechanism.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -891,6 +886,8 @@ invariants:
     - name: NestedInvocationCannotRewriteOuterContinuation
       status: planned
     - name: DeclaredRecursiveInvocationCanBeAdmitted
+      status: planned
+    - name: DeclaredInvocationCanOccupyAdmissibleRestrictedPlacement
       status: planned
     state_variables: []
     actions: []
@@ -939,6 +936,7 @@ invariants:
   - ADR-028
   - ADR-029
   - ADR-033
+  - ADR-035
   kind: safety
   formalization: planned
   formalization_note: A future abstract model must represent that once an invocation is accepted with governing definition D, that
@@ -957,7 +955,7 @@ invariants:
     permission or meta-workflow state such as workflowWritePermission, metaWorkflow, AuthorizedMutation, or ReplanPermission, or
     any equivalent. TLA+ cannot establish real filesystem edit semantics, what counts as invocation acceptance in a concrete
     harness, or which local restrictions the environment supplies. No property, state variable, action, or config identifier is
-    recorded before the executable shared model introduces it.
+    recorded before the executable shared model introduces it. For nested-invocation admission, the model may represent a definition being evaluated before acceptance without treating that attempt as an accepted invocation. If the invocation is accepted, the definition whose composition was admitted must be the governing definition bound to that invocation; the model must not validate one definition and bind another under the same admission decision. If admission is rejected before acceptance, no callee governing definition is bound.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -1037,6 +1035,42 @@ invariants:
     module: Turnlock
     properties:
     - name: IASelectedInvocationCannotReachSessionMainLineage
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-041
+  title: Nested-composition admissibility-closure invariant
+  spec_section: '3.39'
+  adrs:
+  - ADR-008
+  - ADR-013
+  - ADR-014
+  - ADR-022
+  - ADR-023
+  - ADR-027
+  - ADR-032
+  - ADR-033
+  - ADR-034
+  - ADR-035
+  kind: safety
+  formalization: planned
+  formalization_note: A future model must guard every represented nested-invocation acceptance with independent invocation authority and composition admissibility under every restriction whose accepted scope applies to the caller/prospective-callee context. Restrictions whose scope extends into descendants must remain effective across later nested, recursive, and cyclic invocation boundaries. The abstraction must preserve enough declared topology for contextual restrictions such as TL-INV-039 and enough IA-selected-subtree provenance for TL-INV-040, without requiring a flat effect-set representation. Runtime scheduler order must not manufacture admissibility. If required compatibility cannot be established at the modeled acceptance boundary, the invocation must not be accepted. Caller acceptance must not pre-authorize future descendant invocations. The definition admitted for a successful invocation must be the definition bound as governing at acceptance; rejected pre-acceptance attempts create no callee invocation, bind no callee governing definition, consume no successful return continuation, and do not enable a workflow-declared normal post-call continuation. The model may use finite workflows, finite depth, predicates, relations, summaries, flags, or other abstractions as modeling choices but must not make an effect system, capability lattice, graph algorithm, theorem prover, scheduler, proof object, runtime token, Rust type, DSL syntax, workflow hash, or validation architecture part of TURNLOCK product semantics.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: NestedInvocationRequiresAdmissibleComposition
+      status: planned
+    - name: ApplicableRestrictionsPersistAcrossNestedAdmission
+      status: planned
+    - name: UnestablishedCompatibilityRejectsInvocation
+      status: planned
+    - name: RejectedInvocationCreatesNoCallee
       status: planned
     state_variables: []
     actions: []

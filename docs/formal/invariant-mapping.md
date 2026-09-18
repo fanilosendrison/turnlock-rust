@@ -34,7 +34,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-021` | Author-facing primitive invariant | dx | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009 |
 | `TL-INV-022` | Harness-independence invariant | architecture | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
 | `TL-INV-023` | Pi-reference invariant | architecture | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
-| `TL-INV-024` | Heterogeneous parallel composition invariant | safety+reachability | planned | pending-model | `MixedBranchTypesCanCoexist`, `MixedBranchSemanticsPreserved`, `MainAgentCanParticipateInParallelRegion` | — | — | not-yet-modeled | ADR-013, ADR-032 |
+| `TL-INV-024` | Heterogeneous parallel composition invariant | safety+reachability | planned | pending-model | `MixedBranchTypesCanCoexist`, `MixedBranchSemanticsPreserved`, `MainAgentCanParticipateInParallelRegion`, `NestedWorkflowCanParticipateInAdmissibleParallelBranch` | — | — | not-yet-modeled | ADR-013, ADR-032, ADR-035 |
 | `TL-INV-025` | Independent-agent first-class invariant | reachability+safety | planned | pending-model | `IndependentAgentCanBeWorkflowDeclared`, `IndependentAgentHasDistinctLineage`, `IndependentAgentCanReceiveDelegatedNestedInvocationAuthority` | — | — | not-yet-modeled | ADR-011, ADR-020, ADR-021, ADR-034 |
 | `TL-INV-026` | Independent-agent context-provenance invariant | semantic-boundary | partial | pending-model | `IndependentAgentContextIsExplicitlyDeclared` | — | — | not-yet-modeled | ADR-011, ADR-020 |
 | `TL-INV-027` | Parallel semantic fan-out/fan-in invariant | safety+liveness | planned | pending-model | `NoPrematureJoin`, `BranchCompletesAtMostOnce`, `JoinEventuallyReleasesUnderFairness`, `MainAgentHandoffIsBranchLocal` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013, ADR-032 |
@@ -45,12 +45,13 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-032` | Authorship / execution-authority separation invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009, ADR-014, ADR-016, ADR-029 |
 | `TL-INV-033` | Completed-execution inspectability invariant | safety+semantic-quality+conformance | partial | pending-model | `CompletedExecutionExposesActualBoundaryFacts` | — | — | not-yet-modeled | ADR-018 |
 | `TL-INV-034` | Evaluation/optimization-policy boundary invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-019 |
-| `TL-INV-035` | Declared-invocation invariant | capability+safety | planned | pending-model | `DeclaredInvocationAuthorizedByWorkflowProgram`, `DeclaredInvocationDoesNotRequireAgentHandoff`, `OnlyCallingContinuationSuspended`, `DeclaredInvocationReturnsToImmediateCaller`, `NestedInvocationCannotRewriteOuterContinuation`, `DeclaredRecursiveInvocationCanBeAdmitted` | — | — | not-yet-modeled | ADR-022, ADR-023, ADR-033 |
+| `TL-INV-035` | Declared-invocation invariant | capability+safety | planned | pending-model | `DeclaredInvocationAuthorizedByWorkflowProgram`, `DeclaredInvocationDoesNotRequireAgentHandoff`, `OnlyCallingContinuationSuspended`, `DeclaredInvocationReturnsToImmediateCaller`, `NestedInvocationCannotRewriteOuterContinuation`, `DeclaredRecursiveInvocationCanBeAdmitted`, `DeclaredInvocationCanOccupyAdmissibleRestrictedPlacement` | — | — | not-yet-modeled | ADR-022, ADR-023, ADR-033, ADR-035 |
 | `TL-INV-036` | Effective execution-condition provenance invariant | safety+semantic-boundary+conformance | partial | pending-model | — | — | — | not-yet-modeled | ADR-024, ADR-025, ADR-026 |
-| `TL-INV-037` | Active-invocation governing-definition stability invariant | safety | planned | pending-model | — | — | — | not-yet-modeled | ADR-027, ADR-028, ADR-029, ADR-033 |
+| `TL-INV-037` | Active-invocation governing-definition stability invariant | safety | planned | pending-model | — | — | — | not-yet-modeled | ADR-027, ADR-028, ADR-029, ADR-033, ADR-035 |
 | `TL-INV-038` | Runtime-realization composability invariant | conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-030, ADR-031 |
 | `TL-INV-039` | Main-agent concurrent-lineage non-forkability invariant | safety | planned | pending-model | `MainLineageNotForkedAcrossUnorderedConcurrentContinuations` | — | — | not-yet-modeled | ADR-007, ADR-013, ADR-032 |
 | `TL-INV-040` | Independent-agent-selected invocation main-lineage isolation invariant | safety | planned | pending-model | `IASelectedInvocationCannotReachSessionMainLineage` | — | — | not-yet-modeled | ADR-007, ADR-011, ADR-014, ADR-020, ADR-023, ADR-032, ADR-033, ADR-034 |
+| `TL-INV-041` | Nested-composition admissibility-closure invariant | safety | planned | pending-model | `NestedInvocationRequiresAdmissibleComposition`, `ApplicableRestrictionsPersistAcrossNestedAdmission`, `UnestablishedCompatibilityRejectsInvocation`, `RejectedInvocationCreatesNoCallee` | — | — | not-yet-modeled | ADR-008, ADR-013, ADR-014, ADR-022, ADR-023, ADR-027, ADR-032, ADR-033, ADR-034, ADR-035 |
 
 ## Reverse traceability
 
@@ -58,12 +59,14 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 
 ### TLA+ properties → invariant IDs
 - `AgentCannotAdvanceUndeclaredGlobalControl` → `TL-INV-013`
+- `ApplicableRestrictionsPersistAcrossNestedAdmission` → `TL-INV-041`
 - `BranchCompletesAtMostOnce` → `TL-INV-027`
 - `CallerStackWellFormed` → `TL-INV-017`
 - `CompletedExecutionExposesActualBoundaryFacts` → `TL-INV-033`
 - `CorrectCallerEventuallyResumesUnderFairness` → `TL-INV-018`
 - `DeclaredControlFlowOnly` → `TL-INV-001`
 - `DeclaredInvocationAuthorizedByWorkflowProgram` → `TL-INV-035`
+- `DeclaredInvocationCanOccupyAdmissibleRestrictedPlacement` → `TL-INV-035`
 - `DeclaredInvocationDoesNotRequireAgentHandoff` → `TL-INV-035`
 - `DeclaredInvocationReturnsToImmediateCaller` → `TL-INV-035`
 - `DeclaredRecursiveInvocationCanBeAdmitted` → `TL-INV-035`
@@ -90,17 +93,21 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 - `MixedBranchTypesCanCoexist` → `TL-INV-024`
 - `MultipleHandoffsRepresentable` → `TL-INV-005`
 - `NestedInvocationCannotRewriteOuterContinuation` → `TL-INV-019`, `TL-INV-035`
+- `NestedInvocationRequiresAdmissibleComposition` → `TL-INV-041`
 - `NestedInvocationSuspendsCaller` → `TL-INV-017`
+- `NestedWorkflowCanParticipateInAdmissibleParallelBranch` → `TL-INV-024`
 - `NoPrematureJoin` → `TL-INV-027`
 - `OnlyCallingContinuationSuspended` → `TL-INV-035`
 - `ProbabilisticLeafCannotOwnGlobalControl` → `TL-INV-030`
 - `RawLLMDoesNotCreateAgentLoop` → `TL-INV-028`
 - `RawLLMIsBoundedLeaf` → `TL-INV-028`
 - `RecursiveNestedInvocationCanBeAdmitted` → `TL-INV-017`
+- `RejectedInvocationCreatesNoCallee` → `TL-INV-041`
 - `RequiredCoreFormsComposable` → `TL-INV-031`
 - `ResumePositionWellDefined` → `TL-INV-007`
 - `ReturnToImmediateCaller` → `TL-INV-018`
 - `StructuredReturnPath` → `TL-INV-008`
+- `UnestablishedCompatibilityRejectsInvocation` → `TL-INV-041`
 - `WorkflowInvocationAvailableWheneverMainOwnsControl` → `TL-INV-016`
 - `WorkflowStateExistsOutsideAgentState` → `TL-INV-010`
 
