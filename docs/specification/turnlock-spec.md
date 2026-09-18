@@ -35,6 +35,13 @@ remains a distinct invocation with structured immediate-caller return and its
 own governing-definition binding; recursion creates neither new invocation
 authority nor an admissibility escape, termination guarantee, or product-level
 depth/resource limit.
+ADR-034 permits a workflow to explicitly delegate dynamic nested-workflow
+selection/invocation authority to a workflow-declared independent-agent region.
+The capability is not implicit, does not transfer global orchestration ownership,
+and does not universally require parent-enumerated exact callee identities. An
+invocation subtree selected through that delegated authority MUST NOT
+transitively reach the coding session's main-agent cognitive lineage; escalation
+into that lineage remains workflow-owned.
 ADR-015 governs how this normative specification co-evolves with the
 formal TLA+/TLC model and verification manifest.
 
@@ -680,6 +687,119 @@ The relevant question is not whether a step can vary, but whether each change in
 global control is authorized by executable workflow semantics. TURNLOCK core
 orchestration semantics do not by themselves imply computational determinism,
 output determinism, identical traces, replayability, or run reproducibility.
+
+## 0.10E Independent-agent regions may receive delegated nested-workflow invocation authority
+
+A workflow MAY explicitly delegate nested TURNLOCK workflow-selection and
+invocation authority to a workflow-declared independent-agent region.
+
+The capability is not implicit in independent-agent autonomy.
+
+An independent agent without that explicit delegation does not acquire semantic
+invocation authority merely because it has local discretion, shell access, tool
+access, access to a TURNLOCK executable or API, visibility into workflow
+artifacts, or knowledge that another workflow exists.
+
+Conceptually:
+
+```text
+workflow
+↓
+declare independent-agent IA1
+↓
+declare IA1's semantic mission
+↓
+explicitly delegate nested-workflow invocation authority
+↓
+IA1 performs autonomous local work
+↓
+IA1 dynamically selects an available workflow B
+↓
+ordinary invocation admission applies
+↓
+B normally completes
+↓
+same IA1 resumes
+```
+
+Delegated nested-workflow selection is local independent-agent strategy/tactics.
+It does not transfer ownership of the enclosing workflow's sequencing,
+branching, fan-out, synchronization, join, continuation, or transition into the
+session main-agent lineage.
+
+TURNLOCK Core MUST NOT universally require the parent workflow to enumerate the
+exact identity of every workflow that an authorized independent agent may later
+select.
+
+This non-requirement does not mean every workflow is automatically available or
+authorized. Workflow availability, discovery, visibility, installation,
+namespace, generic environment access, and other surrounding capability facts
+remain separately governed.
+
+Invocation authority and composition admissibility are distinct:
+
+```text
+delegated IA invocation authority present?
+↓
+yes
+↓
+particular callee admissible under inherited context?
+↓
+yes
+↓
+callee may be accepted
+```
+
+Delegated authority does not imply automatic admission, and composition
+admissibility does not create invocation authority.
+
+For an admitted independent-agent-selected invocation, the independent-agent
+region is the immediate caller context. Normal completion returns to that same
+region and resumes the same independent cognitive lineage.
+
+If the attempt is rejected before acceptance, no callee invocation exists, no
+callee governing definition is bound, no call/return episode begins, and the
+independent-agent caller remains active with its local continuation unconsumed.
+This rule does not decide retry, fallback, or failure policy after rejection.
+
+Every invocation subtree causally rooted in an independent-agent-selected nested
+invocation MUST NOT transitively reach the coding session's main-agent cognitive
+lineage.
+
+The restriction applies through direct and indirect nested invocation,
+conditions, parallel composition, recursion, and cyclic workflow invocation.
+Crossing another workflow boundary MUST NOT reset, erase, or widen the
+restriction.
+
+An independent agent MAY determine locally that main-agent intervention is
+useful or required. That judgment does not authorize the agent to reach the
+main-agent lineage through its delegated invocation capability.
+
+When workflow progression depends on that judgment, the declared
+independent-agent region contract may expose the relevant information and the
+parent workflow may use executable workflow semantics to select a main-agent
+continuation.
+
+Therefore:
+
+```text
+independent agent
+= owns local escalation judgment
+
+workflow
+= owns global transition into main-agent continuation
+```
+
+Independent-agent business output remains optional unless the region contract
+requires one. This delegated invocation capability does not require every
+independent-agent region to manufacture a business value.
+
+The delegation semantics select no ACL, RBAC, capability token, grant object,
+workflow whitelist representation, namespace, registry, discovery mechanism,
+permission system, static-analysis algorithm, graph-reachability algorithm,
+effect system, scheduler, DSL syntax, Rust type, API, IPC mechanism, process
+model, retry rule, timeout rule, cancellation rule, failure-propagation rule, or
+resource budget.
 
 ## 0.11 Session continuity is part of the product value
 
@@ -2009,10 +2129,13 @@ its execution form, and the workflow owns the branch topology and join.
 A **nested workflow invocation** is a workflow invocation made from an immediate
 caller context inside an enclosing workflow while the continuation of that
 calling context is suspended. The invocation MAY be declared by the enclosing
-workflow program, or selected by the main agent while it legitimately owns a
-main-agent region (ADR-008). The nested workflow owns its own declared
-progression, and normal completion returns to that same immediate caller
-context.
+workflow program, selected by the main agent while it legitimately owns a
+main-agent region, or selected by a workflow-declared independent-agent region
+that has been explicitly delegated nested-workflow selection/invocation
+authority. Every selected invocation remains independently subject to the
+authority and admissibility rules applicable to its caller context. The nested
+workflow owns its own declared progression, and normal completion returns to
+that same immediate caller context.
 
 ## 2.9 Execution inspectability
 
@@ -2312,7 +2435,22 @@ caller context → nested workflow → same caller context
 The workflow MUST return to the context that invoked it, not unconditionally to
 the root main-agent session.
 
-This requirement applies unchanged to recursive and cyclic invocation chains.
+This requirement applies to workflow-declared, main-agent-selected, and
+authorized independent-agent-selected nested invocation.
+
+For an admitted independent-agent-selected invocation:
+
+```text
+independent-agent IA1
+→ nested workflow B
+→ same independent-agent IA1
+```
+
+Normal completion MUST NOT silently complete, replace, or bypass the
+independent-agent caller, return directly to the enclosing workflow's post-IA
+continuation, or return directly to the session main agent.
+
+This requirement also applies unchanged to recursive and cyclic invocation chains.
 Repeated workflow identity in the ancestry MUST NOT collapse, skip, or bypass an
 intermediate caller boundary.
 
@@ -2348,6 +2486,12 @@ ordinary handoff semantics.
 For a workflow-declared invocation, normal return makes the preserved
 workflow-declared post-call continuation eligible for the same immediate caller
 according to the ordinary declared-invocation semantics.
+
+For an admitted nested invocation selected by an independent-agent region under
+explicit delegated invocation authority, normal return resumes that same
+independent-agent caller region and cognitive lineage. The callee MUST NOT
+silently complete or replace the independent-agent caller, bypass it to the
+parent workflow, or return directly to the session main agent.
 
 These rules apply unchanged when the invocation ancestry is recursive or cyclic.
 Repeated workflow identity does not grant a descendant occurrence authority over
@@ -2419,15 +2563,42 @@ TURNLOCK MUST allow a workflow to declare bounded independent-agent execution di
 
 Each workflow-declared independent-agent region has a declared local task,
 creates a fresh cognitive lineage distinct from the main agent, and permits
-autonomous multi-turn local work within available authority. If a runtime
-occurrence reaches normal completion, TURNLOCK MUST recognize that completion
-and follow the workflow-declared continuation. A business output is optional
-unless the region contract requires one; any required output MUST become
-available on normal completion. Effects MAY persist independently of whether a
-business output is required.
+autonomous multi-turn local work within available authority.
 
-This invariant neither grants the agent global orchestration authority nor
-requires a concrete resource bound or universal completion.
+Workflow semantics MAY explicitly include delegated nested-workflow
+selection/invocation authority in that available local authority. When that
+capability is delegated, the independent agent MAY dynamically select an
+available workflow as a local tactic without a universal TURNLOCK Core
+requirement that the parent workflow pre-enumerate every exact callee identity.
+
+The nested-workflow invocation capability is not implicit. Independent-agent
+status, autonomous local judgment, shell/tool access, technical access to
+TURNLOCK, workflow visibility, or knowledge of a workflow's existence MUST NOT
+by themselves be treated as TURNLOCK semantic authority to create a nested
+invocation.
+
+Delegated nested-workflow invocation remains local authority inside the
+workflow-declared semantic mission. It MUST NOT transfer ownership of the
+enclosing workflow's global sequencing, branching, fan-out, synchronization,
+join, continuation, or main-agent transitions to the independent agent.
+
+Every attempted nested invocation remains independently subject to ordinary
+invocation authorization, acceptance, and composition admissibility.
+`TL-INV-040` separately owns the transitive prohibition on session-main-agent
+lineage reachability from an independent-agent-selected invocation subtree.
+
+If an independent-agent runtime occurrence reaches normal completion, TURNLOCK
+MUST recognize that completion and follow the workflow-declared continuation. A
+business output is optional unless the region contract requires one; any
+required output MUST become available on normal completion. Effects MAY persist
+independently of whether a business output is required.
+
+This invariant neither requires a generic TURNLOCK ACL/RBAC/capability-token
+system nor selects a representation for delegation, workflow availability,
+callee discovery, or exact callee permissions.
+
+It neither requires a concrete resource bound nor guarantees universal
+completion.
 
 ## 3.24 TL-INV-026 — Independent-agent context-provenance invariant
 
@@ -2508,9 +2679,24 @@ semantics; it does not authorize an LLM, agent, mechanical operation, or other
 execution resource to create or alter the permitted global continuations.
 
 An explicitly declared agentic region MAY exercise its local semantic or
-discretionary authority. The workflow remains responsible for declared
-sequencing, branching, fan-out, synchronization, and continuation, and every
-change in global control MUST be authorized by workflow semantics.
+discretionary authority.
+
+For a workflow-declared independent-agent region, that local authority MAY
+include nested-workflow selection/invocation when workflow semantics explicitly
+delegate that capability. Selecting a nested workflow under such delegation
+remains local strategy/tactics and MUST NOT itself confer ownership of the
+enclosing workflow's global progression.
+
+In particular, an independent agent's local judgment that main-agent
+intervention is useful or required does not authorize the agent to create a
+global transition into the session main-agent lineage. Such escalation remains
+a workflow-authorized transition. `TL-INV-040` separately prohibits an
+independent-agent-selected invocation subtree from transitively reaching that
+lineage.
+
+The workflow remains responsible for declared sequencing, branching, fan-out,
+synchronization, continuation, and every global transition. Every change in
+global control MUST be authorized by workflow semantics.
 
 ## 3.29 TL-INV-031 — Workflow expressive-power invariant
 
@@ -2529,6 +2715,7 @@ raw LLM inference
 independent-agent execution
 main-agent continuation
 nested workflow invocation
+delegated independent-agent-selected nested workflow invocation
 recursive and cyclic composition through ordinary workflow invocation
 structured return to caller
 ```
@@ -2536,6 +2723,12 @@ structured return to caller
 Recursive/cyclic composition does not require a separate recursive-call
 primitive. It is ordinary workflow invocation whose target may equal or reach a
 workflow already represented among the invocation ancestors.
+
+Delegated independent-agent-selected nested invocation likewise does not require
+a second workflow-invocation mechanism. It uses ordinary nested invocation
+semantics with an independent-agent immediate caller whose workflow semantics
+have explicitly delegated local invocation authority. `TL-INV-040` constrains
+the resulting nested subtree from reaching the session main-agent lineage.
 
 This invariant does not require a large primitive catalog. TURNLOCK SHOULD prefer a small set of orthogonal primitives capable of expressing this space over a collection of domain-specific commands.
 
@@ -2868,6 +3061,55 @@ The invariant selects no scheduler, lock, token, ownership primitive, effect
 system, static-analysis algorithm, theorem prover, graph algorithm,
 co-reachability representation, mutual-exclusion proof representation, Rust
 type, DSL syntax, process model, or harness-specific mechanism.
+
+## 3.38 TL-INV-040 — Independent-agent-selected invocation main-lineage isolation invariant
+
+Every invocation subtree causally rooted in a nested workflow invocation selected
+by an independent-agent region under explicitly delegated nested-workflow
+invocation authority MUST NOT transitively reach the coding session's existing
+main-agent cognitive lineage.
+
+The prohibition applies to direct and indirect reachability.
+
+It remains in force across any represented combination of:
+
+```text
+nested workflow invocation
+workflow-declared invocation
+conditions
+parallel composition
+recursive invocation
+cyclic workflow invocation
+```
+
+Crossing another workflow boundary MUST NOT reset, erase, weaken, or widen the
+restriction.
+
+A recursive or cyclic edge MUST NOT create a fresh unrestricted context merely
+because a workflow identity is revisited.
+
+The invariant concerns semantic reachability permitted by the admitted
+composition. A topology does not become conformant merely because one concrete
+runtime execution, branch outcome, or schedule happens not to exercise a
+main-agent path that the admitted subtree still permits.
+
+This restriction ends with the IA-selected nested call/subtree's structured
+return to its independent-agent caller. It does not prohibit the enclosing
+parent workflow from later selecting a main-agent continuation through its own
+declared workflow semantics after the independent-agent region returns or
+completes.
+
+An independent agent's local judgment that main-agent intervention is useful
+MUST NOT bypass this restriction. The agent may expose information through its
+declared region contract when workflow progression depends on that information;
+the parent workflow remains responsible for any declared global transition into
+the main-agent lineage.
+
+This invariant selects no graph-reachability algorithm, static-analysis
+algorithm, effect system, capability lattice, theorem prover, scheduler,
+workflow whitelist, ACL/RBAC mechanism, token representation, namespace,
+registry, Rust type, DSL syntax, process model, or harness-specific enforcement
+mechanism.
 
 # 4. Current boundaries — intentionally not yet specified
 

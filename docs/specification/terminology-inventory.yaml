@@ -128,7 +128,7 @@ occurrences:
   section: '2.8'
   heading: 2.8 Parallel and nested composition
   role: canonical-definition
-  fingerprint: e4f623bba3a9a2aaececc65ea23e1a07c04681495816ad2678debbdd7bcbc2a7
+  fingerprint: 59d2c236381fda3717b37ad5a8bb74f495ae08412886082010480c7bdc45e5e5
 - concepts:
   - execution-inspectability
   section: '2.9'
@@ -228,6 +228,21 @@ occurrences:
     main-agent continuation
   role: intent
   fingerprint: 95821c47cd4cbea6e9d1888c2e291d67be94a7081477f96d6c910ab46b7a5c2a
+- concepts:
+  - workflow
+  section: 0.10E
+  heading: 0.10E Independent-agent regions may receive delegated nested-workflow
+    invocation authority
+  role: intent
+  fingerprint: 64e2bb8fed5faa15b4610e70f7f6095dded3a79dc53ccc25c9f5665859572b04
+- concepts:
+  - independent-agent
+  - workflow
+  section: 0.10E
+  heading: 0.10E Independent-agent regions may receive delegated nested-workflow
+    invocation authority
+  role: intent
+  fingerprint: 4316aabe31e434b2d083b97f9bdcd50127db3effe4fa6b607de1bdb8f7bb358f
 - concepts:
   - main-agent-step
   section: '0.11'
