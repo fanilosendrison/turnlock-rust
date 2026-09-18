@@ -213,6 +213,9 @@ def _definition_concepts(block: Block, entries: list[RegistryEntry]) -> set[str]
 def discover_occurrences(spec: str, entries: list[RegistryEntry]) -> tuple[list[Occurrence], list[str]]:
     blocks, anchors = parse_blocks(spec)
     errors: list[str] = []
+    registered_anchors = {entry.anchor for entry in entries}
+    for anchor in sorted(set(anchors) - registered_anchors):
+        errors.append(f"canonical terminology anchor is not registered: {anchor}")
     canonical_by_block: dict[int, set[str]] = {}
     occurrences: list[Occurrence] = []
 
