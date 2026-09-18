@@ -48,6 +48,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | Separate local execution capabilities from immutable invocation orchestration | accepted | 2026-09-16 | complete | Responsibility boundary between local execution capabilities and TURNLOCK orchestration authority<br>Workflow source-artifact authoring versus active invocation self-replanning<br>Absence of active replanning and rebinding under current TURNLOCK semantics<br>Conformance boundary for local actions during an active invocation |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | Make TURNLOCK Core a runtime-composable execution substrate | accepted | 2026-09-17 | complete | Runtime composability of execution realizations not fixed by TURNLOCK semantics<br>Public runtime composition boundary for supported external realizations<br>No Core modification or recompilation as the sole extension path for supported external realizations<br>Causal timing and no-silent-substitution requirements for accepted external realizations |
 | [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) | Clarify the runtime-realization composability trigger | accepted | 2026-09-17 | complete | Trigger condition for TL-INV-038 runtime-realization composability<br>Anti-circular interpretation of supported external realizations<br>Conformance when semantically preserving runtime substitution is technically realizable |
+| [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | Allow main-agent participation in workflow-owned concurrency without cognitive-lineage fork | accepted | 2026-09-18 | complete | Main-agent participation in workflow-owned concurrent topology<br>Non-forkability of the continuing main-agent cognitive lineage across unordered concurrent continuations<br>Branch-local main-agent handoff under workflow-owned parallel execution |
 
 ## Recorded outgoing relations
 
@@ -98,6 +99,10 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | confirms | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | confirms | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) | clarifies | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
+| [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) |
+| [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
+| [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-013](adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md) |
+| [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
 
 ## Derived incoming relations
 
@@ -119,16 +124,20 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-006](adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | clarified by | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) |
 | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
+| [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) |
 | [ADR-009](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-020](adr-020-define-independent-agent-context-provenance.md) |
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-021](adr-021-separate-independent-agent-completion-output-and-effects.md) |
+| [ADR-013](adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md) | clarified by | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
