@@ -49,6 +49,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | Make TURNLOCK Core a runtime-composable execution substrate | accepted | 2026-09-17 | complete | Runtime composability of execution realizations not fixed by TURNLOCK semantics<br>Public runtime composition boundary for supported external realizations<br>No Core modification or recompilation as the sole extension path for supported external realizations<br>Causal timing and no-silent-substitution requirements for accepted external realizations |
 | [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) | Clarify the runtime-realization composability trigger | accepted | 2026-09-17 | complete | Trigger condition for TL-INV-038 runtime-realization composability<br>Anti-circular interpretation of supported external realizations<br>Conformance when semantically preserving runtime substitution is technically realizable |
 | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | Allow main-agent participation in workflow-owned concurrency without cognitive-lineage fork | accepted | 2026-09-18 | complete | Main-agent participation in workflow-owned concurrent topology<br>Non-forkability of the continuing main-agent cognitive lineage across unordered concurrent continuations<br>Branch-local main-agent handoff under workflow-owned parallel execution |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | Permit recursive and cyclic workflow invocation under ordinary invocation semantics | accepted | 2026-09-18 | complete | Permission for direct recursive and cyclic workflow invocation<br>Ordinary per-occurrence invocation semantics under recursive and cyclic composition<br>Per-occurrence governing-definition binding across recursive and cyclic invocation |
 
 ## Recorded outgoing relations
 
@@ -103,6 +104,12 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-013](adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md) |
 | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarifies | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarifies | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarifies | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarifies | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarifies | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarifies | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) |
+| [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarifies | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 
 ## Derived incoming relations
 
@@ -129,6 +136,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) |
+| [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
 | [ADR-009](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
 | [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-020](adr-020-define-independent-agent-context-provenance.md) |
@@ -145,6 +153,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | confirmed by | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | amended by | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
+| [ADR-022](adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md) | clarified by | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
+| [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) | clarified by | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | clarified by | [ADR-025](adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | clarified by | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) |
 | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
@@ -154,6 +164,9 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-026](adr-026-define-a-realizable-semantic-boundary-capture-handoff.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) |
 | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) | clarified by | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
 | [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-028](adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md) | clarified by | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
+| [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarified by | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
 | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | clarified by | [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) |

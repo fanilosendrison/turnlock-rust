@@ -182,6 +182,7 @@ Later ADRs record subsequently accepted decisions.
     lacking that path cannot itself justify classifying the alternative as
     unsupported. No new invariant or extension mechanism is introduced.
 32. [ADR-032: Allow main-agent participation in workflow-owned concurrency without cognitive-lineage fork](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) — **Accepted**. Resolves the main-agent concurrency question deliberately left open by ADR-013: a workflow-owned concurrent region may contain a main-agent continuation, but the same continuing main-agent cognitive lineage may not fork across independently concurrent, non-causally-ordered continuations. Main-agent handoff is branch-local, sibling work remains governed by the declared topology, and runtime scheduling must not manufacture causal order absent from the workflow.
+33. [ADR-033: Permit recursive and cyclic workflow invocation under ordinary invocation semantics](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) — **Accepted**. Resolves the recursion/cycle question left open by earlier invocation decisions: direct recursion and cyclic workflow call graphs are permitted, every occurrence remains an ordinary distinct invocation with structured immediate-caller return and per-occurrence governing-definition binding, and recursion creates neither new invocation authority nor an admissibility escape, termination guarantee, or product-level depth/resource limit.
 
 <!-- adr-annotated-trace:end -->
 
