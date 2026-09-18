@@ -24,7 +24,12 @@ support is not a precondition for that obligation: when a semantically
 preserving alternative is technically realizable at runtime in a supported
 harness or execution environment, Core must provide the runtime composition
 path rather than using the absence of such a path to classify the alternative
-away. ADR-015 governs how this normative specification co-evolves with the
+away. ADR-032 permits main-agent continuation to participate in workflow-owned
+concurrent topology while prohibiting the same continuing main-agent cognitive
+lineage from forking across independently concurrent, non-causally-ordered
+continuations. Declared causal ordering or established mutual exclusion may
+permit repeated uses, but runtime scheduling cannot manufacture that ordering.
+ADR-015 governs how this normative specification co-evolves with the
 formal TLA+/TLC model and verification manifest.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
@@ -567,37 +572,74 @@ TURNLOCK MUST be able to express multiple raw LLM calls concurrently when the wo
 
 The exact provider, model-selection surface, inference parameters, context format, structured-output mechanism, and budgeting controls remain open. What is fixed is that **bounded non-agentic LLM inference is semantically distinct from both independent-agent execution and main-agent continuation**.
 
-## 0.10C Parallel fan-out may be homogeneous or heterogeneous
+## 0.10C Parallel fan-out may be homogeneous or heterogeneous, including main-agent continuation
 
-TURNLOCK parallelism is not limited to repeating one execution primitive. When branches are independent and the workflow declares their topology, a single fan-out MUST be able to contain heterogeneous branch types.
+TURNLOCK parallelism is not limited to repeating one execution primitive. When
+branches are independent and the workflow declares their topology, a single
+fan-out MUST be able to contain heterogeneous branch types, including
+main-agent continuation.
 
 For example:
 
 ```text
 fan-out
   ├→ mechanical execution
-  ├→ raw LLM call A
-  ├→ raw LLM call B
-  ├→ independent agent A
-  └→ independent agent B
+  ├→ raw LLM inference
+  ├→ independent-agent execution
+  └→ main-agent continuation
 join
 → workflow continuation
 ```
 
 Within that fan-out:
 
-- multiple raw LLM branches MAY perform the same task or different tasks;
-- multiple independent-agent branches MAY perform the same task or different tasks;
-- raw LLM, independent-agent, and mechanical branches MAY coexist in the same declared parallel region;
-- each branch retains the lifecycle, context, authority, completion, effects, and declared output semantics of its own execution form;
-- the workflow owns branch creation, synchronization, collection, and declared continuation.
+* mechanical, raw-LLM, independent-agent, and main-agent branches MAY coexist;
+* multiple branches of the same semantic type MAY perform the same task or
+  different tasks where that execution form's semantics permit it;
+* each branch retains the lifecycle, context, authority, completion, effects,
+  lineage, and declared output semantics of its own execution form;
+* the workflow owns branch creation, synchronization, collection, join, and
+  declared continuation.
 
-This capability matters because the workflow author may want to combine cheap
-bounded inference, richer autonomous delegation, and mechanical execution in one
-explicit concurrency topology rather than split them into artificial sequential
-phases.
+A main-agent branch remains continuation of the existing coding-session
+main-agent cognitive lineage. It MUST NOT be silently realized as a fresh,
+cloned, reconstructed, or otherwise distinct independent agent.
 
-This decision does **not yet assert that main-agent continuation can participate as an ordinary concurrent branch**. Main-agent continuation has unique session-lineage and interactive-control semantics; concurrency involving it remains a separate semantic question.
+When a concurrent branch reaches a main-agent continuation, the handoff is
+branch-local. It suspends that branch's calling continuation and MUST NOT,
+merely because the main agent is active, suspend unrelated sibling branches
+that remain enabled by the declared topology.
+
+Completion of the main-agent branch does not itself complete the enclosing
+parallel region. The join becomes eligible only according to the workflow's
+declared synchronization semantics.
+
+The same continuing main-agent cognitive lineage MUST NOT be forked across two
+independently concurrent, non-causally-ordered continuations. Runtime scheduling
+order cannot create the required semantic order. TURNLOCK MUST NOT make such a
+topology conformant by silently serializing main-agent uses, selecting the use
+that reaches the resource first, cloning the lineage, substituting another
+execution form, or inventing an undeclared order.
+
+Repeated use of the same main-agent lineage remains valid when declared
+orchestration establishes the required causal ordering. Multiple syntactic uses
+may also be valid when declared semantics establish mutual exclusion so that
+the uses cannot become unordered concurrent continuations.
+
+If a potentially conflicting topology does not provide sufficient declared
+ordering or established mutual exclusion for TURNLOCK to preserve these
+semantics, the topology or invocation MUST fail admission rather than changing
+workflow meaning.
+
+Structured nested suspension and immediate-caller return remain valid. A
+suspended outer main-agent continuation, a nested workflow, a nested main-agent
+continuation, and later resumption of the outer continuation form one structured
+causal sequence rather than a concurrent fork of the main-agent lineage.
+
+TURNLOCK does not prescribe how causal ordering, co-reachability, or mutual
+exclusion is represented or established. No scheduler, lock, token, effect
+system, static-analysis algorithm, solver, graph representation, or proof
+mechanism is selected by this rule.
 
 ## 0.10D Workflow-owned control may compose varying results
 
@@ -2176,9 +2218,27 @@ A future second-harness implementation is expected to act as an abstraction test
 
 ## 3.22A TL-INV-024 — Heterogeneous parallel composition invariant
 
-TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch types, including mechanical execution, bounded raw LLM inference, and bounded independent-agent execution. Branches of the same semantic type MAY perform the same task or different tasks. Mixed fan-out MUST preserve the lifecycle, context, authority, completion, effects, and declared output semantics of each branch type while keeping fan-out, synchronization, collection, and continuation under workflow ownership.
+TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch
+types, including mechanical execution, bounded raw LLM inference,
+independent-agent execution, and main-agent continuation.
 
-This invariant does not require main-agent continuation to be an ordinary parallel branch; that question remains separately open.
+Branches of the same semantic type MAY perform the same task or different
+tasks where that execution form's semantics permit it. Mixed fan-out MUST
+preserve the lifecycle, context, authority, completion, effects, lineage, and
+declared output semantics of each branch type while keeping fan-out,
+synchronization, collection, join, and continuation under workflow ownership.
+
+A main-agent branch MUST preserve the continuing main-agent cognitive lineage.
+Its handoff is branch-local and MUST NOT implicitly suspend unrelated sibling
+branches whose progression remains enabled by the declared topology.
+
+Completion of a main-agent branch MUST NOT by itself complete the enclosing
+parallel region or release its join.
+
+Permission for main-agent participation in heterogeneous concurrency does not
+permit the same main-agent cognitive lineage to fork across unordered
+concurrent continuations. `TL-INV-039` owns that concurrency-specific
+non-forkability obligation.
 
 ## 3.23 TL-INV-025 — Independent-agent first-class invariant
 
@@ -2217,7 +2277,9 @@ main-agent agency.
 
 ## 3.25 TL-INV-027 — Parallel semantic fan-out/fan-in invariant
 
-TURNLOCK MUST be able to express workflow-owned parallel execution of independent semantic work and subsequent synchronization/collection. Parallel branches MAY perform the same task or different tasks.
+TURNLOCK MUST be able to express workflow-owned parallel execution of
+independent semantic work and subsequent synchronization/collection. Parallel
+branches MAY perform the same task or different tasks.
 
 The declared topology:
 
@@ -2225,7 +2287,17 @@ The declared topology:
 fan-out → concurrent semantic work → fan-in/join → continuation
 ```
 
-MUST NOT require the main agent to become the scheduler merely because the concurrent branches are agentic or LLM-based.
+MUST NOT require the main agent to become the scheduler merely because the
+concurrent branches are agentic, LLM-based, or include a main-agent
+continuation.
+
+A main-agent handoff reached inside one parallel branch is local to that branch
+and MUST NOT implicitly suspend unrelated sibling branches that remain enabled
+by the declared topology.
+
+Completion of one branch, including a main-agent branch, MUST NOT make the
+post-join continuation eligible before the declared join requirements are
+satisfied.
 
 ## 3.26 TL-INV-028 — Raw-LLM inference invariant
 
@@ -2557,6 +2629,43 @@ extension mechanism.
 It does not change main-agent continuity semantics, does not create a general
 TURNLOCK-owned filesystem/tool/sandbox permission system, and does not move
 evaluation, experiment, comparison, or optimization policy into TURNLOCK Core.
+
+## 3.37 TL-INV-039 — Main-agent concurrent-lineage non-forkability invariant
+
+An admitted TURNLOCK topology MUST NOT permit the same continuing main-agent
+cognitive lineage to continue through two independently concurrent,
+non-causally-ordered continuations.
+
+Multiple uses of that lineage remain admissible when the declared orchestration
+establishes causal ordering between them or when the applicable declared
+semantics establish mutual exclusion such that the uses cannot become unordered
+concurrent continuations.
+
+Runtime scheduling order MUST NOT be used to manufacture the required semantic
+ordering. A topology that permits unordered concurrent uses of the same
+main-agent lineage does not become conformant merely because one concrete
+execution happens to serialize those uses.
+
+TURNLOCK MUST NOT repair an incompatible topology by silently serializing the
+main-agent continuations, selecting whichever use reaches the resource first,
+cloning or duplicating the main-agent cognitive lineage, substituting a fresh
+independent agent, changing the declared execution form, or inventing an
+undeclared causal order.
+
+If a topology potentially exposes the same main-agent lineage to unordered
+concurrent continuations and sufficient declared ordering or mutual exclusion
+cannot be established, the topology or invocation MUST NOT be admitted under
+full TURNLOCK semantics.
+
+This invariant does not limit the number of syntactic main-agent occurrences or
+the number of causally ordered main-agent continuations. Structured nested
+suspension and immediate-caller return are sequential use of the continuing
+lineage and do not constitute a concurrent fork.
+
+The invariant selects no scheduler, lock, token, ownership primitive, effect
+system, static-analysis algorithm, theorem prover, graph algorithm,
+co-reachability representation, mutual-exclusion proof representation, Rust
+type, DSL syntax, process model, or harness-specific mechanism.
 
 # 4. Current boundaries — intentionally not yet specified
 
