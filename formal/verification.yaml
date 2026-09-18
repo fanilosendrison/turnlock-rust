@@ -364,10 +364,10 @@ invariants:
   spec_section: '3.13'
   adrs:
   - ADR-007
+  - ADR-032
   kind: safety
   formalization: partial
-  formalization_note: The abstract model can preserve a main-lineage identity across handoff; real cognitive equivalence remains
-    a harness-level conformance obligation.
+  formalization_note: The abstract model can preserve a main-lineage identity across handoff; real cognitive equivalence remains a harness-level conformance obligation. TL-INV-039 separately owns the concurrency-specific prohibition on unordered forks of that continuing lineage.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -571,8 +571,10 @@ invariants:
   spec_section: 3.22A
   adrs:
   - ADR-013
+  - ADR-032
   kind: safety+reachability
   formalization: planned
+  formalization_note: A future model must permit main-agent continuation as a heterogeneous workflow-owned parallel branch while preserving branch-specific semantics. Main-agent handoff is branch-local, and concurrent lineage non-forkability is owned separately by TL-INV-039. Silent serialization must not be modeled as a conforming repair for unordered uses of the same main-agent lineage.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -581,6 +583,8 @@ invariants:
     - name: MixedBranchTypesCanCoexist
       status: planned
     - name: MixedBranchSemanticsPreserved
+      status: planned
+    - name: MainAgentCanParticipateInParallelRegion
       status: planned
     state_variables: []
     actions: []
@@ -649,8 +653,10 @@ invariants:
   - ADR-011
   - ADR-012
   - ADR-013
+  - ADR-032
   kind: safety+liveness
   formalization: planned
+  formalization_note: A future model must preserve workflow-owned fan-out/fan-in when a branch contains main-agent continuation. Reaching the main-agent branch must not implicitly suspend independently enabled siblings, and branch completion must not release the join before the declared join requirements hold. Liveness claims remain subject to the separately governed fairness and occurrence semantics.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -661,6 +667,8 @@ invariants:
     - name: BranchCompletesAtMostOnce
       status: planned
     - name: JoinEventuallyReleasesUnderFairness
+      status: planned
+    - name: MainAgentHandoffIsBranchLocal
       status: planned
     state_variables: []
     actions: []
@@ -751,10 +759,10 @@ invariants:
   - ADR-012
   - ADR-013
   - ADR-014
+  - ADR-032
   kind: capability
   formalization: partial
-  formalization_note: The abstract model can demonstrate composition/reachability of the required execution forms; it cannot
-    prove universal adequacy for every real workflow.
+  formalization_note: The abstract model can demonstrate composition/reachability of the required execution forms, including main-agent continuation inside workflow-owned parallel topology subject to TL-INV-039; it cannot prove universal adequacy for every real workflow.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -962,6 +970,29 @@ invariants:
     mapping_status: not-applicable
     module: null
     properties: []
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-039
+  title: Main-agent concurrent-lineage non-forkability invariant
+  spec_section: '3.37'
+  adrs:
+  - ADR-007
+  - ADR-013
+  - ADR-032
+  kind: safety
+  formalization: planned
+  formalization_note: A future model must represent one continuing main-agent lineage and declared branch causality well enough to forbid unordered co-reachable continuations of that lineage while allowing causally ordered or established mutually exclusive uses. Runtime scheduler order must not create semantic ordering. The model may abstract mutual exclusion and must not select a static-analysis algorithm, theorem prover, graph algorithm, scheduler, lock, token, or proof representation as product semantics.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: MainLineageNotForkedAcrossUnorderedConcurrentContinuations
+      status: planned
     state_variables: []
     actions: []
     focused_configs: []

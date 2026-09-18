@@ -24,7 +24,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-011` | Harness-semantics invariant | conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
 | `TL-INV-012` | Non-equivalence of cognitive execution forms invariant | safety | planned | pending-model | `ExecutionFormsRemainDistinct` | — | — | not-yet-modeled | ADR-007, ADR-011, ADR-012 |
 | `TL-INV-013` | No-hidden-agent-orchestration invariant | safety | planned | pending-model | `AgentCannotAdvanceUndeclaredGlobalControl` | — | — | not-yet-modeled | ADR-001, ADR-014 |
-| `TL-INV-014` | Cognitive-lineage continuity invariant | safety | partial | pending-model | `MainLineageNotForkedByHandoff` | — | — | not-yet-modeled | ADR-007 |
+| `TL-INV-014` | Cognitive-lineage continuity invariant | safety | partial | pending-model | `MainLineageNotForkedByHandoff` | — | — | not-yet-modeled | ADR-007, ADR-032 |
 | `TL-INV-015` | Ordinary-agency restoration invariant | conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-007 |
 | `TL-INV-016` | Workflow-availability invariant | safety | planned | pending-model | `WorkflowInvocationAvailableWheneverMainOwnsControl` | — | — | not-yet-modeled | ADR-002, ADR-008 |
 | `TL-INV-017` | Nested-invocation invariant | safety | planned | pending-model | `NestedInvocationSuspendsCaller`, `CallerStackWellFormed` | — | — | not-yet-modeled | ADR-008 |
@@ -34,14 +34,14 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-021` | Author-facing primitive invariant | dx | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009 |
 | `TL-INV-022` | Harness-independence invariant | architecture | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
 | `TL-INV-023` | Pi-reference invariant | architecture | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-010 |
-| `TL-INV-024` | Heterogeneous parallel composition invariant | safety+reachability | planned | pending-model | `MixedBranchTypesCanCoexist`, `MixedBranchSemanticsPreserved` | — | — | not-yet-modeled | ADR-013 |
+| `TL-INV-024` | Heterogeneous parallel composition invariant | safety+reachability | planned | pending-model | `MixedBranchTypesCanCoexist`, `MixedBranchSemanticsPreserved`, `MainAgentCanParticipateInParallelRegion` | — | — | not-yet-modeled | ADR-013, ADR-032 |
 | `TL-INV-025` | Independent-agent first-class invariant | reachability+safety | planned | pending-model | `IndependentAgentCanBeWorkflowDeclared`, `IndependentAgentHasDistinctLineage` | — | — | not-yet-modeled | ADR-011, ADR-020, ADR-021 |
 | `TL-INV-026` | Independent-agent context-provenance invariant | semantic-boundary | partial | pending-model | `IndependentAgentContextIsExplicitlyDeclared` | — | — | not-yet-modeled | ADR-011, ADR-020 |
-| `TL-INV-027` | Parallel semantic fan-out/fan-in invariant | safety+liveness | planned | pending-model | `NoPrematureJoin`, `BranchCompletesAtMostOnce`, `JoinEventuallyReleasesUnderFairness` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013 |
+| `TL-INV-027` | Parallel semantic fan-out/fan-in invariant | safety+liveness | planned | pending-model | `NoPrematureJoin`, `BranchCompletesAtMostOnce`, `JoinEventuallyReleasesUnderFairness`, `MainAgentHandoffIsBranchLocal` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013, ADR-032 |
 | `TL-INV-028` | Raw-LLM inference invariant | reachability+safety | planned | pending-model | `RawLLMIsBoundedLeaf`, `RawLLMDoesNotCreateAgentLoop` | — | — | not-yet-modeled | ADR-012 |
 | `TL-INV-029` | Minimum-sufficient cognition invariant | authoring-principle | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-012 |
 | `TL-INV-030` | Workflow-owned-control / probabilistic-result invariant | safety | planned | pending-model | `ProbabilisticLeafCannotOwnGlobalControl` | — | — | not-yet-modeled | ADR-012, ADR-014, ADR-029 |
-| `TL-INV-031` | Workflow expressive-power invariant | capability | partial | pending-model | `RequiredCoreFormsComposable` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013, ADR-014 |
+| `TL-INV-031` | Workflow expressive-power invariant | capability | partial | pending-model | `RequiredCoreFormsComposable` | — | — | not-yet-modeled | ADR-011, ADR-012, ADR-013, ADR-014, ADR-032 |
 | `TL-INV-032` | Authorship / execution-authority separation invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-009, ADR-014, ADR-016, ADR-029 |
 | `TL-INV-033` | Completed-execution inspectability invariant | safety+semantic-quality+conformance | partial | pending-model | `CompletedExecutionExposesActualBoundaryFacts` | — | — | not-yet-modeled | ADR-018 |
 | `TL-INV-034` | Evaluation/optimization-policy boundary invariant | architecture+conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-019 |
@@ -49,6 +49,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-036` | Effective execution-condition provenance invariant | safety+semantic-boundary+conformance | partial | pending-model | — | — | — | not-yet-modeled | ADR-024, ADR-025, ADR-026 |
 | `TL-INV-037` | Active-invocation governing-definition stability invariant | safety | planned | pending-model | — | — | — | not-yet-modeled | ADR-027, ADR-028, ADR-029 |
 | `TL-INV-038` | Runtime-realization composability invariant | conformance | not-applicable | not-applicable | — | — | — | not-yet-modeled | ADR-030, ADR-031 |
+| `TL-INV-039` | Main-agent concurrent-lineage non-forkability invariant | safety | planned | pending-model | `MainLineageNotForkedAcrossUnorderedConcurrentContinuations` | — | — | not-yet-modeled | ADR-007, ADR-013, ADR-032 |
 
 ## Reverse traceability
 
@@ -74,7 +75,10 @@ The same manifest is mechanically invertible. Once state/action mappings are pop
 - `IndependentAgentHasDistinctLineage` → `TL-INV-025`
 - `InvocationEventuallyReturnsUnderFairness` → `TL-INV-008`
 - `JoinEventuallyReleasesUnderFairness` → `TL-INV-027`
+- `MainAgentCanParticipateInParallelRegion` → `TL-INV-024`
+- `MainAgentHandoffIsBranchLocal` → `TL-INV-027`
 - `MainAgentLineagePreserved` → `TL-INV-009`
+- `MainLineageNotForkedAcrossUnorderedConcurrentContinuations` → `TL-INV-039`
 - `MainLineageNotForkedByHandoff` → `TL-INV-014`
 - `MechanicalExecutionNotAgentMediated` → `TL-INV-003`
 - `MixedBranchSemanticsPreserved` → `TL-INV-024`
