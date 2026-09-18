@@ -42,6 +42,15 @@ and does not universally require parent-enumerated exact callee identities. An
 invocation subtree selected through that delegated authority MUST NOT
 transitively reach the coding session's main-agent cognitive lineage; escalation
 into that lineage remains workflow-owned.
+ADR-035 defines the general nested-composition admissibility contract. An
+attempted nested invocation may be accepted only when independently authorized
+and compatible with every admissibility restriction applicable to its caller
+and prospective callee context. Applicable restrictions remain closed under
+nested and recursive composition according to their accepted scopes; required
+compatibility that cannot be established fails closed before invocation
+acceptance. Workflow invocation may occur inside a parallel or otherwise
+restricted context when that composition is admissible, and runtime scheduling
+must not manufacture compatibility absent from declared workflow semantics.
 ADR-015 governs how this normative specification co-evolves with the
 formal TLA+/TLC model and verification manifest.
 
@@ -613,6 +622,12 @@ Within that fan-out:
   lineage, and declared output semantics of its own execution form;
 * the workflow owns branch creation, synchronization, collection, join, and
   declared continuation.
+
+A concurrent branch MAY also perform nested workflow invocation as part of that
+branch's declared progression. Nested invocation is composition within the
+branch rather than an additional execution-form category. Every such invocation
+remains subject to its ordinary invocation authority and to the
+nested-composition admissibility contract in Section 0.13H / `TL-INV-041`.
 
 A main-agent branch remains continuation of the existing coding-session
 main-agent cognitive lineage. It MUST NOT be silently realized as a fresh,
@@ -1481,6 +1496,120 @@ resource guarantee, cycle detector, termination proof, retry rule, timeout rule,
 cancellation rule, failure-propagation rule, crash-recovery rule, stack
 representation, workflow-version resolution rule, or implementation mechanism.
 
+## 0.13H Nested composition preserves applicable admissibility restrictions
+
+Every attempted nested workflow invocation has a composition-admissibility
+boundary before acceptance.
+
+The semantic sequence is:
+
+```text
+attempt nested invocation
+↓
+identify the workflow definition
+that would govern the callee if accepted
+↓
+independent invocation authority satisfied?
+↓
+composition preserves every applicable admissibility restriction?
+↓
+accept
+or
+reject before acceptance
+````
+
+Invocation authority and composition admissibility are independent requirements.
+
+An invocation that is authorized is not automatically admissible.
+
+A composition that would otherwise be admissible does not grant invocation
+authority to its decision owner.
+
+When an accepted restriction's normative scope extends through nested
+composition, crossing a workflow boundary MUST NOT erase, reset, weaken, widen,
+or bypass that restriction.
+
+This applies equally through ordinary nested invocation and recursive/cyclic
+invocation.
+
+The rule preserves restrictions according to their own accepted scopes; it does
+not extend a restriction beyond the scope assigned by the invariant or decision
+that owns it.
+
+A nested workflow invocation MAY occur inside a workflow-owned parallel branch
+or another restricted context when it is independently authorized and the
+resulting composition is admissible.
+
+Nested workflow invocation is composition inside the branch's declared
+progression rather than a new execution form.
+
+Admissibility may depend on the caller and surrounding declared topology rather
+than only on the callee in isolation. Relevant semantic facts can include
+declared causal ordering, co-reachability, established mutual exclusion,
+cognitive-lineage identity, caller provenance, declared conditions, and the
+scope of inherited restrictions.
+
+Runtime scheduler order does not create declared causal order.
+
+TURNLOCK MUST NOT make an inadmissible composition conformant by silently
+serializing it, choosing first-arrival order, substituting an execution form,
+changing the callee, cloning a cognitive lineage, lifting authority, dropping a
+branch, or inventing another undeclared topology change.
+
+If acceptance requires preservation of an applicable restriction and TURNLOCK
+cannot establish that preservation at the attempted invocation's acceptance
+boundary, the invocation MUST NOT be accepted.
+
+TURNLOCK does not need to pre-expand or pre-resolve every future nested
+invocation before accepting a caller.
+
+Every later invocation occurrence retains its own admission boundary.
+
+Therefore:
+
+```text
+accept A
+↓
+later attempt B
+↓
+accept or reject B
+↓
+if B accepted:
+    later attempt C
+    ↓
+    accept or reject C
+```
+
+A parent invocation's acceptance neither pre-authorizes descendants nor
+guarantees that every later nested call will be admitted or that the caller will
+eventually complete.
+
+The workflow definition evaluated for successful admission MUST be the workflow
+definition that becomes governing for that accepted invocation.
+
+TURNLOCK MUST NOT validate one definition and bind a different definition under
+the same admission decision.
+
+If an attempted invocation is rejected before acceptance:
+
+```text
+no accepted callee invocation exists
+no callee invocation lifetime exists
+no callee governing definition is bound
+no callee call/return episode begins
+normal successful return semantics do not occur
+```
+
+The immediate caller remains the caller and its continuation is not consumed by
+the nonexistent callee.
+
+For a workflow-declared invocation, rejection MUST NOT silently enable the
+normal successful post-call continuation as though the callee had completed.
+
+This contract defines no retry, fallback, catch, abort, cancellation, timeout,
+failure-propagation, resource, effect-system, capability-system, static-analysis,
+graph-analysis, scheduler, DSL, Rust, or runtime-validation mechanism.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -1587,6 +1716,14 @@ preserving alternative as unsupported and thereby escape `TL-INV-038`
 TURNLOCK accepts an external realization as governing an applicable use and
 then silently executes that use through a different realization not authorized
 by the applicable TURNLOCK semantics
+
+a nested workflow boundary, recursive/cyclic invocation, or runtime scheduling
+artifact is used to bypass an admissibility restriction whose accepted scope
+still applies to that composition
+
+an invocation whose required composition compatibility cannot be established is
+silently accepted, serialized, substituted, or otherwise repaired by changing
+the declared workflow meaning
 ```
 
 A conforming implementation may use different internal mechanisms per harness, but those mechanisms exist to realize the same control contract.
@@ -2048,7 +2185,14 @@ The completion boundary mechanism is not specified yet.
 
 An **immediate caller context** is the execution context that invoked a workflow and to which normal completion of that workflow returns.
 
-For a top-level workflow, the caller is the surrounding main-agent interaction. For a nested workflow, the caller is the calling execution context inside the enclosing workflow. For an agent-selected invocation, that context is the main-agent region. For a workflow-declared invocation, that context is the workflow execution context that performs the declared call.
+For a top-level workflow, the caller is the surrounding main-agent interaction.
+For a nested workflow, the caller is the calling execution context inside the
+enclosing workflow. For a main-agent-selected invocation, that context is the
+main-agent region. For a workflow-declared invocation, that context is the
+workflow execution context that performs the declared call. For an
+independent-agent-selected invocation admitted under explicitly delegated
+nested-workflow invocation authority, that context is the independent-agent
+region that selected the call.
 
 A caller context preserves a call continuation while the callee executes. The continuation is not itself the caller context; it is the preserved return state of that context.
 
@@ -2136,6 +2280,34 @@ authority. Every selected invocation remains independently subject to the
 authority and admissibility rules applicable to its caller context. The nested
 workflow owns its own declared progression, and normal completion returns to
 that same immediate caller context.
+
+## 2.8A Nested-composition admissibility
+
+<a id="term-nested-composition-admissibility"></a>
+
+**Nested-composition admissibility** is the semantic condition under which an
+otherwise authorized attempted nested workflow invocation may be accepted in its
+caller and surrounding execution context.
+
+An attempted invocation is composition-admissible only when the workflow
+definition that would govern the callee if accepted preserves every
+admissibility restriction whose accepted scope applies to that composition.
+
+Such restrictions may depend on facts outside the callee in isolation,
+including declared causal ordering, co-reachability, mutual exclusion,
+cognitive-lineage identity, caller provenance, surrounding parallel topology,
+or restriction-specific ancestry.
+
+When a restriction's accepted scope extends into descendant invocation, later
+nested attempts remain subject to that restriction at their own admission
+boundaries.
+
+If required preservation cannot be established at an attempted invocation's
+acceptance boundary, that invocation is not admissible for acceptance.
+
+This definition specifies a semantic relation, not an effect system, capability
+lattice, static-analysis algorithm, graph representation, proof object, runtime
+token, or implementation data structure.
 
 ## 2.9 Execution inspectability
 
@@ -2539,11 +2711,21 @@ TURNLOCK MUST allow a workflow-owned parallel region to mix independent branch
 types, including mechanical execution, bounded raw LLM inference,
 independent-agent execution, and main-agent continuation.
 
-Branches of the same semantic type MAY perform the same task or different
-tasks where that execution form's semantics permit it. Mixed fan-out MUST
-preserve the lifecycle, context, authority, completion, effects, lineage, and
-declared output semantics of each branch type while keeping fan-out,
-synchronization, collection, join, and continuation under workflow ownership.
+Branches of the same semantic type MAY perform the same task or different tasks
+where that execution form's semantics permit it. Mixed fan-out MUST preserve the
+lifecycle, context, authority, completion, effects, lineage, and declared output
+semantics of each branch type while keeping fan-out, synchronization,
+collection, join, and continuation under workflow ownership.
+
+A branch MAY include nested workflow invocation as part of its declared
+progression. Nested workflow invocation is composition inside that branch, not a
+fifth parallel execution form. Every attempted nested invocation in a parallel
+branch MUST be independently authorized and `TL-INV-041`-admissible before
+acceptance.
+
+A workflow boundary MUST NOT hide a composition conflict with another branch.
+Admissibility may therefore depend on surrounding declared branch topology,
+including causal ordering, co-reachability, or established mutual exclusion.
 
 A main-agent branch MUST preserve the continuing main-agent cognitive lineage.
 Its handoff is branch-local and MUST NOT implicitly suspend unrelated sibling
@@ -2553,9 +2735,13 @@ Completion of a main-agent branch MUST NOT by itself complete the enclosing
 parallel region or release its join.
 
 Permission for main-agent participation in heterogeneous concurrency does not
-permit the same main-agent cognitive lineage to fork across unordered
-concurrent continuations. `TL-INV-039` owns that concurrency-specific
-non-forkability obligation.
+permit the same main-agent cognitive lineage to fork across unordered concurrent
+continuations. `TL-INV-039` owns that concurrency-specific non-forkability
+obligation.
+
+Runtime scheduler order MUST NOT be used to make a nested composition inside a
+parallel branch appear admissible when the declared topology does not establish
+the required compatibility.
 
 ## 3.23 TL-INV-025 — Independent-agent first-class invariant
 
@@ -2836,6 +3022,17 @@ Suspension is local to the calling continuation. A declared invocation MUST NOT
 be interpreted as implicitly suspending concurrently active contexts that the
 declared topology permits to continue.
 
+A workflow-declared invocation MAY occur inside a workflow-owned parallel branch
+or another context carrying admissibility restrictions. Such placement is not
+categorically prohibited merely because the caller is inside a restricted
+context. Every attempted declared invocation MUST be independently authorized by
+the workflow program and `TL-INV-041`-admissible before acceptance.
+
+If a workflow-declared invocation is rejected before acceptance, no callee
+invocation exists and the normal successful post-call continuation MUST NOT be
+enabled as though the callee had completed. This invariant does not decide the
+subsequent failure-handling policy.
+
 A workflow-declared invocation MAY target a workflow already represented among
 its invocation ancestors. Direct recursion, mutual recursion, and longer cyclic
 workflow-definition call graphs are therefore permitted when each individual
@@ -2850,10 +3047,10 @@ reset or widen applicable restrictions, does not require root-wide expansion of
 future recursive calls, and does not establish any termination, concrete depth,
 or resource guarantee.
 
-This invariant does not decide restricted placement admissibility, the general
-transitive composition-admissibility algorithm, concrete depth/resource limits,
-failure behavior, retry behavior, timeout behavior, cancellation behavior,
-workflow-reference resolution semantics, or any implementation mechanism.
+This invariant does not select the concrete representation or algorithm used to
+establish `TL-INV-041` admissibility and does not decide retry, fallback, timeout,
+cancellation, general failure propagation, workflow-reference resolution
+syntax, concrete depth/resource limits, or any implementation mechanism.
 
 ## 3.34 TL-INV-036 — Effective execution-condition provenance invariant
 
@@ -2969,6 +3166,19 @@ accepted. A recursive descendant may therefore bind a different governing
 definition from an active ancestor when the applicable workflow-resolution
 semantics select that definition. The ancestor's governing definition remains
 unchanged for the ancestor's lifetime.
+
+For nested-invocation admission, TURNLOCK MAY identify or resolve the workflow
+definition that would govern the callee if accepted before the callee invocation
+exists as an accepted invocation. Evaluating that definition for admission does
+not itself bind a governing definition or create an accepted invocation.
+
+If admission succeeds, the workflow definition whose composition was admitted
+MUST be the workflow definition bound as governing for that accepted invocation.
+TURNLOCK MUST NOT validate one workflow definition for admissibility and then
+bind another workflow definition under the same admission decision.
+
+If admission is rejected before acceptance, no callee governing definition is
+bound because no accepted callee invocation exists.
 
 Ordinary artifact editing and source-artifact self-authoring do not constitute
 an operation that mutates the governing definition of an active invocation.
@@ -3111,6 +3321,70 @@ workflow whitelist, ACL/RBAC mechanism, token representation, namespace,
 registry, Rust type, DSL syntax, process model, or harness-specific enforcement
 mechanism.
 
+## 3.39 TL-INV-041 — Nested-composition admissibility-closure invariant
+
+An attempted nested workflow invocation MUST NOT be accepted unless:
+
+```text
+the invocation is independently authorized
+AND
+the composition preserves every admissibility restriction
+whose accepted scope applies to that caller/prospective-callee context
+````
+
+When an applicable restriction's accepted scope extends into descendant
+composition, every accepted nested invocation within that scope MUST preserve
+the restriction. Crossing another workflow boundary, including a recursive or
+cyclic boundary, MUST NOT by itself reset, erase, weaken, widen, or bypass the
+restriction.
+
+Admissibility MAY depend on semantic facts outside the callee in isolation,
+including surrounding declared topology, causal ordering, co-reachability,
+established mutual exclusion, caller provenance, cognitive-lineage identity,
+declared conditions, and restriction-specific ancestry.
+
+Runtime scheduler order MUST NOT manufacture admissibility that the declared
+semantics do not establish.
+
+When preserving an applicable restriction is required for acceptance and that
+preservation cannot be established at the attempted invocation's acceptance
+boundary, the invocation MUST NOT be accepted.
+
+TURNLOCK MUST NOT silently repair such an incompatibility by serialization,
+first-arrival ordering, execution-form substitution, callee substitution,
+lineage cloning, authority lifting, branch removal, or undeclared topology
+rewriting.
+
+Each invocation occurrence has its own admission boundary. Acceptance of a
+caller MUST NOT implicitly authorize or admit future nested invocations. Future
+nested attempts remain subject to the restrictions whose accepted scopes still
+apply when those attempts occur.
+
+The workflow definition whose composition is admitted for a successful
+invocation MUST be the workflow definition bound as governing for that accepted
+invocation. Evaluating a definition before acceptance does not itself create an
+invocation or bind a governing definition.
+
+If an attempted invocation is rejected before acceptance:
+
+```text
+no accepted callee invocation exists
+no callee lifetime exists
+no callee governing definition is bound
+no callee call/return episode exists
+normal successful callee completion does not occur
+```
+
+The immediate caller remains the caller and its continuation is not consumed by
+the nonexistent callee. For a workflow-declared invocation, rejection MUST NOT
+silently enable the normal successful post-call continuation.
+
+This invariant defines a semantic admissibility condition. It does not require
+an effect system, capability lattice, bitmask, static compiler pass, graph
+algorithm, theorem prover, runtime token, proof representation, scheduler,
+workflow hash, Rust type, DSL construct, or another concrete implementation or
+formal-model representation.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -3140,7 +3414,7 @@ The following questions are important but are **not yet answered by the product 
 - Whether visibility inside an agentic region should extend beyond explicitly exposed results and TURNLOCK-visible facts relevant to declared progression.
 - Whether multiple sibling/top-level workflows may execute concurrently in one interactive coding-agent session; structured nested invocation is already allowed.
 - Whether implementations impose explicit resource/safety limits on nesting depth, and how such limits are surfaced without changing immediate-caller return semantics.
-- The admissibility of workflow invocation in restricted contexts such as parallel branches, and the treatment of recursive or cyclic workflow call graphs.
+- The concrete representation and analysis mechanism used to establish nested-composition admissibility, including whether a realization uses static analysis, runtime semantic checks, workflow summaries, effect/capability-like metadata, graph analysis, proof artifacts, or another mechanism; `TL-INV-041` specifies the required semantic property rather than choosing that machinery.
 - What security/trust model applies to user-authored workflow code.
 - How a workflow selects models/providers and expresses inference budgets, model parameters, structured outputs, or provider fallbacks for raw LLM calls.
 - How one semantic raw-LLM operation maps to provider requests, retries, streaming, or other physical inference mechanics.

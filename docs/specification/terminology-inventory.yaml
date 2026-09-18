@@ -222,6 +222,13 @@ occurrences:
   role: intent
   fingerprint: 8f2feaf635d22a63f69b464f733e9b453d362d50255eb76903f1257f05e830eb
 - concepts:
+  - nested-workflow-invocation
+  section: 0.10C
+  heading: 0.10C Parallel fan-out may be homogeneous or heterogeneous, including main-agent
+    continuation
+  role: intent
+  fingerprint: 3d987a849ff8402fe54228290bd064b918e30f198b20e36614c35678181ea60b
+- concepts:
   - main-agent
   section: 0.10C
   heading: 0.10C Parallel fan-out may be homogeneous or heterogeneous, including
@@ -275,6 +282,12 @@ occurrences:
   role: intent
   fingerprint: 8f6512b771877bc4b7641e145fbbf0faf0618df081057eae215f45bc06412a49
 - concepts:
+  - nested-workflow-invocation
+  section: 0.13H
+  heading: 0.13H Nested composition preserves applicable admissibility restrictions
+  role: intent
+  fingerprint: d596ede734f5eb1a72f55c7e0db4354183800f4ffb68773f25421d798ea494f4
+- concepts:
   - independent-agent-step
   - main-agent
   - main-agent-step
@@ -282,7 +295,7 @@ occurrences:
   section: '0.14'
   heading: 0.14 Product-intent conformance rule
   role: intent
-  fingerprint: 10b9b5804f8181d104804f8de0b437cdcd9d8a29cb1e2ae715e63d5266e8105c
+  fingerprint: 52c48e1136af52131395c14c8b3379b9e64e26981cf37ca966965a463fe9379f
 - concepts:
   - independent-agent
   - main-agent-handoff
@@ -321,6 +334,12 @@ occurrences:
   role: obligation
   fingerprint: 8e562f757e5bc156b913f0554e98a14c00d7a022d7dfa62557b1d8c7d451f269
 - concepts:
+  - nested-workflow-invocation
+  section: 3.22A
+  heading: "3.22A TL-INV-024 \u2014 Heterogeneous parallel composition invariant"
+  role: obligation
+  fingerprint: cbdfb96803245d1d0b7a55d3f7350e970a624e26aa6d317247810fae70bc8f65
+- concepts:
   - workflow-artifact
   section: '3.32'
   heading: "3.32 TL-INV-034 \u2014 Evaluation/optimization-policy boundary invariant"
@@ -331,4 +350,4 @@ occurrences:
   section: '4'
   heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: 6015c4769602f0ed889599bb76cb050fa8b46f557e1c3f7dafd3aa696d1dbf6e
+  fingerprint: d360d47ddafac070fb92ac278dbfd99bf6d8e47290e94f4839cbbf8233e151d1
