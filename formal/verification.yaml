@@ -454,9 +454,10 @@ invariants:
   adrs:
   - ADR-008
   - ADR-033
+  - ADR-034
   kind: safety+liveness
   formalization: planned
-  formalization_note: The future model must preserve immediate-caller return at every represented recursive/cyclic depth. Repeated workflow identity in an invocation ancestry must not collapse or skip intermediate caller contexts. Any bounded recursion depth used by a model remains a modeling bound rather than a TURNLOCK product limit.
+  formalization_note: The future model must preserve immediate-caller return for workflow-declared, main-agent-selected, and explicitly authorized independent-agent-selected nested invocation, including at every represented recursive/cyclic depth. An admitted IA-selected callee returns to the same independent-agent caller rather than skipping to the parent workflow or session main agent. Repeated workflow identity must not collapse or skip intermediate caller contexts. Any bounded recursion depth used by a model remains a modeling bound rather than a TURNLOCK product limit.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -479,9 +480,10 @@ invariants:
   - ADR-008
   - ADR-014
   - ADR-033
+  - ADR-034
   kind: safety
   formalization: planned
-  formalization_note: A future model must preserve ancestor orchestration and preserved continuations when an invocation ancestry revisits a workflow definition. Repeated workflow identity must not grant a recursive/cyclic descendant authority to rewrite, skip, capture, replace, or implicitly complete an ancestor continuation.
+  formalization_note: A future model must preserve ancestor orchestration and preserved continuations for workflow-declared, main-agent-selected, and explicitly authorized independent-agent-selected nested invocation. An IA-selected callee must not complete, replace, bypass, or rewrite its independent-agent caller or jump directly to the parent workflow or session main agent on normal return. These obligations remain unchanged when invocation ancestry is recursive or cyclic.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -607,13 +609,10 @@ invariants:
   - ADR-011
   - ADR-020
   - ADR-021
+  - ADR-034
   kind: reachability+safety
   formalization: planned
-  formalization_note: A future formalization must represent direct workflow declaration as a positive capability and preserve
-    a fresh distinct lineage, a declared local task, autonomous multi-turn local authority, recognizable normal completion
-    if reached, optional contract output, possible persistent effects, and workflow-owned continuation. It must not treat
-    local autonomy as global orchestration authority, equate boundedness with a concrete resource limit, or assert universal
-    completion. Issue 1 owns property-level obligation classification and any split or rename.
+  formalization_note: A future formalization must preserve a fresh distinct independent-agent lineage, a workflow-declared semantic mission, autonomous multi-turn local authority, recognizable normal completion if reached, optional contract output, possible persistent effects, and workflow-owned continuation. Workflow semantics may explicitly delegate nested-workflow selection/invocation authority as local IA authority; that capability must not be implicit in independent-agent status or technical shell/tool access. The abstraction may permit dynamic callee selection and must not encode universal parent enumeration of exact callee identities as a TURNLOCK Core requirement. Delegated invocation must remain distinct from global orchestration ownership and from composition admissibility. TL-INV-040 separately owns the no-session-main-lineage restriction for IA-selected invocation subtrees. The model must not introduce a generic ACL/RBAC/capability-token system, concrete resource limit, or universal completion guarantee.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -622,6 +621,8 @@ invariants:
     - name: IndependentAgentCanBeWorkflowDeclared
       status: planned
     - name: IndependentAgentHasDistinctLineage
+      status: planned
+    - name: IndependentAgentCanReceiveDelegatedNestedInvocationAuthority
       status: planned
     state_variables: []
     actions: []
@@ -738,20 +739,18 @@ invariants:
   - ADR-012
   - ADR-014
   - ADR-029
+  - ADR-034
   kind: safety
   formalization: planned
-  formalization_note: A future formula must constrain every global control transition to workflow-authorized semantics while
-    permitting runtime results to select among declared continuations and independent agents to exercise declared local
-    authority. Progression after a raw-LLM result or independent-agent normal completion is conditional on that event and
-    does not assert that it universally occurs. The formula must not assert one enabled transition, output, schedule, trace,
-    replay, resource budget, or termination guarantee. The existing planned property name is retained for GitHub Issue 1's
-    property-level review and must not be read as exhaustive.
+  formalization_note: A future formula must constrain every global control transition to workflow-authorized semantics while permitting runtime results to select among declared continuations and independent agents to exercise declared local authority, including explicitly delegated nested-workflow selection/invocation authority. Exercising that delegated authority must not make the independent agent owner of enclosing sequencing, branching, fan-out, synchronization, continuation, or main-agent escalation. Progression after a raw-LLM result or independent-agent normal completion remains conditional on that event and does not assert universal occurrence. TL-INV-040 separately owns the transitive no-session-main-lineage restriction on IA-selected invocation subtrees. The formula must not assert one enabled transition, output, schedule, trace, replay, resource budget, or termination guarantee.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
     module: Turnlock
     properties:
     - name: ProbabilisticLeafCannotOwnGlobalControl
+      status: planned
+    - name: DelegatedIAInvocationDoesNotOwnGlobalControl
       status: planned
     state_variables: []
     actions: []
@@ -769,9 +768,10 @@ invariants:
   - ADR-014
   - ADR-032
   - ADR-033
+  - ADR-034
   kind: capability
   formalization: partial
-  formalization_note: The abstract model can demonstrate composition/reachability of the required execution forms, including main-agent continuation inside workflow-owned parallel topology subject to TL-INV-039 and recursive/cyclic composition through ordinary workflow invocation; it cannot prove universal adequacy for every real workflow. A finite recursion bound in a concrete model is a modeling choice and not a TURNLOCK product recursion limit.
+  formalization_note: The abstract model can demonstrate composition/reachability of the required execution forms, including main-agent continuation inside workflow-owned parallel topology subject to TL-INV-039, recursive/cyclic composition through ordinary workflow invocation, and explicitly delegated independent-agent-selected nested invocation subject to TL-INV-040; it cannot prove universal adequacy for every real workflow. Finite workflow sets or recursion bounds in a concrete model are modeling choices and must not become mandatory parent-enumerated callee whitelists or TURNLOCK product recursion limits.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -1009,6 +1009,34 @@ invariants:
     module: Turnlock
     properties:
     - name: MainLineageNotForkedAcrossUnorderedConcurrentContinuations
+      status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-040
+  title: Independent-agent-selected invocation main-lineage isolation invariant
+  spec_section: '3.38'
+  adrs:
+  - ADR-007
+  - ADR-011
+  - ADR-014
+  - ADR-020
+  - ADR-023
+  - ADR-032
+  - ADR-033
+  - ADR-034
+  kind: safety
+  formalization: planned
+  formalization_note: A future model must ensure that every represented invocation subtree causally rooted in a nested workflow invocation selected by an independent-agent region under explicitly delegated invocation authority cannot transitively reach the coding session's existing main-agent cognitive lineage. The restriction must persist across represented nested calls, workflow-declared calls, conditions, parallel composition, recursion, and cyclic invocation, and must not be reset by another workflow boundary. The abstraction must distinguish this forbidden nested-subtree reachability from a later workflow-owned main-agent continuation selected by the parent after structured return from the IA-selected call or completion of the IA region. The model may use finite workflows or finite depth as modeling bounds but must not select a graph algorithm, theorem prover, effect system, capability lattice, ACL/RBAC mechanism, mandatory exact-callee whitelist, token representation, scheduler, DSL syntax, Rust type, process model, or harness-specific enforcement mechanism as product semantics.
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties:
+    - name: IASelectedInvocationCannotReachSessionMainLineage
       status: planned
     state_variables: []
     actions: []
