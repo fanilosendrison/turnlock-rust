@@ -222,6 +222,13 @@ occurrences:
   role: intent
   fingerprint: 8f2feaf635d22a63f69b464f733e9b453d362d50255eb76903f1257f05e830eb
 - concepts:
+  - main-agent
+  section: 0.10C
+  heading: 0.10C Parallel fan-out may be homogeneous or heterogeneous, including
+    main-agent continuation
+  role: intent
+  fingerprint: 95821c47cd4cbea6e9d1888c2e291d67be94a7081477f96d6c910ab46b7a5c2a
+- concepts:
   - main-agent-step
   section: '0.11'
   heading: 0.11 Session continuity is part of the product value
