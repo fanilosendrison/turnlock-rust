@@ -151,8 +151,10 @@ invariants:
   spec_section: '3.3'
   adrs:
   - ADR-005
-  kind: safety+liveness
+  - ADR-036
+  kind: capability+safety
   formalization: planned
+  formalization_note: HandoffPreservesContinuation is a structural safety obligation and HandoffCanResume is a capability/reachability obligation. Neither property asserts that every main-agent region eventually completes or yields. Recognized completion/yield establishes the workflow-continuation consequence structurally; TL-INV-042 separately owns conditional occurrence-scoped non-starvation once TURNLOCK-owned progression remains continuously enabled and applicable.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -234,16 +236,16 @@ invariants:
   adrs:
   - ADR-006
   - ADR-008
-  kind: safety+liveness
+  - ADR-036
+  kind: capability+safety
   formalization: planned
+  formalization_note: StructuredReturnPath represents the preserved call/return capability and structural return semantics. This invariant does not assert that every invocation eventually completes. Recognized normal completion establishes the required structured return consequence; TL-INV-042 separately owns conditional occurrence-scoped non-starvation of later continuously enabled TURNLOCK-owned progression. No universal completion or fairness premise is introduced here.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
     module: Turnlock
     properties:
     - name: StructuredReturnPath
-      status: planned
-    - name: InvocationEventuallyReturnsUnderFairness
       status: planned
     state_variables: []
     actions: []
@@ -455,17 +457,16 @@ invariants:
   - ADR-008
   - ADR-033
   - ADR-034
-  kind: safety+liveness
+  - ADR-036
+  kind: safety
   formalization: planned
-  formalization_note: The future model must preserve immediate-caller return for workflow-declared, main-agent-selected, and explicitly authorized independent-agent-selected nested invocation, including at every represented recursive/cyclic depth. An admitted IA-selected callee returns to the same independent-agent caller rather than skipping to the parent workflow or session main agent. Repeated workflow identity must not collapse or skip intermediate caller contexts. Any bounded recursion depth used by a model remains a modeling bound rather than a TURNLOCK product limit.
+  formalization_note: The future model must preserve immediate-caller return for workflow-declared, main-agent-selected, and explicitly authorized independent-agent-selected nested invocation, including at every represented recursive/cyclic depth. An admitted IA-selected callee returns to the same independent-agent caller rather than skipping to the parent workflow or session main agent. Repeated workflow identity must not collapse or skip intermediate caller contexts. Normal completion establishes the correct return consequence for that exact occurrence; this invariant does not assert that every nested invocation eventually completes. Any bounded recursion depth used by a model remains a modeling bound rather than a TURNLOCK product limit. TL-INV-042 separately owns conditional occurrence-scoped non-starvation of later continuously enabled TURNLOCK-owned progression.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
     module: Turnlock
     properties:
     - name: ReturnToImmediateCaller
-      status: planned
-    - name: CorrectCallerEventuallyResumesUnderFairness
       status: planned
     state_variables: []
     actions: []
@@ -666,9 +667,10 @@ invariants:
   - ADR-012
   - ADR-013
   - ADR-032
-  kind: safety+liveness
+  - ADR-036
+  kind: capability+safety
   formalization: planned
-  formalization_note: A future model must preserve workflow-owned fan-out/fan-in when a branch contains main-agent continuation. Reaching the main-agent branch must not implicitly suspend independently enabled siblings, and branch completion must not release the join before the declared join requirements hold. Liveness claims remain subject to the separately governed fairness and occurrence semantics.
+  formalization_note: A future model must preserve workflow-owned fan-out/fan-in when a branch contains main-agent continuation. Reaching the main-agent branch must not implicitly suspend independently enabled siblings, and branch completion must not release the join before the declared join requirements hold. Satisfaction of the declared requirements of a join occurrence establishes eligibility of its post-join continuation structurally, but this invariant does not assert that every branch or join requirement eventually completes. TL-INV-042 separately owns conditional occurrence-scoped non-starvation once TURNLOCK-owned progression remains continuously enabled and applicable.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
@@ -677,8 +679,6 @@ invariants:
     - name: NoPrematureJoin
       status: planned
     - name: BranchCompletesAtMostOnce
-      status: planned
-    - name: JoinEventuallyReleasesUnderFairness
       status: planned
     - name: MainAgentHandoffIsBranchLocal
       status: planned
@@ -1072,6 +1072,25 @@ invariants:
       status: planned
     - name: RejectedInvocationCreatesNoCallee
       status: planned
+    state_variables: []
+    actions: []
+    focused_configs: []
+    integrated_configs: []
+  implementation:
+    tests: []
+- id: TL-INV-042
+  title: Conditional orchestration-progress invariant
+  spec_section: '3.40'
+  adrs:
+  - ADR-036
+  kind: liveness
+  formalization: planned
+  formalization_note: "A future model must represent the conditional liveness obligation for each relevant TURNLOCK-owned progression occurrence independently: if a particular occurrence remains continuously enabled and applicable under its governing workflow semantics, TURNLOCK scheduling must not starve that occurrence indefinitely. Progress by another occurrence is not evidence for this obligation. The premise does not assert that an external resource, agentic region, raw-LLM operation, mechanical/external operation, workflow invocation, branch, branch set, or workflow eventually produces the completion/yield/result condition that enables progression. Issue #3 owns the occurrence abstraction and fairness encoding, and Issue #1 owns the property-level verification/evidence metamodel. No runtime identifier, scheduler mechanism, TLA+ property identifier, state variable, action, fairness formula, or configuration is selected before the executable model introduces it."
+  verification: not-yet-modeled
+  tla:
+    mapping_status: pending-model
+    module: Turnlock
+    properties: []
     state_variables: []
     actions: []
     focused_configs: []

@@ -51,6 +51,15 @@ compatibility that cannot be established fails closed before invocation
 acceptance. Workflow invocation may occur inside a parallel or otherwise
 restricted context when that composition is admissible, and runtime scheduling
 must not manufacture compatibility absent from declared workflow semantics.
+ADR-036 separates completion of execution resources from TURNLOCK-owned
+orchestration progress. TURNLOCK does not universally guarantee that execution
+regions, invocations, branches, or workflows complete; once governing semantics
+make a TURNLOCK-owned progression occurrence eligible, however, an occurrence
+that remains continuously eligible and applicable MUST NOT be indefinitely
+starved by TURNLOCK's own scheduling. Completion/yield/return/join satisfaction
+establishes its required control-state consequence structurally, while the
+formal representation of occurrence scope and fairness remains a downstream
+modeling responsibility.
 ADR-015 governs how this normative specification co-evolves with the
 formal TLA+/TLC model and verification manifest.
 
@@ -211,6 +220,12 @@ main-agent step != mandatory subagent replacement
 
 Independent agents are a required TURNLOCK capability, but they remain semantically distinct from a **main-agent step**. A fresh agent intentionally creates a bounded new cognitive lineage; it does not by itself satisfy the continuation semantics of the main agent.
 
+The transition from main-agent-region completion/yield back to workflow-owned
+progression is conditional on that completion/yield actually occurring.
+TURNLOCK does not universally guarantee that a main-agent region eventually
+completes or yields. Once TURNLOCK recognizes completion/yield, the resulting
+workflow-control consequence is established according to Section 0.13I.
+
 ## 0.5 Control handoff is reversible and repeatable
 
 A handoff to the main agent MUST NOT terminate the surrounding workflow.
@@ -288,6 +303,15 @@ Workflow completion MUST therefore have a defined return path to the **immediate
 For top-level workflows, this preserves the original promise that the ordinary interactive session resumes when the workflow ends.
 
 For nested workflows, inner completion returns to the immediate caller. For a workflow-declared invocation, normal completion makes the caller's preserved workflow-declared post-call continuation eligible according to the enclosing topology. For an agent-selected invocation, normal completion resumes the same main-agent region, and the enclosing workflow resumes its own declared continuation only after that main-agent region itself completes.
+
+These return rules are conditional on normal completion; they do not guarantee
+that every invocation eventually completes. At the semantic level, recognized
+normal completion establishes the required immediate-caller return consequence:
+a workflow-declared call makes its preserved post-call continuation eligible
+according to the enclosing topology, while an agent-selected call resumes the
+same immediate caller agent region. TURNLOCK does not gain a separate semantic
+choice to leave a normally completed invocation indefinitely detached from its
+required return consequence.
 
 ## 0.7 Mechanical work must not require agent interpretation
 
@@ -641,6 +665,13 @@ that remain enabled by the declared topology.
 Completion of the main-agent branch does not itself complete the enclosing
 parallel region. The join becomes eligible only according to the workflow's
 declared synchronization semantics.
+
+Satisfaction of the declared join requirements establishes eligibility of the
+declared post-join continuation as a structural consequence of the workflow
+topology. This does not guarantee that every branch eventually completes or
+that the join requirements are eventually satisfied. Once a particular
+TURNLOCK-owned post-join progression remains continuously eligible and
+applicable, Section 0.13I governs its progress.
 
 The same continuing main-agent cognitive lineage MUST NOT be forked across two
 independently concurrent, non-causally-ordered continuations. Runtime scheduling
@@ -1610,6 +1641,68 @@ This contract defines no retry, fallback, catch, abort, cancellation, timeout,
 failure-propagation, resource, effect-system, capability-system, static-analysis,
 graph-analysis, scheduler, DSL, Rust, or runtime-validation mechanism.
 
+## 0.13I TURNLOCK progress is conditional on enabled orchestration, not universal work completion
+
+TURNLOCK distinguishes the production of a completion/yield/result condition
+from orchestration progress after the governing workflow semantics make a
+continuation ready.
+
+TURNLOCK does not universally guarantee that every started execution region,
+workflow invocation, parallel branch, branch set, or workflow eventually
+completes.
+
+When TURNLOCK recognizes an event whose governing semantics establishes a
+control consequence, the semantic state resulting from that control transition
+MUST reflect that consequence.
+
+Representative cases are:
+
+```text
+main-agent region completes/yields
+→ its declared workflow continuation becomes eligible
+
+workflow-declared callee normally completes
+→ its correct immediate caller relationship is restored
+→ the caller's preserved post-call continuation becomes eligible
+
+agent-selected callee normally completes
+→ the same immediate caller agent region resumes
+
+declared join requirements become satisfied
+→ the declared post-join continuation becomes eligible
+```
+
+This structural requirement does not imply implementation-level transaction
+atomicity or select any runtime mechanism.
+
+For every particular TURNLOCK-owned progression occurrence:
+
+```text
+if the occurrence is eligible
+AND remains continuously eligible
+AND remains applicable under the governing workflow semantics
+```
+
+TURNLOCK MUST NOT indefinitely fail to advance that occurrence solely because
+TURNLOCK's own scheduling continues to select other progression.
+
+The obligation is occurrence-scoped. Progress of another invocation,
+continuation, branch, join, or workflow does not satisfy the obligation for the
+continuously enabled occurrence.
+
+If governing workflow semantics later make the occurrence no longer eligible
+or applicable, this conditional progress obligation no longer applies from that
+point.
+
+This guarantee does not assert that an execution resource, region, invocation,
+branch, or workflow eventually produces the completion/yield/result condition
+that would enable later progression.
+
+No weak-fairness formula, strong-fairness formula, scheduler algorithm, timing
+bound, runtime occurrence identifier, retry policy, timeout policy,
+cancellation rule, or failure/recovery mechanism is selected by this semantic
+contract.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -1724,6 +1817,10 @@ still applies to that composition
 an invocation whose required composition compatibility cannot be established is
 silently accepted, serialized, substituted, or otherwise repaired by changing
 the declared workflow meaning
+
+a TURNLOCK-owned progression occurrence can remain continuously eligible and
+applicable indefinitely while TURNLOCK continues progressing other work but
+never advances that occurrence solely because of its own scheduling
 ```
 
 A conforming implementation may use different internal mechanisms per harness, but those mechanisms exist to realize the same control contract.
@@ -2463,6 +2560,12 @@ must be a valid control path.
 
 A main-agent handoff MUST NOT inherently destroy the workflow's ability to resume.
 
+This invariant does not guarantee that every main-agent region eventually
+completes or yields. The valid handoff/resume path and preservation of the
+ability to resume are capability/structural obligations. Once completion/yield
+makes a particular TURNLOCK-owned workflow continuation continuously eligible
+and applicable, `TL-INV-042` owns the conditional non-starvation obligation.
+
 ## 3.4 TL-INV-005 — Repeatable-handoff invariant
 
 A workflow MUST be able to contain more than one main-agent step.
@@ -2498,6 +2601,12 @@ main agent → workflow → main agent
 ```
 
 Entry into workflow execution and return from workflow completion are both first-class transitions. A nested workflow MUST NOT return directly to the root session when its immediate caller is a suspended main-agent region of another workflow.
+
+This invariant does not guarantee that every workflow invocation eventually
+completes. Recognized normal completion establishes the structured return
+consequence required by the invocation semantics. Any later conditional
+non-starvation obligation for a continuously enabled TURNLOCK-owned progression
+occurrence is owned by `TL-INV-042`.
 
 ## 3.8 TL-INV-009 — Main-agent identity/continuity invariant
 
@@ -2640,6 +2749,13 @@ A2 → B1 → A1
 ```
 
 rather than directly from `A2` to `A1`.
+
+This invariant is conditional on normal completion and does not guarantee that a
+nested invocation eventually completes. Normal completion MUST establish the
+return consequence for that exact invocation occurrence and its exact immediate
+caller; progress of another invocation cannot substitute for that return.
+Conditional non-starvation of later continuously enabled TURNLOCK-owned
+progression is owned by `TL-INV-042`.
 
 ## 3.18 TL-INV-019 — Outer-orchestration preservation invariant
 
@@ -2829,6 +2945,13 @@ by the declared topology.
 Completion of one branch, including a main-agent branch, MUST NOT make the
 post-join continuation eligible before the declared join requirements are
 satisfied.
+
+This invariant does not guarantee that every parallel branch or join
+requirement eventually completes. When the declared requirements of a
+particular join occurrence become satisfied, the declared post-join
+continuation becomes eligible according to the workflow topology. Conditional
+non-starvation of that continuously enabled TURNLOCK-owned progression is owned
+by `TL-INV-042`.
 
 ## 3.26 TL-INV-028 — Raw-LLM inference invariant
 
@@ -3386,6 +3509,39 @@ algorithm, theorem prover, runtime token, proof representation, scheduler,
 workflow hash, Rust type, DSL construct, or another concrete implementation or
 formal-model representation.
 
+## 3.40 TL-INV-042 — Conditional orchestration-progress invariant
+
+For every particular TURNLOCK-owned progression occurrence:
+
+```text
+eligible
+AND continuously remains eligible
+AND continuously remains applicable under the governing workflow semantics
+```
+
+implies that TURNLOCK MUST NOT indefinitely fail to advance that occurrence
+solely because TURNLOCK's own scheduling continues to select other progression.
+
+The obligation is occurrence-scoped.
+
+Progress of another invocation, continuation, branch, join, or workflow MUST
+NOT be treated as satisfying the progress obligation of the continuously
+enabled occurrence.
+
+This invariant begins only after the applicable TURNLOCK-owned progression is
+eligible. It does NOT require an execution resource, agentic region, raw-LLM
+operation, mechanical/external operation, workflow invocation, parallel branch,
+branch set, or workflow to eventually produce a completion, yield, result, or
+other enabling condition.
+
+If governing workflow semantics make the occurrence no longer eligible or no
+longer applicable, the conditional progress obligation no longer applies to
+that occurrence from that point.
+
+The invariant selects no fairness formula, scheduler algorithm, scheduling
+priority, timing bound, retry policy, timeout, cancellation behavior, runtime
+occurrence identifier, state representation, or implementation mechanism.
+
 # 4. Current boundaries — intentionally not yet specified
 
 The following questions are important but are **not yet answered by the product discussion** and therefore must not be accidentally frozen as architecture:
@@ -3430,6 +3586,10 @@ The following questions are important but are **not yet answered by the product 
   configuration, or other mechanisms are architecture/implementation choices.
   `TL-INV-038` does not by itself require arbitrary dynamic interception before or
   after every workflow step.
+- The concrete scheduler mechanism, runtime representation of a progression
+  occurrence, and formal WF/SF or other fairness encoding used to realize
+  `TL-INV-042`; the occurrence-scoped conditional non-starvation obligation
+  itself is already fixed.
 
 These are future derivation points. Their solutions must preserve the invariants above.
 
@@ -3692,6 +3852,23 @@ or external determinant replaceable, does not create a general environment
 permission system, and does not move evaluation or optimization policy into
 Core.
 
+## 5.20 Engine scheduling must preserve occurrence-scoped conditional progress
+
+Because `TL-INV-042` forbids TURNLOCK-caused indefinite starvation of a
+particular TURNLOCK-owned progression occurrence that remains continuously
+eligible and applicable, the execution architecture must preserve enough
+progress state to ensure that continued activity elsewhere cannot permanently
+hide or discharge that occurrence's obligation.
+
+This implication requires no particular scheduler, queue, worker topology,
+thread/process model, priority scheme, fairness algorithm, runtime identifier,
+or persistence mechanism.
+
+It also does not require TURNLOCK to make an external resource, agentic region,
+workflow invocation, branch, or workflow eventually complete. The architectural
+obligation begins only after governing semantics make the relevant
+TURNLOCK-owned progression continuously eligible and applicable.
+
 # 6. Non-goals implied by the current product intent
 
 At the current stage, TURNLOCK is not defined as:
@@ -3720,6 +3897,8 @@ At the current stage, TURNLOCK is not defined as:
 - a universal plugin platform in which every TURNLOCK implementation detail is externally replaceable;
 - arbitrary external interception before or after every workflow transition;
 - a guarantee that provider-internal or otherwise opaque external determinants can be controlled.
+- a universal guarantee that every started execution region, workflow
+  invocation, parallel branch, branch set, or workflow eventually completes.
 
 Future features may include some adjacent capabilities, but they must not blur the control model that defines the product.
 
@@ -3942,8 +4121,14 @@ timeout, termination guarantee, or fairness premise.
 Safety and liveness are distinct obligations. For example:
 
 ```text
-safety:  a nested workflow never resumes the wrong caller
-liveness: under the required fairness assumptions, a normally completable nested workflow eventually resumes the correct caller
+safety:  normal completion of a nested workflow never restores the wrong caller
+liveness: a TURNLOCK-owned progression occurrence that remains continuously enabled and applicable is not indefinitely starved by TURNLOCK
 ```
+
+The liveness obligation does not assert that the event or execution resource
+which would enable the progression eventually completes. The concrete
+occurrence representation and fairness formula used to encode the obligation
+belong to the formal model and MUST NOT strengthen the normative product
+promise.
 
 Not every product invariant is necessarily expressible or useful as TLA+. DX and semantic-quality requirements may be explicitly marked `not-applicable`; state, ordering, ownership, lifecycle, nesting, concurrency, synchronization, and progress rules are strong formalization candidates.
