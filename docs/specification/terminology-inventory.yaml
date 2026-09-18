@@ -301,7 +301,7 @@ occurrences:
   section: '0.14'
   heading: 0.14 Product-intent conformance rule
   role: intent
-  fingerprint: 141a49944cadb8ab55a0b8af8f032ee14aaf4c151b74f96889f47ace39130c33
+  fingerprint: 60d7c15422e2f401d7af0747bc73977ff40c4a43612f92a437054dbbaef365d5
 - concepts:
   - independent-agent
   - main-agent-handoff

@@ -1083,9 +1083,10 @@ invariants:
   spec_section: '3.40'
   adrs:
   - ADR-036
+  - ADR-037
   kind: liveness
   formalization: planned
-  formalization_note: "A future model must represent the conditional liveness obligation for each relevant TURNLOCK-owned progression occurrence independently: if a particular occurrence remains continuously enabled and applicable under its governing workflow semantics, TURNLOCK scheduling must not starve that occurrence indefinitely. Progress by another occurrence is not evidence for this obligation. The premise does not assert that an external resource, agentic region, raw-LLM operation, mechanical/external operation, workflow invocation, branch, branch set, or workflow eventually produces the completion/yield/result condition that enables progression. Issue #3 owns the occurrence abstraction and fairness encoding, and Issue #1 owns the property-level verification/evidence metamodel. No runtime identifier, scheduler mechanism, TLA+ property identifier, state variable, action, fairness formula, or configuration is selected before the executable model introduces it."
+  formalization_note: "A future model must represent the conditional liveness obligation for each relevant TURNLOCK-owned progression occurrence independently: if a particular occurrence remains continuously enabled and applicable under its governing workflow semantics, TURNLOCK must eventually advance that same occurrence. Progress by another occurrence is not evidence for this obligation, and no competing progression or scheduler-choice cause is required: indefinite non-advancement while the premise remains continuously true violates TL-INV-042 even if TURNLOCK performs no other progression. The premise does not assert that an external resource, agentic region, raw-LLM operation, mechanical/external operation, workflow invocation, branch, branch set, or workflow eventually produces the completion/yield/result condition that enables progression. Issue #3 owns the occurrence abstraction and fairness encoding, and Issue #1 owns the property-level verification/evidence metamodel. No runtime identifier, scheduler mechanism, TLA+ property identifier, state variable, action, fairness formula, or configuration is selected before the executable model introduces it."
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model

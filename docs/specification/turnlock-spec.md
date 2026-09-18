@@ -60,6 +60,14 @@ starved by TURNLOCK's own scheduling. Completion/yield/return/join satisfaction
 establishes its required control-state consequence structurally, while the
 formal representation of occurrence scope and fairness remains a downstream
 modeling responsibility.
+ADR-037 amends ADR-036's conditional progress obligation by removing the
+competing-progress/scheduling-cause qualifier. For every particular
+TURNLOCK-owned progression occurrence that remains continuously eligible and
+applicable under its governing workflow semantics, TURNLOCK MUST eventually
+advance that same occurrence. The obligation applies whether TURNLOCK is
+progressing other work or no other work; conformance does not depend on
+classifying the cause of delay. This amendment does not add a universal
+completion, crash-recovery, or durability guarantee.
 ADR-015 governs how this normative specification co-evolves with the
 formal TLA+/TLC model and verification manifest.
 
@@ -1683,8 +1691,14 @@ AND remains continuously eligible
 AND remains applicable under the governing workflow semantics
 ```
 
-TURNLOCK MUST NOT indefinitely fail to advance that occurrence solely because
-TURNLOCK's own scheduling continues to select other progression.
+TURNLOCK MUST eventually advance that occurrence.
+
+This obligation does not depend on whether TURNLOCK is simultaneously advancing
+other occurrences. A behavior in which the occurrence remains continuously
+eligible and applicable indefinitely but is never advanced is non-conforming,
+including a behavior in which TURNLOCK performs no other progression.
+Conformance does not require a causal classification of why the occurrence was
+not advanced.
 
 The obligation is occurrence-scoped. Progress of another invocation,
 continuation, branch, join, or workflow does not satisfy the obligation for the
@@ -1819,8 +1833,7 @@ silently accepted, serialized, substituted, or otherwise repaired by changing
 the declared workflow meaning
 
 a TURNLOCK-owned progression occurrence can remain continuously eligible and
-applicable indefinitely while TURNLOCK continues progressing other work but
-never advances that occurrence solely because of its own scheduling
+applicable indefinitely while TURNLOCK never advances that occurrence
 ```
 
 A conforming implementation may use different internal mechanisms per harness, but those mechanisms exist to realize the same control contract.
@@ -3519,8 +3532,12 @@ AND continuously remains eligible
 AND continuously remains applicable under the governing workflow semantics
 ```
 
-implies that TURNLOCK MUST NOT indefinitely fail to advance that occurrence
-solely because TURNLOCK's own scheduling continues to select other progression.
+implies that TURNLOCK MUST eventually advance that occurrence.
+
+No competing progression or scheduler preference is required for this
+obligation. A behavior in which that occurrence remains continuously eligible
+and applicable indefinitely but is never advanced violates this invariant even
+when TURNLOCK performs no other progression.
 
 The obligation is occurrence-scoped.
 
@@ -3854,11 +3871,12 @@ Core.
 
 ## 5.20 Engine scheduling must preserve occurrence-scoped conditional progress
 
-Because `TL-INV-042` forbids TURNLOCK-caused indefinite starvation of a
-particular TURNLOCK-owned progression occurrence that remains continuously
-eligible and applicable, the execution architecture must preserve enough
-progress state to ensure that continued activity elsewhere cannot permanently
-hide or discharge that occurrence's obligation.
+Because `TL-INV-042` requires eventual advance of every particular
+TURNLOCK-owned progression occurrence that remains continuously eligible and
+applicable, the execution architecture must preserve enough progress state to
+ensure that such an occurrence cannot remain unadvanced indefinitely. This
+applies both when TURNLOCK continues other activity and when no competing
+progression is selected.
 
 This implication requires no particular scheduler, queue, worker topology,
 thread/process model, priority scheme, fairness algorithm, runtime identifier,
@@ -4122,7 +4140,7 @@ Safety and liveness are distinct obligations. For example:
 
 ```text
 safety:  normal completion of a nested workflow never restores the wrong caller
-liveness: a TURNLOCK-owned progression occurrence that remains continuously enabled and applicable is not indefinitely starved by TURNLOCK
+liveness: a TURNLOCK-owned progression occurrence that remains continuously enabled and applicable is eventually advanced by TURNLOCK
 ```
 
 The liveness obligation does not assert that the event or execution resource
@@ -4130,5 +4148,9 @@ which would enable the progression eventually completes. The concrete
 occurrence representation and fairness formula used to encode the obligation
 belong to the formal model and MUST NOT strengthen the normative product
 promise.
+
+The obligation does not require competing progression or a scheduler-choice
+cause: an indefinitely enabled and applicable occurrence that is never advanced
+violates the product contract even if TURNLOCK performs no other progression.
 
 Not every product invariant is necessarily expressible or useful as TLA+. DX and semantic-quality requirements may be explicitly marked `not-applicable`; state, ordering, ownership, lifecycle, nesting, concurrency, synchronization, and progress rules are strong formalization candidates.

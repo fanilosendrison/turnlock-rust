@@ -52,7 +52,7 @@ Current executable formal-model status: **not-yet-introduced**. No `checked` cla
 | `TL-INV-039` | Main-agent concurrent-lineage non-forkability invariant | safety | planned | pending-model | `MainLineageNotForkedAcrossUnorderedConcurrentContinuations` | — | — | not-yet-modeled | ADR-007, ADR-013, ADR-032 |
 | `TL-INV-040` | Independent-agent-selected invocation main-lineage isolation invariant | safety | planned | pending-model | `IASelectedInvocationCannotReachSessionMainLineage` | — | — | not-yet-modeled | ADR-007, ADR-011, ADR-014, ADR-020, ADR-023, ADR-032, ADR-033, ADR-034 |
 | `TL-INV-041` | Nested-composition admissibility-closure invariant | safety | planned | pending-model | `NestedInvocationRequiresAdmissibleComposition`, `ApplicableRestrictionsPersistAcrossNestedAdmission`, `UnestablishedCompatibilityRejectsInvocation`, `RejectedInvocationCreatesNoCallee` | — | — | not-yet-modeled | ADR-008, ADR-013, ADR-014, ADR-022, ADR-023, ADR-027, ADR-032, ADR-033, ADR-034, ADR-035 |
-| `TL-INV-042` | Conditional orchestration-progress invariant | liveness | planned | pending-model | — | — | — | not-yet-modeled | ADR-036 |
+| `TL-INV-042` | Conditional orchestration-progress invariant | liveness | planned | pending-model | — | — | — | not-yet-modeled | ADR-036, ADR-037 |
 
 ## Reverse traceability
 
