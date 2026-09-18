@@ -1936,6 +1936,7 @@ prose:
 | `workflow-owned-control` | `workflow-owned control` | [`term-workflow-owned-control`](#term-workflow-owned-control) | `the workflow owns orchestration`; `workflow owns global progression` | `deterministic orchestration` | compound |
 | `parallel-fan-out-fan-in` | `parallel fan-out/fan-in` | [`term-parallel-fan-out-fan-in`](#term-parallel-fan-out-fan-in) | `fan-out/fan-in`; `parallel region` | — | compound |
 | `nested-workflow-invocation` | `nested workflow invocation` | [`term-nested-workflow-invocation`](#term-nested-workflow-invocation) | `nested invocation` | — | compound |
+| `nested-composition-admissibility` | `nested-composition admissibility` | [`term-nested-composition-admissibility`](#term-nested-composition-admissibility) | — | — | compound |
 | `execution-inspectability` | `execution inspectability` | [`term-execution-inspectability`](#term-execution-inspectability) | `completed-execution inspectability` | — | compound |
 | `effective-execution-condition-provenance` | `effective execution-condition provenance` | [`term-effective-execution-condition-provenance`](#term-effective-execution-condition-provenance) | — | — | compound |
 | `realizable-semantic-boundary-capture-handoff` | `realizable semantic-boundary capture handoff` | [`term-realizable-semantic-boundary-capture-handoff`](#term-realizable-semantic-boundary-capture-handoff) | — | — | compound |

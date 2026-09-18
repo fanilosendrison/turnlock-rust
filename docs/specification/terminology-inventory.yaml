@@ -130,6 +130,12 @@ occurrences:
   role: canonical-definition
   fingerprint: 59d2c236381fda3717b37ad5a8bb74f495ae08412886082010480c7bdc45e5e5
 - concepts:
+  - nested-composition-admissibility
+  section: 2.8A
+  heading: 2.8A Nested-composition admissibility
+  role: canonical-definition
+  fingerprint: 6752d0a424c8a9ff93df1516d2e6061512ba00de0aaa060d8c1a4b6256c19036
+- concepts:
   - execution-inspectability
   section: '2.9'
   heading: 2.9 Execution inspectability
