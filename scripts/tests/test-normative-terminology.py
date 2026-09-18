@@ -118,6 +118,16 @@ def inventory_for(specification: str) -> dict:
     }
 
 
+def spec_with_unregistered_canonical_anchor() -> str:
+    return SPEC.replace(
+        "# 3. Obligations",
+        '<a id="term-gamma"></a>\n\n'
+        "A **gamma** is an unregistered canonical concept.\n\n"
+        "# 3. Obligations",
+        1,
+    )
+
+
 class NormativeTerminologyTests(unittest.TestCase):
     def test_repository_conforms(self) -> None:
         self.assertEqual([], checker.check_paths())
@@ -151,6 +161,45 @@ class NormativeTerminologyTests(unittest.TestCase):
         duplicated = SPEC.replace(anchor, f"{anchor}\n\n{anchor}", 1)
         errors = checker.check_document(duplicated, GOLDEN_INVENTORY)
         self.assertTrue(any("occurs more than once" in error for error in errors))
+
+    def test_unregistered_canonical_anchor_is_rejected(self) -> None:
+        errors = checker.check_document(
+            spec_with_unregistered_canonical_anchor(),
+            GOLDEN_INVENTORY,
+        )
+        self.assertIn(
+            "canonical terminology anchor is not registered: term-gamma",
+            errors,
+        )
+
+    def test_list_occurrences_rejects_unregistered_canonical_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            spec_path = Path(directory) / "spec.md"
+            spec_path.write_text(
+                spec_with_unregistered_canonical_anchor(),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(CHECKER_PATH),
+                    "--spec",
+                    str(spec_path),
+                    "--list-occurrences",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        combined = result.stdout + result.stderr
+        self.assertEqual(1, result.returncode)
+        self.assertNotIn("Traceback", combined)
+        self.assertIn(
+            "canonical terminology anchor is not registered: term-gamma",
+            result.stderr,
+        )
 
     def test_malformed_occurrence_collection_fails_without_traceback(self) -> None:
         malformed = {**GOLDEN_INVENTORY, "occurrences": None}
