@@ -29,6 +29,12 @@ concurrent topology while prohibiting the same continuing main-agent cognitive
 lineage from forking across independently concurrent, non-causally-ordered
 continuations. Declared causal ordering or established mutual exclusion may
 permit repeated uses, but runtime scheduling cannot manufacture that ordering.
+ADR-033 permits direct recursive workflow invocation and cyclic workflow call
+graphs under ordinary invocation semantics. Every recursive/cyclic occurrence
+remains a distinct invocation with structured immediate-caller return and its
+own governing-definition binding; recursion creates neither new invocation
+authority nor an admissibility escape, termination guarantee, or product-level
+depth/resource limit.
 ADR-015 governs how this normative specification co-evolves with the
 formal TLA+/TLC model and verification manifest.
 
@@ -1241,6 +1247,120 @@ that lineage with a fresh agent and claim equivalent TURNLOCK semantics.
 This requirement selects no plugin, hook, callback, dependency-injection, IPC,
 resource-registry, process, library, or other concrete extension mechanism.
 
+## 0.13G Recursive and cyclic workflow invocation uses ordinary invocation semantics
+
+TURNLOCK permits direct recursive workflow invocation and cyclic workflow call
+graphs.
+
+A workflow invocation may therefore target a workflow already represented among
+its invocation ancestors when that invocation is otherwise authorized and
+admissible.
+
+For example:
+
+```text
+direct recursion:
+
+A1
+↓
+A2
+````
+
+and:
+
+```text
+indirect recursion:
+
+A1
+↓
+B1
+↓
+A2
+```
+
+are permitted invocation structures.
+
+Repeated workflow identity does not collapse invocation identity. `A1` and `A2`
+are distinct invocation occurrences even when they resolve to definitions of the
+same workflow artifact.
+
+Each accepted occurrence retains the ordinary invocation contract:
+
+```text
+immediate caller
+preserved return-bearing continuation
+acceptance boundary
+governing workflow definition
+invocation lifetime
+```
+
+Normal completion returns one structured caller boundary at a time. For example:
+
+```text
+A1
+↓
+B1
+↓
+A2
+↓
+B1
+↓
+A1
+```
+
+A recursive/cyclic callee does not skip its immediate caller merely because a
+workflow identity repeats elsewhere in the ancestry.
+
+Each occurrence independently determines its governing workflow definition no
+later than its own acceptance. A later recursive occurrence may therefore bind
+a definition different from an active ancestor when the applicable
+workflow-resolution semantics select that definition. The ancestor continues
+under its own already-bound stable governing definition.
+
+For example:
+
+```text
+artifact A = D1
+
+accept A1
+→ governingDefinition(A1) = D1
+
+artifact A changes:
+D1 → D2
+
+A1 later invokes A
+
+accept A2
+→ governingDefinition(A2) may be D2
+
+A2 completes
+→ A1 resumes under D1
+```
+
+A new recursive invocation binding is not active replanning or active rebinding
+of its caller.
+
+Permission for recursive/cyclic topology does not itself grant invocation
+authority. Every attempted invocation remains subject to the invocation
+decision-owner and authority rules applicable to its calling context.
+
+Likewise, crossing a recursive or cyclic edge does not reset, erase, widen, or
+bypass restrictions applicable to the invocation context. The general
+transitive composition-admissibility contract remains separately governed.
+
+A cyclic workflow-definition call graph does not imply infinite concrete
+execution, and permitting recursion does not guarantee eventual termination.
+
+Root invocation acceptance does not require infinite expansion, pre-resolution,
+or proof of the complete future recursive call tree. Later invocation
+occurrences retain their own resolution, authority, admissibility, and
+acceptance boundaries.
+
+These semantics introduce no product-level recursion-depth limit, unbounded
+resource guarantee, cycle detector, termination proof, retry rule, timeout rule,
+cancellation rule, failure-propagation rule, crash-recovery rule, stack
+representation, workflow-version resolution rule, or implementation mechanism.
+
 ## 0.14 Product-intent conformance rule
 
 A proposed design or implementation is not product-conformant if ordinary use requires any of the following to preserve workflow correctness:
@@ -2160,9 +2280,26 @@ Entering workflow-owned execution MUST NOT make the session's TURNLOCK workflow 
 
 ## 3.16 TL-INV-017 — Nested-invocation invariant
 
-A main-agent region MAY invoke another TURNLOCK workflow. Nested invocation suspends the immediate caller and begins a distinct workflow execution; it MUST NOT discard, replace, or implicitly complete the caller.
+A main-agent region MAY invoke another TURNLOCK workflow. Nested invocation
+suspends the immediate caller and begins a distinct workflow execution; it MUST
+NOT discard, replace, or implicitly complete the caller.
 
-The semantic model MUST NOT assume nesting depth is limited to one level. Any future resource or safety limit on nesting must be explicit and must preserve structured caller semantics for every accepted invocation.
+Nested invocation MAY revisit a workflow already represented among the current
+invocation's ancestors. Direct recursion and cyclic workflow-definition call
+graphs MUST NOT be rejected merely because the callee workflow identity equals
+or reaches an ancestor workflow identity.
+
+Each accepted nested occurrence remains a distinct invocation. Repeated workflow
+identity MUST NOT collapse two invocation occurrences into one invocation.
+
+The semantic model MUST NOT assume nesting depth is limited to one level or that
+the workflow-definition call graph is acyclic. Any finite bound used by a formal
+model, implementation, harness, profile, or execution environment MUST NOT be
+presented as a product-level recursion-depth invariant unless separately
+accepted as such.
+
+Any future resource or safety limit on nesting must be explicit and must preserve
+structured caller semantics for every invocation that is accepted.
 
 ## 3.17 TL-INV-018 — Immediate-caller return invariant
 
@@ -2170,15 +2307,51 @@ For every normally completed nested workflow:
 
 ```text
 caller context → nested workflow → same caller context
+````
+
+The workflow MUST return to the context that invoked it, not unconditionally to
+the root main-agent session.
+
+This requirement applies unchanged to recursive and cyclic invocation chains.
+Repeated workflow identity in the ancestry MUST NOT collapse, skip, or bypass an
+intermediate caller boundary.
+
+For example:
+
+```text
+A1 → B1 → A2
 ```
 
-The workflow MUST return to the context that invoked it, not unconditionally to the root main-agent session.
+returns on normal completion through:
+
+```text
+A2 → B1 → A1
+```
+
+rather than directly from `A2` to `A1`.
 
 ## 3.18 TL-INV-019 — Outer-orchestration preservation invariant
 
-Invoking a nested workflow from a main-agent region does not transfer orchestration authority over the enclosing workflow to the main agent or to the nested workflow.
+Invoking a nested workflow does not transfer orchestration authority over an
+enclosing workflow to the nested workflow or to an execution resource that
+selected an otherwise authorized invocation.
 
-Each workflow owns its own declared progression. When the nested workflow returns, the main-agent region that invoked it resumes; when that region later completes, the enclosing workflow resumes at its own declared continuation.
+Each workflow invocation owns only its own declared progression. The nested
+callee MUST NOT replace, rewrite, capture, skip, or implicitly complete an
+ancestor invocation's preserved continuation or declared progression.
+
+For a nested invocation selected from a main-agent region, normal return resumes
+that same main-agent caller region; when the region later completes, the
+enclosing workflow resumes its own declared continuation according to the
+ordinary handoff semantics.
+
+For a workflow-declared invocation, normal return makes the preserved
+workflow-declared post-call continuation eligible for the same immediate caller
+according to the ordinary declared-invocation semantics.
+
+These rules apply unchanged when the invocation ancestry is recursive or cyclic.
+Repeated workflow identity does not grant a descendant occurrence authority over
+an ancestor occurrence.
 
 ## 3.19 TL-INV-020 — Same-artifact authoring invariant
 
@@ -2356,8 +2529,13 @@ raw LLM inference
 independent-agent execution
 main-agent continuation
 nested workflow invocation
+recursive and cyclic composition through ordinary workflow invocation
 structured return to caller
 ```
+
+Recursive/cyclic composition does not require a separate recursive-call
+primitive. It is ordinary workflow invocation whose target may equal or reach a
+workflow already represented among the invocation ancestors.
 
 This invariant does not require a large primitive catalog. TURNLOCK SHOULD prefer a small set of orthogonal primitives capable of expressing this space over a collection of domain-specific commands.
 
@@ -2448,7 +2626,7 @@ For an admitted declared invocation:
 
 ```text
 caller context → declared invocation of callee → same caller context
-```
+````
 
 The caller context preserves its call continuation, and the calling continuation
 is suspended with respect to that invocation; the continuation is not itself the
@@ -2465,8 +2643,24 @@ Suspension is local to the calling continuation. A declared invocation MUST NOT
 be interpreted as implicitly suspending concurrently active contexts that the
 declared topology permits to continue.
 
-This invariant does not decide recursion, cyclic call graphs, restricted
-placement admissibility, or concrete depth and resource limits.
+A workflow-declared invocation MAY target a workflow already represented among
+its invocation ancestors. Direct recursion, mutual recursion, and longer cyclic
+workflow-definition call graphs are therefore permitted when each individual
+invocation is otherwise authorized and admissible.
+
+Every recursive/cyclic declared call creates an ordinary distinct invocation
+occurrence. Repeated workflow identity MUST NOT collapse the caller and callee
+into one invocation or mutate an active ancestor invocation.
+
+Recursive/cyclic permission does not itself grant invocation authority, does not
+reset or widen applicable restrictions, does not require root-wide expansion of
+future recursive calls, and does not establish any termination, concrete depth,
+or resource guarantee.
+
+This invariant does not decide restricted placement admissibility, the general
+transitive composition-admissibility algorithm, concrete depth/resource limits,
+failure behavior, retry behavior, timeout behavior, cancellation behavior,
+workflow-reference resolution semantics, or any implementation mechanism.
 
 ## 3.34 TL-INV-036 — Effective execution-condition provenance invariant
 
@@ -2571,9 +2765,17 @@ invocation and MUST NOT be replaced, rebound, rewritten, replanned, or altered
 merely because the workflow source artifact is subsequently edited.
 
 Every accepted nested invocation establishes its own governing workflow
-definition. The governing definition of its caller MUST NOT, by itself,
-transitively determine or freeze the callee's governing definition before the
-callee invocation is accepted.
+definition. This rule applies independently to recursive and cyclic invocation
+occurrences: a descendant occurrence that targets the same workflow as an active
+ancestor remains a distinct invocation and independently establishes its own
+governing definition no later than its own acceptance.
+
+The governing definition of a caller MUST NOT, by itself, transitively determine
+or freeze a callee's governing definition before that callee invocation is
+accepted. A recursive descendant may therefore bind a different governing
+definition from an active ancestor when the applicable workflow-resolution
+semantics select that definition. The ancestor's governing definition remains
+unchanged for the ancestor's lifetime.
 
 Ordinary artifact editing and source-artifact self-authoring do not constitute
 an operation that mutates the governing definition of an active invocation.
