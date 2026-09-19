@@ -1,6 +1,31 @@
-# TURNLOCK formal specification
+# TURNLOCK formal assurance
 
-This directory documents how the normative TURNLOCK specification is connected to formal verification artifacts. The governing decision is [ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md).
+This directory documents how the normative TURNLOCK specification is connected
+to formal-assurance artifacts. The governing decisions are
+[ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md)
+and
+[ADR-041](../adr/adr-041-establish-turnlock-formal-assurance-architecture.md).
+
+## Architecture
+
+```text
+normative authority
+├─ assurance decomposition → TL-CLAIM
+└─ semantic formalization → candidate/canonical formal semantics
+
+TL-CLAIM
+↔ hostile-reviewed backend correspondence
+↔ actual formal realization
+
+mechanical verifier
+→ bounded evidence
+→ bounded assurance conclusion
+```
+
+Normative product meaning remains `docs/specification/turnlock-spec.md` together
+with accepted ADRs. `formal/verification.yaml` is the canonical machine-readable
+formal-assurance and traceability graph. It is not product semantics, not the
+canonical formal semantics, and not verification evidence.
 
 ## Artifact roles
 
@@ -9,77 +34,91 @@ docs/specification/turnlock-spec.md
 = normative product meaning
 
 formal/verification.yaml
-= machine-readable desired traceability and verification coverage
+= formal-assurance graph: required assurance claims, normative coverage,
+  residual assurance, domain bindings, review requirements, evidence contracts
 
-formal/Turnlock.tla
-= executable abstract state-machine model at the manifest-governed path
+formal/verification.schema.json
+= schema for that graph
 
-formal/models/focused/*.cfg
-= targeted TLC exploration of the shared model
-
-formal/models/integrated/*.cfg
-= cross-feature TLC exploration of the shared model
+formal/reviews/*
+= durable hostile semantic-review evidence for exact reviewed artifacts
 
 formal/results/*
-= machine-readable evidence of actual TLC runs
+= concrete mechanism-specific bounded mechanical evidence
 
-formal/tlc-result.schema.json
-= schema for those run-evidence records
+formal/migrations/*
+= historical migration evidence
+
+formal/Turnlock.tla
+= future candidate canonical formal semantic representation (not yet present)
 
 docs/formal/invariant-mapping.md
-= generated human-readable forward + reverse traceability view
+= generated human-readable projection of the assurance graph
 ```
 
-The TLA+ model complements the normative prose; it does not replace it.
+## Formalization versus projection
 
-## Full traceability
+Formalization maps normative natural-language semantics to a formal semantic
+representation. It is a reviewed non-mechanical boundary, not a mechanical
+derivation.
 
-The intended chain is:
+A formal semantic projection exists only between formal semantic
+representations, and its soundness is claim-relative or observation-relative.
+A global `equivalent`, `over-approximation`, or `under-approximation` label is
+not valid beyond the observations for which the relation is justified. Liveness
+requires an explicit preservation argument; projection direction alone does not
+establish it.
 
-```text
-product invariant ID
-→ governing ADR(s)
-→ TLA+ module/property
-→ TLA+ state variables and actions/transitions
-→ TLC focused/integrated configs
-→ actual TLC run evidence for a concrete commit + finite bounds
-→ later implementation/conformance tests
-```
+Verification restriction or instantiation selects and bounds what a focused
+checker configuration explores. It is not a new semantics. Independent
+formalization is a separately authored formal model used for
+semantic-interpretation diversity.
 
-The mapping is also intended to work in reverse so a change to a TLA+ property, state variable, or action can identify potentially affected product invariants.
+## Readiness gates
 
-Machine-readable referential integrity is not semantic proof: tooling can verify that `TL-INV-018` points to an existing operator, but human/formal review must still establish that the operator faithfully represents the prose invariant.
+- **Gate A — Formal-Architecture-Ready** authorizes authoring a candidate
+  executable formal model. It requires the accepted assurance architecture, a
+  valid metamodel, coverage for every `TL-INV-*`, claims and modalities for the
+  candidate scope, explicit residual assurance, an explicit scope, interaction
+  closure or justified exclusions, a hostile-review protocol, discovery routing,
+  and repository integrity. It requires no checker evidence.
+- **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
+  artifact/version to the current canonical formal semantics after hostile
+  semantic review, disposition of every material finding, re-review of changed
+  boundaries, and non-vacuity or semantic-adequacy witnesses.
+- **Gate C — Formal-Verification-Ready** authorizes checker executions to
+  support assurance claims after real backend bindings and hostile
+  claim/property correspondence review, with adequate profiles, explicit bounds,
+  exact artifact identity, and evidence-lifting rules.
 
-## Reading current status
+The current Gate A state is **BLOCKED** only because the required hostile
+`assurance-decomposition` review campaign over the exact current
+`formal/verification.yaml` has not yet been recorded, not because the metamodel
+is incomplete. `scripts/check-formal-traceability.py` derives this state from
+repository artifacts and review evidence rather than from a stored status.
 
-Current formal-model and intended verification state is owned by `formal/verification.yaml`. Actual bounded verification evidence is owned by the records under `formal/results/`. Cross-artifact consistency, including lifecycle state against the filesystem, is enforced by `scripts/check-formal-traceability.py`.
+## Hostile review is first-class evidence, not proof
 
-This README does not mirror those mutable values.
-
-## Focused and integrated exploration
-
-Focused configurations are intended for fast diagnosis and iteration. Integrated configurations are required to preserve cross-feature verification. Focused checks never substitute for an integrated model.
-
-Integrated profile names, paths, lifecycle state, intents, and the default
-semantic-change check set are owned by `formal/verification.yaml` and projected
-mechanically in `docs/formal/invariant-mapping.md`.
-
-## Finite bounds and temporal properties
-
-TLC cannot exhaust an unbounded real-world TURNLOCK system. An integrated
-configuration means all currently formalized mechanisms are connected in one
-abstract model and explored exhaustively within explicit finite bounds. A finite
-state-space domain or bound is a modeling choice; it is not a TURNLOCK runtime
-limit on turns, tokens, tools, cost, time, retries, or context, and it does not
-establish eventual completion. Safety and liveness are separate obligations
-where both matter.
+Hostile semantic review is a first-class assurance mechanism with durable
+evidence under `formal/reviews/`. It is adversarial falsification, not majority
+voting: one surviving valid material objection blocks acceptance of the reviewed
+semantic link regardless of how many reviewers approved. Review evidence never
+constitutes mathematical proof of natural-language/formal equivalence; the
+strongest valid conclusion is bounded reviewed semantic correspondence under the
+executed review protocol. Review evidence is distinct from mechanical checker
+evidence.
 
 ## Generated mapping
 
-`invariant-mapping.md` is generated from `formal/verification.yaml`:
+`invariant-mapping.md` is generated from `formal/verification.yaml` and current
+repository evidence:
 
 ```bash
-python scripts/render-formal-mapping.py
+.venv/bin/python scripts/render-formal-mapping.py
 ```
 
-`python scripts/check-formal-traceability.py` validates the current cross-artifact consistency rules and becomes stricter automatically once mappings move from planned to modeled/checked.
+`scripts/check-formal-traceability.py` validates cross-artifact consistency,
+review-evidence integrity, legacy migration totals, and generated-projection
+freshness. Machine-readable linkage validates traceability consistency; it does
+not prove that a future TLA+ formula faithfully captures the prose meaning.
+Semantic correspondence remains a hostile-review obligation.

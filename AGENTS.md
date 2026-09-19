@@ -48,27 +48,36 @@ Use each source only for the responsibility it owns:
    the stable `TL-INV-NNN` invariants.
 2. Accepted ADRs under `docs/adr/` record decision history and later
    amendments.
-3. `formal/verification.yaml` defines intended formal traceability and coverage;
-   it is not verification evidence.
-4. The future executable model under `formal/` will define the checked abstract
-   formulas for its declared scope without replacing normative prose.
-5. Records under `formal/results/` are authoritative only for the bounded TLC
-   runs they identify.
-6. Generated mappings, generated indexes, README files, and other explanatory
+3. `formal/verification.yaml` is the canonical machine-readable
+   formal-assurance and traceability graph. It owns normative provenance,
+   required assurance claims, assurance domains and modalities, formal
+   coverage, residual assurance, domain bindings, review requirements, and
+   evidence contracts. It is not product semantics, not canonical formal
+   semantics, and not verification evidence.
+4. An accepted canonical formal semantic representation under `formal/`
+   (initially the integrated TLA+ semantics after Gate B) defines the checked
+   abstract mathematical semantics for its declared domain and scope. It is
+   not normative product authority.
+5. `formal/reviews/` records durable hostile semantic-review evidence for exact
+   reviewed artifacts. It is not mathematical proof of natural-language to
+   formal equivalence.
+6. Records under `formal/results/` are concrete mechanism-specific bounded
+   verification evidence, authoritative only for the exact runs they identify.
+7. Generated mappings, generated indexes, README files, and other explanatory
    projections do not create product semantics, formal-verification claims, or
    independent mutable repository state. Mutable derived repository facts in
    those artifacts must follow
    `docs/repository-governance/turnlock-rust-projection-integrity.md`.
-7. `docs/specification/terminology-inventory.yaml` records reviewed lexical
+8. `docs/specification/terminology-inventory.yaml` records reviewed lexical
    candidates and fingerprints only. It is not a glossary or semantic authority;
    Section 2 of the normative specification owns canonical terminology.
-8. `docs/repository-governance/turnlock-rust-discovery-classification.md`
+9. `docs/repository-governance/turnlock-rust-discovery-classification.md`
    binds the shared procedural classification of material discoveries to this
    repository; it creates no product semantics, accepted decision, or
    formal-verification evidence.
-9. `docs/vision/turnlock-vision.md` explains non-normative motivation and
-   long-term direction; it never overrides the specification, ADRs, or formal
-   governance.
+10. `docs/vision/turnlock-vision.md` explains non-normative motivation and
+    long-term direction; it never overrides the specification, ADRs, or formal
+    governance.
 
 Report every inconsistency between authoritative sources. Do not silently select
 a convenient interpretation. Resolve a semantic conflict through an explicit
@@ -262,21 +271,53 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 
 - Preserve published `TL-INV-NNN` identities. Supersede or migrate an identity
   explicitly rather than silently reusing it.
-- Keep `formal/verification.yaml` mechanically invertible from prose invariants
-  to TLA+ properties, state variables, actions, configurations, and evidence.
+- Keep `formal/verification.yaml` as the canonical machine-readable
+  formal-assurance and traceability graph. It owns normative provenance,
+  required assurance claims, assurance domains and modalities, formal coverage,
+  residual assurance, formal-semantic domain bindings, review requirements,
+  future backend realizations, verification-profile relations, evidence
+  contracts, and reverse traceability. It must not define product semantics,
+  canonical formal semantics, a semantic IR, verification results, or
+  hostile-review results.
+- Preserve the assurance distinctions explicitly: `assurance decomposition`,
+  `formalization`, `formal semantic projection`, `independent formalization`,
+  `verification restriction / instantiation`, `repository projection`, and
+  `verification execution`.
+- Keep formalization and formal semantic projection distinct. Formalization maps
+  normative natural-language semantics to a formal representation. A formal
+  semantic projection relates two formal semantic representations and is
+  claim-relative or observation-relative.
 - Do not invent executable TLA+ identifiers before the model contains them.
+- Require claim/property correspondence to be established by reviewed
+  correspondence rather than by manifest proximity.
 - Do not hand-edit `docs/formal/invariant-mapping.md`; regenerate it from
   `formal/verification.yaml`.
-- Never interpret a planned mapping as a successful verification run.
-- Require matching result records for a concrete revision, configuration, tool
-  version, finite bounds, checked properties, invariant IDs, and outcome before
-  marking an invariant `checked`.
-- Keep safety, liveness, reachability, conformance, and semantic-quality claims
-  distinct.
+- Never interpret an assurance claim or a planned mapping as a successful
+  verification run. Require matching bounded evidence records for a concrete
+  revision, exact executed artifact identity, configuration, tool version,
+  checked properties, claim or invariant IDs, and outcome before lifting any
+  evidence.
+- Keep hostile semantic-review evidence separate from mechanical checker
+  evidence. A surviving valid material objection blocks acceptance regardless of
+  reviewer majority. Hostile review is bounded reviewed semantic correspondence,
+  never mathematical proof.
+- Keep safety, reachability, liveness, conformance, semantic-quality, and
+  architectural claims structurally distinct.
+- Route a finding by its earliest unresolved cause rather than by the tool that
+  detected it. Never repair a downstream layer while a surviving upstream
+  semantic finding remains unresolved.
+- Enforce the staged readiness gates:
+  Gate A authorizes candidate formal-model authoring.
+  Gate B authorizes canonical formal-semantic promotion.
+  Gate C authorizes verification-evidence lifting.
+- No executable formal model may appear while Gate A prerequisites remain
+  unsatisfied. Derive readiness from repository artifacts and review evidence
+  rather than storing it as mutable manifest status.
 - Use focused configurations for diagnosis and fast feedback only. They never
-  replace integrated exploration of the shared model.
-- Once the model exists, preserve the manifest-declared integrated profiles
-  with explicit finite bounds.
+  replace integrated exploration of the shared canonical semantics.
+- Preserve integrated semantic interaction closure once the model exists;
+  focused analyses are restrictions of the shared canonical semantics with
+  explicit finite bounds.
 
 ## Architectural decisions and documentation
 
@@ -320,8 +361,10 @@ boundary.
 
 Use the repository tree to determine actual artifact presence. Use accepted ADRs
 and the normative repository authority to determine accepted architectural or
-implementation commitments. Use `formal/verification.yaml` for current formal
-lifecycle state and `formal/results/` for bounded verification evidence.
+implementation commitments. Use `formal/verification.yaml` for the
+formal-assurance graph, `formal/reviews/` for hostile-review evidence, and
+`formal/results/` for bounded mechanical verification evidence; derive readiness
+from the formal traceability checker rather than from stored status.
 
 ## Mandatory validation
 
@@ -380,9 +423,13 @@ change.
 - Canonical repository-integrity suite:
   `scripts/check-repository-integrity.py`
 - Formal-verification policy: `docs/formal/README.md`
-- Formal workspace status: `formal/README.md`
-- Machine-readable traceability: `formal/verification.yaml`
+- Formal workspace guidance: `formal/README.md`
+- Formal-assurance graph: `formal/verification.yaml`
+- Formal-assurance schema: `formal/verification.schema.json`
 - Generated invariant mapping: `docs/formal/invariant-mapping.md`
+- Hostile-review evidence contract: `formal/reviews/README.md`
+- Legacy property migration audit:
+  `formal/migrations/verification-v2-to-v3-property-audit.yaml`
 - TLC result schema: `formal/tlc-result.schema.json`
 - Python tooling dependency: `requirements.txt`
 - Discovery classification profile:

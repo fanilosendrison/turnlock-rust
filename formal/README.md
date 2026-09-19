@@ -1,61 +1,84 @@
 # Formal model workspace
 
-TURNLOCK's executable TLA+/TLC artifacts live here.
+TURNLOCK's formal-assurance artifacts live here.
 
-The machine-readable traceability source of truth is `verification.yaml`. It describes the graph from stable product-invariant IDs to their formal realization and intended TLC coverage. It is **not** evidence that TLC has actually run. Actual run evidence belongs under `results/` and is governed by `tlc-result.schema.json`.
+No executable canonical formal model exists yet.
 
-The governed model path and its current lifecycle state are declared in `verification.yaml`. This README intentionally does not mirror those mutable values.
+`formal/verification.yaml` is the formal-assurance graph. It records normative
+provenance, required assurance claims, assurance domains and modalities, formal
+coverage, residual assurance, domain bindings, review requirements, and evidence
+contracts. It is not product semantics, not the canonical formal semantics, and
+not verification evidence.
 
-## Planned layout
+Gate A is currently expected to remain blocked until hostile review of the exact
+assurance decomposition is recorded. Only after Gate A may a candidate
+`Turnlock.tla` be authored. Candidate existence does not make it canonical.
+Gate B is required for canonical promotion. Gate C is required before checker
+evidence may support assurance claims.
+
+## Artifact roles
 
 ```text
 formal/
-├── README.md
-├── verification.yaml               # desired traceability / coverage graph
-├── tlc-result.schema.json           # schema for actual TLC run evidence
-├── results/
-│   └── README.md                    # local run-evidence policy
-├── Turnlock.tla
-└── models/
-    ├── focused/                     # manifest-declared focused TLC configurations
-    └── integrated/                  # manifest-declared integrated TLC configurations
+├── verification.yaml                       # formal-assurance graph (claims, coverage, policy)
+├── verification.schema.json                # schema for that graph
+├── reviews/                                # hostile semantic-review evidence
+│   ├── README.md
+│   └── review-evidence.schema.json
+├── results/                                # mechanical checker evidence
+│   └── README.md
+├── migrations/                             # historical migration evidence
+│   └── verification-v2-to-v3-property-audit.yaml
+├── models/
+│   ├── focused/                            # future focused TLC restrictions
+│   └── integrated/                         # future integrated TLC configurations
+└── Turnlock.tla                            # future candidate canonical semantics
 ```
 
-Focused and integrated configurations must target the same semantic model. Separate mini-specifications that can drift from the integrated semantics are not the intended design.
+`formal/reviews/` holds durable hostile semantic-review evidence for exact
+reviewed artifacts.
 
-## Traceability graph
+`formal/results/` holds mechanical checker evidence, governed by
+`formal/tlc-result.schema.json`.
 
-Once `Turnlock.tla` exists, each formally applicable invariant can be bound to the executable identifiers that realize it:
+`formal/migrations/` holds historical migration evidence that preserves how the
+formal-assurance graph evolved across manifest schema versions.
+
+No current file under `formal/` is a generic TURNLOCK Formal IR. The initial
+canonical formal semantic representation remains TURNLOCK-specific integrated
+TLA+ semantics.
+
+## Assurance chain
 
 ```text
-TL-INV-xxx
-    ↓
-TLA+ module + property/properties
-    ↓
-state variables + actions/transitions used by that formalization
-    ↓
-focused and integrated TLC configs
-    ↓
-actual TLC run evidence for a concrete commit and finite bounds
-    ↓
-later: implementation/conformance tests
+normative TURNLOCK semantics
+        ↓ assurance decomposition
+TL-CLAIM-* required assurance claims
+        ↔ hostile-reviewed correspondence
+formal realization (future executable TLA+ identifiers)
+        ↓ verification execution
+bounded mechanical evidence
+        ↓ reviewed evidence lifting
+bounded assurance conclusion
 ```
 
-The graph must also be mechanically invertible. For example, changing a TLA+ action such as a future `CompleteWorkflow` should make it possible to enumerate every `TL-INV-*` mapped to that action.
+`TL-INV-*` identities remain the stable normative anchors. Required assurance
+claims divide them into evidentially distinct obligations. The manifest owns
+intended assurance; `formal/reviews/` and `formal/results/` own what actually
+happened.
 
-Planned property names may appear before `Turnlock.tla` exists. State-variable and action mappings should stay empty until real executable identifiers exist; they must not be invented solely to make the manifest look complete.
+## Readiness gates
 
-## Verification intent vs evidence
+- **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate
+  executable formal model. It does not declare that model correct, canonical, or
+  verified. It is derived from current hostile `assurance-decomposition` review
+  evidence over the exact manifest; it is not stored as a manifest status.
+- **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
+  artifact/version to the current canonical formal semantics for its declared
+  scope after hostile semantic review.
+- **Gate C — Formal-Verification-Ready** authorizes checker executions to
+  support assurance claims after claim/property correspondence review.
 
-`verification.yaml` answers **what should map to what and what should be checked**.
-
-`results/` answers **what TLC actually checked**. A passing record must identify at least the repository revision, model config, TLA+ module, TLC version, checked properties, mapped invariant IDs, finite bounds, and outcome.
-
-A manifest entry must never be interpreted as a successful verification run.
-`checked` requires matching run evidence. Finite domains or bounds used to make
-TLC exploration possible remain formal-model choices; they are not product
-resource limits, fairness premises, or termination guarantees.
-
-## Integrated exploration remains mandatory
-
-Focused configurations are development accelerators. They never replace integrated exploration. The manifest owns the integrated profile set, paths, lifecycle states and intents. Focused configurations remain development accelerators and do not replace integrated exploration of the shared model.
+`scripts/check-formal-traceability.py` derives and reports the current gate
+state. Focused configurations may restrict the integrated semantics; they must
+never become independent mini-semantics.
