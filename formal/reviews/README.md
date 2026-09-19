@@ -70,6 +70,30 @@ result records
 Git commit identity
 ```
 
+### Canonicalization
+
+The Gate A derived subject is canonical over semantically unordered collections.
+
+The following collections are order-insensitive when deriving the subject:
+
+- architecture decision references
+- abstraction constraint references
+- formal semantic domains, ordered canonically by `id`
+- behavioral modalities
+- assurance domains
+- claims, ordered canonically by claim ID
+- claim normative sources
+- normative coverage, ordered canonically by invariant ID
+- formal claim references
+- residual claim references
+
+Reordering any of those collections without changing their contents does not
+invalidate an existing Gate A review.
+
+Changing the content of any included object still changes the derived subject.
+Canonicalization removes representation-order sensitivity; it does not remove
+semantic dependencies.
+
 A review record's `repository_commit` records provenance of execution.
 It does not by itself determine review currentness.
 

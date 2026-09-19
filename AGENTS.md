@@ -319,6 +319,12 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   outside Gate A's assurance-decomposition subject.
 - A change to normative authority, claims, normative provenance, coverage, or the
   relevant formal-assurance context invalidates the Gate A subject.
+- Derived semantic review subjects MUST canonicalize collections whose ordering
+  has no declared semantics before hashing. Do not invalidate hostile-review
+  evidence because of a pure representation-order change. `formal_semantic_domains`
+  is canonicalized by domain `id`; `behavioral_modalities` and `assurance_domains`
+  are canonicalized lexicographically. Content changes remain
+  fingerprint-significant.
 - Keep safety, reachability, liveness, conformance, semantic-quality, and
   architectural claims structurally distinct.
 - Route a finding by its earliest unresolved cause rather than by the tool that

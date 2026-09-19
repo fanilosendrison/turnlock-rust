@@ -107,6 +107,10 @@ normative authority, the relevant formal-assurance context, the required
 assurance claims, and normative coverage. Generated subject fingerprints are
 non-authoritative projections of canonical sources.
 
+Semantic dependency also excludes meaningless collection ordering. The Gate A
+subject canonicalizes formal semantic domains by `id` and canonicalizes
+behavioral/assurance domain sets lexicographically before hashing.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes authoring a candidate

@@ -19,7 +19,7 @@ reason: hostile assurance-decomposition review evidence required
 
 Gate A assurance-decomposition subject:
 - selector: `gate-a-assurance-decomposition-v1`
-- SHA-256: `cb1c2f7fd001a4f765fffe2921efcf306f20aa9875ec80ada09851aef39b4f8c`
+- SHA-256: `2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b`
 
 Canonical-Formal-Semantics-Ready:
 NOT-APPLICABLE — candidate model absent

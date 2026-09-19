@@ -95,6 +95,20 @@ Changing a required assurance claim, its normative provenance, normative
 coverage, relevant formal-assurance context, or referenced normative authority
 does invalidate Gate A.
 
+The derived Gate A subject canonicalizes semantically unordered collections
+before hashing. Physical YAML array ordering alone is not a review dependency.
+
+The canonicalized context collections are:
+
+```text
+formal_semantic_domains
+behavioral_modalities
+assurance_domains
+```
+
+Changing a domain declaration or changing the membership of a modality/domain set
+remains fingerprint-significant.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate
