@@ -11,8 +11,11 @@ name: "Future workflow run-evaluation design space"
 
 > - **Status:** Non-normative future consideration
 > - **Authority:** None
-> - **Normative baseline:** Minimum completed-execution inspectability is accepted
->   by ADR-018; ADR-024 requires effective execution-condition provenance for
+> - **Normative baseline:** Minimum execution inspectability is governed by
+>   ADR-018 as amended and clarified by ADR-039; `TL-INV-033` now covers
+>   TURNLOCK-observed terminal or cessation outcomes through realized execution
+>   or realized-prefix truth and a realizable terminal inspection handoff;
+>   ADR-024 requires effective execution-condition provenance for
 >   conditions TURNLOCK selects, binds, explicitly supplies, or resolves;
 >   ADR-025 clarifies that protected values need not be disclosed but
 >   TURNLOCK-known condition-specific provenance cannot be substituted away
@@ -32,15 +35,17 @@ name: "Future workflow run-evaluation design space"
 
 ## 1. Purpose and classification
 
-ADR-018 and `TL-INV-033` require minimum inspectability of completed execution
-at TURNLOCK's semantic boundary. ADR-024 and `TL-INV-036` additionally require
-effective execution conditions that TURNLOCK selects, binds, explicitly
-supplies, or resolves to remain attributable to the execution scopes they govern
-and exposable or capturable at that boundary. ADR-025 clarifies that exact-value
-disclosure is not universal, while protection cannot substitute away
-condition-specific provenance TURNLOCK knew before or during the required
-boundary capture handoff. ADR-026 defines when that capture opportunity is
-genuinely satisfied. Detailed tracing, event schemas,
+ADR-018 and `TL-INV-033`, as amended and clarified by ADR-039, require minimum
+execution inspectability at TURNLOCK's semantic boundary for TURNLOCK-observed
+terminal or cessation outcomes, using realized execution or realized-prefix
+truth and a realizable terminal inspection handoff. ADR-024 and `TL-INV-036`
+additionally require effective execution conditions that TURNLOCK selects, binds,
+explicitly supplies, or resolves to remain attributable to the execution scopes
+they govern and exposable or capturable at that boundary. ADR-025 clarifies
+that exact-value disclosure is not universal, while protection cannot
+substitute away condition-specific provenance TURNLOCK knew before or during
+the required boundary capture handoff. ADR-026 defines when that capture
+opportunity is genuinely satisfied. Detailed tracing, event schemas,
 retention, storage, telemetry, replay, cross-run identity or equality,
 comparison, reproducibility, execution proofs, debugger UI, evaluation APIs,
 metrics, and automatic optimization remain open. This note prevents that stronger design space from
@@ -151,8 +156,9 @@ trace.
 ### 3.2 Execution inspectability and stronger run observability
 
 The accepted minimum requires enough actual TURNLOCK-visible behavior to remain
-inspectable after completion for external understanding and evaluation. It does
-not enumerate a universal event set. A stronger future observability layer might
+inspectable at TURNLOCK's semantic boundary for TURNLOCK-observed terminal or
+cessation outcomes, for external understanding and evaluation. It does not
+enumerate a universal event set. A stronger future observability layer might
 standardize facts such as:
 
 ```text
@@ -414,7 +420,7 @@ change requires its own authority and derivation.
 
 A RAG pipeline could eventually be one specialized workflow class that opts
 into stronger evaluation guarantees. That possibility creates no generic
-requirement beyond the accepted minimum completed-execution inspectability and
+requirement beyond the accepted minimum execution inspectability and
 effective execution-condition provenance obligations.
 
 ## 5. Forward-compatibility observations
