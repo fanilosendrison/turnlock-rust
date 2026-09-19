@@ -20,6 +20,10 @@ if spec is None or spec.loader is None:
 checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checker)
 
+MANIFEST_RELATIVE = Path("formal/verification.yaml")
+MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
+MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
+
 
 def make_fixture(temporary: str) -> Path:
     fixture_root = Path(temporary)
@@ -31,109 +35,364 @@ def make_fixture(temporary: str) -> Path:
         ROOT / "scripts" / "render-formal-mapping.py",
         scripts_dir / "render-formal-mapping.py",
     )
+    shutil.copyfile(
+        ROOT / "scripts" / "check-formal-traceability.py",
+        scripts_dir / "check-formal-traceability.py",
+    )
     return fixture_root
 
 
 def load_manifest(fixture_root: Path) -> dict:
-    return yaml.safe_load((fixture_root / "formal" / "verification.yaml").read_text())
+    return yaml.safe_load((fixture_root / MANIFEST_RELATIVE).read_text())
 
 
 def save_manifest(fixture_root: Path, manifest: dict) -> None:
-    (fixture_root / "formal" / "verification.yaml").write_text(
+    (fixture_root / MANIFEST_RELATIVE).write_text(
         yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8"
     )
 
 
+def load_migration(fixture_root: Path) -> dict:
+    return yaml.safe_load((fixture_root / MIGRATION_RELATIVE).read_text())
+
+
+def save_migration(fixture_root: Path, migration: dict) -> None:
+    (fixture_root / MIGRATION_RELATIVE).write_text(
+        yaml.safe_dump(migration, sort_keys=False), encoding="utf-8"
+    )
+
+
+def manifest_sha(fixture_root: Path) -> str:
+    return checker.sha256_hex((fixture_root / MANIFEST_RELATIVE).read_bytes())
+
+
+def coverage_entry(manifest: dict, invariant: str) -> dict:
+    for entry in manifest["normative_coverage"]:
+        if entry["invariant"] == invariant:
+            return entry
+    raise AssertionError(f"missing coverage entry {invariant}")
+
+
+def reviewer(reviewer_id: str, **overrides) -> dict:
+    data = {
+        "reviewer_id": reviewer_id,
+        "reviewer_type": "frontier-llm",
+        "provider": "provider",
+        "model": "model",
+        "model_version": "1",
+        "prompt_sha256": "a" * 64,
+    }
+    data.update(overrides)
+    return data
+
+
+def make_review(
+    fixture_root: Path,
+    *,
+    review_id: str = "REVIEW-0001",
+    review_class: str = "assurance-decomposition",
+    subjects: list[dict] | None = None,
+    reviewers: list[dict] | None = None,
+    findings: list[dict] | None = None,
+) -> dict:
+    if subjects is None:
+        subjects = [
+            {
+                "path": MANIFEST_RELATIVE.as_posix(),
+                "sha256": manifest_sha(fixture_root),
+            }
+        ]
+    if reviewers is None:
+        reviewers = [reviewer("r1"), reviewer("r2")]
+    return {
+        "schema_version": "1.0",
+        "review_id": review_id,
+        "review_class": review_class,
+        "repository_commit": "6d3c9851e0d66286280f8e49ebd8ed44da13d876",
+        "subjects": subjects,
+        "attack_objectives": ["semantic-strengthening"],
+        "reviewers": reviewers,
+        "findings": findings if findings is not None else [],
+        "supersedes_review_ids": [],
+        "started_at": "2026-09-19T00:00:00Z",
+        "completed_at": "2026-09-19T01:00:00Z",
+    }
+
+
+def write_review(fixture_root: Path, record: dict, name: str = "REVIEW-0001.yaml") -> Path:
+    path = fixture_root / "formal" / "reviews" / name
+    path.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
+    return path
+
+
+def finding(
+    *,
+    finding_id: str = "F-1",
+    reviewer_ids: list[str] | None = None,
+    material: bool = True,
+    status: str = "open",
+    disposition_rationale=None,
+) -> dict:
+    return {
+        "finding_id": finding_id,
+        "reviewer_ids": reviewer_ids if reviewer_ids is not None else ["r1"],
+        "material": material,
+        "statement": "A material semantic objection.",
+        "argument": "The objection survives review.",
+        "counterexample": None,
+        "status": status,
+        "disposition_rationale": disposition_rationale,
+    }
+
+
 class FormalTraceabilityTests(unittest.TestCase):
     def test_repository_conforms(self) -> None:
-        errors, _ = checker.collect_errors(ROOT)
+        errors, summary = checker.collect_errors(ROOT)
         self.assertEqual([], errors)
+        self.assertEqual(42, summary["invariants"])
+        self.assertEqual(83, summary["claims"])
+        self.assertFalse(summary["gate_a"]["ready"])
 
-    def test_model_appearing_while_status_not_yet_introduced_fails(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture_root = make_fixture(temporary)
-            model_path = fixture_root / "formal" / "Turnlock.tla"
-            model_path.write_text("---- MODULE Turnlock ----\n====\n", encoding="utf-8")
-            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
-            self.assertTrue(
-                any(
-                    "formal model exists while policy status is not-yet-introduced"
-                    in error
-                    for error in errors
-                ),
-                errors,
-            )
-
-    def test_model_status_introduced_without_path_fails(self) -> None:
+    def test_schema_v3_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             manifest = load_manifest(fixture_root)
-            manifest["policy"]["formal_model"]["status"] = "introduced"
+            manifest["schema_version"] = 2
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("must use schema_version 3" in error for error in errors), errors
+            )
+
+    def test_missing_invariant_coverage_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["normative_coverage"] = [
+                entry
+                for entry in manifest["normative_coverage"]
+                if entry["invariant"] != "TL-INV-042"
+            ]
             save_manifest(fixture_root, manifest)
             errors, _ = checker.collect_errors(fixture_root, check_generated=False)
             self.assertTrue(
                 any(
-                    "formal model status is introduced but path is missing" in error
+                    "missing from normative_coverage: TL-INV-042" in error
                     for error in errors
                 ),
                 errors,
             )
 
-    def test_integrated_config_appearing_while_planned_fails(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture_root = make_fixture(temporary)
-            smoke_path = fixture_root / "formal" / "models" / "integrated" / "smoke.cfg"
-            smoke_path.write_text("SPECIFICATION Spec\n", encoding="utf-8")
-            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
-            self.assertTrue(
-                any(
-                    "integrated profile integrated-smoke exists while status is planned"
-                    in error
-                    for error in errors
-                ),
-                errors,
-            )
-
-    def test_integrated_profile_introduced_without_config_fails(self) -> None:
+    def test_unknown_invariant_coverage_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             manifest = load_manifest(fixture_root)
-            manifest["policy"]["integrated_profiles"][0]["status"] = "introduced"
+            manifest["normative_coverage"].append(
+                {
+                    "invariant": "TL-INV-099",
+                    "canonical_operational_coverage": "none",
+                    "formal_claims": [],
+                    "residual_claims": ["TL-CLAIM-001"],
+                }
+            )
             save_manifest(fixture_root, manifest)
             errors, _ = checker.collect_errors(fixture_root, check_generated=False)
             self.assertTrue(
                 any(
-                    "integrated profile integrated-smoke is introduced but path is missing"
-                    in error
+                    "unknown invariant IDs: TL-INV-099" in error for error in errors
+                ),
+                errors,
+            )
+
+    def test_duplicate_claim_id_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["claims"][82]["id"] = "TL-CLAIM-082"
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("duplicate claim ID TL-CLAIM-082" in error for error in errors),
+                errors,
+            )
+
+    def test_non_contiguous_claim_ids_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["claims"][82]["id"] = "TL-CLAIM-099"
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("claim IDs must be contiguous" in error for error in errors),
+                errors,
+            )
+
+    def test_unknown_normative_source_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["claims"][0]["normative_sources"].append("TL-INV-099")
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "references unknown normative source TL-INV-099" in error
                     for error in errors
                 ),
                 errors,
             )
 
-    def test_unknown_lifecycle_status_fails(self) -> None:
+    def test_unknown_claim_reference_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             manifest = load_manifest(fixture_root)
-            manifest["policy"]["formal_model"]["status"] = "bogus"
-            manifest["policy"]["integrated_profiles"][0]["status"] = "bogus"
+            coverage_entry(manifest, "TL-INV-001")["formal_claims"].append(
+                "TL-CLAIM-099"
+            )
             save_manifest(fixture_root, manifest)
             errors, _ = checker.collect_errors(fixture_root, check_generated=False)
             self.assertTrue(
-                any("status_vocabulary.formal_model" in error for error in errors),
-                errors,
-            )
-            self.assertTrue(
                 any(
-                    "integrated profile integrated-smoke has unknown status" in error
+                    "formal_claims references unknown TL-CLAIM-099" in error
                     for error in errors
                 ),
+                errors,
+            )
+
+    def test_claim_source_coverage_reverse_mismatch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            entry = coverage_entry(manifest, "TL-INV-001")
+            entry["formal_claims"] = [
+                claim_id
+                for claim_id in entry["formal_claims"]
+                if claim_id != "TL-CLAIM-002"
+            ]
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "TL-CLAIM-002 declares normative source TL-INV-001" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_full_coverage_with_residual_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            coverage_entry(manifest, "TL-INV-001")["residual_claims"] = ["TL-CLAIM-013"]
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("TL-INV-001 coverage is full" in error for error in errors), errors
+            )
+
+    def test_none_coverage_with_formal_claim_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            coverage_entry(manifest, "TL-INV-011")["formal_claims"] = ["TL-CLAIM-014"]
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("TL-INV-011 coverage is none" in error for error in errors), errors
+            )
+
+    def test_partial_coverage_missing_formal_side_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            coverage_entry(manifest, "TL-INV-009")["formal_claims"] = []
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("TL-INV-009 coverage is partial" in error for error in errors),
+                errors,
+            )
+
+    def test_partial_coverage_missing_residual_side_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            coverage_entry(manifest, "TL-INV-009")["residual_claims"] = []
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("TL-INV-009 coverage is partial" in error for error in errors),
+                errors,
+            )
+
+    def test_formal_coverage_referencing_non_formal_claim_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            coverage_entry(manifest, "TL-INV-001")["formal_claims"].append(
+                "TL-CLAIM-013"
+            )
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "formal_claims lists non-formal-behavioral TL-CLAIM-013" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_behavioral_claim_without_modality_fails_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            del manifest["claims"][0]["modality"]
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            joined = "\n".join(errors)
+            self.assertIn("schema", joined)
+            self.assertIn("modality", joined)
+
+    def test_non_behavioral_claim_with_modality_fails_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["claims"][12]["modality"] = "safety"
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            joined = "\n".join(errors)
+            self.assertIn("schema", joined)
+            self.assertIn("TL-CLAIM-013", joined)
+
+    def test_legacy_migration_count_mismatch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            migration = load_migration(fixture_root)
+            migration["entries"] = migration["entries"][:-1]
+            save_migration(fixture_root, migration)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("must contain exactly 50 entries" in error for error in errors),
+                errors,
+            )
+
+    def test_legacy_migration_unknown_claim_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            migration = load_migration(fixture_root)
+            migration["entries"][0]["migrated_to"] = ["TL-CLAIM-099"]
+            save_migration(fixture_root, migration)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("references unknown TL-CLAIM-099" in error for error in errors),
                 errors,
             )
 
     def test_missing_generated_mapping_is_rejected_without_recreation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
+            mapping_path = fixture_root / MAPPING_RELATIVE
             mapping_path.unlink()
             self.assertFalse(mapping_path.exists())
 
@@ -150,7 +409,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_stale_generated_mapping_is_rejected_without_rewrite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
+            mapping_path = fixture_root / MAPPING_RELATIVE
             mapping_path.write_text("stale", encoding="utf-8")
             before = mapping_path.read_bytes()
 
@@ -164,67 +423,14 @@ class FormalTraceabilityTests(unittest.TestCase):
             )
             self.assertEqual(before, mapping_path.read_bytes())
 
-    def test_truncated_generated_mapping_is_rejected_without_rewrite(self) -> None:
+    def test_renderer_stdout_matches_committed_mapping_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
-            full = mapping_path.read_bytes()
-            mapping_path.write_bytes(full[: len(full) // 2])
-            before = mapping_path.read_bytes()
-
-            errors, _ = checker.collect_errors(fixture_root, check_generated=True)
-            self.assertTrue(
-                any(
-                    "generated formal invariant mapping is stale" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(
-                any(
-                    "generated formal invariant mapping is missing" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertEqual(before, mapping_path.read_bytes())
-
-    def test_renderer_failure_is_reported_without_traceback(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture_root = make_fixture(temporary)
-            renderer = fixture_root / "scripts" / "render-formal-mapping.py"
-            renderer.write_text('raise RuntimeError("boom")\n', encoding="utf-8")
-            mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
-            before = mapping_path.read_bytes()
-
-            errors, _ = checker.collect_errors(fixture_root, check_generated=True)
-            joined = "\n".join(errors)
-            self.assertIn("generated formal invariant mapping could not be rendered", joined)
-            self.assertIn("RuntimeError: boom", joined)
-            self.assertNotIn("Traceback", joined)
-            self.assertEqual(before, mapping_path.read_bytes())
-
-    def test_fresh_generated_mapping_passes_without_mutation(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture_root = make_fixture(temporary)
-            mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
-            before = mapping_path.read_bytes()
-
-            errors, _ = checker.collect_errors(fixture_root, check_generated=True)
-            self.assertFalse(
-                any("generated formal invariant mapping" in error for error in errors),
-                errors,
-            )
-            self.assertEqual(before, mapping_path.read_bytes())
-
-    def test_renderer_stdout_matches_committed_mapping_without_writing(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture_root = make_fixture(temporary)
-            mapping_path = fixture_root / "docs" / "formal" / "invariant-mapping.md"
+            mapping_path = fixture_root / MAPPING_RELATIVE
             committed = mapping_path.read_bytes()
             formal_listing_before = sorted(
                 path.relative_to(fixture_root).as_posix()
-                for path in (fixture_root / "docs" / "formal").rglob("*")
+                for path in (fixture_root / "formal").rglob("*")
             )
 
             result = subprocess.run(
@@ -239,9 +445,165 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertEqual(committed, mapping_path.read_bytes())
             formal_listing_after = sorted(
                 path.relative_to(fixture_root).as_posix()
-                for path in (fixture_root / "docs" / "formal").rglob("*")
+                for path in (fixture_root / "formal").rglob("*")
             )
             self.assertEqual(formal_listing_before, formal_listing_after)
+
+    def test_model_appearing_while_gate_a_blocked_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            model_path = fixture_root / "formal" / "Turnlock.tla"
+            model_path.write_text("---- MODULE Turnlock ----\n====\n", encoding="utf-8")
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "formal/Turnlock.tla exists while Formal-Architecture-Ready is BLOCKED"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_absence_of_candidate_model_while_gate_a_blocked_is_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self.assertFalse((fixture_root / "formal" / "Turnlock.tla").exists())
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_review_evidence_with_fewer_than_two_reviewers_fails_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(fixture_root, reviewers=[reviewer("r1")]),
+            )
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            joined = "\n".join(errors)
+            self.assertIn("formal/reviews/REVIEW-0001.yaml", joined)
+            self.assertIn("schema", joined)
+
+    def test_duplicate_reviewer_ids_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    reviewers=[reviewer("r1"), reviewer("r1")],
+                ),
+            )
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any("reviewer_id values must be unique" in error for error in errors),
+                errors,
+            )
+
+    def test_wrong_artifact_hash_does_not_satisfy_current_review_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    subjects=[
+                        {
+                            "path": MANIFEST_RELATIVE.as_posix(),
+                            "sha256": "0" * 64,
+                        }
+                    ],
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_material_open_finding_prevents_review_from_satisfying_gate_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(fixture_root, findings=[finding(status="open")]),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_material_routed_finding_prevents_review_from_satisfying_gate_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(fixture_root, findings=[finding(status="routed")]),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_resolved_material_finding_requires_disposition_rationale(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    findings=[finding(status="resolved", disposition_rationale=None)],
+                ),
+            )
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            joined = "\n".join(errors)
+            self.assertIn("disposition_rationale", joined)
+
+    def test_majority_reviewer_count_cannot_override_surviving_open_finding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    reviewers=[
+                        reviewer("r1"),
+                        reviewer("r2"),
+                        reviewer("r3"),
+                    ],
+                    findings=[finding(reviewer_ids=["r1"], status="open")],
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_current_review_with_resolved_finding_derives_gate_a_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    findings=[
+                        finding(
+                            status="resolved",
+                            disposition_rationale="The counterexample was refuted.",
+                        )
+                    ],
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
 
 
 if __name__ == "__main__":
