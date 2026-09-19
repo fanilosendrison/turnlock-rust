@@ -1225,6 +1225,124 @@ class FormalTraceabilityTests(unittest.TestCase):
             )
             self.assertTrue(review_schema_errors(fixture_root, untyped))
 
+    def test_behavioral_modality_ordering_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            manifest["policy"]["behavioral_modalities"] = list(
+                reversed(manifest["policy"]["behavioral_modalities"])
+            )
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+
+    def test_assurance_domain_ordering_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            manifest["policy"]["assurance_domains"] = list(
+                reversed(manifest["policy"]["assurance_domains"])
+            )
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+
+    def test_formal_semantic_domain_ordering_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["formal_semantic_domains"].append(
+                {
+                    "id": "secondary",
+                    "representation": "tla+",
+                    "module": "Secondary",
+                    "path": "formal/Secondary.tla",
+                    "integrated_semantics_required": True,
+                    "focused_analyses_are_restrictions": True,
+                }
+            )
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            manifest["policy"]["formal_semantic_domains"] = list(
+                reversed(manifest["policy"]["formal_semantic_domains"])
+            )
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+
+    def test_formal_semantic_domain_content_still_changes_subject_after_order_canonicalization(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            secondary = {
+                "id": "secondary",
+                "representation": "tla+",
+                "module": "Secondary",
+                "path": "formal/Secondary.tla",
+                "integrated_semantics_required": True,
+                "focused_analyses_are_restrictions": True,
+            }
+            manifest["policy"]["formal_semantic_domains"].append(secondary)
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            secondary["module"] = "SecondaryChanged"
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_all_gate_a_context_collection_reorderings_are_subject_invariant(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["formal_semantic_domains"].append(
+                {
+                    "id": "secondary",
+                    "representation": "tla+",
+                    "module": "Secondary",
+                    "path": "formal/Secondary.tla",
+                    "integrated_semantics_required": True,
+                    "focused_analyses_are_restrictions": True,
+                }
+            )
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            manifest["policy"]["formal_semantic_domains"] = list(
+                reversed(manifest["policy"]["formal_semantic_domains"])
+            )
+            manifest["policy"]["behavioral_modalities"] = list(
+                reversed(manifest["policy"]["behavioral_modalities"])
+            )
+            manifest["policy"]["assurance_domains"] = list(
+                reversed(manifest["policy"]["assurance_domains"])
+            )
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+
 
 if __name__ == "__main__":
     unittest.main()
