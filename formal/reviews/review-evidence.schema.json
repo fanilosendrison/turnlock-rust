@@ -19,7 +19,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "review_id": {
       "type": "string",
@@ -43,7 +43,14 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/$defs/subject"
+        "oneOf": [
+          {
+            "$ref": "#/$defs/artifactSubject"
+          },
+          {
+            "$ref": "#/$defs/derivedSubject"
+          }
+        ]
       }
     },
     "attack_objectives": {
@@ -101,17 +108,42 @@
     }
   },
   "$defs": {
-    "subject": {
+    "artifactSubject": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "subject_type",
         "path",
         "sha256"
       ],
       "properties": {
+        "subject_type": {
+          "const": "artifact"
+        },
         "path": {
           "type": "string",
           "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "derivedSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_type",
+        "selector",
+        "sha256"
+      ],
+      "properties": {
+        "subject_type": {
+          "const": "derived"
+        },
+        "selector": {
+          "const": "gate-a-assurance-decomposition-v1"
         },
         "sha256": {
           "type": "string",

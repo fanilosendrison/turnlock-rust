@@ -27,6 +27,56 @@ Review records are declarative evidence artifacts. They MUST validate against
 validates them and derives review-coverage state from them without inventing
 review results.
 
+## Subject kinds
+
+Review evidence identifies its reviewed subject with one of two exact shapes:
+
+```text
+artifact subject
+= exact bytes of a repository artifact
+
+derived subject
+= mechanically canonicalized semantic review scope whose identity is independent
+  of unrelated physical-file changes
+```
+
+`gate-a-assurance-decomposition-v1` is the only current derived subject selector.
+
+Its dependency set is:
+
+```text
+normative specification bytes
+ADR-015 bytes
+ADR-041 bytes
+ADR-040 bytes
+manifest schema_version/project
+formal semantic domain declarations
+behavioral modalities
+assurance domains
+83 claim contents and provenance
+42 normative coverage mappings
+```
+
+Its explicit exclusions are:
+
+```text
+formal_realizations
+hostile-review adequacy policy
+mechanical-evidence policy
+readiness-gate declarations
+generated docs
+review records
+result records
+Git commit identity
+```
+
+A review record's `repository_commit` records provenance of execution.
+It does not by itself determine review currentness.
+
+A future `formal_realization` may therefore be added after Gate A without
+invalidating the assurance-decomposition review, provided no dependency of the
+derived subject changed.
+
 ## Gate A review adequacy
 
 Gate A assurance-decomposition review requires the exact attack-objective set
