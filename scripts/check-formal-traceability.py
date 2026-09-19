@@ -469,7 +469,7 @@ def _gate_a_review_packet_authority_errors(
 
 def _gate_a_review_packet_errors(
     packet_bytes: bytes,
-    record_subjects: object,
+    record_gate_a_subject: dict,
     label: str,
 ) -> list[str]:
     """Validate a self-contained canonical Gate A review packet."""
@@ -553,13 +553,10 @@ def _gate_a_review_packet_errors(
             "subject_payload"
         )
 
-    if not any(
-        isinstance(item, dict) and item == subject
-        for item in _sequence(record_subjects)
-    ):
+    if subject != record_gate_a_subject:
         errors.append(
-            f"{label}: Gate A review packet subject is not one of the review "
-            "record subjects"
+            f"{label}: Gate A review packet subject does not equal the review "
+            "record's unique Gate A derived subject"
         )
 
     errors.extend(
@@ -683,6 +680,17 @@ def _refutation_errors(
     return errors
 
 
+def _gate_a_derived_subjects(value: object) -> list[dict]:
+    """Return Gate A derived subjects preserving exact record multiplicity."""
+    return [
+        subject
+        for subject in _sequence(value)
+        if isinstance(subject, dict)
+        and subject.get("subject_type") == "derived"
+        and subject.get("selector") == GATE_A_SUBJECT_SELECTOR
+    ]
+
+
 def _review_evidence_errors(
     root: Path, records: list[tuple[Path, dict]]
 ) -> list[str]:
@@ -730,23 +738,25 @@ def _review_evidence_errors(
         )
         errors.extend(prompt_errors)
 
-        is_gate_a_derived_subject_review = (
+        gate_a_subjects = _gate_a_derived_subjects(record.get("subjects"))
+        is_gate_a_subject_review = (
             record.get("review_class") == GATE_A_REVIEW_CLASS
-            and any(
-                isinstance(subject, dict)
-                and subject.get("subject_type") == "derived"
-                and subject.get("selector") == GATE_A_SUBJECT_SELECTOR
-                for subject in _sequence(record.get("subjects"))
-            )
+            and bool(gate_a_subjects)
         )
-        if is_gate_a_derived_subject_review and packet_bytes is not None:
-            errors.extend(
-                _gate_a_review_packet_errors(
-                    packet_bytes,
-                    record.get("subjects"),
-                    f"{label}: protocol.review_packet",
+        if is_gate_a_subject_review:
+            if len(gate_a_subjects) != 1:
+                errors.append(
+                    f"{label}: Gate A assurance-decomposition review must declare "
+                    "exactly one Gate A derived subject"
                 )
-            )
+            elif packet_bytes is not None:
+                errors.extend(
+                    _gate_a_review_packet_errors(
+                        packet_bytes,
+                        gate_a_subjects[0],
+                        f"{label}: protocol.review_packet",
+                    )
+                )
 
         declared_raw_ids: dict[str, set[str]] = {}
         raw_paths: list[str] = []
@@ -1132,10 +1142,10 @@ def derive_gate_a(
     for _path, record in records:
         if record.get("review_class") != GATE_A_REVIEW_CLASS:
             continue
-        if current_subject is not None and any(
-            isinstance(subject, dict) and subject == current_subject
-            for subject in _sequence(record.get("subjects"))
-        ):
+        gate_a_subjects = _gate_a_derived_subjects(record.get("subjects"))
+        if len(gate_a_subjects) != 1:
+            continue
+        if current_subject is not None and gate_a_subjects[0] == current_subject:
             current.append(record)
 
     if not current:
