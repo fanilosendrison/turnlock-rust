@@ -141,8 +141,12 @@ prevent Gate A subject derivation.
   not merely artifact SHA validity: the packet is self-contained and
   cryptographically bound to its declared derived subject. Material refutation
   challenges are bound to the exact canonical refutation subject. Review
-  evidence paths are direct non-symlink repository paths. It is derived from
-  current review evidence; it is not stored as a manifest status.
+  evidence paths are direct non-symlink repository paths. Gate A campaign
+  subject identity is unambiguous: a Gate A assurance-decomposition record
+  contains exactly one Gate A derived subject. Packet binding and currentness
+  both use that exact subject. Additional artifact subjects may coexist but
+  cannot determine Gate A identity. It is derived from current review evidence;
+  it is not stored as a manifest status.
 - **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
   artifact/version to the current canonical formal semantics for its declared
   scope after hostile semantic review.

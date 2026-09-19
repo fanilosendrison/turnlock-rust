@@ -106,6 +106,36 @@ not against current repository semantics. Packet validation is self-contained
 from the packet plus its review record and never compares embedded authority to
 the current manifest.
 
+## Unambiguous Gate A subject identity
+
+For an assurance-decomposition review record that declares
+`gate-a-assurance-decomposition-v1`, exactly one Gate A derived subject is
+allowed.
+
+Duplicate identical Gate A subjects are invalid.
+
+Multiple different Gate A subjects are invalid.
+
+Additional artifact subjects remain permitted.
+
+The canonical Gate A review packet must equal the unique Gate A derived subject,
+not merely any member of `subjects[]`.
+
+Gate A currentness uses the same unique Gate A derived subject.
+
+For a CURRENT qualifying campaign, the enforced identity chain is exactly:
+
+```text
+packet.subject
+==
+unique record Gate A derived subject
+==
+current Gate A subject
+```
+
+Schema version remains 3.0; this is repository cross-field integrity, not a
+serialized-shape change.
+
 ## Symlink prohibition
 
 No review-evidence artifact path may traverse a symlink, including a symlink

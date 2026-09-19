@@ -173,6 +173,15 @@ ADR-043 amends hostile-review evidence mechanics only.
 
 ADR-043 does not enter `gate-a-assurance-decomposition-v1`.
 
+ADR-044 amends hostile-review evidence mechanics only.
+
+It does not enter `gate-a-assurance-decomposition-v1`.
+
+It closes subject confusion by making the unique Gate A derived subject the
+single identity used for packet binding and currentness.
+
+The review-evidence schema remains version 3.0.
+
 The Gate A semantic subject remains owned by the existing authority dependency
 set.
 

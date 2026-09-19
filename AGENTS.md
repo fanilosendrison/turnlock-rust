@@ -342,6 +342,15 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Changing the finding/refutation content invalidates its previous challenge.
 - Review evidence artifacts must never traverse symlinks, including
   in-repository symlink aliases.
+- A Gate A assurance-decomposition review record that declares a Gate A derived
+  subject MUST declare exactly one such subject.
+- Duplicate identical Gate A derived subjects are invalid evidence; never
+  deduplicate them.
+- Multiple distinct Gate A derived subjects are invalid evidence; never choose
+  first, last, packet-selected, or current-selected precedence.
+- Additional artifact subjects may coexist with the unique Gate A derived subject.
+- Gate A packet binding and Gate A currentness MUST use the same unique Gate A
+  derived subject identity.
 - `formal_realizations` may be introduced after Gate A when real formal
   identifiers exist; their presence alone does not imply Gate B or Gate C.
 - Hostile-review evidence MUST be invalidated according to its declared semantic
