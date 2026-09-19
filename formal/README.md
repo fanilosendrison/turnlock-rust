@@ -109,6 +109,15 @@ assurance_domains
 Changing a domain declaration or changing the membership of a modality/domain set
 remains fingerprint-significant.
 
+Every formal semantic domain has a unique `id`.
+
+The `id` is its semantic identity for claim bindings, canonical Gate A subject
+ordering, and domain-module resolution. Two distinct domain declarations MUST
+NOT share an `id`.
+
+Duplicate formal semantic domain IDs are a repository-integrity failure and
+prevent Gate A subject derivation.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate

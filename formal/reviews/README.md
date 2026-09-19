@@ -94,6 +94,12 @@ Changing the content of any included object still changes the derived subject.
 Canonicalization removes representation-order sensitivity; it does not remove
 semantic dependencies.
 
+`formal_semantic_domains` is canonicalized by `id` only because domain IDs are
+required to be unique. Duplicate IDs are invalid; they are never tie-broken by
+module, path, declaration order, or serialized object content.
+
+A manifest with duplicate domain IDs has no valid Gate A derived subject.
+
 A review record's `repository_commit` records provenance of execution.
 It does not by itself determine review currentness.
 

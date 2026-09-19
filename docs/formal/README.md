@@ -111,6 +111,11 @@ Semantic dependency also excludes meaningless collection ordering. The Gate A
 subject canonicalizes formal semantic domains by `id` and canonicalizes
 behavioral/assurance domain sets lexicographically before hashing.
 
+Domain identity is explicit: `policy.formal_semantic_domains[*].id` is unique.
+
+That same identity is used for formal claim bindings and canonical ordering in
+the Gate A subject.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes authoring a candidate

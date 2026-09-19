@@ -325,6 +325,10 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   is canonicalized by domain `id`; `behavioral_modalities` and `assurance_domains`
   are canonicalized lexicographically. Content changes remain
   fingerprint-significant.
+- `policy.formal_semantic_domains[*].id` MUST be unique. Do not resolve duplicate
+  formal semantic domain IDs by declaration order, last-write-wins behavior,
+  secondary sorting, module name, or path. Duplicate domain IDs are an integrity
+  error and prevent derived review-subject construction.
 - Keep safety, reachability, liveness, conformance, semantic-quality, and
   architectural claims structurally distinct.
 - Route a finding by its earliest unresolved cause rather than by the tool that
