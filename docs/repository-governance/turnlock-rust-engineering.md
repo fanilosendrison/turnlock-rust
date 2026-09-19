@@ -187,19 +187,59 @@ a closed Issue only for an independently justified reason.
 
 ### Phase
 
-Use `Phase` for the lifecycle domain that owns the immediate deliverable:
+Use `Phase` for the lifecycle domain that owns the immediate deliverable. It
+does not encode a waterfall stage, irreversible progression, or semantic
+dependency. Work may return to an earlier lifecycle domain when a downstream
+discovery belongs to that domain.
 
-- `Specification`
+The current assignable `Phase` values are:
+
+- `Product Semantics`
+- `Formal Architecture`
 - `Formal Verification`
 - `Implementation`
 
-Classify executable TLA+ models, TLC configuration, traceability, and bounded run
-evidence as `Formal Verification`. Classify Rust implementation and conformance
-work as `Implementation` only after the required architecture and ecosystem
-boundaries have been accepted.
+`Product Semantics` owns work whose immediate deliverable may establish, derive,
+clarify, or amend TURNLOCK product meaning. This includes product-intent
+questions, normative semantic decisions, accepted semantic ADR work, normative
+specification changes, invariant admission or amendment, and semantic questions
+exposed by downstream formalization or implementation.
 
-Create linked follow-up Issues when downstream phases require independent
-acceptance, prerequisites, or scheduling.
+`Formal Architecture` owns the structure by which already accepted TURNLOCK
+semantics are represented and verified without creating new product meaning.
+This includes the canonical formal representation or intermediate
+representation if one is adopted; formal claims and verification-obligation
+metamodels; projection and backend boundaries; abstraction or projection
+fidelity; formal coverage; evidence contracts; translation or projection
+correctness; and the responsibility and shape of formal traceability artifacts
+such as `formal/verification.yaml`. If such work exposes product behavior that
+current authority does not determine, route that semantic question to
+`Product Semantics` rather than resolving it as a formal-architecture choice.
+
+`Formal Verification` owns concrete instantiation of the accepted formal
+architecture. This includes executable formal models or projections,
+backend-specific property bindings, verification configurations, model
+checking, proof attempts, counterexample analysis, and concrete
+verification-evidence production. Generic design of the traceability,
+coverage, projection, or evidence metamodel belongs to `Formal Architecture`;
+concrete mappings, checks, runs, and evidence produced through an accepted
+formal architecture belong to `Formal Verification`.
+
+`Implementation` owns runtime, language, API, mechanism, adapter, packaging,
+implementation-realization, and implementation-level conformance work after
+the responsibilities and boundaries required for that work have been accepted.
+
+`Specification` is a legacy `Phase` value retained for historical Project items
+created under the previous three-phase taxonomy. New work MUST NOT be assigned
+to `Specification`.
+
+Closed historical Project items MUST NOT be reclassified solely to conform to
+the current `Phase` taxonomy. If a legacy item is genuinely reopened for resumed
+work, reclassify it under the current taxonomy before it becomes `Ready` or
+`In Progress`.
+
+Create linked follow-up Issues when a downstream lifecycle domain requires
+independent acceptance, prerequisites, or scheduling.
 
 ### Kind
 
@@ -248,13 +288,13 @@ authoritative context. It is not a stored Project field.
 Priority controls scheduling only. It never overrides the normative
 specification, accepted decisions, prerequisites, or evidence requirements.
 
-An open product or specification semantic decision defaults to `P0` when it is
-recorded as a `Finding` classified to `Phase: Specification`. This applies the
+An open product-semantic decision defaults to `P0` when it is recorded as a
+`Finding` classified to `Phase: Product Semantics`. This applies the
 authority-protection branch of `P0`: while the decision remains open,
-downstream artifacts can acquire unratified product or specification meaning
-unless every reviewer independently notices the reservation. Do not classify an
-open semantic decision below `P0` merely because it does not block a specific
-downstream deliverable, including the first safety-only formal model.
+downstream artifacts can acquire unratified product meaning unless every
+reviewer independently notices the reservation. Do not classify an open
+product-semantic decision below `P0` merely because it does not block a specific
+downstream deliverable.
 
 A `Follow-up` that operationalizes an already accepted decision without
 introducing new product meaning does not inherit that default. Classify it by
@@ -291,8 +331,8 @@ open Turnlock-Rust Engineering Issue is mandatory after any of these events:
    that resolves or creates a prerequisite, changes a work item's
    critical-path role, or changes the risk of continuing downstream work;
 5. phase transition: a material change in the active engineering focus among
-   `Specification`, `Formal Verification`, and `Implementation`, because `P1`
-   is relative to the current phase;
+   `Product Semantics`, `Formal Architecture`, `Formal Verification`, and
+   `Implementation`, because `P1` is relative to the current phase;
 6. validated cross-cutting governance finding: a newly validated concern that
    affects the machinery by which multiple other Issues are selected,
    interpreted, validated, or governed, even without a direct dependency
@@ -316,10 +356,11 @@ reveals one of the material changes above.
    product semantics while scheduling.
 3. Evaluate every open Issue with the `P0`/`P1`/`P2`/`P3` contract, in this
    order: a repository default forcing `P0` (for example an unresolved
-   specification semantic `Finding`); the current-progress branch; the
-   protection branch; then `P1` if the work must complete in the current phase;
-   then `P2` for important retained non-blocking work; otherwise `P3`. This is
-   the complete decision tree; do not invent a scoring model.
+   product-semantic `Finding` classified to `Product Semantics`); the
+   current-progress branch; the protection branch; then `P1` if the work must
+   complete in the current phase; then `P2` for important retained non-blocking
+   work; otherwise `P3`. This is the complete decision tree; do not invent a
+   scoring model.
 4. Mutate only the Project `Priority` field where the computed value differs
    from the live value. Do not edit an Issue body to record the value and do not
    create a manually maintained portfolio-priority table.
@@ -363,9 +404,11 @@ authoritative for agent behavior regardless of UI sort configuration.
 
 The intended views are:
 
-- `Now`: board filtered to `Phase: Specification`.
+- `Now`: board filtered to `Status: In Progress`, with no `Phase` restriction.
 - `Agent Queue`: table filtered to Issues in `Ready` or `In Progress`.
-- `Specification`: table filtered to `Phase: Specification`.
+  `Priority` remains visible.
+- `Product Semantics`: table filtered to `Phase: Product Semantics`.
+- `Formal Architecture`: table filtered to `Phase: Formal Architecture`.
 - `Formal Verification`: table filtered to `Phase: Formal Verification`.
 - `Implementation`: table filtered to `Phase: Implementation`.
 
