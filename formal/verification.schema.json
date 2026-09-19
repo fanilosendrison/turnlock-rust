@@ -134,7 +134,8 @@
         "evidence_directory",
         "evidence_schema",
         "minimum_independent_reviewers",
-        "majority_vote_sufficient"
+        "majority_vote_sufficient",
+        "required_attack_objectives"
       ],
       "properties": {
         "evidence_directory": {
@@ -151,6 +152,39 @@
         },
         "majority_vote_sufficient": {
           "const": false
+        },
+        "required_attack_objectives": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "assurance-decomposition"
+          ],
+          "properties": {
+            "assurance-decomposition": {
+              "type": "array",
+              "minItems": 14,
+              "maxItems": 14,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "semantic-strengthening",
+                  "semantic-weakening",
+                  "omitted-valid-behavior",
+                  "invented-behavior",
+                  "collapsed-normative-distinction",
+                  "invented-formal-distinction",
+                  "hidden-assumption",
+                  "wrong-quantification",
+                  "wrong-occurrence-scope",
+                  "modality-mismatch",
+                  "vacuity",
+                  "coverage-gap",
+                  "alternative-compatible-interpretation",
+                  "cross-feature-interaction-failure"
+                ]
+              }
+            }
+          }
         }
       }
     },

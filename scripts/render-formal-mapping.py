@@ -27,6 +27,10 @@ def _load_checker():
     return module
 
 
+class MappingRenderError(RuntimeError):
+    """Raised when the mapping cannot be rendered from valid repository evidence."""
+
+
 def _markdown_cell(value: object) -> str:
     text = str(value)
     return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
@@ -56,8 +60,10 @@ def render_mapping(root: Path) -> str:
     checker = _load_checker()
     data = yaml.safe_load((root / MANIFEST_RELATIVE).read_text(encoding="utf-8"))
     manifest_bytes = (root / MANIFEST_RELATIVE).read_bytes()
-    review_records = checker.load_review_records(root)
-    gate_a = checker.derive_gate_a(manifest_bytes, review_records)
+    review_records, review_load_errors = checker.load_review_records(root)
+    if review_load_errors:
+        raise MappingRenderError("\n".join(review_load_errors))
+    gate_a = checker.derive_gate_a(data, manifest_bytes, review_records)
 
     claims = [claim for claim in data.get("claims", []) if isinstance(claim, dict)]
     coverage = [
@@ -275,10 +281,15 @@ def main(argv: list[str] | None = None) -> int:
         help="write the rendered mapping to stdout without modifying repository files",
     )
     arguments = parser.parse_args(argv)
-    if arguments.stdout:
-        sys.stdout.buffer.write(render_mapping(ROOT).encode("utf-8"))
-        return 0
-    out_path = write_mapping(ROOT)
+    try:
+        if arguments.stdout:
+            sys.stdout.buffer.write(render_mapping(ROOT).encode("utf-8"))
+            return 0
+        out_path = write_mapping(ROOT)
+    except MappingRenderError as error:
+        for line in str(error).splitlines():
+            print(f"ERROR: {line}", file=sys.stderr)
+        return 1
     print(out_path)
     return 0
 

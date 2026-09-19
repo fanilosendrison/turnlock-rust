@@ -24,6 +24,23 @@ MANIFEST_RELATIVE = Path("formal/verification.yaml")
 MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
 MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
 
+GATE_A_ATTACK_OBJECTIVES = [
+    "semantic-strengthening",
+    "semantic-weakening",
+    "omitted-valid-behavior",
+    "invented-behavior",
+    "collapsed-normative-distinction",
+    "invented-formal-distinction",
+    "hidden-assumption",
+    "wrong-quantification",
+    "wrong-occurrence-scope",
+    "modality-mismatch",
+    "vacuity",
+    "coverage-gap",
+    "alternative-compatible-interpretation",
+    "cross-feature-interaction-failure",
+]
+
 
 def make_fixture(temporary: str) -> Path:
     fixture_root = Path(temporary)
@@ -94,6 +111,7 @@ def make_review(
     subjects: list[dict] | None = None,
     reviewers: list[dict] | None = None,
     findings: list[dict] | None = None,
+    attack_objectives: list[str] | None = None,
 ) -> dict:
     if subjects is None:
         subjects = [
@@ -110,7 +128,11 @@ def make_review(
         "review_class": review_class,
         "repository_commit": "6d3c9851e0d66286280f8e49ebd8ed44da13d876",
         "subjects": subjects,
-        "attack_objectives": ["semantic-strengthening"],
+        "attack_objectives": (
+            attack_objectives
+            if attack_objectives is not None
+            else list(GATE_A_ATTACK_OBJECTIVES)
+        ),
         "reviewers": reviewers,
         "findings": findings if findings is not None else [],
         "supersedes_review_ids": [],
@@ -123,6 +145,40 @@ def write_review(fixture_root: Path, record: dict, name: str = "REVIEW-0001.yaml
     path = fixture_root / "formal" / "reviews" / name
     path.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
     return path
+
+
+def write_raw_review(fixture_root: Path, name: str, text: str) -> Path:
+    path = fixture_root / "formal" / "reviews" / name
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def write_candidate_model(fixture_root: Path) -> Path:
+    path = fixture_root / "formal" / "Turnlock.tla"
+    path.write_text(
+        "---- MODULE Turnlock ----\n"
+        "VARIABLES controlState\n"
+        "DeclaredControlFlow == TRUE\n"
+        "Advance == TRUE\n"
+        "====\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def realization_payload(**overrides) -> dict:
+    data = {
+        "claim": "TL-CLAIM-001",
+        "formal_semantic_domain": "operational",
+        "backend": "tla+",
+        "module": "Turnlock",
+        "properties": ["DeclaredControlFlow"],
+        "state_variables": ["controlState"],
+        "actions": ["Advance"],
+        "verification_profiles": [],
+    }
+    data.update(overrides)
+    return data
 
 
 def finding(
@@ -152,6 +208,10 @@ class FormalTraceabilityTests(unittest.TestCase):
         self.assertEqual(42, summary["invariants"])
         self.assertEqual(83, summary["claims"])
         self.assertFalse(summary["gate_a"]["ready"])
+        self.assertEqual(
+            "hostile assurance-decomposition review evidence required",
+            summary["gate_a"]["reason"],
+        )
 
     def test_schema_v3_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -604,6 +664,276 @@ class FormalTraceabilityTests(unittest.TestCase):
             )
             self.assertEqual([], errors)
             self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_incomplete_attack_coverage_does_not_satisfy_gate_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root, attack_objectives=["semantic-strengthening"]
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertIn("required attack coverage", summary["gate_a"]["reason"])
+
+    def test_missing_one_required_objective_blocks_gate_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            objectives = [
+                objective
+                for objective in GATE_A_ATTACK_OBJECTIVES
+                if objective != "vacuity"
+            ]
+            write_review(
+                fixture_root,
+                make_review(fixture_root, attack_objectives=objectives),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_complete_attack_coverage_can_satisfy_gate_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(fixture_root, make_review(fixture_root))
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+            self.assertIn(
+                "satisfies required attack coverage", summary["gate_a"]["reason"]
+            )
+
+    def test_manifest_reviewer_minimum_is_enforced(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["hostile_review"]["minimum_independent_reviewers"] = 3
+            save_manifest(fixture_root, manifest)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root, reviewers=[reviewer("r1"), reviewer("r2")]
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    reviewers=[reviewer("r1"), reviewer("r2"), reviewer("r3")],
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_clean_review_cannot_override_another_current_open_finding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(fixture_root, review_id="REVIEW-A"),
+                name="REVIEW-A.yaml",
+            )
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    review_id="REVIEW-B",
+                    findings=[finding(status="open")],
+                ),
+                name="REVIEW-B.yaml",
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "unresolved material hostile-review finding exists",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_clean_review_cannot_override_a_routed_material_finding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(fixture_root, review_id="REVIEW-A"),
+                name="REVIEW-A.yaml",
+            )
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    review_id="REVIEW-B",
+                    findings=[finding(status="routed")],
+                ),
+                name="REVIEW-B.yaml",
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_refuted_material_finding_can_cease_blocking(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    findings=[
+                        finding(
+                            status="refuted",
+                            disposition_rationale="The argument was refuted.",
+                        )
+                    ],
+                ),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_malformed_yaml_review_evidence_is_fatal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_raw_review(
+                fixture_root, "REVIEW-BROKEN.yaml", "key: [unterminated\n"
+            )
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "formal/reviews/REVIEW-BROKEN.yaml: cannot parse review evidence"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_malformed_json_review_evidence_is_fatal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_raw_review(
+                fixture_root,
+                "REVIEW-BROKEN.json",
+                'schema_version: "1.0"\nreview_id: REVIEW-1\n',
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "formal/reviews/REVIEW-BROKEN.json: cannot parse review evidence"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_non_mapping_yaml_review_evidence_is_fatal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_raw_review(
+                fixture_root, "REVIEW-NOT-MAPPING.yaml", "- one\n- two\n"
+            )
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "review evidence must be a mapping" in error for error in errors
+                ),
+                errors,
+            )
+
+    def test_future_formal_realization_is_not_rejected_merely_for_existing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["formal_realizations"] = [realization_payload()]
+            save_manifest(fixture_root, manifest)
+            write_candidate_model(fixture_root)
+            write_review(fixture_root, make_review(fixture_root))
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+            self.assertFalse(
+                any("must remain empty" in error for error in errors), errors
+            )
+
+    def test_missing_tla_realization_identifier_still_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["formal_realizations"] = [
+                realization_payload(properties=["DoesNotExist"])
+            ]
+            save_manifest(fixture_root, manifest)
+            write_candidate_model(fixture_root)
+            write_review(fixture_root, make_review(fixture_root))
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "references missing TLA+ property DoesNotExist" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_realization_without_candidate_model_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["formal_realizations"] = [realization_payload()]
+            save_manifest(fixture_root, manifest)
+            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
+            self.assertTrue(
+                any(
+                    "formal_realizations are present but formal/Turnlock.tla is missing"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_renderer_fails_on_malformed_review_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_raw_review(
+                fixture_root, "REVIEW-BROKEN.yaml", "key: [unterminated\n"
+            )
+            mapping_path = fixture_root / MAPPING_RELATIVE
+            before = mapping_path.read_bytes()
+            result = subprocess.run(
+                [sys.executable, "scripts/render-formal-mapping.py", "--stdout"],
+                cwd=fixture_root,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn(b"cannot parse review evidence", result.stderr)
+            self.assertEqual(before, mapping_path.read_bytes())
 
 
 if __name__ == "__main__":

@@ -241,26 +241,44 @@ def _migration_errors(root: Path, claim_ids: set[str]) -> list[str]:
     return errors
 
 
-def load_review_records(root: Path) -> list[tuple[Path, dict]]:
-    """Load review evidence records without schema validation, deterministically."""
+def load_review_records(root: Path) -> tuple[list[tuple[Path, dict]], list[str]]:
+    """Load review evidence records, failing closed on malformed evidence."""
     directory = root / REVIEW_DIRECTORY_RELATIVE
     records: list[tuple[Path, dict]] = []
+    errors: list[str] = []
     if not directory.is_dir():
-        return records
+        return records, errors
     for path in sorted(directory.rglob("*")):
         if not path.is_file():
             continue
         if path.name == REVIEW_SCHEMA_RELATIVE.name:
             continue
-        if path.suffix.lower() not in REVIEW_SUFFIXES:
+        suffix = path.suffix.lower()
+        if suffix not in REVIEW_SUFFIXES:
+            continue
+        label = path.relative_to(root).as_posix()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            errors.append(
+                f"{label}: cannot parse review evidence: {_concise_parser_error(error)}"
+            )
             continue
         try:
-            data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, yaml.YAMLError):
+            if suffix == ".json":
+                data = json.loads(text)
+            else:
+                data = yaml.safe_load(text)
+        except (json.JSONDecodeError, yaml.YAMLError) as error:
+            errors.append(
+                f"{label}: cannot parse review evidence: {_concise_parser_error(error)}"
+            )
             continue
-        if isinstance(data, dict):
-            records.append((path, data))
-    return records
+        if not isinstance(data, dict):
+            errors.append(f"{label}: review evidence must be a mapping")
+            continue
+        records.append((path, data))
+    return records, errors
 
 
 def _review_evidence_errors(
@@ -294,37 +312,87 @@ def _review_evidence_errors(
     return errors
 
 
-def derive_gate_a(manifest_bytes: bytes, records: list[tuple[Path, dict]]) -> dict:
+def _concise_parser_error(error: Exception) -> str:
+    if isinstance(error, json.JSONDecodeError):
+        return f"{error.msg} at line {error.lineno} column {error.colno}"
+    text = " ".join(str(error).split())
+    return text[:200] if text else error.__class__.__name__
+
+
+def derive_gate_a(
+    manifest: dict,
+    manifest_bytes: bytes,
+    records: list[tuple[Path, dict]],
+) -> dict:
     """Derive Formal-Architecture-Ready from current review evidence."""
     manifest_sha = sha256_hex(manifest_bytes)
+    current: list[dict] = []
     for _path, record in records:
         if record.get("review_class") != GATE_A_REVIEW_CLASS:
             continue
-        subjects = _sequence(record.get("subjects"))
         current_for_manifest = any(
             isinstance(subject, dict)
             and subject.get("path") == MANIFEST_RELATIVE.as_posix()
             and subject.get("sha256") == manifest_sha
-            for subject in subjects
+            for subject in _sequence(record.get("subjects"))
         )
-        if not current_for_manifest:
-            continue
-        findings = _sequence(record.get("findings"))
-        unresolved = any(
+        if current_for_manifest:
+            current.append(record)
+
+    if not current:
+        return {
+            "ready": False,
+            "reason": "hostile assurance-decomposition review evidence required",
+        }
+
+    for record in current:
+        if any(
             isinstance(finding, dict)
             and finding.get("material") is True
             and finding.get("status") in UNRESOLVED_FINDING_STATUSES
-            for finding in findings
+            for finding in _sequence(record.get("findings"))
+        ):
+            return {
+                "ready": False,
+                "reason": "unresolved material hostile-review finding exists",
+            }
+
+    hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
+    minimum_reviewers = hostile_review.get("minimum_independent_reviewers")
+    if not isinstance(minimum_reviewers, int) or minimum_reviewers < 1:
+        minimum_reviewers = 0
+    required_objectives = {
+        objective
+        for objective in _sequence(
+            _mapping(hostile_review.get("required_attack_objectives")).get(
+                GATE_A_REVIEW_CLASS
+            )
         )
-        if unresolved:
+        if isinstance(objective, str)
+    }
+
+    for record in current:
+        if len(_sequence(record.get("reviewers"))) < minimum_reviewers:
             continue
-        return {
-            "ready": True,
-            "reason": "current hostile assurance-decomposition review evidence recorded",
+        objectives = {
+            objective
+            for objective in _sequence(record.get("attack_objectives"))
+            if isinstance(objective, str)
         }
+        if required_objectives.issubset(objectives):
+            return {
+                "ready": True,
+                "reason": (
+                    "current hostile assurance-decomposition review evidence "
+                    "satisfies required attack coverage with no unresolved material finding"
+                ),
+            }
     return {
         "ready": False,
-        "reason": "hostile assurance-decomposition review evidence required",
+        "reason": (
+            "current assurance-decomposition review evidence does not satisfy "
+            "required attack coverage and reviewer minimum"
+        ),
     }
 
 
@@ -347,7 +415,7 @@ def _realization_errors(
     root: Path,
     manifest: dict,
     claim_by_id: dict[str, dict],
-    domain_ids: set[str],
+    domain_modules: dict[str, str],
 ) -> list[str]:
     errors: list[str] = []
     realizations = manifest.get("formal_realizations")
@@ -355,16 +423,13 @@ def _realization_errors(
         return ["formal/verification.yaml formal_realizations must be a list"]
     if not realizations:
         return errors
-    errors.append(
-        "formal_realizations must remain empty until Gate C realization work is accepted"
-    )
 
     model_path = root / MODEL_RELATIVE
     model_variables: set[str] = set()
     model_operators: set[str] = set()
     if not model_path.exists():
         errors.append(
-            f"formal_realizations present but {MODEL_RELATIVE.as_posix()} is missing"
+            f"formal_realizations are present but {MODEL_RELATIVE.as_posix()} is missing"
         )
     else:
         model_variables, model_operators = _tla_identifiers(
@@ -382,17 +447,23 @@ def _realization_errors(
             errors.append(f"{label} references unknown claim {claim_id!r}")
         elif claim.get("assurance_domain") != "formal-behavioral":
             errors.append(f"{label} references non-formal-behavioral claim {claim_id}")
-        if realization.get("formal_semantic_domain") not in domain_ids:
+        domain = realization.get("formal_semantic_domain")
+        if domain not in domain_modules:
             errors.append(f"{label} references unknown formal semantic domain")
-        for field, available in (
-            ("properties", model_operators),
-            ("actions", model_operators),
-            ("state_variables", model_variables),
+        elif realization.get("module") != domain_modules[domain]:
+            errors.append(
+                f"{label} module {realization.get('module')!r} does not match the "
+                f"declared module {domain_modules[domain]!r} for domain {domain}"
+            )
+        for field, singular, available in (
+            ("properties", "property", model_operators),
+            ("actions", "action", model_operators),
+            ("state_variables", "state variable", model_variables),
         ):
             for identifier in _sequence(realization.get(field)):
                 if isinstance(identifier, str) and identifier not in available:
                     errors.append(
-                        f"{label} references missing TLA+ {field[:-1]} {identifier}"
+                        f"{label} references missing TLA+ {singular} {identifier}"
                     )
         for profile in _sequence(realization.get("verification_profiles")):
             if not isinstance(profile, str):
@@ -411,7 +482,7 @@ def collect_errors(
     summary: dict = {
         "invariants": 0,
         "claims": 0,
-        "gate_a": derive_gate_a(b"", []),
+        "gate_a": derive_gate_a({}, b"", []),
     }
 
     manifest, load_errors = _load_yaml(root, MANIFEST_RELATIVE)
@@ -442,6 +513,13 @@ def collect_errors(
         item.get("id")
         for item in _sequence(policy.get("formal_semantic_domains"))
         if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    domain_modules = {
+        item["id"]: item["module"]
+        for item in _sequence(policy.get("formal_semantic_domains"))
+        if isinstance(item, dict)
+        and isinstance(item.get("id"), str)
+        and isinstance(item.get("module"), str)
     }
 
     claims = [claim for claim in _sequence(manifest.get("claims")) if isinstance(claim, dict)]
@@ -582,13 +660,14 @@ def collect_errors(
                 )
 
     errors.extend(_migration_errors(root, set(claim_by_id)))
-    errors.extend(_realization_errors(root, manifest, claim_by_id, domain_ids))
+    errors.extend(_realization_errors(root, manifest, claim_by_id, domain_modules))
 
-    review_records = load_review_records(root)
+    review_records, review_load_errors = load_review_records(root)
+    errors.extend(review_load_errors)
     errors.extend(_review_evidence_errors(root, review_records))
 
     manifest_bytes = (root / MANIFEST_RELATIVE).read_bytes()
-    gate_a = derive_gate_a(manifest_bytes, review_records)
+    gate_a = derive_gate_a(manifest, manifest_bytes, review_records)
     summary["gate_a"] = gate_a
 
     if (root / MODEL_RELATIVE).exists() and not gate_a["ready"]:

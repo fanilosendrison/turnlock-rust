@@ -29,6 +29,22 @@ policy:
     evidence_schema: formal/reviews/review-evidence.schema.json
     minimum_independent_reviewers: 2
     majority_vote_sufficient: false
+    required_attack_objectives:
+      assurance-decomposition:
+        - semantic-strengthening
+        - semantic-weakening
+        - omitted-valid-behavior
+        - invented-behavior
+        - collapsed-normative-distinction
+        - invented-formal-distinction
+        - hidden-assumption
+        - wrong-quantification
+        - wrong-occurrence-scope
+        - modality-mismatch
+        - vacuity
+        - coverage-gap
+        - alternative-compatible-interpretation
+        - cross-feature-interaction-failure
   mechanical_evidence:
     tlc:
       evidence_directory: formal/results
