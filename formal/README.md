@@ -22,9 +22,13 @@ evidence may support assurance claims.
 formal/
 ├── verification.yaml                       # formal-assurance graph (claims, coverage, policy)
 ├── verification.schema.json                # schema for that graph
-├── reviews/                                # hostile semantic-review evidence
+├── reviews/                                # hostile semantic-review evidence and campaign artifacts
 │   ├── README.md
-│   └── review-evidence.schema.json
+│   ├── review-evidence.schema.json
+│   ├── packets/                            # future canonical review packets
+│   ├── prompts/                            # future canonical review prompts
+│   ├── raw/                                # future sealed raw reviewer outputs
+│   └── challenges/                         # future hostile challenge outputs
 ├── results/                                # mechanical checker evidence
 │   └── README.md
 ├── migrations/                             # historical migration evidence
@@ -36,7 +40,9 @@ formal/
 ```
 
 `formal/reviews/` holds durable hostile semantic-review evidence for exact
-reviewed artifacts.
+reviewed artifacts, including content-addressed campaign artifacts once a real
+hostile-review campaign is executed. No campaign artifact exists yet because no
+real campaign has been executed.
 
 `formal/results/` holds mechanical checker evidence, governed by
 `formal/tlc-result.schema.json`.
@@ -122,11 +128,17 @@ prevent Gate A subject derivation.
 
 - **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate
   executable formal model. It does not declare that model correct, canonical, or
-  verified. Gate A requires complete assurance-decomposition attack coverage
-  according to `formal/verification.yaml`, the declared minimum reviewer count,
-  and no surviving material open/routed finding across any current review of the
-  exact manifest. It is derived from current review evidence; it is not stored as
-  a manifest status.
+  verified. Gate A requires valid current assurance-decomposition campaign
+  evidence: at least `minimum_independent_reviewers` distinct
+  `(provider, model, model_version)` model identities; complete required attack
+  coverage in each qualifying execution; the same exact canonical packet and
+  prompt across qualifying executions; declared isolated contexts with no
+  cross-reviewer visibility before sealing; content-addressed sealed
+  packet/prompt/raw/challenge artifacts; a lossless raw-finding to
+  normalized-finding ledger; no surviving current material `open`, `routed`, or
+  `resolved` finding; and a valid structured refutation plus hostile challenge
+  for every current material `refuted` finding. It is derived from current review
+  evidence; it is not stored as a manifest status.
 - **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
   artifact/version to the current canonical formal semantics for its declared
   scope after hostile semantic review.

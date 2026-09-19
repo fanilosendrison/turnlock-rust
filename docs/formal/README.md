@@ -2,9 +2,10 @@
 
 This directory documents how the normative TURNLOCK specification is connected
 to formal-assurance artifacts. The governing decisions are
-[ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md)
-and
-[ADR-041](../adr/adr-041-establish-turnlock-formal-assurance-architecture.md).
+[ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md),
+[ADR-041](../adr/adr-041-establish-turnlock-formal-assurance-architecture.md),
+and, for hostile-review campaign execution and adjudication,
+[ADR-042](../adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md).
 
 ## Architecture
 
@@ -123,7 +124,13 @@ the Gate A subject.
   valid metamodel, coverage for every `TL-INV-*`, claims and modalities for the
   candidate scope, explicit residual assurance, an explicit scope, interaction
   closure or justified exclusions, a hostile-review protocol, discovery routing,
-  and repository integrity. It requires no checker evidence.
+  and repository integrity. It also requires valid current campaign evidence:
+  operationally independent distinct `(provider, model, model_version)`
+  identities, complete required attack coverage in each qualifying execution,
+  the same exact canonical packet and prompt, exact content-addressed
+  packet/prompt/raw/challenge artifacts, no surviving current material `open`,
+  `routed`, or `resolved` finding, and a valid structured challenge for every
+  current material `refuted` finding. It requires no checker evidence.
 - **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
   artifact/version to the current canonical formal semantics after hostile
   semantic review, disposition of every material finding, re-review of changed
@@ -140,10 +147,29 @@ is incomplete. `scripts/check-formal-traceability.py` derives this state from
 repository artifacts and review evidence rather than from a stored status.
 
 Gate A review adequacy is derived from the policy in
-`formal/verification.yaml`, not merely from the existence of a review record:
-the declared assurance-decomposition attack set, the declared minimum reviewer
-count, and the absence of any surviving material `open`/`routed` finding across
-every current assurance-decomposition review of the exact manifest.
+`formal/verification.yaml`, from the review-evidence contract, and from the
+referenced campaign artifacts, not merely from the existence of a review record.
+
+Gate A distinguishes two things that must not be conflated:
+
+```text
+Gate A semantic subject
+!=
+Gate A review protocol
+```
+
+The semantic subject is the derived `gate-a-assurance-decomposition-v1` subject.
+The review protocol is how a campaign is executed, sealed, normalized, and
+adjudicated.
+
+ADR-042 changes review adequacy mechanics, not
+`gate-a-assurance-decomposition-v1` dependencies. ADR-042 is not added to
+`formal/verification.yaml authority.architecture_decisions`.
+
+At the acceptance of ADR-042 (2026-09-19), the current valid subject fingerprint
+was `2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b`. The live
+derived subject value remains owned by `formal/verification.yaml` and its
+generated projection in `invariant-mapping.md`.
 
 ## Hostile review is first-class evidence, not proof
 
@@ -154,8 +180,10 @@ semantic link regardless of how many reviewers approved. Review evidence never
 constitutes mathematical proof of natural-language/formal equivalence; the
 strongest valid conclusion is bounded reviewed semantic correspondence under the
 executed review protocol. Review evidence is distinct from mechanical checker
-evidence. Every malformed review artifact fails repository integrity rather than
-being ignored.
+evidence. Materiality is derived from explicit impact axes; refutations require
+structured evidence and a sealed hostile challenge; and invalid review evidence
+forces Gate A BLOCKED rather than being ignored. Every malformed or
+referentially invalid review artifact fails repository integrity.
 
 ## Generated mapping
 

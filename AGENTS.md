@@ -304,10 +304,31 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - A hostile-review record does not satisfy a review gate merely by existing.
   Gate-specific required attack objectives and minimum reviewer count are
   declared in `formal/verification.yaml` and are mechanically enforced.
-- Any surviving material `open` or `routed` finding from any current review of
-  the same reviewed subject blocks the relevant gate regardless of other clean
-  reviews or reviewer majority. Malformed review evidence is an integrity
-  failure.
+- Any surviving material `open`, `routed`, or `resolved` finding from any
+  current review of the same reviewed subject blocks the relevant gate
+  regardless of other clean reviews or reviewer majority. Malformed or
+  referentially invalid review evidence is an integrity failure and forces the
+  relevant gate BLOCKED rather than merely failing repository integrity while
+  displaying a READY gate.
+- "independent reviewers" means operationally independent executions, not merely
+  distinct reviewer records;
+- distinct (provider, model, model_version) identities count toward
+  minimum_independent_reviewers;
+- same model identity repeated does not increase the independent reviewer count;
+- provider diversity is recommended but not a universal mechanical requirement;
+- qualifying Gate A executions must use the same exact packet and prompt and must
+  each cover all required assurance-decomposition attack objectives;
+- raw outputs are immutable after sealing and content-addressed;
+- every declared raw finding must map exactly once into the normalized finding
+  ledger;
+- materiality is derived from explicit impact axes, never stored as an
+  independent boolean;
+- current material open/routed/resolved findings block Gate A;
+- material refutations require structured evidence and a sealed hostile
+  challenge;
+- invalid hostile-review evidence makes the gate BLOCKED;
+- a real material correction changes the subject and requires a new current
+  review campaign rather than patching old evidence.
 - `formal_realizations` may be introduced after Gate A when real formal
   identifiers exist; their presence alone does not imply Gate B or Gate C.
 - Hostile-review evidence MUST be invalidated according to its declared semantic
