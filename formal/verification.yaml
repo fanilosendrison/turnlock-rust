@@ -814,22 +814,28 @@ invariants:
   implementation:
     tests: []
 - id: TL-INV-033
-  title: Completed-execution inspectability invariant
+  title: Execution-inspectability invariant
   spec_section: '3.31'
   adrs:
   - ADR-018
+  - ADR-039
   kind: safety+semantic-quality+conformance
   formalization: partial
-  formalization_note: A future abstract model can require a completed execution to expose boundary-level facts corresponding
-    to its actual declared progression and can forbid treating a later or current definition alone as those facts. TLA+ cannot
-    prove that an inspection surface is sufficient for every user or evaluation purpose, and the model must not invent a concrete
-    event schema, storage mechanism, retention policy, or workflow-definition binding rule.
+  formalization_note: A future abstract model can require an accepted invocation for which TURNLOCK observes a terminal
+    or cessation outcome to expose boundary-level facts sufficient to distinguish its realized progression or realized prefix
+    and actually known terminal facts; preserve abstract structural/causal and control-resolution distinctions needed for progression;
+    permit semantically redundant facts to be omitted when unambiguously derivable from the governing definition plus remaining
+    inspection truth; and forbid irreversible loss of required execution truth before an abstract realizable terminal inspection
+    handoff. The abstraction must not invent a concrete event schema, identifier, serialization, timestamp, storage mechanism,
+    retention duration, disclosure or authorization mechanism, comparison algorithm, replay system, evaluator, or crash-durability
+    contract. TLA+ cannot prove universal subjective evaluation quality, concrete confidentiality, UI usefulness, or external
+    persistence correctness.
   verification: not-yet-modeled
   tla:
     mapping_status: pending-model
     module: Turnlock
     properties:
-    - name: CompletedExecutionExposesActualBoundaryFacts
+    - name: ObservedTerminationExposesActualExecutionTruth
       status: planned
     state_variables: []
     actions: []
