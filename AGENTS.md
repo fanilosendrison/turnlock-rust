@@ -208,6 +208,17 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Keep semantic contracts independent of any one coding harness.
 - Treat Pi integration as a reference conformance surface, not as the definition
   of TURNLOCK concepts.
+- Design TURNLOCK as an augmentation layer over coding-agent harnesses, not as a
+  bet on current harness limitations. Under ADR-038, treat semantically
+  compatible native harness capabilities as candidate realization assets;
+  never allow those mechanisms to redefine TURNLOCK semantics.
+- Apply the Perfect Harness Test to architectural and implementation proposals:
+  assume the supported harness already provides an excellent native version of
+  the underlying mechanism. If the proposal's TURNLOCK-specific value then
+  disappears and no independent semantic, conformance, harness-independent
+  meaning, or accepted evidence responsibility remains, treat the mechanism as
+  an integration or realization concern unless separate accepted authority
+  requires otherwise.
 - Do not freeze topics that the normative specification explicitly leaves open.
 
 ## Formal-verification rules
