@@ -67,12 +67,23 @@ claims divide them into evidentially distinct obligations. The manifest owns
 intended assurance; `formal/reviews/` and `formal/results/` own what actually
 happened.
 
+## Formal realizations
+
+After Gate A permits candidate model authoring, actual claim-to-TLA+ realization
+bindings may be added as the candidate model develops.
+
+The existence of such a binding does not imply Gate B, Gate C, semantic
+correspondence acceptance, or successful verification evidence.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate
   executable formal model. It does not declare that model correct, canonical, or
-  verified. It is derived from current hostile `assurance-decomposition` review
-  evidence over the exact manifest; it is not stored as a manifest status.
+  verified. Gate A requires complete assurance-decomposition attack coverage
+  according to `formal/verification.yaml`, the declared minimum reviewer count,
+  and no surviving material open/routed finding across any current review of the
+  exact manifest. It is derived from current review evidence; it is not stored as
+  a manifest status.
 - **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
   artifact/version to the current canonical formal semantics for its declared
   scope after hostile semantic review.

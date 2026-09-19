@@ -27,6 +27,20 @@ with accepted ADRs. `formal/verification.yaml` is the canonical machine-readable
 formal-assurance and traceability graph. It is not product semantics, not the
 canonical formal semantics, and not verification evidence.
 
+A future formal realization binding is prospective assurance structure:
+
+```text
+formal realization exists
+!=
+correspondence reviewed
+!=
+canonical model
+!=
+verification ready
+!=
+claim supported
+```
+
 ## Artifact roles
 
 ```text
@@ -97,6 +111,12 @@ The current Gate A state is **BLOCKED** only because the required hostile
 is incomplete. `scripts/check-formal-traceability.py` derives this state from
 repository artifacts and review evidence rather than from a stored status.
 
+Gate A review adequacy is derived from the policy in
+`formal/verification.yaml`, not merely from the existence of a review record:
+the declared assurance-decomposition attack set, the declared minimum reviewer
+count, and the absence of any surviving material `open`/`routed` finding across
+every current assurance-decomposition review of the exact manifest.
+
 ## Hostile review is first-class evidence, not proof
 
 Hostile semantic review is a first-class assurance mechanism with durable
@@ -106,7 +126,8 @@ semantic link regardless of how many reviewers approved. Review evidence never
 constitutes mathematical proof of natural-language/formal equivalence; the
 strongest valid conclusion is bounded reviewed semantic correspondence under the
 executed review protocol. Review evidence is distinct from mechanical checker
-evidence.
+evidence. Every malformed review artifact fails repository integrity rather than
+being ignored.
 
 ## Generated mapping
 

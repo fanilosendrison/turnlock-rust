@@ -26,3 +26,26 @@ Review records are declarative evidence artifacts. They MUST validate against
 `review-evidence.schema.json`; the repository formal traceability checker
 validates them and derives review-coverage state from them without inventing
 review results.
+
+## Gate A review adequacy
+
+Gate A assurance-decomposition review requires the exact attack-objective set
+declared by `formal/verification.yaml`.
+
+A review with incomplete attack coverage does not satisfy Gate A.
+
+All current assurance-decomposition review records for the exact current
+manifest participate in surviving-finding evaluation.
+
+One material `open` or `routed` finding in any current review blocks Gate A even
+if another review is clean.
+
+No majority vote can override the finding.
+
+Malformed JSON/YAML review evidence is a repository-integrity failure and is not
+silently ignored.
+
+A non-mapping review file is also an integrity failure.
+
+Stale review evidence remains historical evidence but does not satisfy the
+current manifest's Gate A.

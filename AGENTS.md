@@ -301,6 +301,15 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   evidence. A surviving valid material objection blocks acceptance regardless of
   reviewer majority. Hostile review is bounded reviewed semantic correspondence,
   never mathematical proof.
+- A hostile-review record does not satisfy a review gate merely by existing.
+  Gate-specific required attack objectives and minimum reviewer count are
+  declared in `formal/verification.yaml` and are mechanically enforced.
+- Any surviving material `open` or `routed` finding from any current review of
+  the same reviewed subject blocks the relevant gate regardless of other clean
+  reviews or reviewer majority. Malformed review evidence is an integrity
+  failure.
+- `formal_realizations` may be introduced after Gate A when real formal
+  identifiers exist; their presence alone does not imply Gate B or Gate C.
 - Keep safety, reachability, liveness, conformance, semantic-quality, and
   architectural claims structurally distinct.
 - Route a finding by its earliest unresolved cause rather than by the tool that
