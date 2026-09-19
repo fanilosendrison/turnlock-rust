@@ -61,6 +61,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | Define auditable hostile-review campaign execution and adjudication | accepted | 2026-09-19 | complete | Operational independence of hostile-review executions<br>Sealed hostile-review execution evidence<br>Lossless hostile-review finding normalization<br>Hostile-review materiality and adjudication<br>Gate A hostile-review readiness mechanics |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | Bind hostile-review evidence to exact reviewed inputs | accepted | 2026-09-19 | complete | Canonical Gate A hostile-review packet identity<br>Hostile-review packet-to-subject binding<br>Refutation-to-challenge binding<br>Hostile-review repository path containment |
 | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | Require one unambiguous Gate A review subject | accepted | 2026-09-19 | complete | Gate A review-record subject cardinality<br>Gate A packet-to-record subject identity<br>Gate A current-review subject selection |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | Bind Gate A campaigns to a versioned review protocol and derived evidence | accepted | 2026-09-19 | complete | Gate A hostile-review protocol identity and currentness<br>Reviewer-profile qualification and effective model identity<br>Structured hostile-review raw output and execution receipts<br>One-to-one hostile finding normalization<br>Conservative adjudication and challenge closure<br>Campaign retry, restart, and external outcome rules |
 
 ## Recorded outgoing relations
 
@@ -161,6 +162,10 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | confirms | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | amends | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
 | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | confirms | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amends | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amends | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amends | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | confirms | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 
 ## Derived incoming relations
 
@@ -258,6 +263,10 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | confirmed by | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | clarified by | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
+| [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | amended by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
+| [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | amended by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | confirmed by | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amended by | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
+| [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amended by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
+| [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | amended by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |

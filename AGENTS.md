@@ -372,6 +372,49 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   formal semantic domain IDs by declaration order, last-write-wins behavior,
   secondary sorting, module name, or path. Duplicate domain IDs are an integrity
   error and prevent derived review-subject construction.
+- Gate A currentness requires BOTH the exact derived semantic subject `S` and the
+  exact current content-addressed hostile-review protocol bundle `P` declared by
+  `policy.hostile_review.current_protocol_bundle`.
+- A hostile-review protocol change MUST NOT change the Gate A semantic subject.
+  `current_protocol_bundle` and hostile-review policy are outside `S`.
+- Reviewer executions MUST resolve a protocol-owned reviewer profile with
+  `frontier_eligible == true`; never invent or auto-promote a profile.
+- Model version identity MUST be evidence-derived: `provider-reported` requires
+  a non-empty qualified attempt `provider_model`; `pinned-request-model`
+  requires `request_model_is_immutable_version == true` and the profile
+  `request_model`. Never accept a runner-supplied alias, `latest`, or an
+  unresolved alias.
+- Independent reviewer counting MUST satisfy both the full
+  `(provider, model, model_version)` tuple minimum and the effective
+  `(provider, model_version)` tuple minimum. Aliases MUST NOT inflate the count.
+- Initial hostile reviewer raw outputs MUST be structured JSON under
+  `formal/reviews/raw/*.json` and MUST assess all 14 Gate A objectives exactly
+  once with reciprocal objective/finding references.
+- Every completed cognitive LLM call MUST have a content-addressed execution
+  receipt under `formal/reviews/executions/*.json`; every completed response MUST
+  be sealed even when protocol-invalid; at most one attempt per receipt may be
+  `qualified`; a valid semantic result MUST NOT be retried and no model-shopping
+  is permitted.
+- Normalization MUST be exactly one raw finding to exactly one normalized
+  finding; normalized `statement`, `argument`, and `counterexample` MUST equal
+  the raw finding values exactly.
+- A non-material conclusion MUST carry a valid zero-objection hostile materiality
+  challenge bound to the exact candidate assessment. A material finding MUST NOT
+  carry a materiality challenge.
+- Challenge outputs MUST be derived from objections; `objections == []` is the
+  only no-surviving-challenge representation. Never add a free pass/fail,
+  `surviving_material_argument`, or `challenger_execution_id` verdict, and never
+  add incidental findings to challenge output v1.
+- Every stale-protocol finding whose semantic subject is the current `S` MUST
+  have a current-protocol re-adjudication before it can cease affecting Gate A.
+  A protocol change MUST NOT erase a finding; an old non-material conclusion or
+  old refutation is not sufficient under the new protocol.
+- Failure to establish a valid refutation MUST NOT be treated as proof that the
+  finding is true. Use `OPERATOR-ACTION-REQUIRED` when no valid refutation,
+  uniquely derived correction, no-normative-impact, genuine underdetermination,
+  or genuine authority conflict can be established; reserve `DECISION-REQUIRED`
+  for genuine product-semantic underdetermination or genuine unresolved
+  product-authority conflict.
 - Keep safety, reachability, liveness, conformance, semantic-quality, and
   architectural claims structurally distinct.
 - Route a finding by its earliest unresolved cause rather than by the tool that

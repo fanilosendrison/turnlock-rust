@@ -24,11 +24,16 @@ formal/
 ├── verification.schema.json                # schema for that graph
 ├── reviews/                                # hostile semantic-review evidence and campaign artifacts
 │   ├── README.md
-│   ├── review-evidence.schema.json
+│   ├── review-evidence.schema.json         # hostile-review evidence contract, schema 4.0
+│   ├── review-protocol-bundle.schema.json  # hostile-review protocol-bundle schema
 │   ├── packets/                            # future canonical review packets (JSON)
-│   ├── prompts/                            # future canonical review prompts
-│   ├── raw/                                # future sealed raw reviewer outputs
-│   └── challenges/                         # future hostile challenge outputs
+│   ├── prompts/                            # future canonical review prompts (Markdown)
+│   ├── protocols/                          # future versioned review protocol bundles (JSON)
+│   ├── schemas/                            # raw-output, challenge-output, and receipt schemas
+│   ├── executions/                         # future content-addressed execution receipts (JSON)
+│   ├── raw/                                # future sealed raw reviewer outputs (JSON)
+│   ├── adjudications/                      # future adjudication outputs (JSON)
+│   └── challenges/                         # future hostile challenge outputs (JSON)
 ├── results/                                # mechanical checker evidence
 │   └── README.md
 ├── migrations/                             # historical migration evidence
@@ -129,24 +134,30 @@ prevent Gate A subject derivation.
 - **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate
   executable formal model. It does not declare that model correct, canonical, or
   verified. Gate A requires valid current assurance-decomposition campaign
-  evidence: at least `minimum_independent_reviewers` distinct
-  `(provider, model, model_version)` model identities; complete required attack
-  coverage in each qualifying execution; the same exact canonical packet and
-  prompt across qualifying executions; declared isolated contexts with no
-  cross-reviewer visibility before sealing; content-addressed sealed
-  packet/prompt/raw/challenge artifacts; a lossless raw-finding to
-  normalized-finding ledger; no surviving current material `open`, `routed`, or
-  `resolved` finding; and a valid structured refutation plus hostile challenge
-  for every current material `refuted` finding. Gate A review packet validity is
-  not merely artifact SHA validity: the packet is self-contained and
-  cryptographically bound to its declared derived subject. Material refutation
-  challenges are bound to the exact canonical refutation subject. Review
-  evidence paths are direct non-symlink repository paths. Gate A campaign
-  subject identity is unambiguous: a Gate A assurance-decomposition record
-  contains exactly one Gate A derived subject. Packet binding and currentness
-  both use that exact subject. Additional artifact subjects may coexist but
-  cannot determine Gate A identity. It is derived from current review evidence;
-  it is not stored as a manifest status.
+  evidence bound to BOTH the current derived semantic subject `S` and the
+  current content-addressed hostile-review protocol bundle `P`: at least
+  `minimum_independent_reviewers` distinct `(provider, model, model_version)`
+  model identities AND at least `minimum_independent_reviewers` distinct
+  effective `(provider, model_version)` identities from protocol-qualified
+  reviewer profiles; complete required attack coverage in each qualifying
+  execution; the same exact canonical packet and prompt across qualifying
+  executions; declared isolated contexts with no cross-reviewer visibility
+  before sealing; content-addressed sealed packet/prompt/raw/challenge artifacts
+  plus per-call execution receipts; structured JSON raw outputs; exact
+  one-to-one raw-finding normalization; a valid zero-objection hostile
+  materiality challenge for every non-material finding; no surviving current
+  material `open`, `routed`, or `resolved` finding; a valid zero-objection
+  structured refutation challenge for every current material `refuted` finding;
+  and current-protocol re-adjudication of every stale-protocol finding over the
+  current subject. Gate A review packet validity is not merely artifact SHA
+  validity: the packet is self-contained and cryptographically bound to its
+  declared derived subject. Review evidence paths are direct non-symlink
+  repository paths. Gate A campaign subject identity is unambiguous: a Gate A
+  assurance-decomposition record contains exactly one Gate A derived subject.
+  Packet binding, protocol currentness, and semantic currentness all use that
+  exact subject. Additional artifact subjects may coexist but cannot determine
+  Gate A identity. It is derived from current review evidence; it is not stored
+  as a manifest status.
 - **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
   artifact/version to the current canonical formal semantics for its declared
   scope after hostile semantic review.

@@ -65,7 +65,7 @@ def render_mapping(root: Path) -> str:
     current_subject, subject_errors = checker.build_gate_a_review_subject(root, data)
     if subject_errors:
         raise MappingRenderError("\n".join(subject_errors))
-    gate_a = checker.derive_gate_a(data, current_subject, review_records)
+    gate_a = checker.derive_gate_a(root, data, current_subject, review_records)
 
     claims = [claim for claim in data.get("claims", []) if isinstance(claim, dict)]
     coverage = [

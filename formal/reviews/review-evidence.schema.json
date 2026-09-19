@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:3",
-  "title": "TURNLOCK hostile semantic-review evidence",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:4",
+  "title": "TURNLOCK hostile semantic-review evidence (schema version 4.0)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,14 +12,16 @@
     "subjects",
     "protocol",
     "executions",
+    "supporting_executions",
     "findings",
+    "re_adjudications",
     "supersedes_review_ids",
     "started_at",
     "completed_at"
   ],
   "properties": {
     "schema_version": {
-      "const": "3.0"
+      "const": "4.0"
     },
     "review_id": {
       "type": "string",
@@ -63,10 +65,23 @@
         "$ref": "#/$defs/execution"
       }
     },
+    "supporting_executions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/artifactReference"
+      }
+    },
     "findings": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/finding"
+      }
+    },
+    "re_adjudications": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reAdjudication"
       }
     },
     "supersedes_review_ids": {
@@ -153,13 +168,17 @@
       "additionalProperties": false,
       "required": [
         "review_packet",
-        "prompt"
+        "prompt",
+        "protocol_bundle"
       ],
       "properties": {
         "review_packet": {
           "$ref": "#/$defs/artifactReference"
         },
         "prompt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "protocol_bundle": {
           "$ref": "#/$defs/artifactReference"
         }
       }
@@ -189,6 +208,7 @@
       "required": [
         "execution_id",
         "reviewer_type",
+        "reviewer_profile_id",
         "provider",
         "model",
         "model_version",
@@ -198,7 +218,8 @@
         "cross_reviewer_visibility_before_seal",
         "attack_objectives",
         "raw_output",
-        "raw_finding_ids"
+        "raw_finding_ids",
+        "execution_receipt"
       ],
       "properties": {
         "execution_id": {
@@ -207,6 +228,10 @@
         },
         "reviewer_type": {
           "const": "frontier-llm"
+        },
+        "reviewer_profile_id": {
+          "type": "string",
+          "minLength": 1
         },
         "provider": {
           "type": "string",
@@ -252,6 +277,9 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
         }
       }
     },
@@ -273,6 +301,32 @@
         }
       }
     },
+    "materialityChallenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenged_materiality_sha256",
+        "execution_receipt",
+        "output",
+        "rationale"
+      ],
+      "properties": {
+        "challenged_materiality_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "materiality": {
       "type": "object",
       "additionalProperties": false,
@@ -284,7 +338,9 @@
         "coverage_or_residual_assurance",
         "interaction_scope",
         "candidate_model_authorization",
-        "rationale"
+        "rationale",
+        "assessment_execution_receipt",
+        "challenge"
       ],
       "properties": {
         "authority_or_upstream_decision": {
@@ -311,6 +367,19 @@
         "rationale": {
           "type": "string",
           "minLength": 1
+        },
+        "assessment_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/materialityChallenge"
+            }
+          ]
         }
       }
     },
@@ -335,30 +404,25 @@
         }
       }
     },
-    "challenge": {
+    "refutationChallenge": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "challenger_execution_id",
         "challenged_refutation_sha256",
+        "execution_receipt",
         "output",
-        "surviving_material_argument",
         "rationale"
       ],
       "properties": {
-        "challenger_execution_id": {
-          "type": "string",
-          "minLength": 1
-        },
         "challenged_refutation_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         },
-        "output": {
+        "execution_receipt": {
           "$ref": "#/$defs/artifactReference"
         },
-        "surviving_material_argument": {
-          "const": false
+        "output": {
+          "$ref": "#/$defs/artifactReference"
         },
         "rationale": {
           "type": "string",
@@ -373,7 +437,8 @@
         "kind",
         "classification",
         "reference",
-        "rationale"
+        "rationale",
+        "adjudication_execution_receipt"
       ],
       "properties": {
         "kind": {
@@ -390,6 +455,9 @@
         "rationale": {
           "type": "string",
           "minLength": 1
+        },
+        "adjudication_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
         }
       }
     },
@@ -399,7 +467,8 @@
       "required": [
         "kind",
         "resolution_commit",
-        "rationale"
+        "rationale",
+        "adjudication_execution_receipt"
       ],
       "properties": {
         "kind": {
@@ -412,6 +481,9 @@
         "rationale": {
           "type": "string",
           "minLength": 1
+        },
+        "adjudication_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
         }
       }
     },
@@ -425,7 +497,8 @@
         "evidence_references",
         "argument",
         "counterexample_disposition",
-        "challenge"
+        "challenge",
+        "adjudication_execution_receipt"
       ],
       "properties": {
         "kind": {
@@ -473,70 +546,16 @@
               "type": "null"
             },
             {
-              "$ref": "#/$defs/challenge"
+              "$ref": "#/$defs/refutationChallenge"
             }
           ]
+        },
+        "adjudication_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
         }
       }
     },
-    "finding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "finding_id",
-        "sources",
-        "statement",
-        "argument",
-        "counterexample",
-        "materiality",
-        "status",
-        "disposition"
-      ],
-      "properties": {
-        "finding_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "sources": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/findingSource"
-          }
-        },
-        "statement": {
-          "type": "string",
-          "minLength": 1
-        },
-        "argument": {
-          "type": "string",
-          "minLength": 1
-        },
-        "counterexample": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "materiality": {
-          "$ref": "#/$defs/materiality"
-        },
-        "status": {
-          "enum": [
-            "open",
-            "routed",
-            "resolved",
-            "refuted"
-          ]
-        },
-        "disposition": {
-          "type": [
-            "object",
-            "null"
-          ]
-        }
-      },
+    "statusDisposition": {
       "allOf": [
         {
           "if": {
@@ -613,6 +632,119 @@
               }
             }
           }
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "sources",
+        "statement",
+        "argument",
+        "counterexample",
+        "materiality",
+        "status",
+        "disposition"
+      ],
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/findingSource"
+          }
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterexample": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "materiality": {
+          "$ref": "#/$defs/materiality"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "routed",
+            "resolved",
+            "refuted"
+          ]
+        },
+        "disposition": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/statusDisposition"
+        }
+      ]
+    },
+    "reAdjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_review_id",
+        "source_finding_id",
+        "source_finding_sha256",
+        "materiality",
+        "status",
+        "disposition"
+      ],
+      "properties": {
+        "source_review_id": {
+          "type": "string",
+          "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+        },
+        "source_finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_finding_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "materiality": {
+          "$ref": "#/$defs/materiality"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "routed",
+            "resolved",
+            "refuted"
+          ]
+        },
+        "disposition": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/statusDisposition"
         }
       ]
     }

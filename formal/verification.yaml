@@ -27,6 +27,9 @@ policy:
   hostile_review:
     evidence_directory: formal/reviews
     evidence_schema: formal/reviews/review-evidence.schema.json
+    current_protocol_bundle:
+      path: formal/reviews/protocols/gate-a-campaign-protocol-v1.json
+      sha256: 156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1
     minimum_independent_reviewers: 2
     majority_vote_sufficient: false
     required_attack_objectives:

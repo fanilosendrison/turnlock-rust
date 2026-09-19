@@ -92,6 +92,15 @@ def coverage_entry(manifest: dict, invariant: str) -> dict:
     raise AssertionError(f"missing coverage entry {invariant}")
 
 
+PROTOCOL_BUNDLE_RELATIVE = "formal/reviews/protocols/gate-a-campaign-protocol-v1.json"
+
+SUPPORTING_PROFILE_DEFAULTS = {
+    "profile-challenge": ("provider-challenge", "model-challenge"),
+    "profile-materiality-assessor": ("provider-materiality", "model-materiality"),
+    "profile-adjudicator": ("provider-adjudicator", "model-adjudicator"),
+}
+
+
 def write_review_support_artifact(
     fixture_root: Path, relative_path: str, text: str
 ) -> dict:
@@ -101,13 +110,27 @@ def write_review_support_artifact(
     return {"path": relative_path, "sha256": checker.sha256_hex(path.read_bytes())}
 
 
-def write_raw_review_bytes(
-    fixture_root: Path, relative_path: str, data: bytes
-) -> dict:
+def write_bytes_artifact(fixture_root: Path, relative_path: str, data: bytes) -> dict:
     path = fixture_root / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     return {"path": relative_path, "sha256": checker.sha256_hex(data)}
+
+
+def write_json_artifact(
+    fixture_root: Path, relative_path: str, payload: dict, *, canonical: bool = True
+) -> dict:
+    if canonical:
+        data = checker._canonical_json_document_bytes(payload)
+    else:
+        data = json.dumps(payload).encode("utf-8")
+    return write_bytes_artifact(fixture_root, relative_path, data)
+
+
+def write_raw_review_bytes(
+    fixture_root: Path, relative_path: str, data: bytes
+) -> dict:
+    return write_bytes_artifact(fixture_root, relative_path, data)
 
 
 def write_gate_a_review_packet(fixture_root: Path) -> dict:
@@ -161,6 +184,267 @@ def default_model_identity(execution_id: str) -> tuple[str, str, str]:
     return f"provider-{suffix}", f"model-{suffix}", "1"
 
 
+def current_protocol_bundle_reference(fixture_root: Path) -> dict:
+    manifest = load_manifest(fixture_root)
+    return manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+
+
+def bundle_document(fixture_root: Path) -> dict:
+    reference = current_protocol_bundle_reference(fixture_root)
+    return json.loads(
+        (fixture_root / reference["path"]).read_text(encoding="utf-8")
+    )
+
+
+def install_protocol_bundle(
+    fixture_root: Path, profiles: list[dict]
+) -> tuple[dict, dict]:
+    payload = bundle_document(fixture_root)
+    existing: dict[str, dict] = {}
+    for profile in payload.get("reviewer_profiles", []):
+        if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str):
+            existing[profile["profile_id"]] = profile
+    for profile in profiles:
+        existing[profile["profile_id"]] = profile
+    payload["reviewer_profiles"] = [existing[key] for key in sorted(existing)]
+    data = checker._canonical_json_document_bytes(payload)
+    sha256 = checker.sha256_hex(data)
+    path = fixture_root / PROTOCOL_BUNDLE_RELATIVE
+    current = current_protocol_bundle_reference(fixture_root)
+    if isinstance(current.get("sha256"), str) and current.get("sha256") == sha256:
+        reference = {"path": current["path"], "sha256": sha256}
+    else:
+        derived = (
+            "formal/reviews/protocols/"
+            f"gate-a-campaign-protocol-v1-{sha256[:16]}.json"
+        )
+        path = fixture_root / derived
+        path.write_bytes(data)
+        reference = {"path": derived, "sha256": sha256}
+    manifest = load_manifest(fixture_root)
+    manifest["policy"]["hostile_review"]["current_protocol_bundle"] = reference
+    save_manifest(fixture_root, manifest)
+    return payload, reference
+
+
+def supporting_profile(profile_id: str) -> dict:
+    provider, model = SUPPORTING_PROFILE_DEFAULTS[profile_id]
+    return {
+        "profile_id": profile_id,
+        "provider": provider,
+        "request_model": model,
+        "frontier_eligible": True,
+        "identity_resolution": {"kind": "provider-reported"},
+    }
+
+
+def default_profile(
+    execution_id: str,
+    provider: str | None = None,
+    model: str | None = None,
+    *,
+    kind: str = "provider-reported",
+    frontier_eligible: bool = True,
+    immutable: bool | None = None,
+) -> dict:
+    provider_default, model_default, _ = default_model_identity(execution_id)
+    resolution: dict = {"kind": kind}
+    if immutable is not None:
+        resolution["request_model_is_immutable_version"] = immutable
+    return {
+        "profile_id": f"profile-{execution_id.removeprefix('EXEC-').lower()}",
+        "provider": provider if provider is not None else provider_default,
+        "request_model": model if model is not None else model_default,
+        "frontier_eligible": frontier_eligible,
+        "identity_resolution": resolution,
+    }
+
+
+def raw_finding(
+    raw_finding_id: str,
+    *,
+    attack_objectives: list[str] | None = None,
+    affected_claims: list[str] | None = None,
+    affected_invariants: list[str] | None = None,
+    affected_coverage_entries: list[str] | None = None,
+    evidence_references: list[str] | None = None,
+    statement: str = "A material semantic objection.",
+    argument: str = "The objection survives review.",
+    counterexample=None,
+) -> dict:
+    return {
+        "raw_finding_id": raw_finding_id,
+        "attack_objectives": (
+            list(attack_objectives)
+            if attack_objectives is not None
+            else [GATE_A_ATTACK_OBJECTIVES[0]]
+        ),
+        "affected_claims": list(affected_claims or []),
+        "affected_invariants": list(affected_invariants or []),
+        "affected_coverage_entries": list(affected_coverage_entries or []),
+        "evidence_references": list(evidence_references or ["canonical-packet"]),
+        "statement": statement,
+        "argument": argument,
+        "counterexample": counterexample,
+    }
+
+
+def raw_review_payload(raw_findings: list[dict] | None = None) -> dict:
+    findings = list(raw_findings or [])
+    assessments = []
+    for objective in GATE_A_ATTACK_OBJECTIVES:
+        finding_ids = [
+            raw["raw_finding_id"]
+            for raw in findings
+            if objective in raw.get("attack_objectives", [])
+        ]
+        assessments.append({"objective": objective, "finding_ids": finding_ids})
+    return {
+        "raw_review_schema_version": "1.0",
+        "objective_assessments": assessments,
+        "findings": findings,
+    }
+
+
+def challenge_output_payload(
+    kind: str, objectives, objections: list[dict] | None = None
+) -> dict:
+    objections = list(objections or [])
+    assessments = []
+    for objective in objectives:
+        objection_ids = [
+            objection["challenge_objection_id"]
+            for objection in objections
+            if objection.get("objective") == objective
+        ]
+        assessments.append(
+            {"objective": objective, "objection_ids": objection_ids}
+        )
+    return {
+        "challenge_output_schema_version": "1.0",
+        "challenge_kind": kind,
+        "objective_assessments": assessments,
+        "objections": objections,
+    }
+
+
+def attempt_payload(
+    attempt_id: str = "ATTEMPT-1",
+    *,
+    outcome: str = "qualified",
+    provider_model: str | None = "1",
+    raw_output: dict | None = None,
+    protocol_errors: list[str] | None = None,
+    **overrides,
+) -> dict:
+    data = {
+        "attempt_id": attempt_id,
+        "call_id": f"CALL-{attempt_id}",
+        "outcome": outcome,
+        "started_at": "2026-09-19T00:00:00Z",
+        "ended_at": "2026-09-19T00:01:00Z",
+        "provider_model": provider_model,
+        "provider_response_id": "RESP-1",
+        "termination": "stop",
+        "transport_attempt_count": 1,
+        "raw_output": raw_output,
+        "protocol_errors": list(protocol_errors or []),
+    }
+    data.update(overrides)
+    return data
+
+
+def build_receipt_payload(
+    *,
+    execution_id: str,
+    role: str,
+    reviewer_profile_id: str,
+    protocol_bundle_sha256: str,
+    prompt: dict,
+    packet: dict,
+    provider: str,
+    model: str,
+    model_version: str = "1",
+    raw_output: dict | None = None,
+    outcome: str = "qualified",
+    attempts: list[dict] | None = None,
+    resolved_identity: dict | None = None,
+    overrides: dict | None = None,
+) -> dict:
+    if attempts is None:
+        attempts = [
+            attempt_payload(
+                outcome=outcome,
+                provider_model=model_version if outcome == "qualified" else None,
+                raw_output=raw_output,
+            )
+        ]
+    attempt_id = attempts[0]["attempt_id"] if attempts else "ATTEMPT-1"
+    if resolved_identity is None and outcome == "qualified":
+        resolved_identity = {
+            "provider": provider,
+            "model": model,
+            "model_version": model_version,
+            "resolution_kind": "provider-reported",
+            "evidence_attempt_id": attempt_id,
+        }
+    payload = {
+        "receipt_schema_version": "1.0",
+        "execution_id": execution_id,
+        "role": role,
+        "reviewer_profile_id": reviewer_profile_id,
+        "protocol_bundle_sha256": protocol_bundle_sha256,
+        "input": {"prompt": prompt, "packet": packet},
+        "isolated_context": True,
+        "cross_reviewer_visibility_before_seal": False,
+        "tools_enabled": False,
+        "runtime": {"name": "fixture-runtime", "version": "1.0"},
+        "request": {"provider": provider, "model": model},
+        "attempts": attempts,
+        "qualifying_attempt_id": (
+            attempt_id if outcome == "qualified" else None
+        ),
+        "resolved_identity": resolved_identity,
+    }
+    if overrides:
+        payload.update(overrides)
+    return payload
+
+
+def write_receipt_payload(fixture_root: Path, payload: dict, name: str) -> dict:
+    return write_json_artifact(
+        fixture_root, f"formal/reviews/executions/{name}.json", payload
+    )
+
+
+def make_support_receipt(
+    fixture_root: Path,
+    *,
+    name: str,
+    role: str,
+    profile_id: str,
+    bundle_reference: dict,
+    bundle_payload: dict,
+    prompt_key: str,
+    packet_reference: dict,
+    output_reference: dict,
+) -> dict:
+    profile = supporting_profile(profile_id)
+    payload = build_receipt_payload(
+        execution_id=f"EXEC-{name.upper().replace('-', '')}",
+        role=role,
+        reviewer_profile_id=profile_id,
+        protocol_bundle_sha256=bundle_reference["sha256"],
+        prompt=bundle_payload["prompts"][prompt_key],
+        packet=packet_reference,
+        provider=profile["provider"],
+        model=profile["request_model"],
+        model_version="1",
+        raw_output=output_reference,
+    )
+    return write_receipt_payload(fixture_root, payload, name)
+
+
 def execution(
     fixture_root: Path,
     execution_id: str,
@@ -170,8 +454,9 @@ def execution(
     provider: str | None = None,
     model: str | None = None,
     model_version: str | None = None,
+    reviewer_profile_id: str | None = None,
     attack_objectives: list[str] | None = None,
-    raw_output: dict | None = None,
+    raw_payload: dict | None = None,
     raw_finding_ids: list[str] | None = None,
     review_packet_sha256: str | None = None,
     prompt_sha256: str | None = None,
@@ -181,16 +466,23 @@ def execution(
     identity_provider, identity_model, identity_version = default_model_identity(
         execution_id
     )
-    if raw_output is None:
-        slug = execution_id.removeprefix("EXEC-").lower() or "exec"
-        raw_output = write_review_support_artifact(
-            fixture_root,
-            f"formal/reviews/raw/{slug}.md",
-            f"# Sealed raw output for {execution_id}\n",
-        )
+    slug = execution_id.removeprefix("EXEC-").lower() or "exec"
+    if raw_payload is None:
+        raw_payload = raw_review_payload()
+    raw_output = write_json_artifact(
+        fixture_root,
+        f"formal/reviews/raw/{slug}.json",
+        raw_payload,
+        canonical=False,
+    )
     return {
         "execution_id": execution_id,
         "reviewer_type": "frontier-llm",
+        "reviewer_profile_id": (
+            reviewer_profile_id
+            if reviewer_profile_id is not None
+            else f"profile-{slug}"
+        ),
         "provider": provider if provider is not None else identity_provider,
         "model": model if model is not None else identity_model,
         "model_version": (
@@ -213,9 +505,415 @@ def execution(
         ),
         "raw_output": raw_output,
         "raw_finding_ids": (
-            list(raw_finding_ids) if raw_finding_ids is not None else []
+            list(raw_finding_ids)
+            if raw_finding_ids is not None
+            else [
+                raw["raw_finding_id"]
+                for raw in raw_payload.get("findings", [])
+                if isinstance(raw, dict)
+            ]
         ),
     }
+
+
+def sync_execution_raw(
+    fixture_root: Path, execution: dict, raw_findings: list[dict]
+) -> None:
+    payload = raw_review_payload(raw_findings)
+    reference = write_json_artifact(
+        fixture_root,
+        execution["raw_output"]["path"],
+        payload,
+        canonical=False,
+    )
+    execution["raw_output"] = reference
+    execution["raw_finding_ids"] = [
+        raw["raw_finding_id"] for raw in raw_findings
+    ]
+
+
+def executions_for(
+    fixture_root: Path, execution_ids: list[str]
+) -> list[dict]:
+    packet = write_gate_a_review_packet(fixture_root)
+    prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+    return [
+        execution(fixture_root, execution_id, packet=packet, prompt=prompt)
+        for execution_id in execution_ids
+    ]
+
+
+def mutate_execution_receipt(
+    fixture_root: Path, record: dict, index: int, mutator
+) -> dict:
+    execution = record["executions"][index]
+    reference = execution["execution_receipt"]
+    payload = json.loads(
+        (fixture_root / reference["path"]).read_text(encoding="utf-8")
+    )
+    mutator(payload)
+    new_reference = write_json_artifact(fixture_root, reference["path"], payload)
+    execution["execution_receipt"] = new_reference
+    return payload
+
+
+def challenge_output_schema_errors(fixture_root: Path, payload: dict) -> list:
+    schema = json.loads(
+        (
+            fixture_root
+            / "formal/reviews/schemas/challenge-output-v1.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    return list(Draft202012Validator(schema).iter_errors(payload))
+
+
+def replace_execution_raw_output(
+    fixture_root: Path, record: dict, index: int, payload: dict
+) -> dict:
+    execution = record["executions"][index]
+    old_reference = execution["raw_output"]
+    reference = write_json_artifact(
+        fixture_root,
+        old_reference["path"],
+        payload,
+        canonical=False,
+    )
+    execution["raw_output"] = reference
+    execution["raw_finding_ids"] = [
+        raw["raw_finding_id"]
+        for raw in payload.get("findings", [])
+        if isinstance(raw, dict) and isinstance(raw.get("raw_finding_id"), str)
+    ]
+    receipt_reference = execution.get("execution_receipt")
+    if isinstance(receipt_reference, dict):
+        receipt_payload = json.loads(
+            (fixture_root / receipt_reference["path"]).read_text(
+                encoding="utf-8"
+            )
+        )
+        for attempt in receipt_payload.get("attempts", []):
+            attempt_reference = attempt.get("raw_output")
+            if (
+                isinstance(attempt_reference, dict)
+                and attempt_reference.get("path") == old_reference["path"]
+            ):
+                attempt["raw_output"] = reference
+        execution["execution_receipt"] = write_json_artifact(
+            fixture_root, receipt_reference["path"], receipt_payload
+        )
+    return reference
+
+
+def attach_materiality_evidence(
+    fixture_root: Path,
+    protocol: dict,
+    bundle_payload: dict,
+    bundle_reference: dict,
+    supporting: list[dict],
+    *,
+    name: str,
+    substantive_finding: dict,
+    materiality_mapping: dict,
+    objections: list[dict] | None = None,
+) -> None:
+    output_reference = write_json_artifact(
+        fixture_root,
+        f"formal/reviews/adjudications/materiality-{name}.json",
+        {"materiality_assessment": name},
+    )
+    assessment_receipt = make_support_receipt(
+        fixture_root,
+        name=f"materiality-{name}",
+        role="materiality-assessor",
+        profile_id="profile-materiality-assessor",
+        bundle_reference=bundle_reference,
+        bundle_payload=bundle_payload,
+        prompt_key="adjudication",
+        packet_reference=protocol["review_packet"],
+        output_reference=output_reference,
+    )
+    supporting.append(assessment_receipt)
+    materiality_mapping["assessment_execution_receipt"] = assessment_receipt
+
+    material = any(
+        materiality_mapping.get(axis) is True for axis in checker.MATERIALITY_AXES
+    )
+    if material:
+        materiality_mapping["challenge"] = None
+        return
+    challenged_sha = checker._materiality_challenge_subject_sha256(
+        substantive_finding, materiality_mapping
+    )
+    challenge_output = challenge_output_payload(
+        "materiality",
+        checker.MATERIALITY_AXES,
+        objections,
+    )
+    challenge_output_reference = write_json_artifact(
+        fixture_root,
+        f"formal/reviews/challenges/materiality-{name}.json",
+        challenge_output,
+    )
+    challenge_receipt = make_support_receipt(
+        fixture_root,
+        name=f"materiality-challenge-{name}",
+        role="challenge",
+        profile_id="profile-challenge",
+        bundle_reference=bundle_reference,
+        bundle_payload=bundle_payload,
+        prompt_key="challenge",
+        packet_reference=protocol["review_packet"],
+        output_reference=challenge_output_reference,
+    )
+    supporting.append(challenge_receipt)
+    materiality_mapping["challenge"] = {
+        "challenged_materiality_sha256": challenged_sha,
+        "execution_receipt": challenge_receipt,
+        "output": challenge_output_reference,
+        "rationale": "Fixture hostile materiality challenge.",
+    }
+
+
+def replace_materiality_challenge(
+    fixture_root: Path,
+    protocol: dict,
+    bundle_payload: dict,
+    bundle_reference: dict,
+    supporting: list[dict],
+    *,
+    name: str,
+    substantive_finding: dict,
+    materiality_mapping: dict,
+    objections: list[dict],
+) -> None:
+    previous = materiality_mapping.get("challenge")
+    if isinstance(previous, dict):
+        old_receipt = previous.get("execution_receipt") or {}
+        old_key = (old_receipt.get("path"), old_receipt.get("sha256"))
+        supporting[:] = [
+            reference
+            for reference in supporting
+            if (reference.get("path"), reference.get("sha256")) != old_key
+        ]
+    challenged_sha = checker._materiality_challenge_subject_sha256(
+        substantive_finding, materiality_mapping
+    )
+    challenge_output = challenge_output_payload(
+        "materiality", checker.MATERIALITY_AXES, objections
+    )
+    challenge_output_reference = write_json_artifact(
+        fixture_root,
+        f"formal/reviews/challenges/materiality-{name}-revision.json",
+        challenge_output,
+    )
+    challenge_receipt = make_support_receipt(
+        fixture_root,
+        name=f"materiality-challenge-{name}-revision",
+        role="challenge",
+        profile_id="profile-challenge",
+        bundle_reference=bundle_reference,
+        bundle_payload=bundle_payload,
+        prompt_key="challenge",
+        packet_reference=protocol["review_packet"],
+        output_reference=challenge_output_reference,
+    )
+    supporting.append(challenge_receipt)
+    materiality_mapping["challenge"] = {
+        "challenged_materiality_sha256": challenged_sha,
+        "execution_receipt": challenge_receipt,
+        "output": challenge_output_reference,
+        "rationale": "Fixture revised hostile materiality challenge.",
+    }
+
+
+def attach_adjudication_receipt(
+    fixture_root: Path,
+    protocol: dict,
+    bundle_payload: dict,
+    bundle_reference: dict,
+    supporting: list[dict],
+    *,
+    name: str,
+    role: str,
+    output_name: str | None = None,
+) -> dict:
+    output_reference = write_json_artifact(
+        fixture_root,
+        f"formal/reviews/adjudications/{output_name or name}.json",
+        {"disposition": name},
+    )
+    receipt = make_support_receipt(
+        fixture_root,
+        name=name,
+        role=role,
+        profile_id="profile-adjudicator",
+        bundle_reference=bundle_reference,
+        bundle_payload=bundle_payload,
+        prompt_key="adjudication",
+        packet_reference=protocol["review_packet"],
+        output_reference=output_reference,
+    )
+    supporting.append(receipt)
+    return receipt
+
+
+def attach_challenge(
+    fixture_root: Path,
+    record: dict,
+    finding: dict,
+    *,
+    objections: list[dict] | None = None,
+    execution_receipt: dict | None = None,
+    output: dict | None = None,
+    binding: str | None = None,
+    role: str = "challenge",
+) -> dict:
+    bundle_payload = bundle_document(fixture_root)
+    bundle_reference = record["protocol"]["protocol_bundle"]
+    supporting = record.setdefault("supporting_executions", [])
+    if not isinstance(finding.get("disposition"), dict):
+        raise AssertionError("attaching a challenge requires a refuted disposition")
+    expected_sha = checker._refutation_challenge_subject_sha256(finding)
+    if output is None:
+        challenge_output = challenge_output_payload(
+            "refutation", checker.REFUTATION_CHALLENGE_OBJECTIVES, objections
+        )
+        output = write_json_artifact(
+            fixture_root,
+            f"formal/reviews/challenges/refutation-{finding['finding_id']}.json",
+            challenge_output,
+        )
+    if execution_receipt is None:
+        receipt_payload = build_receipt_payload(
+            execution_id=f"EXEC-CHALLENGE-{finding['finding_id'].upper().replace('-', '')}",
+            role=role,
+            reviewer_profile_id="profile-challenge",
+            protocol_bundle_sha256=bundle_reference["sha256"],
+            prompt=bundle_payload["prompts"]["challenge"],
+            packet=record["protocol"]["review_packet"],
+            provider="provider-challenge" if role == "challenge" else "provider-adjudicator",
+            model="model-challenge" if role == "challenge" else "model-adjudicator",
+            model_version="1",
+            raw_output=output,
+        )
+        if execution_receipt is None:
+            execution_receipt = write_receipt_payload(
+                fixture_root,
+                receipt_payload,
+                f"challenge-{finding['finding_id']}",
+            )
+            supporting.append(execution_receipt)
+    finding["disposition"]["challenge"] = {
+        "challenged_refutation_sha256": (
+            binding if binding is not None else expected_sha
+        ),
+        "execution_receipt": execution_receipt,
+        "output": output,
+        "rationale": "Fixture hostile refutation challenge.",
+    }
+    return finding
+
+
+def make_re_adjudication(
+    fixture_root: Path,
+    protocol: dict,
+    bundle_payload: dict,
+    bundle_reference: dict,
+    supporting: list[dict],
+    *,
+    source_review_id: str,
+    source_finding: dict,
+    material: bool = False,
+    status: str = "open",
+    disposition=None,
+    name_suffix: str = "readj",
+) -> dict:
+    axes = {axis: axis == "authority_or_upstream_decision" and material for axis in checker.MATERIALITY_AXES}
+    materiality_mapping = {
+        **axes,
+        "rationale": (
+            "Assuming the finding is true, it could change the Gate A subject while "
+            "still authorizing the candidate model."
+        ),
+    }
+    item = {
+        "source_review_id": source_review_id,
+        "source_finding_id": source_finding["finding_id"],
+        "source_finding_sha256": checker._finding_subject_sha256(source_finding),
+        "materiality": materiality_mapping,
+        "status": status,
+        "disposition": disposition,
+    }
+    attach_materiality_evidence(
+        fixture_root,
+        protocol,
+        bundle_payload,
+        bundle_reference,
+        supporting,
+        name=f"{name_suffix}-{source_review_id}-{source_finding['finding_id']}",
+        substantive_finding=source_finding,
+        materiality_mapping=materiality_mapping,
+    )
+    if status == "refuted":
+        receipt = attach_adjudication_receipt(
+            fixture_root,
+            protocol,
+            bundle_payload,
+            bundle_reference,
+            supporting,
+            name=f"{name_suffix}-refutation-{source_review_id}-{source_finding['finding_id']}",
+            role="refutation-builder",
+        )
+        item["disposition"] = disposition if isinstance(disposition, dict) else refuted_disposition()
+        item["disposition"]["adjudication_execution_receipt"] = receipt
+        if material:
+            expected_sha = checker._re_adjudication_refutation_subject_sha256(
+                source_finding, item
+            )
+            challenge_output = challenge_output_payload(
+                "refutation", checker.REFUTATION_CHALLENGE_OBJECTIVES
+            )
+            challenge_output_reference = write_json_artifact(
+                fixture_root,
+                f"formal/reviews/challenges/readj-{source_review_id}-{source_finding['finding_id']}.json",
+                challenge_output,
+            )
+            challenge_receipt = make_support_receipt(
+                fixture_root,
+                name=f"readj-challenge-{source_review_id}-{source_finding['finding_id']}",
+                role="challenge",
+                profile_id="profile-challenge",
+                bundle_reference=bundle_reference,
+                bundle_payload=bundle_payload,
+                prompt_key="challenge",
+                packet_reference=protocol["review_packet"],
+                output_reference=challenge_output_reference,
+            )
+            supporting.append(challenge_receipt)
+            item["disposition"]["challenge"] = {
+                "challenged_refutation_sha256": expected_sha,
+                "execution_receipt": challenge_receipt,
+                "output": challenge_output_reference,
+                "rationale": "Fixture hostile re-adjudication refutation challenge.",
+            }
+    elif status in ("routed", "resolved"):
+        role = "discovery-classifier" if status == "routed" else "derivation-builder"
+        receipt = attach_adjudication_receipt(
+            fixture_root,
+            protocol,
+            bundle_payload,
+            bundle_reference,
+            supporting,
+            name=f"{name_suffix}-{status}-{source_review_id}-{source_finding['finding_id']}",
+            role=role,
+        )
+        item["disposition"] = (
+            disposition
+            if isinstance(disposition, dict)
+            else (routed_disposition() if status == "routed" else resolved_disposition())
+        )
+        item["disposition"]["adjudication_execution_receipt"] = receipt
+    return item
 
 
 def make_review(
@@ -227,57 +925,255 @@ def make_review(
     protocol: dict | None = None,
     executions: list[dict] | None = None,
     findings: list[dict] | None = None,
+    supporting_executions: list[dict] | None = None,
+    re_adjudications: list[dict] | None = None,
+    profiles: list[dict] | None = None,
+    receipt_overrides: dict | None = None,
 ) -> dict:
+    manifest = load_manifest(fixture_root)
     if subjects is None:
-        subject, errors = checker.build_gate_a_review_subject(
-            fixture_root, load_manifest(fixture_root)
-        )
+        subject, errors = checker.build_gate_a_review_subject(fixture_root, manifest)
         if errors or subject is None:
             raise AssertionError(errors or "Gate A subject derivation failed")
         subjects = [subject]
+
+    bundle_payload = bundle_document(fixture_root)
+    packet_reference: dict
     if protocol is None:
+        packet_reference = write_gate_a_review_packet(fixture_root)
         protocol = {
-            "review_packet": write_gate_a_review_packet(fixture_root),
-            "prompt": write_review_support_artifact(
-                fixture_root,
-                "formal/reviews/prompts/prompt.md",
-                "# Canonical review prompt\n",
-            ),
+            "review_packet": packet_reference,
+            "prompt": bundle_payload["prompts"]["initial-reviewer"],
+            "protocol_bundle": {},
         }
+    packet_reference = protocol["review_packet"]
+    prompt_reference = protocol["prompt"]
+
     if executions is None:
         executions = [
             execution(
                 fixture_root,
                 "EXEC-A",
-                packet=protocol["review_packet"],
-                prompt=protocol["prompt"],
+                packet=packet_reference,
+                prompt=prompt_reference,
             ),
             execution(
                 fixture_root,
                 "EXEC-B",
-                packet=protocol["review_packet"],
-                prompt=protocol["prompt"],
+                packet=packet_reference,
+                prompt=prompt_reference,
             ),
         ]
+
+    if profiles is None:
+        profiles = [
+            default_profile(
+                item["execution_id"], item.get("provider"), item.get("model")
+            )
+            for item in executions
+        ]
+    else:
+        profiles = list(profiles)
+    profiles.extend(supporting_profile(pid) for pid in SUPPORTING_PROFILE_DEFAULTS)
+    bundle_payload, bundle_reference = install_protocol_bundle(
+        fixture_root, profiles
+    )
+    protocol["protocol_bundle"] = bundle_reference
+
     records = list(findings) if findings is not None else []
-    for finding_record in records:
-        for source in finding_record.get("sources", []):
-            for execution_record in executions:
-                if execution_record["execution_id"] != source["execution_id"]:
-                    continue
-                if source["raw_finding_id"] not in execution_record["raw_finding_ids"]:
-                    execution_record["raw_finding_ids"].append(
-                        source["raw_finding_id"]
+    supporting = list(supporting_executions) if supporting_executions is not None else []
+
+    for finding in records:
+        sources = [
+            source for source in finding.get("sources", []) if isinstance(source, dict)
+        ]
+        for source in sources:
+            execution_id = source.get("execution_id")
+            target = next(
+                (
+                    item
+                    for item in executions
+                    if item["execution_id"] == execution_id
+                ),
+                None,
+            )
+            if target is None:
+                continue
+            payload = json.loads(
+                (fixture_root / target["raw_output"]["path"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            raw_id = source.get("raw_finding_id")
+            existing = next(
+                (
+                    raw
+                    for raw in payload.get("findings", [])
+                    if isinstance(raw, dict)
+                    and raw.get("raw_finding_id") == raw_id
+                ),
+                None,
+            )
+            if existing is None:
+                payload.setdefault("findings", []).append(
+                    raw_finding(
+                        raw_id,
+                        statement=finding["statement"],
+                        argument=finding["argument"],
+                        counterexample=finding["counterexample"],
                     )
+                )
+            assessments = []
+            for objective in GATE_A_ATTACK_OBJECTIVES:
+                finding_ids = [
+                    raw["raw_finding_id"]
+                    for raw in payload["findings"]
+                    if objective in raw.get("attack_objectives", [])
+                ]
+                assessments.append(
+                    {"objective": objective, "finding_ids": finding_ids}
+                )
+            payload["objective_assessments"] = assessments
+            sync_execution_raw(fixture_root, target, payload["findings"])
+
+    for finding in records:
+        attach_materiality_evidence(
+            fixture_root,
+            protocol,
+            bundle_payload,
+            bundle_reference,
+            supporting,
+            name=f"finding-{finding['finding_id']}",
+            substantive_finding=finding,
+            materiality_mapping=finding["materiality"],
+        )
+        status = finding.get("status")
+        disposition = finding.get("disposition")
+        if isinstance(disposition, dict):
+            role_by_status = {
+                "refuted": "refutation-builder",
+                "routed": "discovery-classifier",
+                "resolved": "derivation-builder",
+            }
+            role = role_by_status.get(status)
+            if role is not None and disposition.get(
+                "adjudication_execution_receipt"
+            ) is None:
+                receipt = attach_adjudication_receipt(
+                    fixture_root,
+                    protocol,
+                    bundle_payload,
+                    bundle_reference,
+                    supporting,
+                    name=f"adjudication-{finding['finding_id']}",
+                    role=role,
+                )
+                disposition["adjudication_execution_receipt"] = receipt
+
+    if re_adjudications:
+        for item in re_adjudications:
+            if item["materiality"].get("assessment_execution_receipt") is None:
+                attach_materiality_evidence(
+                    fixture_root,
+                    protocol,
+                    bundle_payload,
+                    bundle_reference,
+                    supporting,
+                    name=f"readj-{item['source_review_id']}-{item['source_finding_id']}",
+                    substantive_finding=item["_source_finding"],
+                    materiality_mapping=item["materiality"],
+                )
+            status = item.get("status")
+            disposition = item.get("disposition")
+            if isinstance(disposition, dict):
+                role_by_status = {
+                    "refuted": "refutation-builder",
+                    "routed": "discovery-classifier",
+                    "resolved": "derivation-builder",
+                }
+                role = role_by_status.get(status)
+                if role is not None and disposition.get(
+                    "adjudication_execution_receipt"
+                ) is None:
+                    receipt = attach_adjudication_receipt(
+                        fixture_root,
+                        protocol,
+                        bundle_payload,
+                        bundle_reference,
+                        supporting,
+                        name=f"readj-{item['source_review_id']}-{item['source_finding_id']}",
+                        role=role,
+                    )
+                    disposition["adjudication_execution_receipt"] = receipt
+            item.pop("_source_finding", None)
+
+    for item in executions:
+        profile_id = item["reviewer_profile_id"]
+        profile = next(
+            (
+                candidate
+                for candidate in bundle_payload["reviewer_profiles"]
+                if candidate["profile_id"] == profile_id
+            ),
+            default_profile(item["execution_id"], item["provider"], item["model"]),
+        )
+        kind = profile.get("identity_resolution", {}).get("kind", "provider-reported")
+        model_version = item["model_version"]
+        resolved_identity = {
+            "provider": item["provider"],
+            "model": item["model"],
+            "model_version": (
+                profile["request_model"]
+                if kind == "pinned-request-model"
+                and profile.get("identity_resolution", {}).get(
+                    "request_model_is_immutable_version"
+                )
+                is True
+                else model_version
+            ),
+            "resolution_kind": kind,
+            "evidence_attempt_id": "ATTEMPT-1",
+        }
+        receipt_payload = build_receipt_payload(
+            execution_id=item["execution_id"],
+            role="initial-reviewer",
+            reviewer_profile_id=profile_id,
+            protocol_bundle_sha256=bundle_reference["sha256"],
+            prompt=prompt_reference,
+            packet=packet_reference,
+            provider=item["provider"],
+            model=item["model"],
+            model_version=model_version,
+            raw_output=item["raw_output"],
+            resolved_identity=resolved_identity,
+        )
+        overrides = (receipt_overrides or {}).get(item["execution_id"])
+        if overrides:
+            receipt_payload.update(overrides)
+        receipt_reference = write_receipt_payload(
+            fixture_root,
+            receipt_payload,
+            f"receipt-{item['execution_id'].lower()}",
+        )
+        item["execution_receipt"] = receipt_reference
+
+    deduplicated_supporting: dict[tuple, dict] = {}
+    for reference in supporting:
+        deduplicated_supporting[
+            (reference.get("path"), reference.get("sha256"))
+        ] = reference
+
     return {
-        "schema_version": "3.0",
+        "schema_version": "4.0",
         "review_id": review_id,
         "review_class": review_class,
         "repository_commit": "6d3c9851e0d66286280f8e49ebd8ed44da13d876",
         "subjects": subjects,
         "protocol": protocol,
         "executions": executions,
+        "supporting_executions": list(deduplicated_supporting.values()),
         "findings": records,
+        "re_adjudications": list(re_adjudications) if re_adjudications else [],
         "supersedes_review_ids": [],
         "started_at": "2026-09-19T00:00:00Z",
         "completed_at": "2026-09-19T01:00:00Z",
@@ -353,33 +1249,6 @@ def counterexample_disposition(**overrides) -> dict:
     }
     data.update(overrides)
     return data
-
-
-def challenge_artifact(fixture_root: Path, finding: dict, **overrides) -> dict:
-    data = {
-        "challenger_execution_id": "EXEC-B",
-        "challenged_refutation_sha256": (
-            checker._refutation_challenge_subject_sha256(finding)
-        ),
-        "output": write_review_support_artifact(
-            fixture_root,
-            "formal/reviews/challenges/challenge-1.md",
-            "# Hostile challenge of a material refutation\n",
-        ),
-        "surviving_material_argument": False,
-        "rationale": "No valid material argument or counterexample survives.",
-    }
-    data.update(overrides)
-    return data
-
-
-def attach_challenge(fixture_root: Path, finding: dict, **overrides) -> dict:
-    if not isinstance(finding.get("disposition"), dict):
-        raise AssertionError("attaching a challenge requires a refuted disposition")
-    finding["disposition"]["challenge"] = challenge_artifact(
-        fixture_root, finding, **overrides
-    )
-    return finding
 
 
 def refuted_disposition(**overrides) -> dict:
@@ -480,7 +1349,7 @@ def review_challenge_schema_errors(fixture_root: Path, challenge: dict) -> list:
             fixture_root / "formal" / "reviews" / "review-evidence.schema.json"
         ).read_text(encoding="utf-8")
     )
-    wrapper = {"$defs": schema.get("$defs", {}), "$ref": "#/$defs/challenge"}
+    wrapper = {"$defs": schema.get("$defs", {}), "$ref": "#/$defs/refutationChallenge"}
     return list(Draft202012Validator(wrapper).iter_errors(challenge))
 
 
@@ -891,16 +1760,17 @@ class FormalTraceabilityTests(unittest.TestCase):
             protocol = record["protocol"]
             duplicate_raw = write_review_support_artifact(
                 fixture_root,
-                "formal/reviews/raw/exec-a-duplicate.md",
-                "# Duplicate execution identifier raw output\n",
+                "formal/reviews/raw/exec-a-duplicate.json",
+                "{}\n",
             )
             record["executions"][1] = execution(
                 fixture_root,
                 "EXEC-A",
                 packet=protocol["review_packet"],
                 prompt=protocol["prompt"],
-                raw_output=duplicate_raw,
+                raw_payload=raw_review_payload(),
             )
+            record["executions"][1]["raw_output"] = duplicate_raw
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
@@ -918,11 +1788,29 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_same_model_identity_twice_counts_as_one_independent_reviewer(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            record = make_review(fixture_root)
-            for item in record["executions"]:
-                item["provider"] = "provider"
-                item["model"] = "model"
-                item["model_version"] = "1"
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(
+                    fixture_root,
+                    "EXEC-A",
+                    packet=packet,
+                    prompt=prompt,
+                    provider="provider",
+                    model="model",
+                    model_version="1",
+                ),
+                execution(
+                    fixture_root,
+                    "EXEC-B",
+                    packet=packet,
+                    prompt=prompt,
+                    provider="provider",
+                    model="model",
+                    model_version="1",
+                ),
+            ]
+            record = make_review(fixture_root, executions=executions)
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
@@ -931,24 +1819,41 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertFalse(summary["gate_a"]["ready"])
             self.assertIn("operational independence", summary["gate_a"]["reason"])
 
-    def test_same_provider_distinct_model_identities_can_satisfy_independence(
+    def test_alias_models_with_same_effective_identity_do_not_satisfy_minimum(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            record = make_review(fixture_root)
-            record["executions"][0].update(
-                {"provider": "provider", "model": "model-a", "model_version": "1"}
-            )
-            record["executions"][1].update(
-                {"provider": "provider", "model": "model-b", "model_version": "1"}
-            )
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(
+                    fixture_root,
+                    "EXEC-A",
+                    packet=packet,
+                    prompt=prompt,
+                    provider="provider",
+                    model="model-a",
+                    model_version="1",
+                ),
+                execution(
+                    fixture_root,
+                    "EXEC-B",
+                    packet=packet,
+                    prompt=prompt,
+                    provider="provider",
+                    model="model-b",
+                    model_version="1",
+                ),
+            ]
+            record = make_review(fixture_root, executions=executions)
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
             self.assertEqual([], errors)
-            self.assertTrue(summary["gate_a"]["ready"])
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertIn("effective model identity", summary["gate_a"]["reason"])
 
     def test_distinct_provider_and_model_identities_can_satisfy_independence(
         self,
@@ -1193,15 +2098,17 @@ class FormalTraceabilityTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            record = make_review(fixture_root, findings=[finding(status="open")])
-            protocol = record["protocol"]
-            record["executions"].append(
-                execution(
-                    fixture_root,
-                    "EXEC-C",
-                    packet=protocol["review_packet"],
-                    prompt=protocol["prompt"],
-                )
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(fixture_root, "EXEC-A", packet=packet, prompt=prompt),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt),
+                execution(fixture_root, "EXEC-C", packet=packet, prompt=prompt),
+            ]
+            record = make_review(
+                fixture_root,
+                executions=executions,
+                findings=[finding(status="open")],
             )
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
@@ -1229,9 +2136,19 @@ class FormalTraceabilityTests(unittest.TestCase):
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
-            self.assertEqual([], errors)
+            self.assertTrue(
+                any(
+                    "execution attack_objectives must equal the raw objective set"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
             self.assertFalse(summary["gate_a"]["ready"])
-            self.assertIn("per-execution attack coverage", summary["gate_a"]["reason"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
 
     def test_missing_required_objective_from_one_execution_blocks_gate_a(
         self,
@@ -1252,9 +2169,19 @@ class FormalTraceabilityTests(unittest.TestCase):
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
-            self.assertEqual([], errors)
+            self.assertTrue(
+                any(
+                    "execution attack_objectives must equal the raw objective set"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
             self.assertFalse(summary["gate_a"]["ready"])
-            self.assertIn("per-execution attack coverage", summary["gate_a"]["reason"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
 
     def test_complete_required_objectives_on_each_execution_can_satisfy_gate_a(
         self,
@@ -1635,6 +2562,7 @@ class FormalTraceabilityTests(unittest.TestCase):
             _fake_payload, fake_subject = fake_gate_a_subject()
             record["subjects"] = [current_subject, fake_subject]
             summary = checker.derive_gate_a(
+                fixture_root,
                 manifest,
                 current_subject,
                 [(Path("formal/reviews/REVIEW-CONFUSED.yaml"), record)],
@@ -1734,7 +2662,7 @@ class FormalTraceabilityTests(unittest.TestCase):
             fixture_root = make_fixture(temporary)
             record = make_review(fixture_root)
             record["executions"][0]["raw_output"]["path"] = (
-                "formal/reviews/raw/missing.md"
+                "formal/reviews/raw/missing.json"
             )
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
@@ -1847,8 +2775,21 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_declared_raw_finding_without_normalized_destination_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            record = make_review(fixture_root)
-            record["executions"][0]["raw_finding_ids"] = ["EXEC-A-F001"]
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(
+                    fixture_root,
+                    "EXEC-A",
+                    packet=packet,
+                    prompt=prompt,
+                    raw_payload=raw_review_payload(
+                        [raw_finding("EXEC-A-UNMAPPED")]
+                    ),
+                ),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt),
+            ]
+            record = make_review(fixture_root, executions=executions)
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
@@ -1891,7 +2832,9 @@ class FormalTraceabilityTests(unittest.TestCase):
                 summary["gate_a"]["reason"],
             )
 
-    def test_multiple_raw_findings_can_merge_into_one_normalized_finding(self) -> None:
+    def test_multiple_raw_findings_cannot_merge_into_one_normalized_finding(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             record = make_review(
@@ -1911,8 +2854,17 @@ class FormalTraceabilityTests(unittest.TestCase):
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
-            self.assertEqual([], errors)
-            self.assertTrue(summary["gate_a"]["ready"])
+            self.assertTrue(
+                any(
+                    "must declare exactly one source" in error for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
 
     def test_duplicate_normalized_finding_ids_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1970,7 +2922,9 @@ class FormalTraceabilityTests(unittest.TestCase):
             manifest = load_manifest(fixture_root)
             manifest["policy"]["hostile_review"]["minimum_independent_reviewers"] = 3
             save_manifest(fixture_root, manifest)
-            record = make_review(fixture_root)
+            record = make_review(
+                fixture_root, executions=executions_for(fixture_root, ["EXEC-A", "EXEC-B"])
+            )
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
@@ -1978,14 +2932,11 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertEqual([], errors)
             self.assertFalse(summary["gate_a"]["ready"])
 
-            protocol = record["protocol"]
-            record["executions"].append(
-                execution(
-                    fixture_root,
-                    "EXEC-C",
-                    packet=protocol["review_packet"],
-                    prompt=protocol["prompt"],
-                )
+            record = make_review(
+                fixture_root,
+                executions=executions_for(
+                    fixture_root, ["EXEC-A", "EXEC-B", "EXEC-C"]
+                ),
             )
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
@@ -1999,7 +2950,11 @@ class FormalTraceabilityTests(unittest.TestCase):
             fixture_root = make_fixture(temporary)
             write_review(
                 fixture_root,
-                make_review(fixture_root, review_id="REVIEW-A"),
+                make_review(
+                    fixture_root,
+                    review_id="REVIEW-A",
+                    executions=executions_for(fixture_root, ["EXEC-A", "EXEC-B"]),
+                ),
                 name="REVIEW-A.yaml",
             )
             write_review(
@@ -2007,7 +2962,18 @@ class FormalTraceabilityTests(unittest.TestCase):
                 make_review(
                     fixture_root,
                     review_id="REVIEW-B",
-                    findings=[finding(status="open")],
+                    executions=executions_for(fixture_root, ["EXEC-C", "EXEC-D"]),
+                    findings=[
+                        finding(
+                            status="open",
+                            sources=[
+                                {
+                                    "execution_id": "EXEC-C",
+                                    "raw_finding_id": "EXEC-C-F001",
+                                }
+                            ],
+                        )
+                    ],
                 ),
                 name="REVIEW-B.yaml",
             )
@@ -2026,7 +2992,11 @@ class FormalTraceabilityTests(unittest.TestCase):
             fixture_root = make_fixture(temporary)
             write_review(
                 fixture_root,
-                make_review(fixture_root, review_id="REVIEW-A"),
+                make_review(
+                    fixture_root,
+                    review_id="REVIEW-A",
+                    executions=executions_for(fixture_root, ["EXEC-A", "EXEC-B"]),
+                ),
                 name="REVIEW-A.yaml",
             )
             write_review(
@@ -2034,8 +3004,18 @@ class FormalTraceabilityTests(unittest.TestCase):
                 make_review(
                     fixture_root,
                     review_id="REVIEW-B",
+                    executions=executions_for(fixture_root, ["EXEC-C", "EXEC-D"]),
                     findings=[
-                        finding(status="routed", disposition=routed_disposition())
+                        finding(
+                            status="routed",
+                            sources=[
+                                {
+                                    "execution_id": "EXEC-C",
+                                    "raw_finding_id": "EXEC-C-F001",
+                                }
+                            ],
+                            disposition=routed_disposition(),
+                        )
                     ],
                 ),
                 name="REVIEW-B.yaml",
@@ -2057,7 +3037,11 @@ class FormalTraceabilityTests(unittest.TestCase):
             fixture_root = make_fixture(temporary)
             write_review(
                 fixture_root,
-                make_review(fixture_root, review_id="REVIEW-A"),
+                make_review(
+                    fixture_root,
+                    review_id="REVIEW-A",
+                    executions=executions_for(fixture_root, ["EXEC-A", "EXEC-B"]),
+                ),
                 name="REVIEW-A.yaml",
             )
             write_review(
@@ -2065,9 +3049,16 @@ class FormalTraceabilityTests(unittest.TestCase):
                 make_review(
                     fixture_root,
                     review_id="REVIEW-B",
+                    executions=executions_for(fixture_root, ["EXEC-C", "EXEC-D"]),
                     findings=[
                         finding(
                             status="resolved",
+                            sources=[
+                                {
+                                    "execution_id": "EXEC-C",
+                                    "raw_finding_id": "EXEC-C-F001",
+                                }
+                            ],
                             disposition=resolved_disposition(),
                         )
                     ],
@@ -2109,11 +3100,9 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(counterexample_disposition=None),
             )
-            attach_challenge(fixture_root, finding_record)
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            record = make_review(fixture_root, findings=[finding_record])
+            attach_challenge(fixture_root, record, record["findings"][0])
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -2161,29 +3150,83 @@ class FormalTraceabilityTests(unittest.TestCase):
                 summary["gate_a"]["reason"],
             )
 
-    def test_refutation_challenge_execution_must_exist(self) -> None:
+    def test_refutation_challenge_receipt_must_be_supporting(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            finding_record = finding(
-                status="refuted",
-                disposition=refuted_disposition(),
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(
+                        status="refuted",
+                        disposition=refuted_disposition(),
+                    )
+                ],
+            )
+            bundle_payload = bundle_document(fixture_root)
+            orphan_payload = build_receipt_payload(
+                execution_id="EXEC-ORPHANCHALLENGE",
+                role="challenge",
+                reviewer_profile_id="profile-challenge",
+                protocol_bundle_sha256=record["protocol"]["protocol_bundle"][
+                    "sha256"
+                ],
+                prompt=bundle_payload["prompts"]["challenge"],
+                packet=record["protocol"]["review_packet"],
+                provider="provider-challenge",
+                model="model-challenge",
+            )
+            orphan_receipt = write_receipt_payload(
+                fixture_root, orphan_payload, "orphan-challenge"
             )
             attach_challenge(
                 fixture_root,
-                finding_record,
-                challenger_execution_id="EXEC-Z",
+                record,
+                record["findings"][0],
+                execution_receipt=orphan_receipt,
             )
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
             self.assertTrue(
                 any(
-                    "challenge references unknown execution 'EXEC-Z'" in error
+                    "execution receipt must appear in supporting_executions"
+                    in error
                     for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_refutation_challenge_receipt_role_must_be_challenge(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(
+                        status="refuted",
+                        disposition=refuted_disposition(),
+                    )
+                ],
+            )
+            attach_challenge(
+                fixture_root,
+                record,
+                record["findings"][0],
+                role="materiality-assessor",
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "receipt role must be challenge" in error for error in errors
                 ),
                 errors,
             )
@@ -2200,18 +3243,17 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(),
             )
+            record = make_review(fixture_root, findings=[finding_record])
             attach_challenge(
                 fixture_root,
-                finding_record,
+                record,
+                record["findings"][0],
                 output={
-                    "path": "formal/reviews/challenges/missing.md",
+                    "path": "formal/reviews/challenges/missing.json",
                     "sha256": "a" * 64,
                 },
             )
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -2235,12 +3277,12 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(),
             )
-            attach_challenge(fixture_root, finding_record)
-            finding_record["disposition"]["challenge"]["output"]["sha256"] = "0" * 64
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            record = make_review(fixture_root, findings=[finding_record])
+            attach_challenge(fixture_root, record, record["findings"][0])
+            record["findings"][0]["disposition"]["challenge"]["output"][
+                "sha256"
+            ] = "0" * 64
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -2269,11 +3311,9 @@ class FormalTraceabilityTests(unittest.TestCase):
                     counterexample_disposition=counterexample_disposition(),
                 ),
             )
-            attach_challenge(fixture_root, finding_record)
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            record = make_review(fixture_root, findings=[finding_record])
+            attach_challenge(fixture_root, record, record["findings"][0])
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -2289,8 +3329,9 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(),
             )
-            attach_challenge(fixture_root, finding_record)
-            challenge = finding_record["disposition"]["challenge"]
+            record = make_review(fixture_root, findings=[finding_record])
+            attach_challenge(fixture_root, record, record["findings"][0])
+            challenge = record["findings"][0]["disposition"]["challenge"]
             del challenge["challenged_refutation_sha256"]
             schema_errors = review_challenge_schema_errors(fixture_root, challenge)
             self.assertTrue(schema_errors)
@@ -2301,7 +3342,6 @@ class FormalTraceabilityTests(unittest.TestCase):
                 ),
                 schema_errors,
             )
-            record = make_review(fixture_root, findings=[finding_record])
             self.assertTrue(review_schema_errors(fixture_root, record))
             write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
@@ -2321,14 +3361,12 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(),
             )
-            attach_challenge(fixture_root, finding_record)
-            finding_record["disposition"]["challenge"][
+            record = make_review(fixture_root, findings=[finding_record])
+            attach_challenge(fixture_root, record, record["findings"][0])
+            record["findings"][0]["disposition"]["challenge"][
                 "challenged_refutation_sha256"
             ] = "0" * 64
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -2352,14 +3390,12 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(),
             )
-            attach_challenge(fixture_root, finding_record)
-            finding_record["disposition"]["argument"] = (
+            record = make_review(fixture_root, findings=[finding_record])
+            attach_challenge(fixture_root, record, record["findings"][0])
+            record["findings"][0]["disposition"]["argument"] = (
                 "The refutation argument was rewritten after the challenge was sealed."
             )
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -2416,18 +3452,17 @@ class FormalTraceabilityTests(unittest.TestCase):
                 status="refuted",
                 disposition=refuted_disposition(),
             )
+            record = make_review(fixture_root, findings=[finding_record])
             attach_challenge(
                 fixture_root,
-                finding_record,
+                record,
+                record["findings"][0],
                 output={
-                    "path": "formal/reviews/challenges/missing.md",
+                    "path": "formal/reviews/challenges/missing.json",
                     "sha256": "a" * 64,
                 },
             )
-            write_review(
-                fixture_root,
-                make_review(fixture_root, findings=[finding_record]),
-            )
+            write_review(fixture_root, record)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
             )
@@ -3084,6 +4119,1002 @@ class FormalTraceabilityTests(unittest.TestCase):
                 errors,
             )
             self.assertFalse(summary["gate_a"]["ready"])
+
+
+def challenge_objection(
+    objective: str, objection_id: str = "OBJ-1"
+) -> dict:
+    return {
+        "challenge_objection_id": objection_id,
+        "objective": objective,
+        "statement": "The closure candidate does not survive hostile challenge.",
+        "argument": "A counterexample or alternative interpretation remains in scope.",
+        "evidence_references": ["canonical-packet"],
+    }
+
+
+class GateAProtocolV4Tests(unittest.TestCase):
+    def test_review_schema_v4_accepts_valid_campaign(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self.assertEqual(
+                [], review_schema_errors(fixture_root, make_review(fixture_root))
+            )
+
+    def test_review_schema_rejects_v3_0_campaign(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            legacy = make_review(fixture_root)
+            legacy["schema_version"] = "3.0"
+            self.assertTrue(review_schema_errors(fixture_root, legacy))
+            write_review(fixture_root, legacy, name="REVIEW-LEGACY-V3.yaml")
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_canonical_current_protocol_bundle_validates(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        bundle_validator, schema_errors = checker._load_schema_validator(
+            ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+        )
+        self.assertEqual([], schema_errors)
+        _reference, bundle, errors = checker._current_protocol_bundle_errors(
+            ROOT, manifest, bundle_validator, {}
+        )
+        self.assertEqual([], errors)
+        self.assertIsNotNone(bundle)
+        self.assertEqual(
+            [], checker._protocol_bundle_errors(ROOT, bundle, "current protocol bundle")
+        )
+        self.assertEqual([], bundle.get("reviewer_profiles"))
+
+    def test_protocol_bundle_bad_sha_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["hostile_review"]["current_protocol_bundle"][
+                "sha256"
+            ] = "0" * 64
+            save_manifest(fixture_root, manifest)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("artifact sha256 does not match" in error for error in errors),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_protocol_bundle_noncanonical_json_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            reference = current_protocol_bundle_reference(fixture_root)
+            payload = bundle_document(fixture_root)
+            data = json.dumps(payload, indent=2).encode("utf-8")
+            (fixture_root / reference["path"]).write_bytes(data)
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["hostile_review"]["current_protocol_bundle"] = {
+                "path": reference["path"],
+                "sha256": checker.sha256_hex(data),
+            }
+            save_manifest(fixture_root, manifest)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "canonical JSON document serialization" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_bundle_prompt_hash_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            reference = current_protocol_bundle_reference(fixture_root)
+            payload = bundle_document(fixture_root)
+            payload["prompts"]["initial-reviewer"]["sha256"] = "0" * 64
+            data = checker._canonical_json_document_bytes(payload)
+            (fixture_root / reference["path"]).write_bytes(data)
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["hostile_review"]["current_protocol_bundle"] = {
+                "path": reference["path"],
+                "sha256": checker.sha256_hex(data),
+            }
+            save_manifest(fixture_root, manifest)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "prompts.initial-reviewer" in error
+                    and "artifact sha256 does not match" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_unknown_reviewer_profile_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root, profiles=[default_profile("EXEC-B")]
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("unknown reviewer profile" in error for error in errors),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_frontier_eligible_false_profile_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                profiles=[
+                    default_profile("EXEC-A", frontier_eligible=False),
+                    default_profile("EXEC-B"),
+                ],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("not frontier eligible" in error for error in errors), errors
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_profile_provider_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                profiles=[
+                    default_profile("EXEC-A", provider="provider-other"),
+                    default_profile("EXEC-B"),
+                ],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "receipt request provider does not match its reviewer profile"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_profile_request_model_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                profiles=[
+                    default_profile("EXEC-A", model="model-other"),
+                    default_profile("EXEC-B"),
+                ],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "receipt request model does not match its reviewer profile"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_provider_reported_identity_requires_provider_model(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"][0]["provider_model"] = None
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "provider-reported identity requires a non-empty provider_model"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_provider_reported_model_version_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+
+            def mutator(payload: dict) -> None:
+                payload["resolved_identity"]["model_version"] = "999"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "provider-reported model_version must equal the qualified "
+                    "attempt provider_model" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_pinned_request_model_requires_immutable_version_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                profiles=[
+                    default_profile("EXEC-A", kind="pinned-request-model"),
+                    default_profile("EXEC-B"),
+                ],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "pinned-request-model requires "
+                    "request_model_is_immutable_version = true" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_pinned_request_model_version_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                profiles=[
+                    default_profile(
+                        "EXEC-A",
+                        kind="pinned-request-model",
+                        immutable=True,
+                    ),
+                    default_profile("EXEC-B"),
+                ],
+            )
+
+            def mutator(payload: dict) -> None:
+                payload["resolved_identity"]["model_version"] = "999"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "pinned-request-model model_version must equal the profile "
+                    "request_model" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_raw_output_must_be_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            record["executions"][0]["raw_output"]["path"] = (
+                "formal/reviews/raw/exec-a.md"
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "artifact path must use the .json suffix" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_raw_output_missing_required_objective_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            payload = raw_review_payload()
+            payload["objective_assessments"] = payload["objective_assessments"][:-1]
+            replace_execution_raw_output(fixture_root, record, 0, payload)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "must assess exactly the 14 Gate A attack objectives once each"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_raw_output_duplicate_objective_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            payload = raw_review_payload()
+            payload["objective_assessments"][0] = dict(
+                payload["objective_assessments"][1]
+            )
+            replace_execution_raw_output(fixture_root, record, 0, payload)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "must assess exactly the 14 Gate A attack objectives once each"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_execution_raw_finding_ids_must_equal_raw(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            record["executions"][0]["raw_finding_ids"] = ["EXEC-A-EXTRA"]
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "execution raw_finding_ids must equal the raw finding ID set"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_raw_objective_broken_finding_reference_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            payload = raw_review_payload()
+            payload["objective_assessments"][0]["finding_ids"] = [
+                "EXEC-A-MISSING"
+            ]
+            replace_execution_raw_output(fixture_root, record, 0, payload)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "references unknown raw finding 'EXEC-A-MISSING'" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_raw_finding_objective_reciprocal_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            payload = raw_review_payload(
+                [raw_finding("EXEC-A-F001", attack_objectives=["vacuity"])]
+            )
+            for assessment in payload["objective_assessments"]:
+                if assessment["objective"] == "vacuity":
+                    assessment["finding_ids"] = []
+                if assessment["objective"] == "semantic-strengthening":
+                    assessment["finding_ids"] = ["EXEC-A-F001"]
+            replace_execution_raw_output(fixture_root, record, 0, payload)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "declares objective 'vacuity' that does not reference it "
+                    "reciprocally" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_normalized_statement_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root, findings=[finding()])
+            record["findings"][0]["statement"] = "A rewritten statement."
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "statement must equal the exact raw finding statement" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_normalized_argument_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root, findings=[finding()])
+            record["findings"][0]["argument"] = "A rewritten argument."
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "argument must equal the exact raw finding argument" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_normalized_counterexample_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root, findings=[finding()])
+            record["findings"][0]["counterexample"] = "An invented counterexample."
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "counterexample must equal the exact raw finding counterexample"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_invalid_completed_attempt_without_sealed_output_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            raw_reference = dict(record["executions"][0]["raw_output"])
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"] = [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        provider_model=None,
+                        raw_output=None,
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=raw_reference),
+                ]
+                payload["qualifying_attempt_id"] = "ATTEMPT-2"
+                payload["resolved_identity"]["evidence_attempt_id"] = "ATTEMPT-2"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("must seal its raw output" in error for error in errors),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_invalid_sealed_attempt_then_qualified_attempt_accepted(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            raw_reference = dict(record["executions"][0]["raw_output"])
+            invalid_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/exec-a-invalid-attempt.json",
+                {"protocol_invalid": True},
+                canonical=False,
+            )
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"] = [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        provider_model="1",
+                        raw_output=invalid_reference,
+                        protocol_errors=["schema-invalid"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=raw_reference),
+                ]
+                payload["qualifying_attempt_id"] = "ATTEMPT-2"
+                payload["resolved_identity"]["evidence_attempt_id"] = "ATTEMPT-2"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_two_qualified_attempts_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            raw_reference = dict(record["executions"][0]["raw_output"])
+            second_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/exec-a-second-qualified.json",
+                {"second": True},
+                canonical=False,
+            )
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"] = [
+                    attempt_payload("ATTEMPT-1", raw_output=raw_reference),
+                    attempt_payload("ATTEMPT-2", raw_output=second_reference),
+                ]
+                payload["qualifying_attempt_id"] = "ATTEMPT-1"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "exactly one attempt must have outcome qualified; found 2"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_refutation_challenge_objection_cannot_close_finding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(status="refuted", disposition=refuted_disposition())
+                ],
+            )
+            attach_challenge(
+                fixture_root,
+                record,
+                record["findings"][0],
+                objections=[
+                    challenge_objection("attacked-premise-still-supported")
+                ],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "with any surviving objection cannot close the finding" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_schema4_rejects_surviving_material_argument(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(status="refuted", disposition=refuted_disposition())
+                ],
+            )
+            attach_challenge(fixture_root, record, record["findings"][0])
+            record["findings"][0]["disposition"]["challenge"][
+                "surviving_material_argument"
+            ] = False
+            self.assertTrue(review_schema_errors(fixture_root, record))
+
+    def test_schema4_rejects_challenger_execution_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(status="refuted", disposition=refuted_disposition())
+                ],
+            )
+            attach_challenge(fixture_root, record, record["findings"][0])
+            record["findings"][0]["disposition"]["challenge"][
+                "challenger_execution_id"
+            ] = "EXEC-B"
+            self.assertTrue(review_schema_errors(fixture_root, record))
+
+    def test_challenge_output_schema_rejects_incidental_findings(self) -> None:
+        payload = challenge_output_payload(
+            "refutation", checker.REFUTATION_CHALLENGE_OBJECTIVES
+        )
+        payload["incidental_findings"] = []
+        self.assertTrue(challenge_output_schema_errors(ROOT, payload))
+
+    def test_non_material_finding_without_materiality_challenge_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root, findings=[finding(material=False)]
+            )
+            record["findings"][0]["materiality"]["challenge"] = None
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "requires a hostile materiality challenge" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_non_material_materiality_challenge_with_objection_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root, findings=[finding(material=False)]
+            )
+            bundle_payload = bundle_document(fixture_root)
+            bundle_reference = current_protocol_bundle_reference(fixture_root)
+            replace_materiality_challenge(
+                fixture_root,
+                record["protocol"],
+                bundle_payload,
+                bundle_reference,
+                record["supporting_executions"],
+                name="finding-F-1",
+                substantive_finding=record["findings"][0],
+                materiality_mapping=record["findings"][0]["materiality"],
+                objections=[challenge_objection(checker.MATERIALITY_AXES[0])],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "with any surviving objection cannot support a non-material "
+                    "conclusion" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_valid_zero_objection_materiality_challenge_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root, findings=[finding(material=False)]
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_material_finding_must_have_null_materiality_challenge(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root, findings=[finding(material=True)]
+            )
+            bundle_payload = bundle_document(fixture_root)
+            bundle_reference = current_protocol_bundle_reference(fixture_root)
+            replace_materiality_challenge(
+                fixture_root,
+                record["protocol"],
+                bundle_payload,
+                bundle_reference,
+                record["supporting_executions"],
+                name="finding-F-1",
+                substantive_finding=record["findings"][0],
+                materiality_mapping=record["findings"][0]["materiality"],
+                objections=[],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "a material finding must not carry a materiality challenge"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_stale_protocol_finding_without_re_adjudication_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[finding(finding_id="F-1", status="open")],
+            )
+            write_review(fixture_root, record, name="REVIEW-STALE.yaml")
+            install_protocol_bundle(
+                fixture_root, [default_profile("EXEC-C")]
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "stale-protocol finding requires current re-adjudication",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_stale_protocol_old_refutation_without_re_adjudication_blocks(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(
+                        finding_id="F-1",
+                        counterexample="A concrete counterexample trace.",
+                        status="refuted",
+                        disposition=refuted_disposition(
+                            counterexample_disposition=counterexample_disposition()
+                        ),
+                    )
+                ],
+            )
+            attach_challenge(fixture_root, record, record["findings"][0])
+            write_review(fixture_root, record, name="REVIEW-STALE.yaml")
+            install_protocol_bundle(
+                fixture_root, [default_profile("EXEC-C")]
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "stale-protocol finding requires current re-adjudication",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_stale_protocol_old_non_material_without_re_adjudication_blocks(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[
+                    finding(finding_id="F-1", material=False, status="open")
+                ],
+            )
+            write_review(fixture_root, record, name="REVIEW-STALE.yaml")
+            install_protocol_bundle(
+                fixture_root, [default_profile("EXEC-C")]
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "stale-protocol finding requires current re-adjudication",
+                summary["gate_a"]["reason"],
+            )
+
+    def _re_adjudicated_fixture(
+        self, fixture_root: Path, *, material: bool
+    ) -> tuple[dict, dict]:
+        record_a = make_review(
+            fixture_root,
+            review_id="REVIEW-A",
+            findings=[
+                finding(finding_id="F-1", material=False, status="open")
+            ],
+        )
+        source_finding = record_a["findings"][0]
+        write_review(fixture_root, record_a, name="REVIEW-A.yaml")
+
+        install_protocol_bundle(fixture_root, [default_profile("EXEC-C")])
+
+        record_b = make_review(
+            fixture_root,
+            review_id="REVIEW-B",
+            executions=executions_for(fixture_root, ["EXEC-C", "EXEC-D"]),
+        )
+        bundle_payload = bundle_document(fixture_root)
+        bundle_reference = current_protocol_bundle_reference(fixture_root)
+        protocol_shell = {
+            "review_packet": record_b["protocol"]["review_packet"],
+            "prompt": record_b["protocol"]["prompt"],
+            "protocol_bundle": bundle_reference,
+        }
+        supporting: list[dict] = []
+        item = make_re_adjudication(
+            fixture_root,
+            protocol_shell,
+            bundle_payload,
+            bundle_reference,
+            supporting,
+            source_review_id="REVIEW-A",
+            source_finding=source_finding,
+            material=material,
+            status="open",
+        )
+        record_b = make_review(
+            fixture_root,
+            review_id="REVIEW-B",
+            executions=executions_for(fixture_root, ["EXEC-C", "EXEC-D"]),
+            supporting_executions=supporting,
+            re_adjudications=[item],
+        )
+        write_review(fixture_root, record_b, name="REVIEW-B.yaml")
+        return record_a, record_b
+
+    def test_valid_current_protocol_re_adjudication_recognized(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self._re_adjudicated_fixture(fixture_root, material=False)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_re_adjudicated_material_open_finding_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self._re_adjudicated_fixture(fixture_root, material=True)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "surviving material hostile-review finding exists",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_stale_protocol_review_does_not_satisfy_minimum(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            write_review(fixture_root, record, name="REVIEW-STALE.yaml")
+            install_protocol_bundle(
+                fixture_root, [default_profile("EXEC-C")]
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile assurance-decomposition review evidence required",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_current_protocol_bundle_change_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            manifest["policy"]["hostile_review"]["current_protocol_bundle"] = {
+                "path": "formal/reviews/protocols/other.json",
+                "sha256": "a" * 64,
+            }
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+
+    def test_hostile_review_protocol_only_fields_do_not_change_subject(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            hostile_review = manifest["policy"]["hostile_review"]
+            hostile_review["minimum_independent_reviewers"] = 5
+            hostile_review["current_protocol_bundle"] = {
+                "path": "formal/reviews/protocols/other.json",
+                "sha256": "b" * 64,
+            }
+            hostile_review["majority_vote_sufficient"] = False
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+
+    def test_gate_a_subject_sha_is_exact(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
+        self.assertEqual([], errors)
+        self.assertEqual(
+            "2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b",
+            subject["sha256"],
+        )
 
 
 if __name__ == "__main__":

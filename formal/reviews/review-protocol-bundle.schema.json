@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-protocol-bundle:1",
+  "title": "TURNLOCK hostile-review protocol bundle (schema version 1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_bundle_schema_version",
+    "protocol_id",
+    "review_class",
+    "prompts",
+    "schemas",
+    "reviewer_profiles",
+    "policies"
+  ],
+  "properties": {
+    "protocol_bundle_schema_version": {
+      "const": 1
+    },
+    "protocol_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_class": {
+      "const": "assurance-decomposition"
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initial-reviewer",
+        "adjudication",
+        "challenge",
+        "repair"
+      ],
+      "properties": {
+        "initial-reviewer": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "adjudication": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "repair": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw-review-output",
+        "execution-receipt",
+        "challenge-output"
+      ],
+      "properties": {
+        "raw-review-output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "execution-receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge-output": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "reviewer_profiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reviewerProfile"
+      }
+    },
+    "policies": {
+      "$ref": "#/$defs/policies"
+    }
+  },
+  "$defs": {
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "reviewerProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "provider",
+        "request_model",
+        "frontier_eligible",
+        "identity_resolution"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frontier_eligible": {
+          "type": "boolean"
+        },
+        "identity_resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "provider-reported",
+                "pinned-request-model"
+              ]
+            },
+            "request_model_is_immutable_version": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalization",
+        "retry",
+        "challenge",
+        "model_identity",
+        "decision_request",
+        "external_outcomes"
+      ],
+      "properties": {
+        "normalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "semantic_merge_allowed",
+            "semantic_deduplication_allowed"
+          ],
+          "properties": {
+            "mode": {
+              "const": "one-to-one"
+            },
+            "semantic_merge_allowed": {
+              "const": false
+            },
+            "semantic_deduplication_allowed": {
+              "const": false
+            }
+          }
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "technical_retry_allowed",
+            "schema_invalid_completion_retry_allowed",
+            "semantic_result_retry_allowed",
+            "all_completed_attempts_must_be_sealed"
+          ],
+          "properties": {
+            "technical_retry_allowed": {
+              "const": true
+            },
+            "schema_invalid_completion_retry_allowed": {
+              "const": true
+            },
+            "semantic_result_retry_allowed": {
+              "const": false
+            },
+            "all_completed_attempts_must_be_sealed": {
+              "const": true
+            }
+          }
+        },
+        "challenge": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_closure_revisions",
+            "semantic_result_model_shopping_allowed",
+            "incidental_findings_allowed"
+          ],
+          "properties": {
+            "max_closure_revisions": {
+              "const": 1
+            },
+            "semantic_result_model_shopping_allowed": {
+              "const": false
+            },
+            "incidental_findings_allowed": {
+              "const": false
+            }
+          }
+        },
+        "model_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identity_fields",
+            "effective_duplicate_fields"
+          ],
+          "properties": {
+            "identity_fields": {
+              "const": [
+                "provider",
+                "model",
+                "model_version"
+              ]
+            },
+            "effective_duplicate_fields": {
+              "const": [
+                "provider",
+                "model_version"
+              ]
+            }
+          }
+        },
+        "decision_request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope"
+          ],
+          "properties": {
+            "scope": {
+              "const": "full-current-subject-plus-current-protocol-plus-finding"
+            }
+          }
+        },
+        "external_outcomes": {
+          "const": [
+            "GATE-A-READY",
+            "DECISION-REQUIRED",
+            "OPERATOR-ACTION-REQUIRED"
+          ]
+        }
+      }
+    }
+  }
+}

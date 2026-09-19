@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-challenge-output:1",
+  "title": "TURNLOCK hostile-review challenge output (schema version 1.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "challenge_output_schema_version",
+    "challenge_kind",
+    "objective_assessments",
+    "objections"
+  ],
+  "properties": {
+    "challenge_output_schema_version": {
+      "const": "1.0"
+    },
+    "challenge_kind": {
+      "enum": [
+        "materiality",
+        "refutation",
+        "derivation",
+        "normative-impact",
+        "decision-necessity",
+        "repair",
+        "decision-projection"
+      ]
+    },
+    "objective_assessments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/objectiveAssessment"
+      }
+    },
+    "objections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/objection"
+      }
+    }
+  },
+  "$defs": {
+    "objectiveAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "objection_ids"
+      ],
+      "properties": {
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objection_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "objection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenge_objection_id",
+        "objective",
+        "statement",
+        "argument",
+        "evidence_references"
+      ],
+      "properties": {
+        "challenge_objection_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

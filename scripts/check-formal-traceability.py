@@ -50,20 +50,78 @@ REVIEW_SUFFIXES = {".json", ".yaml", ".yml"}
 GATE_A_REVIEW_CLASS = "assurance-decomposition"
 GATE_A_SUBJECT_SELECTOR = "gate-a-assurance-decomposition-v1"
 GATE_A_BLOCKING_STATUSES = {"open", "routed", "resolved"}
+GATE_A_ATTACK_OBJECTIVES = (
+    "semantic-strengthening",
+    "semantic-weakening",
+    "omitted-valid-behavior",
+    "invented-behavior",
+    "collapsed-normative-distinction",
+    "invented-formal-distinction",
+    "hidden-assumption",
+    "wrong-quantification",
+    "wrong-occurrence-scope",
+    "modality-mismatch",
+    "vacuity",
+    "coverage-gap",
+    "alternative-compatible-interpretation",
+    "cross-feature-interaction-failure",
+)
 REVIEW_PACKET_PREFIX = "formal/reviews/packets/"
 REVIEW_PACKET_SUFFIX = ".json"
 REVIEW_PROMPT_PREFIX = "formal/reviews/prompts/"
+REVIEW_PROMPT_SUFFIX = ".md"
 REVIEW_RAW_OUTPUT_PREFIX = "formal/reviews/raw/"
+REVIEW_RAW_OUTPUT_SUFFIX = ".json"
 REVIEW_CHALLENGE_PREFIX = "formal/reviews/challenges/"
-REVIEW_TEXT_SUFFIX = ".md"
+REVIEW_CHALLENGE_SUFFIX = ".json"
+REVIEW_PROTOCOLS_PREFIX = "formal/reviews/protocols/"
+REVIEW_PROTOCOL_BUNDLE_SUFFIX = ".json"
+REVIEW_SCHEMAS_PREFIX = "formal/reviews/schemas/"
+REVIEW_EXECUTIONS_PREFIX = "formal/reviews/executions/"
+REVIEW_EXECUTION_SUFFIX = ".json"
+REVIEW_ADJUDICATIONS_PREFIX = "formal/reviews/adjudications/"
+REVIEW_JSON_OUTPUT_SUFFIX = ".json"
 REVIEW_ARTIFACT_PREFIXES = (
     REVIEW_PACKET_PREFIX,
     REVIEW_PROMPT_PREFIX,
     REVIEW_RAW_OUTPUT_PREFIX,
     REVIEW_CHALLENGE_PREFIX,
+    REVIEW_PROTOCOLS_PREFIX,
+    REVIEW_SCHEMAS_PREFIX,
+    REVIEW_EXECUTIONS_PREFIX,
+    REVIEW_ADJUDICATIONS_PREFIX,
+)
+REVIEW_ARTIFACT_EXCLUDED_FILE_NAMES = (
+    REVIEW_SCHEMA_RELATIVE.name,
+    "review-protocol-bundle.schema.json",
+)
+PROTOCOL_BUNDLE_SCHEMA_RELATIVE = Path("formal/reviews/review-protocol-bundle.schema.json")
+RAW_REVIEW_SCHEMA_RELATIVE = Path(
+    "formal/reviews/schemas/raw-review-output-v1.schema.json"
+)
+CHALLENGE_OUTPUT_SCHEMA_RELATIVE = Path(
+    "formal/reviews/schemas/challenge-output-v1.schema.json"
+)
+EXECUTION_RECEIPT_SCHEMA_RELATIVE = Path(
+    "formal/reviews/schemas/execution-receipt-v1.schema.json"
 )
 REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
 REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
+MATERIALITY_CHALLENGE_SELECTOR = "hostile-materiality-challenge-v1"
+MATERIALITY_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
+FINDING_SUBJECT_SELECTOR = "hostile-finding-subject-v1"
+FINDING_SUBJECT_SCHEMA_VERSION = 1
+REFUTATION_CHALLENGE_OBJECTIVES = (
+    "attacked-premise-still-supported",
+    "target-correctly-identified",
+    "counterexample-remains-in-scope",
+    "consequence-still-follows",
+    "not-actually-already-accounted-for",
+    "hidden-assumption-in-refutation",
+    "alternative-authority-compatible-interpretation",
+)
+INITIAL_REVIEWER_ROLE = "initial-reviewer"
+CHALLENGE_ROLE = "challenge"
 MATERIALITY_AXES = (
     "authority_or_upstream_decision",
     "claim_structure",
@@ -288,7 +346,7 @@ def load_review_records(root: Path) -> tuple[list[tuple[Path, dict]], list[str]]
     for path in sorted(directory.rglob("*")):
         if not path.is_file():
             continue
-        if path.name == REVIEW_SCHEMA_RELATIVE.name:
+        if path.name in REVIEW_ARTIFACT_EXCLUDED_FILE_NAMES:
             continue
         label = path.relative_to(root).as_posix()
         if any(label.startswith(prefix) for prefix in REVIEW_ARTIFACT_PREFIXES):
@@ -565,15 +623,23 @@ def _gate_a_review_packet_errors(
     return errors
 
 
-def _refutation_challenge_subject_payload(finding: dict) -> dict:
-    """Build the canonical refutation-challenge subject payload for a finding."""
-    disposition = _mapping(finding.get("disposition"))
+def _materiality_payload(materiality: object) -> dict:
+    """Return the canonical seven-axis materiality payload without metadata."""
+    source = _mapping(materiality)
+    payload = {axis: source.get(axis) is True for axis in MATERIALITY_AXES}
+    rationale = source.get("rationale")
+    if isinstance(rationale, str):
+        payload["rationale"] = rationale
+    return payload
+
+
+def _sorted_finding_sources(finding: object) -> list[dict]:
     sources = [
         {
             "execution_id": source.get("execution_id"),
             "raw_finding_id": source.get("raw_finding_id"),
         }
-        for source in _sequence(finding.get("sources"))
+        for source in _sequence(_mapping(finding).get("sources"))
         if isinstance(source, dict)
     ]
     sources.sort(
@@ -582,34 +648,39 @@ def _refutation_challenge_subject_payload(finding: dict) -> dict:
             str(source.get("raw_finding_id", "")),
         )
     )
-    evidence_references = sorted(
-        reference
-        for reference in _sequence(disposition.get("evidence_references"))
-        if isinstance(reference, str)
-    )
+    return sources
+
+
+def _refutation_payload(disposition: object) -> dict:
+    disposition = _mapping(disposition)
+    return {
+        "kind": disposition.get("kind"),
+        "ground": disposition.get("ground"),
+        "attacked_premise_or_inference": disposition.get("attacked_premise_or_inference"),
+        "evidence_references": sorted(
+            reference
+            for reference in _sequence(disposition.get("evidence_references"))
+            if isinstance(reference, str)
+        ),
+        "argument": disposition.get("argument"),
+        "counterexample_disposition": disposition.get("counterexample_disposition"),
+    }
+
+
+def _refutation_challenge_subject_payload(finding: dict) -> dict:
+    """Build the canonical refutation-challenge subject payload for a finding."""
     return {
         "subject_schema_version": REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION,
         "selector": REFUTATION_CHALLENGE_SELECTOR,
         "finding": {
             "finding_id": finding.get("finding_id"),
-            "sources": sources,
+            "sources": _sorted_finding_sources(finding),
             "statement": finding.get("statement"),
             "argument": finding.get("argument"),
             "counterexample": finding.get("counterexample"),
-            "materiality": dict(_mapping(finding.get("materiality"))),
+            "materiality": _materiality_payload(finding.get("materiality")),
             "status": finding.get("status"),
-            "refutation": {
-                "kind": disposition.get("kind"),
-                "ground": disposition.get("ground"),
-                "attacked_premise_or_inference": disposition.get(
-                    "attacked_premise_or_inference"
-                ),
-                "evidence_references": evidence_references,
-                "argument": disposition.get("argument"),
-                "counterexample_disposition": disposition.get(
-                    "counterexample_disposition"
-                ),
-            },
+            "refutation": _refutation_payload(finding.get("disposition")),
         },
     }
 
@@ -621,62 +692,897 @@ def _refutation_challenge_subject_sha256(finding: dict) -> str:
     )
 
 
-def _refutation_errors(
+def _re_adjudication_refutation_subject_payload(
+    source_finding: dict, re_adjudication: dict
+) -> dict:
+    return {
+        "subject_schema_version": REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION,
+        "selector": REFUTATION_CHALLENGE_SELECTOR,
+        "finding": {
+            "finding_id": source_finding.get("finding_id"),
+            "sources": _sorted_finding_sources(source_finding),
+            "statement": source_finding.get("statement"),
+            "argument": source_finding.get("argument"),
+            "counterexample": source_finding.get("counterexample"),
+            "materiality": _materiality_payload(re_adjudication.get("materiality")),
+            "status": "refuted",
+            "refutation": _refutation_payload(re_adjudication.get("disposition")),
+        },
+    }
+
+
+def _re_adjudication_refutation_subject_sha256(
+    source_finding: dict, re_adjudication: dict
+) -> str:
+    return sha256_hex(
+        _canonical_json_bytes(
+            _re_adjudication_refutation_subject_payload(source_finding, re_adjudication)
+        )
+    )
+
+
+def _finding_subject_payload(finding: dict) -> dict:
+    return {
+        "subject_schema_version": FINDING_SUBJECT_SCHEMA_VERSION,
+        "selector": FINDING_SUBJECT_SELECTOR,
+        "finding": {
+            "finding_id": finding.get("finding_id"),
+            "sources": _sorted_finding_sources(finding),
+            "statement": finding.get("statement"),
+            "argument": finding.get("argument"),
+            "counterexample": finding.get("counterexample"),
+        },
+    }
+
+
+def _finding_subject_sha256(finding: dict) -> str:
+    return sha256_hex(_canonical_json_bytes(_finding_subject_payload(finding)))
+
+
+def _materiality_challenge_subject_payload(source: dict, materiality: object) -> dict:
+    payload = _materiality_payload(materiality)
+    return {
+        "subject_schema_version": MATERIALITY_CHALLENGE_SUBJECT_SCHEMA_VERSION,
+        "selector": MATERIALITY_CHALLENGE_SELECTOR,
+        "finding": {
+            "finding_id": source.get("finding_id"),
+            "sources": _sorted_finding_sources(source),
+            "statement": source.get("statement"),
+            "argument": source.get("argument"),
+            "counterexample": source.get("counterexample"),
+            "candidate_materiality_axes": {
+                axis: payload[axis] for axis in MATERIALITY_AXES
+            },
+            "candidate_materiality_rationale": payload.get("rationale"),
+        },
+    }
+
+
+def _materiality_challenge_subject_sha256(source: dict, materiality: object) -> str:
+    return sha256_hex(
+        _canonical_json_bytes(
+            _materiality_challenge_subject_payload(source, materiality)
+        )
+    )
+
+
+def _load_json_object_artifact(
+    root: Path,
+    reference: object,
+    label: str,
+    prefix: str,
+    suffix: str,
+    *,
+    require_canonical: bool,
+) -> tuple[dict | None, list[str]]:
+    data, errors = _read_review_artifact(root, reference, label, prefix, suffix)
+    if data is None:
+        return None, errors
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, errors + [f"{label}: artifact must be valid UTF-8"]
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as error:
+        return None, errors + [
+            f"{label}: artifact must be valid JSON ({_concise_parser_error(error)})"
+        ]
+    if not isinstance(parsed, dict):
+        return None, errors + [f"{label}: artifact must be a JSON object"]
+    if require_canonical and data != _canonical_json_document_bytes(parsed):
+        return None, errors + [
+            f"{label}: artifact must use canonical JSON document serialization"
+        ]
+    return parsed, errors
+
+
+def _load_schema_validator(
+    root: Path, relative: Path
+) -> tuple[Draft202012Validator | None, list[str]]:
+    schema, errors = _load_json(root, relative)
+    if errors:
+        return None, errors
+    validator, validator_errors = _validator(schema)
+    if validator is None:
+        return None, [f"{relative.as_posix()}: {error}" for error in validator_errors]
+    return validator, []
+
+
+def _protocol_profile_map(bundle: object) -> dict[str, dict]:
+    profiles: dict[str, dict] = {}
+    for profile in _sequence(_mapping(bundle).get("reviewer_profiles")):
+        if not isinstance(profile, dict):
+            continue
+        profile_id = profile.get("profile_id")
+        if isinstance(profile_id, str) and profile_id not in profiles:
+            profiles[profile_id] = profile
+    return profiles
+
+
+def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
+    errors: list[str] = []
+    prompts = _mapping(bundle.get("prompts"))
+    for key in ("initial-reviewer", "adjudication", "challenge", "repair"):
+        _, prompt_errors = _read_review_artifact(
+            root,
+            _mapping(prompts.get(key)),
+            f"{label}: prompts.{key}",
+            REVIEW_PROMPT_PREFIX,
+            REVIEW_PROMPT_SUFFIX,
+        )
+        errors.extend(prompt_errors)
+    schemas = _mapping(bundle.get("schemas"))
+    for key in ("raw-review-output", "execution-receipt", "challenge-output"):
+        _, schema_errors = _read_review_artifact(
+            root,
+            _mapping(schemas.get(key)),
+            f"{label}: schemas.{key}",
+            REVIEW_SCHEMAS_PREFIX,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+        )
+        errors.extend(schema_errors)
+    profile_ids = [
+        profile.get("profile_id")
+        for profile in _sequence(bundle.get("reviewer_profiles"))
+        if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str)
+    ]
+    duplicate_ids = sorted(
+        profile_id for profile_id, count in Counter(profile_ids).items() if count > 1
+    )
+    for profile_id in duplicate_ids:
+        errors.append(f"{label}: duplicate reviewer profile_id {profile_id!r}")
+    return errors
+
+
+def _load_protocol_bundle_document(
+    root: Path,
+    reference: object,
+    label: str,
+    validator: Draft202012Validator | None,
+    cache: dict[str, tuple[dict | None, list[str]]],
+) -> tuple[dict | None, list[str]]:
+    bundle_reference = _mapping(reference)
+    cache_key = bundle_reference.get("sha256")
+    if isinstance(cache_key, str) and cache_key in cache:
+        return cache[cache_key]
+    bundle, errors = _load_json_object_artifact(
+        root,
+        bundle_reference,
+        label,
+        REVIEW_PROTOCOLS_PREFIX,
+        REVIEW_PROTOCOL_BUNDLE_SUFFIX,
+        require_canonical=True,
+    )
+    if bundle is not None and validator is not None:
+        errors.extend(_schema_violations(validator, bundle, label))
+        errors.extend(_protocol_bundle_errors(root, bundle, label))
+    if isinstance(cache_key, str):
+        cache[cache_key] = (bundle, list(errors))
+    return bundle, errors
+
+
+def _current_protocol_bundle_errors(
+    root: Path,
+    manifest: dict,
+    validator: Draft202012Validator | None,
+    cache: dict[str, tuple[dict | None, list[str]]],
+) -> tuple[object, dict | None, list[str]]:
+    hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
+    reference = _mapping(hostile_review.get("current_protocol_bundle"))
+    label = "policy.hostile_review.current_protocol_bundle"
+    bundle, errors = _load_protocol_bundle_document(
+        root, reference, label, validator, cache
+    )
+    return reference, bundle, errors
+
+
+def _load_execution_receipt(
+    root: Path,
+    reference: object,
+    label: str,
+    validator: Draft202012Validator | None,
+) -> tuple[dict | None, list[str]]:
+    receipt, errors = _load_json_object_artifact(
+        root,
+        reference,
+        label,
+        REVIEW_EXECUTIONS_PREFIX,
+        REVIEW_EXECUTION_SUFFIX,
+        require_canonical=True,
+    )
+    if receipt is not None and validator is not None:
+        errors.extend(_schema_violations(validator, receipt, label))
+    return receipt, errors
+
+
+RECEIPT_ROLE_OUTPUT_PREFIXES = {
+    INITIAL_REVIEWER_ROLE: (REVIEW_RAW_OUTPUT_PREFIX,),
+    CHALLENGE_ROLE: (REVIEW_CHALLENGE_PREFIX,),
+}
+RECEIPT_DEFAULT_OUTPUT_PREFIXES = (
+    REVIEW_RAW_OUTPUT_PREFIX,
+    REVIEW_CHALLENGE_PREFIX,
+    REVIEW_ADJUDICATIONS_PREFIX,
+)
+
+
+def _receipt_output_prefixes(role: object) -> tuple[str, ...]:
+    return RECEIPT_ROLE_OUTPUT_PREFIXES.get(role, RECEIPT_DEFAULT_OUTPUT_PREFIXES)
+
+
+def _read_receipt_output(
+    root: Path, reference: object, label: str, prefixes: tuple[str, ...]
+) -> tuple[bytes | None, list[str]]:
+    path = _mapping(reference).get("path")
+    if not isinstance(path, str) or not path:
+        return None, [f"{label}: attempt raw_output path must be a non-empty string"]
+    for prefix in prefixes:
+        if path.startswith(prefix):
+            return _read_review_artifact(
+                root, reference, label, prefix, REVIEW_JSON_OUTPUT_SUFFIX
+            )
+    return None, [
+        f"{label}: attempt raw_output path is not an allowed sealed location: {path}"
+    ]
+
+
+def _unique_qualifying_attempt(receipt: dict) -> dict | None:
+    qualified = [
+        attempt
+        for attempt in _sequence(receipt.get("attempts"))
+        if isinstance(attempt, dict) and attempt.get("outcome") == "qualified"
+    ]
+    return qualified[0] if len(qualified) == 1 else None
+
+
+def _validate_execution_receipt(
+    root: Path,
+    receipt: dict,
+    label: str,
+    profile_map: dict[str, dict],
+    expected_bundle_sha256: object,
+) -> tuple[list[str], dict | None]:
+    """Validate one receipt and return its unique qualified attempt, if any."""
+    errors: list[str] = []
+    role = receipt.get("role")
+    profile_id = receipt.get("reviewer_profile_id")
+    profile = profile_map.get(profile_id) if isinstance(profile_id, str) else None
+    if profile is None:
+        errors.append(
+            f"{label}: receipt references unknown reviewer profile {profile_id!r}"
+        )
+    else:
+        if profile.get("frontier_eligible") is not True:
+            errors.append(
+                f"{label}: reviewer profile {profile_id!r} is not frontier eligible"
+            )
+        request = _mapping(receipt.get("request"))
+        if request.get("provider") != profile.get("provider"):
+            errors.append(
+                f"{label}: receipt request provider does not match its reviewer profile"
+            )
+        if request.get("model") != profile.get("request_model"):
+            errors.append(
+                f"{label}: receipt request model does not match its reviewer profile "
+                "request_model"
+            )
+    if receipt.get("isolated_context") is not True:
+        errors.append(f"{label}: receipt isolated_context must be true")
+    if receipt.get("cross_reviewer_visibility_before_seal") is not False:
+        errors.append(
+            f"{label}: receipt cross_reviewer_visibility_before_seal must be false"
+        )
+    if receipt.get("tools_enabled") is not False:
+        errors.append(f"{label}: receipt tools_enabled must be false")
+    if isinstance(expected_bundle_sha256, str) and receipt.get(
+        "protocol_bundle_sha256"
+    ) != expected_bundle_sha256:
+        errors.append(
+            f"{label}: receipt protocol_bundle_sha256 does not match the review "
+            "protocol bundle"
+        )
+
+    attempts = [
+        attempt
+        for attempt in _sequence(receipt.get("attempts"))
+        if isinstance(attempt, dict)
+    ]
+    attempt_ids = [
+        attempt.get("attempt_id")
+        for attempt in attempts
+        if isinstance(attempt.get("attempt_id"), str)
+    ]
+    if len(attempt_ids) != len(set(attempt_ids)):
+        errors.append(f"{label}: attempt_id values must be unique")
+    qualified = [
+        attempt for attempt in attempts if attempt.get("outcome") == "qualified"
+    ]
+    if len(qualified) != 1:
+        errors.append(
+            f"{label}: exactly one attempt must have outcome qualified; "
+            f"found {len(qualified)}"
+        )
+    qualifying_attempt = qualified[0] if len(qualified) == 1 else None
+    if qualifying_attempt is not None:
+        if receipt.get("qualifying_attempt_id") != qualifying_attempt.get("attempt_id"):
+            errors.append(
+                f"{label}: qualifying_attempt_id must name the qualified attempt"
+            )
+
+    output_paths: list[str] = []
+    for attempt in attempts:
+        raw_output = attempt.get("raw_output")
+        attempt_label = f"{label}: attempt {attempt.get('attempt_id')!r}"
+        if raw_output is None:
+            if attempt.get("outcome") in ("protocol-invalid", "qualified"):
+                errors.append(
+                    f"{attempt_label}: a completed {attempt.get('outcome')} attempt "
+                    "must seal its raw output"
+                )
+            continue
+        _, output_errors = _read_receipt_output(
+            root, raw_output, attempt_label, _receipt_output_prefixes(role)
+        )
+        errors.extend(output_errors)
+        path = _mapping(raw_output).get("path")
+        if isinstance(path, str):
+            output_paths.append(path)
+    duplicates = sorted(
+        path for path, count in Counter(output_paths).items() if count > 1
+    )
+    for duplicate in duplicates:
+        errors.append(f"{label}: duplicate attempt raw_output path {duplicate}")
+
+    resolved = receipt.get("resolved_identity")
+    if qualifying_attempt is not None:
+        if not isinstance(resolved, dict):
+            errors.append(f"{label}: a qualified attempt requires a resolved identity")
+            return errors, qualifying_attempt
+        if resolved.get("evidence_attempt_id") != qualifying_attempt.get("attempt_id"):
+            errors.append(
+                f"{label}: resolved identity must reference the qualifying attempt"
+            )
+        request = _mapping(receipt.get("request"))
+        if resolved.get("provider") != request.get(
+            "provider"
+        ) or resolved.get("model") != request.get("model"):
+            errors.append(
+                f"{label}: resolved identity provider/model must match the receipt request"
+            )
+        if profile is not None:
+            identity_resolution = _mapping(profile.get("identity_resolution"))
+            kind = identity_resolution.get("kind")
+            if resolved.get("resolution_kind") != kind:
+                errors.append(
+                    f"{label}: resolved identity resolution_kind must match the "
+                    "reviewer profile"
+                )
+            if kind == "provider-reported":
+                provider_model = qualifying_attempt.get("provider_model")
+                if not isinstance(provider_model, str) or not provider_model:
+                    errors.append(
+                        f"{label}: provider-reported identity requires a non-empty "
+                        "provider_model"
+                    )
+                elif resolved.get("model_version") != provider_model:
+                    errors.append(
+                        f"{label}: provider-reported model_version must equal the "
+                        "qualified attempt provider_model"
+                    )
+            elif kind == "pinned-request-model":
+                if identity_resolution.get(
+                    "request_model_is_immutable_version"
+                ) is not True:
+                    errors.append(
+                        f"{label}: pinned-request-model requires "
+                        "request_model_is_immutable_version = true"
+                    )
+                if resolved.get("model_version") != profile.get("request_model"):
+                    errors.append(
+                        f"{label}: pinned-request-model model_version must equal the "
+                        "profile request_model"
+                    )
+    return errors, qualifying_attempt
+
+
+def _initial_reviewer_receipt_errors(
+    record: dict,
+    execution: dict,
+    receipt: dict,
+    qualifying_attempt: dict | None,
+) -> list[str]:
+    label = f"execution {execution.get('execution_id')!r} receipt"
+    errors: list[str] = []
+    if receipt.get("execution_id") != execution.get("execution_id"):
+        errors.append(f"{label}: receipt execution_id must equal the execution record")
+    if receipt.get("role") != INITIAL_REVIEWER_ROLE:
+        errors.append(
+            f"{label}: initial reviewer execution receipt role must be initial-reviewer"
+        )
+    if receipt.get("reviewer_profile_id") != execution.get("reviewer_profile_id"):
+        errors.append(
+            f"{label}: receipt reviewer profile must equal the execution reviewer profile"
+        )
+    request = _mapping(receipt.get("request"))
+    if request.get("provider") != execution.get("provider") or request.get(
+        "model"
+    ) != execution.get("model"):
+        errors.append(
+            f"{label}: receipt request must match the execution provider and model"
+        )
+    resolved = _mapping(receipt.get("resolved_identity"))
+    for field in ("provider", "model", "model_version"):
+        if resolved.get(field) != execution.get(field):
+            errors.append(
+                f"{label}: resolved identity {field} must equal the execution "
+                f"record {field}"
+            )
+    if receipt.get("isolated_context") is not execution.get("isolated_context"):
+        errors.append(f"{label}: receipt isolation must agree with the execution record")
+    if receipt.get("cross_reviewer_visibility_before_seal") is not execution.get(
+        "cross_reviewer_visibility_before_seal"
+    ):
+        errors.append(
+            f"{label}: receipt cross-reviewer visibility must agree with the execution "
+            "record"
+        )
+    protocol = _mapping(record.get("protocol"))
+    inputs = _mapping(receipt.get("input"))
+    if inputs.get("prompt") != protocol.get("prompt"):
+        errors.append(
+            f"{label}: receipt prompt input must equal the record protocol prompt"
+        )
+    if inputs.get("packet") != protocol.get("review_packet"):
+        errors.append(
+            f"{label}: receipt packet input must equal the record protocol packet"
+        )
+    if qualifying_attempt is not None and qualifying_attempt.get(
+        "raw_output"
+    ) != execution.get("raw_output"):
+        errors.append(
+            f"{label}: qualifying attempt raw output must equal the execution raw_output"
+        )
+    return errors
+
+
+def _raw_review_errors(
     root: Path,
     label: str,
-    finding: dict,
-    declared_raw_ids: dict[str, set[str]],
-) -> list[str]:
-    """Validate the structured refutation contract for a single finding."""
-    if finding.get("status") != "refuted":
-        return []
-    errors: list[str] = []
-    finding_id = finding.get("finding_id")
-    disposition = _mapping(finding.get("disposition"))
-    if disposition.get("kind") != "refuted":
-        errors.append(
-            f"{label}: finding {finding_id!r} with status 'refuted' must carry a "
-            "refuted disposition"
-        )
-        return errors
-    counterexample = finding.get("counterexample")
-    if isinstance(counterexample, str) and counterexample.strip():
-        if not isinstance(disposition.get("counterexample_disposition"), dict):
-            errors.append(
-                f"{label}: finding {finding_id!r} declares a counterexample and "
-                "requires counterexample_disposition"
-            )
-    challenge = disposition.get("challenge")
-    if _finding_is_material(finding) and not isinstance(challenge, dict):
-        errors.append(
-            f"{label}: material refuted finding {finding_id!r} requires a challenge "
-            "artifact"
-        )
-    if not isinstance(challenge, dict):
-        return errors
-
-    challenger_execution_id = challenge.get("challenger_execution_id")
-    if challenger_execution_id not in declared_raw_ids:
-        errors.append(
-            f"{label}: finding {finding_id!r} challenge references unknown execution "
-            f"{challenger_execution_id!r}"
-        )
-
-    expected_refutation_sha = _refutation_challenge_subject_sha256(finding)
-    if challenge.get("challenged_refutation_sha256") != expected_refutation_sha:
-        errors.append(
-            f"{label}: finding {finding_id!r} challenge does not bind the exact "
-            "refutation"
-        )
-
-    _, output_errors = _read_review_artifact(
+    execution: dict,
+    validator: Draft202012Validator | None,
+) -> tuple[dict[str, dict] | None, list[str]]:
+    raw, errors = _load_json_object_artifact(
         root,
-        _mapping(challenge.get("output")),
-        f"{label}: finding {finding_id!r} challenge output",
+        _mapping(execution.get("raw_output")),
+        label,
+        REVIEW_RAW_OUTPUT_PREFIX,
+        REVIEW_RAW_OUTPUT_SUFFIX,
+        require_canonical=False,
+    )
+    if raw is None:
+        return None, errors
+    if validator is not None:
+        errors.extend(_schema_violations(validator, raw, label))
+
+    raw_findings: dict[str, dict] = {}
+    for raw_finding in _sequence(raw.get("findings")):
+        if not isinstance(raw_finding, dict):
+            continue
+        raw_id = raw_finding.get("raw_finding_id")
+        if not isinstance(raw_id, str):
+            continue
+        if raw_id in raw_findings:
+            errors.append(f"{label}: duplicate raw_finding_id {raw_id!r}")
+            continue
+        raw_findings[raw_id] = raw_finding
+
+    assessments = [
+        assessment
+        for assessment in _sequence(raw.get("objective_assessments"))
+        if isinstance(assessment, dict)
+    ]
+    objectives = [
+        assessment.get("objective")
+        for assessment in assessments
+        if isinstance(assessment.get("objective"), str)
+    ]
+    if (
+        len(assessments) != len(GATE_A_ATTACK_OBJECTIVES)
+        or len(set(objectives)) != len(GATE_A_ATTACK_OBJECTIVES)
+        or set(objectives) != set(GATE_A_ATTACK_OBJECTIVES)
+    ):
+        errors.append(
+            f"{label}: raw output must assess exactly the 14 Gate A attack "
+            "objectives once each"
+        )
+    assessment_finding_ids: dict[str, list[str]] = {}
+    for assessment in assessments:
+        objective = assessment.get("objective")
+        if not isinstance(objective, str):
+            continue
+        finding_ids = [
+            raw_id
+            for raw_id in _sequence(assessment.get("finding_ids"))
+            if isinstance(raw_id, str)
+        ]
+        assessment_finding_ids[objective] = finding_ids
+        for raw_id in finding_ids:
+            if raw_id not in raw_findings:
+                errors.append(
+                    f"{label}: objective assessment {objective!r} references unknown "
+                    f"raw finding {raw_id!r}"
+                )
+
+    for raw_id, raw_finding in sorted(raw_findings.items()):
+        declared_objectives = {
+            objective
+            for objective in _sequence(raw_finding.get("attack_objectives"))
+            if isinstance(objective, str)
+        }
+        for objective in sorted(declared_objectives):
+            if raw_id not in assessment_finding_ids.get(objective, []):
+                errors.append(
+                    f"{label}: raw finding {raw_id!r} declares objective "
+                    f"{objective!r} that does not reference it reciprocally"
+                )
+        for objective, finding_ids in sorted(assessment_finding_ids.items()):
+            if raw_id in finding_ids and objective not in declared_objectives:
+                errors.append(
+                    f"{label}: objective assessment {objective!r} references raw "
+                    f"finding {raw_id!r} that does not declare it"
+                )
+
+    execution_objectives = {
+        objective
+        for objective in _sequence(execution.get("attack_objectives"))
+        if isinstance(objective, str)
+    }
+    if execution_objectives != set(objectives):
+        errors.append(
+            f"{label}: execution attack_objectives must equal the raw objective set"
+        )
+    execution_raw_ids = {
+        raw_id
+        for raw_id in _sequence(execution.get("raw_finding_ids"))
+        if isinstance(raw_id, str)
+    }
+    if execution_raw_ids != set(raw_findings):
+        errors.append(
+            f"{label}: execution raw_finding_ids must equal the raw finding ID set"
+        )
+    return raw_findings, errors
+
+
+def _load_challenge_output(
+    root: Path,
+    reference: object,
+    label: str,
+    validator: Draft202012Validator | None,
+) -> tuple[dict | None, list[str]]:
+    output, errors = _load_json_object_artifact(
+        root,
+        reference,
+        label,
         REVIEW_CHALLENGE_PREFIX,
-        REVIEW_TEXT_SUFFIX,
+        REVIEW_CHALLENGE_SUFFIX,
+        require_canonical=False,
+    )
+    if output is None:
+        return None, errors
+    if validator is not None:
+        errors.extend(_schema_violations(validator, output, label))
+    return output, errors
+
+
+def _challenge_objection_errors(output: dict, label: str) -> list[str]:
+    errors: list[str] = []
+    objections = [
+        objection
+        for objection in _sequence(output.get("objections"))
+        if isinstance(objection, dict)
+    ]
+    objection_by_id: dict[str, dict] = {}
+    for objection in objections:
+        objection_id = objection.get("challenge_objection_id")
+        if not isinstance(objection_id, str):
+            continue
+        if objection_id in objection_by_id:
+            errors.append(f"{label}: duplicate challenge_objection_id {objection_id!r}")
+            continue
+        objection_by_id[objection_id] = objection
+    listed_ids: set[str] = set()
+    for assessment in _sequence(output.get("objective_assessments")):
+        if not isinstance(assessment, dict):
+            continue
+        objective = assessment.get("objective")
+        for objection_id in _sequence(assessment.get("objection_ids")):
+            if not isinstance(objection_id, str):
+                continue
+            if objection_id in listed_ids:
+                errors.append(
+                    f"{label}: objection {objection_id!r} is listed more than once"
+                )
+            listed_ids.add(objection_id)
+            objection = objection_by_id.get(objection_id)
+            if objection is None:
+                errors.append(
+                    f"{label}: objective assessment references unknown objection "
+                    f"{objection_id!r}"
+                )
+            elif objection.get("objective") != objective:
+                errors.append(
+                    f"{label}: objection {objection_id!r} is listed under objective "
+                    f"{objective!r} but declares {objection.get('objective')!r}"
+                )
+    for objection_id in sorted(set(objection_by_id) - listed_ids):
+        errors.append(
+            f"{label}: objection {objection_id!r} is not listed by any objective "
+            "assessment"
+        )
+    return errors
+
+
+def _challenge_objective_errors(
+    output: dict, label: str, expected_objectives: tuple[str, ...]
+) -> list[str]:
+    objectives = [
+        assessment.get("objective")
+        for assessment in _sequence(output.get("objective_assessments"))
+        if isinstance(assessment, dict)
+    ]
+    counts = Counter(objective for objective in objectives if isinstance(objective, str))
+    if (
+        len(objectives) != len(expected_objectives)
+        or set(counts) != set(expected_objectives)
+        or any(count != 1 for count in counts.values())
+    ):
+        return [
+            f"{label}: objective assessments must cover exactly "
+            f"{len(expected_objectives)} required objectives once each"
+        ]
+    return []
+
+
+def _supporting_receipt(
+    supporting: dict[tuple, dict], reference: object
+) -> dict | None:
+    ref = _mapping(reference)
+    key = (ref.get("path"), ref.get("sha256"))
+    return supporting.get(key)
+
+
+def _materiality_errors(
+    root: Path,
+    label: str,
+    source_finding: dict,
+    materiality: object,
+    bundle: dict | None,
+    supporting: dict[tuple, dict],
+    challenge_validator: Draft202012Validator | None,
+) -> list[str]:
+    errors: list[str] = []
+    materiality_mapping = _mapping(materiality)
+    material = _finding_is_material({"materiality": materiality_mapping})
+
+    assessment_receipt = _supporting_receipt(
+        supporting, materiality_mapping.get("assessment_execution_receipt")
+    )
+    if assessment_receipt is None:
+        errors.append(
+            f"{label}: materiality assessment receipt must appear in "
+            "supporting_executions"
+        )
+    elif assessment_receipt.get("role") != "materiality-assessor":
+        errors.append(
+            f"{label}: materiality assessment receipt role must be materiality-assessor"
+        )
+
+    challenge = materiality_mapping.get("challenge")
+    if material:
+        if challenge is not None:
+            errors.append(
+                f"{label}: a material finding must not carry a materiality challenge"
+            )
+        return errors
+    if not isinstance(challenge, dict):
+        errors.append(
+            f"{label}: a non-material finding requires a hostile materiality challenge"
+        )
+        return errors
+
+    expected_sha = _materiality_challenge_subject_sha256(
+        source_finding, materiality_mapping
+    )
+    if challenge.get("challenged_materiality_sha256") != expected_sha:
+        errors.append(
+            f"{label}: materiality challenge does not bind the exact candidate "
+            "materiality assessment"
+        )
+    receipt = _supporting_receipt(supporting, challenge.get("execution_receipt"))
+    if receipt is None:
+        errors.append(
+            f"{label}: materiality challenge execution receipt must appear in "
+            "supporting_executions"
+        )
+    else:
+        if receipt.get("role") != CHALLENGE_ROLE:
+            errors.append(f"{label}: materiality challenge receipt role must be challenge")
+        prompts = _mapping(_mapping(bundle).get("prompts"))
+        inputs = _mapping(receipt.get("input"))
+        if inputs.get("prompt") != prompts.get("challenge"):
+            errors.append(
+                f"{label}: materiality challenge receipt prompt must equal the "
+                "protocol bundle challenge prompt"
+            )
+        qualifying = _unique_qualifying_attempt(receipt)
+        if qualifying is not None and qualifying.get(
+            "raw_output"
+        ) != challenge.get("output"):
+            errors.append(
+                f"{label}: materiality challenge receipt qualifying output must equal "
+                "the challenge output"
+            )
+    output, output_errors = _load_challenge_output(
+        root,
+        challenge.get("output"),
+        f"{label}: materiality challenge output",
+        challenge_validator,
     )
     errors.extend(output_errors)
+    if output is None:
+        return errors
+    if output.get("challenge_kind") != "materiality":
+        errors.append(
+            f"{label}: materiality challenge output challenge_kind must be materiality"
+        )
+    errors.extend(_challenge_objective_errors(output, label, MATERIALITY_AXES))
+    errors.extend(_challenge_objection_errors(output, label))
+    if _sequence(output.get("objections")):
+        errors.append(
+            f"{label}: a materiality challenge with any surviving objection cannot "
+            "support a non-material conclusion"
+        )
+    return errors
+
+
+def _refutation_challenge_errors(
+    root: Path,
+    label: str,
+    challenge: dict,
+    expected_sha: str,
+    bundle: dict | None,
+    supporting: dict[tuple, dict],
+    challenge_validator: Draft202012Validator | None,
+) -> list[str]:
+    errors: list[str] = []
+    if challenge.get("challenged_refutation_sha256") != expected_sha:
+        errors.append(f"{label}: challenge does not bind the exact refutation")
+    receipt = _supporting_receipt(supporting, challenge.get("execution_receipt"))
+    if receipt is None:
+        errors.append(
+            f"{label}: refutation challenge execution receipt must appear in "
+            "supporting_executions"
+        )
+    else:
+        if receipt.get("role") != CHALLENGE_ROLE:
+            errors.append(f"{label}: refutation challenge receipt role must be challenge")
+        prompts = _mapping(_mapping(bundle).get("prompts"))
+        inputs = _mapping(receipt.get("input"))
+        if inputs.get("prompt") != prompts.get("challenge"):
+            errors.append(
+                f"{label}: refutation challenge receipt prompt must equal the "
+                "protocol bundle challenge prompt"
+            )
+        qualifying = _unique_qualifying_attempt(receipt)
+        if qualifying is not None and qualifying.get(
+            "raw_output"
+        ) != challenge.get("output"):
+            errors.append(
+                f"{label}: refutation challenge receipt qualifying output must equal "
+                "the challenge output"
+            )
+    output, output_errors = _load_challenge_output(
+        root, challenge.get("output"), f"{label}: challenge output", challenge_validator
+    )
+    errors.extend(output_errors)
+    if output is None:
+        return errors
+    if output.get("challenge_kind") != "refutation":
+        errors.append(f"{label}: challenge output challenge_kind must be refutation")
+    errors.extend(
+        _challenge_objective_errors(output, label, REFUTATION_CHALLENGE_OBJECTIVES)
+    )
+    errors.extend(_challenge_objection_errors(output, label))
+    if _sequence(output.get("objections")):
+        errors.append(
+            f"{label}: a refutation challenge with any surviving objection cannot "
+            "close the finding"
+        )
+    return errors
+
+
+def _disposition_errors(
+    root: Path,
+    label: str,
+    counterexample_source: dict,
+    status: object,
+    materiality: object,
+    disposition: object,
+    bundle: dict | None,
+    supporting: dict[tuple, dict],
+    challenge_validator: Draft202012Validator | None,
+    refutation_subject_sha256: str,
+) -> list[str]:
+    errors: list[str] = []
+    material = _finding_is_material({"materiality": materiality})
+    if status == "refuted":
+        disposition = _mapping(disposition)
+        adjudication = _supporting_receipt(
+            supporting, disposition.get("adjudication_execution_receipt")
+        )
+        if adjudication is None:
+            errors.append(
+                f"{label}: refuted disposition adjudication receipt must appear in "
+                "supporting_executions"
+            )
+        counterexample = counterexample_source.get("counterexample")
+        if (
+            isinstance(counterexample, str)
+            and counterexample.strip()
+            and not isinstance(disposition.get("counterexample_disposition"), dict)
+        ):
+            errors.append(
+                f"{label}: a finding with a counterexample requires "
+                "counterexample_disposition"
+            )
+        challenge = disposition.get("challenge")
+        if material and not isinstance(challenge, dict):
+            errors.append(
+                f"{label}: material refuted finding requires a challenge artifact"
+            )
+        if isinstance(challenge, dict):
+            errors.extend(
+                _refutation_challenge_errors(
+                    root,
+                    label,
+                    challenge,
+                    refutation_subject_sha256,
+                    bundle,
+                    supporting,
+                    challenge_validator,
+                )
+            )
+    elif status in ("routed", "resolved"):
+        disposition = _mapping(disposition)
+        adjudication = _supporting_receipt(
+            supporting, disposition.get("adjudication_execution_receipt")
+        )
+        if adjudication is None:
+            errors.append(
+                f"{label}: {status} disposition adjudication receipt must appear in "
+                "supporting_executions"
+            )
     return errors
 
 
@@ -692,35 +1598,57 @@ def _gate_a_derived_subjects(value: object) -> list[dict]:
 
 
 def _review_evidence_errors(
-    root: Path, records: list[tuple[Path, dict]]
+    root: Path, manifest: dict, records: list[tuple[Path, dict]]
 ) -> list[str]:
-    schema, errors = _load_json(root, REVIEW_SCHEMA_RELATIVE)
-    if errors:
-        return errors
+    errors: list[str] = []
+    schema, errors_load = _load_json(root, REVIEW_SCHEMA_RELATIVE)
+    if errors_load:
+        return errors_load
     validator, validator_errors = _validator(schema)
     if validator is None:
-        return [f"{REVIEW_SCHEMA_RELATIVE.as_posix()}: {error}" for error in validator_errors]
+        return [
+            f"{REVIEW_SCHEMA_RELATIVE.as_posix()}: {error}"
+            for error in validator_errors
+        ]
 
+    bundle_validator, bundle_schema_errors = _load_schema_validator(
+        root, PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+    )
+    raw_validator, raw_schema_errors = _load_schema_validator(
+        root, RAW_REVIEW_SCHEMA_RELATIVE
+    )
+    challenge_validator, challenge_schema_errors = _load_schema_validator(
+        root, CHALLENGE_OUTPUT_SCHEMA_RELATIVE
+    )
+    receipt_validator, receipt_schema_errors = _load_schema_validator(
+        root, EXECUTION_RECEIPT_SCHEMA_RELATIVE
+    )
+    errors.extend(bundle_schema_errors)
+    errors.extend(raw_schema_errors)
+    errors.extend(challenge_schema_errors)
+    errors.extend(receipt_schema_errors)
+
+    bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
+    _current_reference, _current_bundle, current_errors = (
+        _current_protocol_bundle_errors(root, manifest, bundle_validator, bundle_cache)
+    )
+    errors.extend(current_errors)
+
+    record_index: dict[str, dict] = {}
     for path, record in records:
         label = path.relative_to(root).as_posix()
         errors.extend(_schema_violations(validator, record, label))
+        review_id = record.get("review_id")
+        if isinstance(review_id, str):
+            if review_id in record_index:
+                errors.append(f"{label}: duplicate review_id {review_id!r}")
+            else:
+                record_index[review_id] = record
 
-        executions = [
-            execution
-            for execution in _sequence(record.get("executions"))
-            if isinstance(execution, dict)
-        ]
-        execution_ids = [
-            execution.get("execution_id")
-            for execution in executions
-            if isinstance(execution.get("execution_id"), str)
-        ]
-        if len(execution_ids) != len(set(execution_ids)):
-            errors.append(f"{label}: execution_id values must be unique")
-
+    for path, record in records:
+        label = path.relative_to(root).as_posix()
         protocol = _mapping(record.get("protocol"))
         review_packet = _mapping(protocol.get("review_packet"))
-        prompt = _mapping(protocol.get("prompt"))
         packet_bytes, packet_errors = _read_review_artifact(
             root,
             review_packet,
@@ -729,14 +1657,66 @@ def _review_evidence_errors(
             REVIEW_PACKET_SUFFIX,
         )
         errors.extend(packet_errors)
+        prompt_reference = _mapping(protocol.get("prompt"))
         _, prompt_errors = _read_review_artifact(
             root,
-            prompt,
+            prompt_reference,
             f"{label}: protocol.prompt",
             REVIEW_PROMPT_PREFIX,
-            REVIEW_TEXT_SUFFIX,
+            REVIEW_PROMPT_SUFFIX,
         )
         errors.extend(prompt_errors)
+        bundle_reference = _mapping(protocol.get("protocol_bundle"))
+        bundle, bundle_errors = _load_protocol_bundle_document(
+            root,
+            bundle_reference,
+            f"{label}: protocol.protocol_bundle",
+            bundle_validator,
+            bundle_cache,
+        )
+        errors.extend(bundle_errors)
+        bundle_sha = bundle_reference.get("sha256")
+        profile_map = _protocol_profile_map(bundle)
+        prompts = _mapping(_mapping(bundle).get("prompts"))
+        if bundle is not None and protocol.get("prompt") != prompts.get(
+            "initial-reviewer"
+        ):
+            errors.append(
+                f"{label}: protocol.prompt must equal the protocol bundle "
+                "initial-reviewer prompt"
+            )
+
+        supporting: dict[tuple, dict] = {}
+        supporting_paths: list[str] = []
+        for index, reference in enumerate(
+            _sequence(record.get("supporting_executions"))
+        ):
+            reference = _mapping(reference)
+            ref_label = f"{label}: supporting_executions[{index}]"
+            receipt, receipt_errors = _load_execution_receipt(
+                root, reference, ref_label, receipt_validator
+            )
+            errors.extend(receipt_errors)
+            path_value = reference.get("path")
+            if isinstance(path_value, str):
+                supporting_paths.append(path_value)
+            if receipt is None:
+                continue
+            if receipt.get("role") == INITIAL_REVIEWER_ROLE:
+                errors.append(
+                    f"{ref_label}: initial-reviewer executions belong in executions, "
+                    "not supporting_executions"
+                )
+            receipt_errors, _attempt = _validate_execution_receipt(
+                root, receipt, ref_label, profile_map, bundle_sha
+            )
+            errors.extend(receipt_errors)
+            supporting[(reference.get("path"), reference.get("sha256"))] = receipt
+        duplicates = sorted(
+            path for path, count in Counter(supporting_paths).items() if count > 1
+        )
+        for duplicate in duplicates:
+            errors.append(f"{label}: duplicate supporting execution path {duplicate}")
 
         gate_a_subjects = _gate_a_derived_subjects(record.get("subjects"))
         is_gate_a_subject_review = (
@@ -758,6 +1738,20 @@ def _review_evidence_errors(
                     )
                 )
 
+        executions = [
+            execution
+            for execution in _sequence(record.get("executions"))
+            if isinstance(execution, dict)
+        ]
+        execution_ids = [
+            execution.get("execution_id")
+            for execution in executions
+            if isinstance(execution.get("execution_id"), str)
+        ]
+        if len(execution_ids) != len(set(execution_ids)):
+            errors.append(f"{label}: execution_id values must be unique")
+
+        raw_findings_by_execution: dict[str, dict[str, dict]] = {}
         declared_raw_ids: dict[str, set[str]] = {}
         raw_paths: list[str] = []
         for execution in executions:
@@ -768,31 +1762,66 @@ def _review_evidence_errors(
                     f"{exec_label} review_packet_sha256 must equal "
                     "protocol.review_packet.sha256"
                 )
-            if execution.get("prompt_sha256") != prompt.get("sha256"):
+            if execution.get("prompt_sha256") != prompt_reference.get("sha256"):
                 errors.append(
                     f"{exec_label} prompt_sha256 must equal protocol.prompt.sha256"
                 )
-            raw_output = _mapping(execution.get("raw_output"))
-            _, raw_errors = _read_review_artifact(
+            receipt_reference = _mapping(execution.get("execution_receipt"))
+            receipt, receipt_errors = _load_execution_receipt(
                 root,
-                raw_output,
-                f"{exec_label} raw_output",
-                REVIEW_RAW_OUTPUT_PREFIX,
-                REVIEW_TEXT_SUFFIX,
+                receipt_reference,
+                f"{exec_label} execution_receipt",
+                receipt_validator,
             )
-            errors.extend(raw_errors)
-            raw_path = raw_output.get("path")
+            errors.extend(receipt_errors)
+            if receipt is not None:
+                receipt_errors, qualifying_attempt = _validate_execution_receipt(
+                    root,
+                    receipt,
+                    f"{exec_label} execution_receipt",
+                    profile_map,
+                    bundle_sha,
+                )
+                errors.extend(receipt_errors)
+                errors.extend(
+                    _initial_reviewer_receipt_errors(
+                        record, execution, receipt, qualifying_attempt
+                    )
+                )
+            raw_path = _mapping(execution.get("raw_output")).get("path")
             if isinstance(raw_path, str):
                 raw_paths.append(raw_path)
-            if isinstance(execution_id, str):
-                declared_raw_ids.setdefault(execution_id, set()).update(
-                    raw_finding_id
-                    for raw_finding_id in _sequence(execution.get("raw_finding_ids"))
-                    if isinstance(raw_finding_id, str)
+            if is_gate_a_subject_review:
+                raw_findings, raw_errors = _raw_review_errors(
+                    root, f"{exec_label} raw_output", execution, raw_validator
                 )
+                errors.extend(raw_errors)
+                if raw_findings is not None and isinstance(execution_id, str):
+                    raw_findings_by_execution[execution_id] = raw_findings
+            else:
+                _, raw_errors = _read_review_artifact(
+                    root,
+                    _mapping(execution.get("raw_output")),
+                    f"{exec_label} raw_output",
+                    REVIEW_RAW_OUTPUT_PREFIX,
+                    REVIEW_RAW_OUTPUT_SUFFIX,
+                )
+                errors.extend(raw_errors)
+            if not isinstance(execution_id, str):
+                continue
+            if is_gate_a_subject_review:
+                declared_raw_ids[execution_id] = set(
+                    raw_findings_by_execution.get(execution_id, {})
+                )
+            else:
+                declared_raw_ids[execution_id] = {
+                    raw_id
+                    for raw_id in _sequence(execution.get("raw_finding_ids"))
+                    if isinstance(raw_id, str)
+                }
 
         duplicates = sorted(
-            raw_path for raw_path, count in Counter(raw_paths).items() if count > 1
+            path for path, count in Counter(raw_paths).items() if count > 1
         )
         for duplicate in duplicates:
             errors.append(f"{label}: duplicate raw_output path {duplicate}")
@@ -805,9 +1834,16 @@ def _review_evidence_errors(
             finding_id = finding.get("finding_id")
             if isinstance(finding_id, str):
                 finding_ids.append(finding_id)
-            for source in _sequence(finding.get("sources")):
-                if not isinstance(source, dict):
-                    continue
+            sources = [
+                source
+                for source in _sequence(finding.get("sources"))
+                if isinstance(source, dict)
+            ]
+            if len(sources) != 1:
+                errors.append(
+                    f"{label}: finding {finding_id!r} must declare exactly one source"
+                )
+            for source in sources:
                 execution_id = source.get("execution_id")
                 raw_finding_id = source.get("raw_finding_id")
                 if execution_id not in declared_raw_ids:
@@ -825,6 +1861,42 @@ def _review_evidence_errors(
                 destinations.setdefault((execution_id, raw_finding_id), []).append(
                     finding_id
                 )
+                if is_gate_a_subject_review:
+                    raw_finding = raw_findings_by_execution.get(
+                        execution_id, {}
+                    ).get(raw_finding_id)
+                    if raw_finding is not None:
+                        for field in ("statement", "argument", "counterexample"):
+                            if finding.get(field) != raw_finding.get(field):
+                                errors.append(
+                                    f"{label}: finding {finding_id!r} {field} must "
+                                    f"equal the exact raw finding {field}"
+                                )
+            errors.extend(
+                _materiality_errors(
+                    root,
+                    f"{label}: finding {finding_id!r}",
+                    finding,
+                    finding.get("materiality"),
+                    bundle,
+                    supporting,
+                    challenge_validator,
+                )
+            )
+            errors.extend(
+                _disposition_errors(
+                    root,
+                    f"{label}: finding {finding_id!r}",
+                    finding,
+                    finding.get("status"),
+                    finding.get("materiality"),
+                    finding.get("disposition"),
+                    bundle,
+                    supporting,
+                    challenge_validator,
+                    _refutation_challenge_subject_sha256(finding),
+                )
+            )
 
         if len(finding_ids) != len(set(finding_ids)):
             errors.append(f"{label}: normalized finding_id values must be unique")
@@ -843,11 +1915,85 @@ def _review_evidence_errors(
                         f"{raw_finding_id!r}) has no normalized destination"
                     )
 
-        for finding in _sequence(record.get("findings")):
-            if not isinstance(finding, dict):
+        for index, item in enumerate(_sequence(record.get("re_adjudications"))):
+            if not isinstance(item, dict):
                 continue
+            item_label = f"{label}: re_adjudications[{index}]"
+            source_review_id = item.get("source_review_id")
+            source_finding_id = item.get("source_finding_id")
+            source_record = (
+                record_index.get(source_review_id)
+                if isinstance(source_review_id, str)
+                else None
+            )
+            if source_record is None:
+                errors.append(
+                    f"{item_label}: re-adjudication references unknown source review "
+                    f"{source_review_id!r}"
+                )
+                continue
+            source_finding = None
+            for candidate in _sequence(source_record.get("findings")):
+                if (
+                    isinstance(candidate, dict)
+                    and candidate.get("finding_id") == source_finding_id
+                ):
+                    source_finding = candidate
+                    break
+            if source_finding is None:
+                errors.append(
+                    f"{item_label}: re-adjudication references unknown source finding "
+                    f"{source_finding_id!r}"
+                )
+                continue
+            if item.get("source_finding_sha256") != _finding_subject_sha256(
+                source_finding
+            ):
+                errors.append(
+                    f"{item_label}: source_finding_sha256 does not match the exact "
+                    "source finding"
+                )
             errors.extend(
-                _refutation_errors(root, label, finding, declared_raw_ids)
+                _materiality_errors(
+                    root,
+                    item_label,
+                    source_finding,
+                    item.get("materiality"),
+                    bundle,
+                    supporting,
+                    challenge_validator,
+                )
+            )
+            errors.extend(
+                _disposition_errors(
+                    root,
+                    item_label,
+                    source_finding,
+                    item.get("status"),
+                    item.get("materiality"),
+                    item.get("disposition"),
+                    bundle,
+                    supporting,
+                    challenge_validator,
+                    _re_adjudication_refutation_subject_sha256(source_finding, item),
+                )
+            )
+
+    re_adjudication_keys: Counter[tuple] = Counter()
+    for _path, record in records:
+        for item in _sequence(record.get("re_adjudications")):
+            if not isinstance(item, dict):
+                continue
+            re_adjudication_keys[
+                (item.get("source_review_id"), item.get("source_finding_id"))
+            ] += 1
+    for key, count in sorted(
+        re_adjudication_keys.items(), key=lambda pair: (str(pair[0][0]), str(pair[0][1]))
+    ):
+        if count > 1:
+            errors.append(
+                f"duplicate re-adjudication of finding {key[1]!r} from review "
+                f"{key[0]!r}"
             )
     return errors
 
@@ -1132,21 +2278,75 @@ def build_gate_a_review_packet_bytes(
     return _canonical_json_document_bytes(payload), []
 
 
+def _challenge_output_objections(root: Path, reference: object) -> list | None:
+    output, errors = _load_json_object_artifact(
+        root,
+        reference,
+        "challenge output",
+        REVIEW_CHALLENGE_PREFIX,
+        REVIEW_CHALLENGE_SUFFIX,
+        require_canonical=False,
+    )
+    if output is None or errors:
+        return None
+    return _sequence(output.get("objections"))
+
+
 def derive_gate_a(
+    root: Path,
     manifest: dict,
     current_subject: dict | None,
     records: list[tuple[Path, dict]],
 ) -> dict:
     """Derive Formal-Architecture-Ready from current review evidence."""
+    hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
+    current_bundle_reference = _mapping(
+        hostile_review.get("current_protocol_bundle")
+    )
+    current_bundle_sha256 = current_bundle_reference.get("sha256")
+
     current: list[dict] = []
+    stale: list[dict] = []
     for _path, record in records:
         if record.get("review_class") != GATE_A_REVIEW_CLASS:
             continue
         gate_a_subjects = _gate_a_derived_subjects(record.get("subjects"))
         if len(gate_a_subjects) != 1:
             continue
-        if current_subject is not None and gate_a_subjects[0] == current_subject:
+        if current_subject is None or gate_a_subjects[0] != current_subject:
+            continue
+        bundle_sha256 = _mapping(
+            _mapping(record.get("protocol")).get("protocol_bundle")
+        ).get("sha256")
+        if isinstance(current_bundle_sha256, str) and bundle_sha256 == current_bundle_sha256:
             current.append(record)
+        else:
+            stale.append(record)
+
+    if not current and not stale:
+        return {
+            "ready": False,
+            "reason": "hostile assurance-decomposition review evidence required",
+        }
+
+    current_re_adjudications: dict[tuple, list[dict]] = {}
+    for record in current:
+        for item in _sequence(record.get("re_adjudications")):
+            if not isinstance(item, dict):
+                continue
+            key = (item.get("source_review_id"), item.get("source_finding_id"))
+            current_re_adjudications.setdefault(key, []).append(item)
+
+    for record in stale:
+        for finding in _sequence(record.get("findings")):
+            if not isinstance(finding, dict):
+                continue
+            key = (record.get("review_id"), finding.get("finding_id"))
+            if key not in current_re_adjudications:
+                return {
+                    "ready": False,
+                    "reason": "stale-protocol finding requires current re-adjudication",
+                }
 
     if not current:
         return {
@@ -1167,7 +2367,56 @@ def derive_gate_a(
                     "reason": "surviving material hostile-review finding exists",
                 }
 
-    hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
+    for record in stale:
+        for finding in _sequence(record.get("findings")):
+            if not isinstance(finding, dict):
+                continue
+            key = (record.get("review_id"), finding.get("finding_id"))
+            items = current_re_adjudications.get(key, [])
+            if not items:
+                return {
+                    "ready": False,
+                    "reason": "stale-protocol finding requires current re-adjudication",
+                }
+            item = items[0]
+            material = _finding_is_material({"materiality": item.get("materiality")})
+            if material and item.get("status") in GATE_A_BLOCKING_STATUSES:
+                return {
+                    "ready": False,
+                    "reason": "surviving material hostile-review finding exists",
+                }
+            if material and item.get("status") == "refuted":
+                disposition = _mapping(item.get("disposition"))
+                challenge = disposition.get("challenge")
+                refutation_reason = (
+                    "re-adjudicated material refutation requires current-protocol "
+                    "challenge evidence"
+                )
+                if not isinstance(challenge, dict):
+                    return {"ready": False, "reason": refutation_reason}
+                if challenge.get(
+                    "challenged_refutation_sha256"
+                ) != _re_adjudication_refutation_subject_sha256(finding, item):
+                    return {"ready": False, "reason": refutation_reason}
+                objections = _challenge_output_objections(
+                    root, challenge.get("output")
+                )
+                if objections is None or objections:
+                    return {"ready": False, "reason": refutation_reason}
+            if not material:
+                challenge = _mapping(item.get("materiality")).get("challenge")
+                materiality_reason = (
+                    "current-protocol non-material re-adjudication requires a "
+                    "hostile materiality challenge"
+                )
+                if not isinstance(challenge, dict):
+                    return {"ready": False, "reason": materiality_reason}
+                objections = _challenge_output_objections(
+                    root, challenge.get("output")
+                )
+                if objections is None or objections:
+                    return {"ready": False, "reason": materiality_reason}
+
     minimum_reviewers = hostile_review.get("minimum_independent_reviewers")
     if not isinstance(minimum_reviewers, int) or minimum_reviewers < 1:
         minimum_reviewers = 0
@@ -1191,6 +2440,7 @@ def derive_gate_a(
             continue
         qualifying = True
         identities: set[tuple] = set()
+        effective_identities: set[tuple] = set()
         for execution in executions:
             if (
                 execution.get("isolated_context") is not True
@@ -1213,22 +2463,30 @@ def derive_gate_a(
                     execution.get("model_version"),
                 )
             )
+            effective_identities.add(
+                (execution.get("provider"), execution.get("model_version"))
+            )
         if not qualifying:
             continue
-        if len(identities) >= minimum_reviewers:
+        if (
+            len(identities) >= minimum_reviewers
+            and len(effective_identities) >= minimum_reviewers
+        ):
             return {
                 "ready": True,
                 "reason": (
                     "current hostile assurance-decomposition campaign satisfies "
-                    "operational independence, per-execution attack coverage, sealed "
-                    "evidence, and material-finding disposition requirements"
+                    "operational independence, effective model identity, "
+                    "per-execution attack coverage, sealed evidence, and "
+                    "material-finding disposition requirements"
                 ),
             }
     return {
         "ready": False,
         "reason": (
             "current assurance-decomposition review evidence does not satisfy "
-            "operational independence and per-execution attack coverage"
+            "operational independence, effective model identity, and per-execution "
+            "attack coverage"
         ),
     }
 
@@ -1319,7 +2577,10 @@ def collect_errors(
     summary: dict = {
         "invariants": 0,
         "claims": 0,
-        "gate_a": derive_gate_a({}, None, []),
+        "gate_a": {
+            "ready": False,
+            "reason": "hostile assurance-decomposition review evidence required",
+        },
     }
 
     manifest, load_errors = _load_yaml(root, MANIFEST_RELATIVE)
@@ -1507,7 +2768,7 @@ def collect_errors(
     errors.extend(subject_errors)
 
     review_records, review_load_errors = load_review_records(root)
-    review_validation_errors = _review_evidence_errors(root, review_records)
+    review_validation_errors = _review_evidence_errors(root, manifest, review_records)
 
     errors.extend(review_load_errors)
     errors.extend(review_validation_errors)
@@ -1518,7 +2779,7 @@ def collect_errors(
             "reason": "hostile review evidence integrity failure",
         }
     else:
-        gate_a = derive_gate_a(manifest, current_subject, review_records)
+        gate_a = derive_gate_a(root, manifest, current_subject, review_records)
     summary["gate_a"] = gate_a
 
     if (root / MODEL_RELATIVE).exists() and not gate_a["ready"]:

@@ -6,8 +6,9 @@ campaigns over TURNLOCK formal-assurance artifacts.
 The existence of `review-evidence.schema.json` is **not** evidence that any
 review occurred. The absence of a review record means that no review evidence
 exists. Review requirements are satisfied only by records that exist, validate,
-and are current for the exact reviewed artifact version. Review evidence is a
-distinct evidence class from TLC or other mechanical checker evidence.
+and are current for both the exact reviewed subject and the current hostile
+review protocol. Review evidence is a distinct evidence class from TLC or other
+mechanical checker evidence.
 
 Hostile review is adversarial falsification, not majority voting. A single
 surviving valid material objection blocks acceptance of the reviewed semantic
@@ -16,30 +17,54 @@ Review evidence never constitutes mathematical proof of natural-language/formal
 equivalence; the strongest valid conclusion is bounded reviewed semantic
 correspondence under the executed review protocol.
 
-The evidence contract is `review-evidence.schema.json` schema version `3.0`.
-Version 3.0 is a breaking contract; no compatibility branch for the previous
-`2.0` shape exists. No `2.0` campaign evidence exists, so no campaign evidence
+The evidence contract is `review-evidence.schema.json` schema version `4.0`.
+Version 4.0 is a breaking contract; no compatibility branch for the previous
+`3.0` shape exists. No `3.0` campaign evidence exists, so no campaign evidence
 migration is required.
 
-Schema 3.0 adds three exact-binding guarantees on top of schema 2.0:
+## Dual currentness: semantic subject and review protocol
+
+Gate A has two independent identities:
 
 ```text
-Gate A review packets are self-contained canonical JSON artifacts
-cryptographically bound to the exact derived subject they represent;
-
-hostile challenges are bound by challenged_refutation_sha256 to the exact
-canonical finding and refutation payload they challenged;
-
-all review-evidence artifact paths resolve directly without traversing any
-symlink, including in-repository symlink aliases.
+S = Gate A semantic subject identity
+P = Gate A hostile-review protocol-bundle identity
 ```
 
-Review records are declarative evidence artifacts. They MUST validate against
-`review-evidence.schema.json`; the repository formal traceability checker
-validates them, validates their referenced artifacts, and derives review-coverage
-state from them without inventing review results. Structurally or referentially
-invalid review evidence makes Gate A BLOCKED; it is never silently ignored and
-it can never coexist with a Gate A READY summary.
+A campaign is current for Gate A only if it is current for BOTH:
+
+```text
+(S, P)
+```
+
+This directory owns hostile-review evidence and protocol artifacts. It is not
+TURNLOCK product authority, and the protocol bundle is evidence and protocol
+authority only.
+
+## Protocol bundle
+
+The current hostile-review protocol is a content-addressed canonical JSON bundle:
+
+```text
+formal/reviews/protocols/*.json
+```
+
+The current bundle is pointed to by
+`formal/verification.yaml policy.hostile_review.current_protocol_bundle`. The
+bundle declares its schema version, protocol identity, review class, canonical
+prompt artifacts, canonical schema artifacts, reviewer profiles, and protocol
+policies. A protocol change requires a new content identity `P`. A review made
+under a stale `P` does not satisfy current Gate A.
+
+The current v1 bundle intentionally declares:
+
+```json
+"reviewer_profiles": []
+```
+
+The empty registry is intentional. No real Gate A campaign can qualify until a
+later protocol snapshot explicitly adds eligible profiles, and that profile
+change necessarily changes `P`.
 
 ## Campaign artifacts
 
@@ -48,21 +73,21 @@ A campaign separates, conceptually and durably:
 ```text
 canonical review packet
 canonical review prompt
+protocol bundle
+reviewer profiles
 reviewer execution metadata
 sealed raw reviewer output
+execution receipts
 normalized campaign evidence
 adjudication / challenge evidence
+re-adjudication evidence for stale-protocol findings
 ```
 
-The review packet, the prompt, the raw reviewer output, and any challenge output
-are repository-relative artifacts content-addressed by SHA-256. A raw output
-becomes SEALED when its bytes are fixed and hashed. After sealing there is no
-edit, no cleanup, no rewriting, and no finding deletion. Normalization and
-adjudication are recorded elsewhere in the campaign evidence.
-
-The campaign evidence connects every execution to its execution identity, model
-identity, packet SHA-256, prompt SHA-256, attack objectives, isolation
-declaration, sealed raw-output artifact, and declared raw finding IDs.
+The review packet, the prompt, the protocol bundle, the raw reviewer output, and
+any challenge output are repository-relative artifacts content-addressed by
+SHA-256. A raw output becomes SEALED when its bytes are fixed and hashed. After
+sealing there is no edit, no cleanup, no rewriting, and no finding deletion.
+Normalization and adjudication are recorded elsewhere in the campaign evidence.
 
 ## Canonical Gate A review packet
 
@@ -72,95 +97,32 @@ The Gate A review packet is a self-contained canonical JSON file:
 formal/reviews/packets/*.json
 ```
 
-It is not a new semantic authority. It is a canonical self-contained projection
-of the exact reviewed subject and its textual authority.
-
 It contains the exact `subject_payload`, the exact subject identity, and the
-exact UTF-8 authority contents:
+exact UTF-8 authority contents. Packet validation recomputes the subject SHA from
+`subject_payload` and each embedded authority SHA from its UTF-8 contents. The
+packet subject must equal the unique Gate A derived subject declared by the
+review record. A stale historical packet validates against its own embedded
+reviewed subject, not against current repository semantics.
+
+## Reviewer profiles and qualification
+
+`frontier-llm` is not an arbitrary per-execution assertion. Each reviewer
+execution references a profile owned by the campaign protocol bundle. Each
+profile declares exactly:
 
 ```text
-packet_schema_version
-subject              = {subject_type, selector, sha256}
-subject_payload      = exact canonical Gate A subject payload
-authority_contents   = ordered normative spec, architecture decisions,
-                       and abstraction constraints with id, path, sha256,
-                       and content_utf8
+profile_id
+provider
+request_model
+frontier_eligible
+identity_resolution
 ```
 
-The packet artifact SHA alone is insufficient. Packet validation recomputes:
+`frontier_eligible` MUST be exactly `true` for a profile to qualify. The runner
+and the checker never invent or auto-promote a profile. A model/profile not
+listed in the campaign protocol bundle does not qualify.
 
-```text
-subject SHA = SHA256(canonical_json_bytes(subject_payload))
-entry SHA   = SHA256(content_utf8 encoded as UTF-8)
-```
-
-The packet subject must equal a subject listed by the review record, and the
-embedded authority hashes must equal the authority descriptors in the reviewed
-subject payload. The packet is serialized as canonical JSON document bytes
-(`json.dumps(value, sort_keys=True, separators=(",", ":"),
-ensure_ascii=False).encode("utf-8")` plus one trailing newline). The packet
-subject SHA intentionally differs from the packet artifact SHA.
-
-A stale historical packet validates against its own embedded reviewed subject,
-not against current repository semantics. Packet validation is self-contained
-from the packet plus its review record and never compares embedded authority to
-the current manifest.
-
-## Unambiguous Gate A subject identity
-
-For an assurance-decomposition review record that declares
-`gate-a-assurance-decomposition-v1`, exactly one Gate A derived subject is
-allowed.
-
-Duplicate identical Gate A subjects are invalid.
-
-Multiple different Gate A subjects are invalid.
-
-Additional artifact subjects remain permitted.
-
-The canonical Gate A review packet must equal the unique Gate A derived subject,
-not merely any member of `subjects[]`.
-
-Gate A currentness uses the same unique Gate A derived subject.
-
-For a CURRENT qualifying campaign, the enforced identity chain is exactly:
-
-```text
-packet.subject
-==
-unique record Gate A derived subject
-==
-current Gate A subject
-```
-
-Schema version remains 3.0; this is repository cross-field integrity, not a
-serialized-shape change.
-
-## Symlink prohibition
-
-No review-evidence artifact path may traverse a symlink, including a symlink
-that remains inside the repository. Every path component from the resolved
-repository root to the referenced artifact must be a non-symlink filesystem
-object, and the artifact itself must be a regular file. This applies to the
-review packet, the prompt, the raw reviewer output, and any challenge output.
-A declared path must be the direct filesystem identity of the reviewed artifact,
-not an alias.
-
-## Operational independence
-
-Independence is **operational independence**, not a probabilistic independence
-claim about models.
-
-A reviewer execution counts toward the declared
-`minimum_independent_reviewers` only when it:
-
-- analyzes the same exact reviewed subject;
-- uses the same canonical review packet;
-- uses the same canonical review prompt;
-- executes in a separate context;
-- has no direct or indirect access to the outputs, findings, or adjudications of
-  any other reviewer before its own raw output is sealed;
-- belongs to a distinct model identity.
+## Model identity resolution
 
 Model identity is exactly:
 
@@ -168,94 +130,119 @@ Model identity is exactly:
 (provider, model, model_version)
 ```
 
-Two executions of the same model identity may be recorded, but they count as one
-identity for the independent-reviewer minimum. Provider inequality
-(`provider A != provider B`) is not required. Provider and model-family diversity
-is recommended campaign quality because it reduces common-mode risk, but it is
-not the universal mechanical definition of independence.
-
-## Attack coverage per execution
-
-Every reviewer execution that counts toward the Gate A campaign must
-individually cover the complete attack-objective set declared by:
+`model_version` is derived from evidence according to the selected profile.
+Allowed resolution kinds are exactly `provider-reported` and
+`pinned-request-model`:
 
 ```text
-formal/verification.yaml
-policy.hostile_review.required_attack_objectives.assurance-decomposition
+provider-reported:
+  the qualified attempt provider_model must be non-empty
+  model_version = qualified attempt provider_model
+
+pinned-request-model:
+  request_model_is_immutable_version must be true
+  model_version = profile.request_model
 ```
 
-Aggregated campaign coverage is not sufficient. A qualifying execution that
-omits an objective is not qualifying, even when another execution covered that
-objective.
+No runner-supplied alias, `latest`, or unresolved alias is admissible.
 
-## Sealed outputs and lossless normalization
+Independent-reviewer counting enforces both the distinct full tuple
+`(provider, model, model_version)` and the distinct effective identity
+`(provider, model_version)`. Two aliases resolving to the same effective
+provider/model version therefore count once and cannot inflate
+`minimum_independent_reviewers`.
 
-Every raw finding declared by a reviewer execution must have exactly one
-destination in the normalized finding ledger.
+## Structured raw reviewer outputs
 
-Several raw findings may merge into one normalized finding. A single raw finding
-cannot be consumed by more than one normalized finding. A normalized finding
-preserves its exact source pairs:
+Initial hostile reviewer outputs are structured JSON artifacts:
 
 ```text
-(execution_id, raw_finding_id)
+formal/reviews/raw/*.json
 ```
 
-No declared raw finding may be lost. An unmapped raw finding, a raw finding
-mapped to several normalized findings, or a source that references an unknown
-execution or unknown raw finding is a review-evidence integrity failure.
+The exact model-produced raw bytes are sealed before interpretation. The raw
+format contains exactly `raw_review_schema_version`, `objective_assessments`,
+and `findings`. Each of the 14 Gate A attack objectives appears exactly once in
+`objective_assessments`, and every objective/finding reference is reciprocal.
 
-## Derived materiality
+Reviewers do not emit materiality, status, disposition, confidence, severity,
+recommendation, preferred fix, Gate A readiness, or decision-required markers.
 
-`material` is not a stored boolean. Materiality is derived from these boolean
-impact axes:
+## Sealed retry and attempt preservation
+
+The protocol distinguishes technical/provider transport attempts internal to one
+LLM call from completed LLM calls used as protocol attempts.
+
+If a completed model response exists, its exact bytes are sealed and retained
+even when its JSON is protocol-invalid. A schema-invalid completed response may
+cause a fresh retry using the exact same semantic input. A valid semantic
+response is never retried merely because its content is inconvenient, and no
+model-shopping is permitted after a semantically valid result.
+
+Every completed protocol attempt is recorded in the execution receipt. At most
+one attempt in a qualifying execution may have outcome `qualified`.
+
+## Execution receipts
+
+Every cognitive LLM call participating in the campaign has its own
+content-addressed execution receipt:
 
 ```text
-authority_or_upstream_decision
-claim_structure
-normative_provenance
-modality_or_assurance_domain
-coverage_or_residual_assurance
-interaction_scope
-candidate_model_authorization
+formal/reviews/executions/*.json
 ```
 
-A finding is material if and only if at least one axis is `true`.
-
-Every finding must carry a materiality `rationale` explaining why, assuming the
-finding is true, the Gate A subject could or could not remain unchanged while
-still legitimately authorizing the candidate model. Materiality measures the
-counterfactual impact of a true finding; it does not measure confidence,
-severity, reviewer consensus, or probability.
-
-## Status semantics
+The receipt records its execution identity, role, reviewer profile, protocol
+bundle SHA-256, prompt and packet inputs, isolation declarations, runtime
+metadata, request provider/model, every attempt, the qualifying attempt, and the
+evidence-derived resolved identity. Required constants are:
 
 ```text
-open     = the argument is neither refuted, nor resolved, nor routed.
-routed   = the argument may be valid, but its earliest upstream cause requires
-           resolution outside the relation currently under review.
-resolved = the finding was valid and its cause has been corrected.
-refuted  = at least one necessary premise or inference of the finding was
-           invalidated by an argument traceable to the subject or its exact
-           authority, without a new normative assumption.
+isolated_context = true
+cross_reviewer_visibility_before_seal = false
+tools_enabled = false
 ```
 
-For a material finding:
+Only `initial-reviewer` receipts count toward
+`minimum_independent_reviewers`. A challenge is a NEW LLM execution and never
+pretends that an earlier reviewer execution was the challenge execution.
+
+The receipt is runtime-transport-neutral. It does not require `llm-runtime`; a
+future campaign runner may use `llm-runtime`, but the evidence contract does not
+give it authority.
+
+## One-to-one normalization
+
+For schema 4.0:
 
 ```text
-open     blocks Gate A
-routed   blocks Gate A
-resolved blocks Gate A while it still belongs to the current subject
-refuted  may cease to block only when the refutation contract is satisfied
+one raw finding -> exactly one normalized finding
 ```
 
-A current review cannot use `material + resolved` as a shortcut to READY. If the
-finding was material and valid, its resolution normally changes a dependency of
-the subject or resolves an upstream authority, and the review becomes historical
-and stale for the new bytes. A real material correction therefore requires a new
-current campaign rather than patching an old campaign's evidence.
+No semantic merge, no semantic deduplication, and no one-to-many mapping exists.
+A normalized finding declares exactly one source, and the normalized
+`statement`, `argument`, and `counterexample` equal the exact corresponding raw
+finding values. Normalization adds global identity and adjudication metadata
+only.
 
-## Structured refutation and hostile challenge
+## Materiality and the materiality challenge
+
+Materiality remains derived from the seven explicit impact axes. If any axis is
+true, the finding is material.
+
+If all seven axes are false, the non-material conclusion is not accepted merely
+because one assessor says so. It requires a fresh hostile materiality challenge
+bound to the exact candidate materiality assessment through
+`challenged_materiality_sha256`. The challenge attempts all seven axes. Its
+output contains objections, not a pass/fail verdict. Non-material is admissible
+only when the validated challenge output contains:
+
+```text
+objections = []
+```
+
+A material finding must carry `materiality.challenge = null`.
+
+## Refutation and hostile challenge
 
 A refutation must choose exactly one `ground`:
 
@@ -269,47 +256,73 @@ already-accounted-for
 
 It must contain the attacked premise or inference, evidence references, an
 argument, and a counterexample disposition when the finding contains a
-counterexample. A counterexample disposition classifies the counterexample as
-exactly one of `impossible`, `outside-scope`, or `non-concluding`, with a
-rationale.
+counterexample. Reviewer majority, another reviewer not finding the defect,
+author intent, preferred interpretation, difficulty reproducing, and a future
+TLA+ implementation are never refutations.
 
-Reviewer majority, another reviewer not finding the defect, author intent,
-preferred interpretation, difficulty reproducing, and a future TLA+
-implementation are never refutations.
+Every refutation of a material finding requires a durable hostile challenge.
+The challenge is bound to the exact canonical
+`hostile-refutation-challenge-v1` subject through
+`challenged_refutation_sha256`, using a `challenge`-role execution receipt whose
+qualifying output is the challenge output.
 
-Every refutation of a material finding must itself have a durable hostile
-challenge artifact. The challenge identifies an existing reviewer execution,
-identifies the exact challenge output by path and SHA-256, declares
-`surviving_material_argument = false`, and contains a rationale. The original
-reviewer's consent is not authority; the only question is whether a valid
-material argument or counterexample survives.
-
-Every non-null challenge, including a challenge attached to a non-material
-refuted finding, is bound to the exact canonical
-`hostile-refutation-challenge-v1` subject through the required
-`challenged_refutation_sha256` field. The challenge subject includes:
+The challenge result is derived mechanically:
 
 ```text
-finding_id
-sources                  (canonicalized, sorted by execution_id, raw_finding_id)
-statement
-argument
-counterexample
-materiality
-status                   (= refuted)
-refutation:
-  kind
-  ground
-  attacked_premise_or_inference
-  evidence_references    (canonicalized, sorted lexicographically)
-  argument
-  counterexample_disposition
+challenge objections == []
+=> closure survived challenge
 ```
 
-The challenge itself is excluded from its subject. Changing any included
-finding or refutation content invalidates the previous challenge. Reordering
-sources or evidence references alone does not change the challenge-subject
-hash.
+Any challenge objection means the refutation does not currently close the
+finding. Challenge output carries no approval/rejection boolean. Schema 4.0
+removes `surviving_material_argument` and `challenger_execution_id`. A challenge
+is falsification, not voting; the challenger receives only the canonical
+challenge prompt and packet, and no incidental findings are allowed in challenge
+output v1.
+
+The maximum closure revisions is exactly `1`. If a revised closure candidate
+still receives objections, that closure path fails.
+
+## Failure to refute is not proof
+
+```text
+failure to establish a valid refutation
+!=
+proof that the finding is true
+```
+
+A material finding stays `open` unless another branch is positively established
+and challenged. `DECISION-REQUIRED` is reserved for genuine product-semantic
+underdetermination or a genuine unresolved product-authority conflict. When
+none of a valid refutation, a uniquely derived correction, no normative impact,
+genuine product underdetermination, or a genuine authority conflict can be
+established, the correct external outcome is `OPERATOR-ACTION-REQUIRED`.
+
+The normal external outcomes of the campaign runner contract are exactly:
+
+```text
+GATE-A-READY
+DECISION-REQUIRED
+OPERATOR-ACTION-REQUIRED
+```
+
+## Stale-protocol finding re-adjudication
+
+A protocol change never erases a finding from a campaign over the same semantic
+subject. For a stale-protocol campaign whose reviewed semantic subject is still
+the current `S`:
+
+- its raw findings remain durable;
+- an old non-material conclusion is not sufficient under the new protocol;
+- an old refutation is not sufficient under the new protocol;
+- every stale-protocol finding must be re-adjudicated under the current protocol
+  before it can cease affecting Gate A.
+
+Re-adjudication references the exact source review and finding, binds the exact
+substantive finding through `source_finding_sha256` using the canonical
+`hostile-finding-subject-v1` hash, and provides current-protocol materiality,
+status, disposition, and challenge evidence. Historical raw output is never
+edited, and stale review records are never deleted or ignored.
 
 ## Subject kinds
 
@@ -346,6 +359,8 @@ Its explicit exclusions are:
 ```text
 formal_realizations
 hostile-review adequacy policy
+hostile-review protocol bundle
+current_protocol_bundle
 mechanical-evidence policy
 readiness-gate declarations
 generated docs
@@ -354,81 +369,107 @@ result records
 Git commit identity
 ```
 
-ADR-042 governs the review protocol. It is not a dependency of the derived
-subject and is not listed in
-`formal/verification.yaml authority.architecture_decisions`.
+Changing only hostile-review protocol policy, including
+`current_protocol_bundle`, MUST NOT change `S`.
 
-### Canonicalization
+## Unambiguous Gate A subject identity
 
-The Gate A derived subject is canonical over semantically unordered collections.
+For an assurance-decomposition review record that declares
+`gate-a-assurance-decomposition-v1`, exactly one Gate A derived subject is
+allowed. Duplicate or multiple distinct Gate A subjects are invalid evidence;
+additional artifact subjects remain permitted.
 
-The following collections are order-insensitive when deriving the subject:
+The canonical Gate A review packet must equal the unique Gate A derived subject,
+and Gate A currentness uses that same unique subject. The enforced identity chain
+for a current qualifying campaign is exactly:
 
-- architecture decision references
-- abstraction constraint references
-- formal semantic domains, ordered canonically by `id`
-- behavioral modalities
-- assurance domains
-- claims, ordered canonically by claim ID
-- claim normative sources
-- normative coverage, ordered canonically by invariant ID
-- formal claim references
-- residual claim references
+```text
+packet.subject
+==
+unique record Gate A derived subject
+==
+current Gate A semantic subject S
+```
 
-Reordering any of those collections without changing their contents does not
-invalidate an existing Gate A review.
+## Symlink prohibition
 
-Changing the content of any included object still changes the derived subject.
-Canonicalization removes representation-order sensitivity; it does not remove
-semantic dependencies.
+No review-evidence artifact path may traverse a symlink, including a symlink
+that remains inside the repository. Every path component from the resolved
+repository root to the referenced artifact must be a non-symlink filesystem
+object, and the artifact itself must be a regular file. This applies to the
+review packet, the prompt, the protocol bundle, execution receipts, raw
+reviewer output, and any challenge or adjudication output.
 
-`formal_semantic_domains` is canonicalized by `id` only because domain IDs are
-required to be unique. Duplicate IDs are invalid; they are never tie-broken by
-module, path, declaration order, or serialized object content.
+## Operational independence
 
-A manifest with duplicate domain IDs has no valid Gate A derived subject.
+Independence is **operational independence**, not a probabilistic independence
+claim about models.
 
-A review record's `repository_commit` records provenance of execution.
-It does not by itself determine review currentness.
+A reviewer execution counts toward the declared
+`minimum_independent_reviewers` only when it:
 
-A future `formal_realization` may therefore be added after Gate A without
-invalidating the assurance-decomposition review, provided no dependency of the
-derived subject changed.
+- analyzes the same exact reviewed subject;
+- uses the same canonical review packet;
+- uses the same canonical review prompt;
+- executes in a separate context;
+- has no direct or indirect access to the outputs, findings, or adjudications of
+  any other reviewer before its own raw output is sealed;
+- belongs to a qualifying protocol reviewer profile;
+- has an evidence-derived distinct effective model identity.
+
+## Attack coverage per execution
+
+Every reviewer execution that counts toward the Gate A campaign must
+individually cover the complete attack-objective set declared by:
+
+```text
+formal/verification.yaml
+policy.hostile_review.required_attack_objectives.assurance-decomposition
+```
+
+Aggregated campaign coverage is not sufficient. A qualifying execution that
+omits an objective is not qualifying, even when another execution covered that
+objective.
 
 ## Gate A review adequacy
 
 Gate A requires a current assurance-decomposition campaign that:
 
-- reviews the current exact Gate A subject;
+- reviews the current exact Gate A semantic subject `S`;
+- binds the current exact protocol bundle `P`;
 - is structurally and referentially valid;
 - uses a self-contained canonical Gate A review packet whose recomputed subject
   SHA matches its embedded `subject_payload` and whose subject equals the
-  subject declared by the review record;
-- embeds exact authority contents whose recomputed SHA-256 matches each embedded
-  authority entry;
-- references only existing packet, prompt, raw, and challenge artifacts whose
-  bytes match their declared SHA-256 and whose paths traverse no symlink;
+  unique subject declared by the review record;
+- references only existing packet, prompt, protocol, receipt, raw, and
+  challenge artifacts whose bytes match their declared SHA-256 and whose paths
+  traverse no symlink;
 - has at least `minimum_independent_reviewers` distinct
-  `(provider, model, model_version)` model identities;
+  `(provider, model, model_version)` model identities and at least
+  `minimum_independent_reviewers` distinct effective `(provider, model_version)`
+  identities;
 - covers the complete required attack-objective set in each qualifying
   execution;
 - uses the same canonical packet and the same canonical prompt across
   qualifying executions;
 - declares isolated contexts and no cross-reviewer visibility before sealing;
-- represents every declared raw finding exactly once in the normalized ledger;
+- represents every declared raw finding exactly once in the normalized ledger
+  with exact raw value equality;
 - has no current material `open`, `routed`, or `resolved` finding;
-- carries a valid structured refutation and, for every current material
-  `refuted` finding, a valid hostile challenge bound to the exact canonical
-  refutation subject.
+- carries a valid zero-objection materiality challenge for every non-material
+  finding and a valid zero-objection refutation challenge for every material
+  `refuted` finding;
+- re-adjudicates every stale-protocol finding over the current `S` under the
+  current protocol.
 
 All current assurance-decomposition review records for the exact current subject
 participate in surviving-finding evaluation. One material `open`, `routed`, or
 `resolved` finding in any current review blocks Gate A even if another review is
 clean. No majority vote can override the finding.
 
-A changed subject requires a full new review campaign over the new bytes. Stale
-review evidence remains historical evidence but does not satisfy the current
-manifest's Gate A.
+A changed semantic subject requires a full new review campaign over the new
+bytes. A changed protocol bundle requires current re-adjudication of every
+stale-protocol finding over the current subject.
 
 ## Path conventions
 
@@ -437,8 +478,12 @@ Campaign artifacts use these repository-relative conventions:
 ```text
 formal/reviews/packets/*.json
 formal/reviews/prompts/*.md
-formal/reviews/raw/*.md
-formal/reviews/challenges/*.md
+formal/reviews/protocols/*.json
+formal/reviews/schemas/*.json
+formal/reviews/executions/*.json
+formal/reviews/raw/*.json
+formal/reviews/adjudications/*.json
+formal/reviews/challenges/*.json
 ```
 
 Their absence is normal while no real hostile-review campaign has been executed;
@@ -447,9 +492,7 @@ an empty directory is a valid state and is not evidence of a review.
 ## Repository integrity
 
 Malformed JSON/YAML review evidence is a repository-integrity failure and is not
-silently ignored.
-
-A non-mapping review file is also an integrity failure.
+silently ignored. A non-mapping review file is also an integrity failure.
 
 Any review-evidence integrity failure forces Gate A BLOCKED with the reason
 `hostile review evidence integrity failure`. It can never coexist with a Gate A

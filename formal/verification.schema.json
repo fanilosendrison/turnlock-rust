@@ -133,6 +133,7 @@
       "required": [
         "evidence_directory",
         "evidence_schema",
+        "current_protocol_bundle",
         "minimum_independent_reviewers",
         "majority_vote_sufficient",
         "required_attack_objectives"
@@ -145,6 +146,24 @@
         "evidence_schema": {
           "type": "string",
           "minLength": 1
+        },
+        "current_protocol_bundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
         },
         "minimum_independent_reviewers": {
           "type": "integer",

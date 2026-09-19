@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-raw-output:1",
+  "title": "TURNLOCK hostile-review raw reviewer output (schema version 1.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "raw_review_schema_version",
+    "objective_assessments",
+    "findings"
+  ],
+  "properties": {
+    "raw_review_schema_version": {
+      "const": "1.0"
+    },
+    "objective_assessments": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {
+        "$ref": "#/$defs/objectiveAssessment"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rawFinding"
+      }
+    }
+  },
+  "$defs": {
+    "attackObjective": {
+      "enum": [
+        "semantic-strengthening",
+        "semantic-weakening",
+        "omitted-valid-behavior",
+        "invented-behavior",
+        "collapsed-normative-distinction",
+        "invented-formal-distinction",
+        "hidden-assumption",
+        "wrong-quantification",
+        "wrong-occurrence-scope",
+        "modality-mismatch",
+        "vacuity",
+        "coverage-gap",
+        "alternative-compatible-interpretation",
+        "cross-feature-interaction-failure"
+      ]
+    },
+    "objectiveAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "finding_ids"
+      ],
+      "properties": {
+        "objective": {
+          "$ref": "#/$defs/attackObjective"
+        },
+        "finding_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "rawFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_finding_id",
+        "attack_objectives",
+        "affected_claims",
+        "affected_invariants",
+        "affected_coverage_entries",
+        "evidence_references",
+        "statement",
+        "argument",
+        "counterexample"
+      ],
+      "properties": {
+        "raw_finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attack_objectives": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/attackObjective"
+          }
+        },
+        "affected_claims": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^TL-CLAIM-[0-9]{3}$"
+          }
+        },
+        "affected_invariants": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^TL-INV-[0-9]{3}$"
+          }
+        },
+        "affected_coverage_entries": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^TL-INV-[0-9]{3}$"
+          }
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterexample": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}
