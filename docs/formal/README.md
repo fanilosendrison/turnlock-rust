@@ -88,6 +88,25 @@ checker configuration explores. It is not a new semantics. Independent
 formalization is a separately authored formal model used for
 semantic-interpretation diversity.
 
+## Review invalidation follows semantic dependency
+
+Review invalidation follows semantic dependency, not physical file
+co-location:
+
+```text
+formal/verification.yaml
+├─ claims + coverage            → Gate A review dependency
+└─ formal_realizations          → later correspondence dependency
+
+Changing the second does not invalidate a review whose declared subject is only
+the first.
+```
+
+Gate A uses the derived `gate-a-assurance-decomposition-v1` subject, which binds
+normative authority, the relevant formal-assurance context, the required
+assurance claims, and normative coverage. Generated subject fingerprints are
+non-authoritative projections of canonical sources.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes authoring a candidate

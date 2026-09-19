@@ -75,6 +75,26 @@ bindings may be added as the candidate model develops.
 The existence of such a binding does not imply Gate B, Gate C, semantic
 correspondence acceptance, or successful verification evidence.
 
+The Gate A review lifecycle is dependency-scoped:
+
+```text
+Gate A review
+  ↓ subject = gate-a-assurance-decomposition-v1
+Gate A READY
+  ↓
+candidate Turnlock.tla may be authored
+  ↓
+formal_realizations may be introduced
+  ↓
+Gate A remains current if claims/coverage/authority/context are unchanged
+```
+
+Changing `formal_realizations` alone does not invalidate Gate A.
+
+Changing a required assurance claim, its normative provenance, normative
+coverage, relevant formal-assurance context, or referenced normative authority
+does invalidate Gate A.
+
 ## Readiness gates
 
 - **Gate A — Formal-Architecture-Ready** authorizes creation of a candidate

@@ -310,6 +310,15 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   failure.
 - `formal_realizations` may be introduced after Gate A when real formal
   identifiers exist; their presence alone does not imply Gate B or Gate C.
+- Hostile-review evidence MUST be invalidated according to its declared semantic
+  subject dependencies, not merely because another unrelated field in the same
+  physical file changed.
+- The Gate A assurance-decomposition review subject is the derived
+  `gate-a-assurance-decomposition-v1` subject. Do not use the raw hash of all
+  `formal/verification.yaml` as Gate A review identity. `formal_realizations` are
+  outside Gate A's assurance-decomposition subject.
+- A change to normative authority, claims, normative provenance, coverage, or the
+  relevant formal-assurance context invalidates the Gate A subject.
 - Keep safety, reachability, liveness, conformance, semantic-quality, and
   architectural claims structurally distinct.
 - Route a finding by its earliest unresolved cause rather than by the tool that

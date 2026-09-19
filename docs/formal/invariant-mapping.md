@@ -17,6 +17,10 @@ Normative product authority remains `docs/specification/turnlock-spec.md` togeth
 Formal-Architecture-Ready: BLOCKED
 reason: hostile assurance-decomposition review evidence required
 
+Gate A assurance-decomposition subject:
+- selector: `gate-a-assurance-decomposition-v1`
+- SHA-256: `cb1c2f7fd001a4f765fffe2921efcf306f20aa9875ec80ada09851aef39b4f8c`
+
 Canonical-Formal-Semantics-Ready:
 NOT-APPLICABLE — candidate model absent
 
