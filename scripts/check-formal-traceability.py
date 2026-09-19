@@ -1,12 +1,59 @@
 #!/usr/bin/env python3
-from pathlib import Path
+from __future__ import annotations
+
+from collections import Counter
+import hashlib
 import json
 import re
 import subprocess
 import sys
+from pathlib import Path
+
 import yaml
+from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema.exceptions import SchemaError
 
 ROOT = Path(__file__).resolve().parents[1]
+
+MANIFEST_RELATIVE = Path("formal/verification.yaml")
+MANIFEST_SCHEMA_RELATIVE = Path("formal/verification.schema.json")
+MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
+MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
+MODEL_RELATIVE = Path("formal/Turnlock.tla")
+REVIEW_DIRECTORY_RELATIVE = Path("formal/reviews")
+REVIEW_SCHEMA_RELATIVE = Path("formal/reviews/review-evidence.schema.json")
+RESULTS_DIRECTORY_RELATIVE = Path("formal/results")
+TLC_SCHEMA_RELATIVE = Path("formal/tlc-result.schema.json")
+SPEC_RELATIVE = Path("docs/specification/turnlock-spec.md")
+ADR_DIRECTORY_RELATIVE = Path("docs/adr")
+
+SPEC_HEADING = re.compile(r"^##\s+[^\n]*\b(TL-INV-\d{3})\b", re.M)
+INVARIANT_ID = re.compile(r"^TL-INV-[0-9]{3}$")
+CLAIM_ID = re.compile(r"^TL-CLAIM-[0-9]{3}$")
+ADR_ID = re.compile(r"^ADR-[0-9]{3}$")
+
+CLAIM_TOTAL = 83
+CLAIM_ID_MIN = 1
+CLAIM_ID_MAX = 83
+
+LEGACY_SOURCE_COMMIT = "6d3c9851e0d66286280f8e49ebd8ed44da13d876"
+LEGACY_SOURCE_SCHEMA_VERSION = 2
+LEGACY_TARGET_SCHEMA_VERSION = 3
+LEGACY_TOTAL = 50
+LEGACY_CLASSIFICATIONS = {
+    "required-assurance-claim-candidate": 48,
+    "supporting-model-property-candidate": 2,
+    "obsolete-or-misplaced-planning-artifact": 0,
+}
+
+REVIEW_SUFFIXES = {".json", ".yaml", ".yml"}
+GATE_A_REVIEW_CLASS = "assurance-decomposition"
+UNRESOLVED_FINDING_STATUSES = {"open", "routed"}
+FUTURE_EVIDENCE_NOTE = "NOT-APPLICABLE (candidate model absent)"
+
+
+def sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
@@ -17,190 +64,541 @@ def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     return f"{detail} (exit {returncode})" if detail else f"exit {returncode}"
 
 
-def collect_errors(root: Path, *, check_generated: bool = True) -> tuple[list[str], int]:
-    root = root.resolve()
-    manifest_path = root / "formal" / "verification.yaml"
-    spec_path = root / "docs" / "specification" / "turnlock-spec.md"
-    adr_dir = root / "docs" / "adr"
-    mapping_path = root / "docs" / "formal" / "invariant-mapping.md"
+def _mapping(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
 
-    data = yaml.safe_load(manifest_path.read_text())
+
+def _sequence(value: object) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _load_yaml(root: Path, relative: Path) -> tuple[object, list[str]]:
+    path = root / relative
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError) as error:
+        return None, [f"cannot read {relative.as_posix()}: {error}"]
+    return data, []
+
+
+def _load_json(root: Path, relative: Path) -> tuple[object, list[str]]:
+    path = root / relative
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        return None, [f"cannot read {relative.as_posix()}: {error}"]
+    return data, []
+
+
+def _validator(schema: object) -> tuple[Draft202012Validator | None, list[str]]:
+    if not isinstance(schema, dict):
+        return None, ["schema must be a JSON object"]
+    try:
+        Draft202012Validator.check_schema(schema)
+    except SchemaError as error:
+        return None, [f"schema is invalid: {error.message}"]
+    return Draft202012Validator(schema, format_checker=FormatChecker()), []
+
+
+def _schema_violations(
+    validator: Draft202012Validator, instance: object, label: str
+) -> list[str]:
+    errors = sorted(
+        validator.iter_errors(instance),
+        key=lambda error: (str(error.json_path), error.message),
+    )
+    return [f"{label}: schema {error.json_path}: {error.message}" for error in errors]
+
+
+def _manifest_schema_errors(root: Path, manifest: object) -> list[str]:
+    schema, errors = _load_json(root, MANIFEST_SCHEMA_RELATIVE)
+    if errors:
+        return errors
+    validator, validator_errors = _validator(schema)
+    if validator is None:
+        return [f"{MANIFEST_SCHEMA_RELATIVE.as_posix()}: {error}" for error in validator_errors]
+    return _schema_violations(validator, manifest, MANIFEST_RELATIVE.as_posix())
+
+
+def _spec_invariant_ids(root: Path) -> tuple[list[str], list[str]]:
+    path = root / SPEC_RELATIVE
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        return [], [f"cannot read {SPEC_RELATIVE.as_posix()}: {error}"]
+    return SPEC_HEADING.findall(text), []
+
+
+def _authority_errors(root: Path, manifest: dict) -> list[str]:
     errors: list[str] = []
+    authority = _mapping(manifest.get("authority"))
+    normative_spec = authority.get("normative_spec")
+    if isinstance(normative_spec, str) and normative_spec:
+        if not (root / normative_spec).exists():
+            errors.append(f"authority.normative_spec does not exist: {normative_spec}")
+    adr_ids = []
+    for key in ("architecture_decisions", "abstraction_constraints"):
+        for value in _sequence(authority.get(key)):
+            if isinstance(value, str):
+                adr_ids.append(value)
+    for adr_id in sorted(set(adr_ids)):
+        if not ADR_ID.fullmatch(adr_id):
+            continue
+        number = adr_id.split("-")[1]
+        if not list((root / ADR_DIRECTORY_RELATIVE).glob(f"adr-{number}-*.md")):
+            errors.append(f"authority references missing {adr_id}")
+    return errors
 
-    if data.get("schema_version") != 2:
-        errors.append("formal/verification.yaml must use schema_version 2")
 
-    invariants = data.get("invariants", [])
-    ids = [i["id"] for i in invariants]
-    if len(ids) != len(set(ids)):
-        errors.append("duplicate invariant IDs in formal/verification.yaml")
+def _migration_errors(root: Path, claim_ids: set[str]) -> list[str]:
+    data, errors = _load_yaml(root, MIGRATION_RELATIVE)
+    if errors:
+        return errors
+    if not isinstance(data, dict):
+        return [f"{MIGRATION_RELATIVE.as_posix()} must be a mapping"]
 
-    spec = spec_path.read_text()
-    heading_ids = re.findall(r"^##\s+[^\n]*\b(TL-INV-\d{3})\b", spec, flags=re.M)
-    if len(heading_ids) != len(set(heading_ids)):
-        errors.append("duplicate invariant IDs in specification headings")
+    label = MIGRATION_RELATIVE.as_posix()
+    if data.get("schema_version") != 1:
+        errors.append(f"{label} must use schema_version 1")
 
-    missing_manifest = sorted(set(heading_ids) - set(ids))
-    missing_spec = sorted(set(ids) - set(heading_ids))
-    if missing_manifest:
-        errors.append("spec invariant IDs missing from manifest: " + ", ".join(missing_manifest))
-    if missing_spec:
-        errors.append("manifest invariant IDs missing from spec headings: " + ", ".join(missing_spec))
+    source = _mapping(data.get("source"))
+    if source.get("manifest") != MANIFEST_RELATIVE.as_posix():
+        errors.append(f"{label} source.manifest must be {MANIFEST_RELATIVE.as_posix()}")
+    if source.get("schema_version") != LEGACY_SOURCE_SCHEMA_VERSION:
+        errors.append(f"{label} source.schema_version must be {LEGACY_SOURCE_SCHEMA_VERSION}")
+    if source.get("repository_commit") != LEGACY_SOURCE_COMMIT:
+        errors.append(f"{label} source.repository_commit must be {LEGACY_SOURCE_COMMIT}")
 
-    adr_files = {p.name.split('-', 2)[0] + '-' + p.name.split('-', 2)[1] for p in adr_dir.glob('adr-*.md')}
-    adr_ids = {x.upper() for x in adr_files}
-    for inv in invariants:
-        for adr in inv.get("adrs", []):
-            if adr not in adr_ids:
-                errors.append(f"{inv['id']} references missing {adr}")
+    target = _mapping(data.get("target"))
+    if target.get("schema_version") != LEGACY_TARGET_SCHEMA_VERSION:
+        errors.append(f"{label} target.schema_version must be {LEGACY_TARGET_SCHEMA_VERSION}")
 
-    status_vocabulary = data.get("status_vocabulary", {})
-    allowed_formalization = set(status_vocabulary["formalization"])
-    allowed_verification = set(status_vocabulary["verification"])
-    allowed_mapping = set(status_vocabulary["mapping"])
-    allowed_model_status = set(status_vocabulary.get("formal_model", {}))
-    allowed_profile_status = set(status_vocabulary.get("integrated_profile", {}))
-
-    model_policy = data["policy"]["formal_model"]
-    model_status = model_policy.get("status")
-    model_path = root / model_policy["path"]
-    if model_status not in allowed_model_status:
+    entries = data.get("entries")
+    if not isinstance(entries, list):
+        return errors + [f"{label} entries must be a list"]
+    if len(entries) != LEGACY_TOTAL:
         errors.append(
-            f"policy.formal_model.status {model_status!r} is not in status_vocabulary.formal_model"
+            f"{label} must contain exactly {LEGACY_TOTAL} entries; found {len(entries)}"
+        )
+
+    counts: Counter[str] = Counter()
+    seen: set[tuple[str, str]] = set()
+    for index, entry in enumerate(entries):
+        entry_label = f"{label} entries[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{entry_label} must be a mapping")
+            continue
+        missing = {
+            "source_invariant",
+            "legacy_property",
+            "classification",
+            "migrated_to",
+        } - set(entry)
+        if missing:
+            errors.append(f"{entry_label} missing fields: {', '.join(sorted(missing))}")
+            continue
+        if set(entry) != {
+            "source_invariant",
+            "legacy_property",
+            "classification",
+            "migrated_to",
+        }:
+            errors.append(f"{entry_label} must contain exactly the four declared fields")
+        source_invariant = entry.get("source_invariant")
+        legacy_property = entry.get("legacy_property")
+        classification = entry.get("classification")
+        migrated_to = entry.get("migrated_to")
+        if not isinstance(source_invariant, str) or not INVARIANT_ID.fullmatch(source_invariant):
+            errors.append(f"{entry_label} source_invariant must match TL-INV-NNN")
+        if not isinstance(legacy_property, str) or not legacy_property:
+            errors.append(f"{entry_label} legacy_property must be a non-empty string")
+        if classification not in LEGACY_CLASSIFICATIONS:
+            errors.append(f"{entry_label} has unknown classification {classification!r}")
+        else:
+            counts[classification] += 1
+        if not isinstance(migrated_to, list) or any(
+            not isinstance(item, str) or not CLAIM_ID.fullmatch(item)
+            for item in migrated_to
+        ):
+            errors.append(f"{entry_label} migrated_to must be a list of TL-CLAIM-NNN IDs")
+            continue
+        for claim_id in migrated_to:
+            if claim_id not in claim_ids:
+                errors.append(f"{entry_label} migrated_to references unknown {claim_id}")
+        if isinstance(source_invariant, str) and isinstance(legacy_property, str):
+            pair = (source_invariant, legacy_property)
+            if pair in seen:
+                errors.append(f"{entry_label} duplicates legacy property {legacy_property}")
+            seen.add(pair)
+
+    if len(entries) == LEGACY_TOTAL:
+        for classification, expected in sorted(LEGACY_CLASSIFICATIONS.items()):
+            found = counts.get(classification, 0)
+            if found != expected:
+                errors.append(
+                    f"{label} requires exactly {expected} {classification} entries; found {found}"
+                )
+    return errors
+
+
+def load_review_records(root: Path) -> list[tuple[Path, dict]]:
+    """Load review evidence records without schema validation, deterministically."""
+    directory = root / REVIEW_DIRECTORY_RELATIVE
+    records: list[tuple[Path, dict]] = []
+    if not directory.is_dir():
+        return records
+    for path in sorted(directory.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.name == REVIEW_SCHEMA_RELATIVE.name:
+            continue
+        if path.suffix.lower() not in REVIEW_SUFFIXES:
+            continue
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError):
+            continue
+        if isinstance(data, dict):
+            records.append((path, data))
+    return records
+
+
+def _review_evidence_errors(
+    root: Path, records: list[tuple[Path, dict]]
+) -> list[str]:
+    schema, errors = _load_json(root, REVIEW_SCHEMA_RELATIVE)
+    if errors:
+        return errors
+    validator, validator_errors = _validator(schema)
+    if validator is None:
+        return [f"{REVIEW_SCHEMA_RELATIVE.as_posix()}: {error}" for error in validator_errors]
+
+    for path, record in records:
+        label = path.relative_to(root).as_posix()
+        errors.extend(_schema_violations(validator, record, label))
+        reviewer_ids = [
+            reviewer.get("reviewer_id")
+            for reviewer in _sequence(record.get("reviewers"))
+            if isinstance(reviewer, dict)
+        ]
+        if len(reviewer_ids) != len(set(reviewer_ids)):
+            errors.append(f"{label}: reviewer_id values must be unique")
+        for finding in _sequence(record.get("findings")):
+            if not isinstance(finding, dict):
+                continue
+            for reviewer_id in _sequence(finding.get("reviewer_ids")):
+                if reviewer_id not in reviewer_ids:
+                    errors.append(
+                        f"{label}: finding references unknown reviewer {reviewer_id!r}"
+                    )
+    return errors
+
+
+def derive_gate_a(manifest_bytes: bytes, records: list[tuple[Path, dict]]) -> dict:
+    """Derive Formal-Architecture-Ready from current review evidence."""
+    manifest_sha = sha256_hex(manifest_bytes)
+    for _path, record in records:
+        if record.get("review_class") != GATE_A_REVIEW_CLASS:
+            continue
+        subjects = _sequence(record.get("subjects"))
+        current_for_manifest = any(
+            isinstance(subject, dict)
+            and subject.get("path") == MANIFEST_RELATIVE.as_posix()
+            and subject.get("sha256") == manifest_sha
+            for subject in subjects
+        )
+        if not current_for_manifest:
+            continue
+        findings = _sequence(record.get("findings"))
+        unresolved = any(
+            isinstance(finding, dict)
+            and finding.get("material") is True
+            and finding.get("status") in UNRESOLVED_FINDING_STATUSES
+            for finding in findings
+        )
+        if unresolved:
+            continue
+        return {
+            "ready": True,
+            "reason": "current hostile assurance-decomposition review evidence recorded",
+        }
+    return {
+        "ready": False,
+        "reason": "hostile assurance-decomposition review evidence required",
+    }
+
+
+def _tla_identifiers(model_text: str) -> tuple[set[str], set[str]]:
+    variables: set[str] = set()
+    for match in re.finditer(r"(?m)^\s*VARIABLES?\s+([^\n]+)", model_text):
+        variables.update(
+            name.strip() for name in match.group(1).split(",") if name.strip()
+        )
+    operators = set(
+        re.findall(
+            r"(?m)^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^\n]*\))?\s*==",
+            model_text,
+        )
+    )
+    return variables, operators
+
+
+def _realization_errors(
+    root: Path,
+    manifest: dict,
+    claim_by_id: dict[str, dict],
+    domain_ids: set[str],
+) -> list[str]:
+    errors: list[str] = []
+    realizations = manifest.get("formal_realizations")
+    if not isinstance(realizations, list):
+        return ["formal/verification.yaml formal_realizations must be a list"]
+    if not realizations:
+        return errors
+    errors.append(
+        "formal_realizations must remain empty until Gate C realization work is accepted"
+    )
+
+    model_path = root / MODEL_RELATIVE
+    model_variables: set[str] = set()
+    model_operators: set[str] = set()
+    if not model_path.exists():
+        errors.append(
+            f"formal_realizations present but {MODEL_RELATIVE.as_posix()} is missing"
         )
     else:
-        if model_status == "not-yet-introduced" and model_path.exists():
-            errors.append(
-                f"formal model exists while policy status is not-yet-introduced: {model_policy['path']}"
-            )
-        if model_status == "introduced" and not model_path.exists():
-            errors.append(
-                f"formal model status is introduced but path is missing: {model_policy['path']}"
-            )
+        model_variables, model_operators = _tla_identifiers(
+            model_path.read_text(encoding="utf-8")
+        )
 
-    model_text = model_path.read_text() if model_path.exists() else ""
-
-    # Simple identifier discovery is intentionally conservative. It is a traceability
-    # consistency check, not a TLA+ parser or semantic proof.
-    variable_names = set()
-    if model_text:
-        for match in re.finditer(r"(?m)^\s*VARIABLES?\s+([^\n]+)", model_text):
-            variable_names.update(x.strip() for x in match.group(1).split(',') if x.strip())
-        operator_names = set(re.findall(r"(?m)^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^\n]*\))?\s*==", model_text))
-    else:
-        operator_names = set()
-
-    for inv in invariants:
-        iid = inv["id"]
-        if inv.get("formalization") not in allowed_formalization:
-            errors.append(f"{iid} has invalid formalization status {inv.get('formalization')}")
-        if inv.get("verification") not in allowed_verification:
-            errors.append(f"{iid} has invalid verification status {inv.get('verification')}")
-        tla = inv.get("tla")
-        if not isinstance(tla, dict):
-            errors.append(f"{iid} is missing tla mapping object")
+    for index, realization in enumerate(realizations):
+        label = f"formal_realizations[{index}]"
+        if not isinstance(realization, dict):
+            errors.append(f"{label} must be a mapping")
             continue
-        if tla.get("mapping_status") not in allowed_mapping:
-            errors.append(f"{iid} has invalid TLA+ mapping status {tla.get('mapping_status')}")
-
-        if inv.get("formalization") == "not-applicable":
-            if tla.get("mapping_status") != "not-applicable":
-                errors.append(f"{iid} is not-applicable but TLA+ mapping status differs")
-            continue
-
-        # Once a mapping is executable, the referenced identifiers must actually exist.
-        if tla.get("mapping_status") == "mapped" or inv.get("verification") in {"modeled", "checked"}:
-            if not model_path.exists():
-                errors.append(f"{iid} is mapped/modeled but formal model is missing: {model_policy['path']}")
+        claim_id = realization.get("claim")
+        claim = claim_by_id.get(claim_id) if isinstance(claim_id, str) else None
+        if claim is None:
+            errors.append(f"{label} references unknown claim {claim_id!r}")
+        elif claim.get("assurance_domain") != "formal-behavioral":
+            errors.append(f"{label} references non-formal-behavioral claim {claim_id}")
+        if realization.get("formal_semantic_domain") not in domain_ids:
+            errors.append(f"{label} references unknown formal semantic domain")
+        for field, available in (
+            ("properties", model_operators),
+            ("actions", model_operators),
+            ("state_variables", model_variables),
+        ):
+            for identifier in _sequence(realization.get(field)):
+                if isinstance(identifier, str) and identifier not in available:
+                    errors.append(
+                        f"{label} references missing TLA+ {field[:-1]} {identifier}"
+                    )
+        for profile in _sequence(realization.get("verification_profiles")):
+            if not isinstance(profile, str):
                 continue
-            for prop in tla.get("properties", []):
-                name = prop["name"] if isinstance(prop, dict) else prop
-                if name not in operator_names:
-                    errors.append(f"{iid} references missing TLA+ property/operator {name}")
-            for action in tla.get("actions", []):
-                if action not in operator_names:
-                    errors.append(f"{iid} references missing TLA+ action/operator {action}")
-            for var in tla.get("state_variables", []):
-                if var not in variable_names:
-                    errors.append(f"{iid} references missing TLA+ state variable {var}")
-            for cfg in tla.get("focused_configs", []) + tla.get("integrated_configs", []):
-                if not (root / cfg).exists():
-                    errors.append(f"{iid} references missing TLC config {cfg}")
+            if "/" in profile or profile.endswith(".cfg"):
+                if not (root / profile).exists():
+                    errors.append(f"{label} references missing verification profile {profile}")
+    return errors
 
-    # Integrated profile lifecycle is declared machine-readably and checked bidirectionally.
-    for profile in data["policy"].get("integrated_profiles", []):
-        profile_status = profile.get("status")
-        profile_path = root / profile["path"]
-        if profile_status not in allowed_profile_status:
-            errors.append(
-                f"integrated profile {profile['name']} has unknown status {profile_status!r}"
-            )
+
+def collect_errors(
+    root: Path, *, check_generated: bool = True
+) -> tuple[list[str], dict]:
+    root = root.resolve()
+    errors: list[str] = []
+    summary: dict = {
+        "invariants": 0,
+        "claims": 0,
+        "gate_a": derive_gate_a(b"", []),
+    }
+
+    manifest, load_errors = _load_yaml(root, MANIFEST_RELATIVE)
+    errors.extend(load_errors)
+    if not isinstance(manifest, dict):
+        if not load_errors:
+            errors.append(f"{MANIFEST_RELATIVE.as_posix()} must be a mapping")
+        return errors, summary
+
+    errors.extend(_manifest_schema_errors(root, manifest))
+
+    if manifest.get("schema_version") != 3:
+        errors.append("formal/verification.yaml must use schema_version 3")
+
+    heading_ids, spec_errors = _spec_invariant_ids(root)
+    errors.extend(spec_errors)
+    heading_set = set(heading_ids)
+    if len(heading_ids) != len(heading_set):
+        errors.append("duplicate invariant IDs in specification headings")
+
+    errors.extend(_authority_errors(root, manifest))
+
+    policy = _mapping(manifest.get("policy"))
+    behavioral_modalities = {
+        item for item in _sequence(policy.get("behavioral_modalities")) if isinstance(item, str)
+    }
+    domain_ids = {
+        item.get("id")
+        for item in _sequence(policy.get("formal_semantic_domains"))
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+
+    claims = [claim for claim in _sequence(manifest.get("claims")) if isinstance(claim, dict)]
+    claim_by_id: dict[str, dict] = {}
+    for claim in claims:
+        claim_id = claim.get("id")
+        if not isinstance(claim_id, str):
             continue
-        if profile_status == "planned" and profile_path.exists():
-            errors.append(
-                f"integrated profile {profile['name']} exists while status is planned"
-            )
-        if profile_status == "introduced" and not profile_path.exists():
-            errors.append(
-                f"integrated profile {profile['name']} is introduced but path is missing"
-            )
+        if claim_id in claim_by_id:
+            errors.append(f"duplicate claim ID {claim_id}")
+            continue
+        claim_by_id[claim_id] = claim
 
-    # The run-evidence schema itself is already a real artifact and must remain parseable JSON.
-    result_policy = data["policy"]["result_artifacts"]
-    result_schema_path = root / result_policy["schema"]
-    if not result_schema_path.exists():
-        errors.append(f"TLC result schema missing: {result_policy['schema']}")
-    else:
-        try:
-            json.loads(result_schema_path.read_text())
-        except json.JSONDecodeError as e:
-            errors.append(f"invalid JSON in TLC result schema: {e}")
+    expected_claim_ids = {
+        f"TL-CLAIM-{number:03d}"
+        for number in range(CLAIM_ID_MIN, CLAIM_ID_MAX + 1)
+    }
+    if set(claim_by_id) != expected_claim_ids or len(claims) != CLAIM_TOTAL:
+        errors.append(
+            "claim IDs must be contiguous from TL-CLAIM-001 through TL-CLAIM-083 "
+            f"({CLAIM_TOTAL} claims)"
+        )
+    summary["claims"] = len(claim_by_id)
 
-    # A checked claim requires at least one passing run-evidence record mentioning that invariant.
-    results_dir = root / result_policy["directory"]
-    run_records = []
-    if results_dir.exists():
-        for p in results_dir.rglob("*.yaml"):
-            try:
-                record = yaml.safe_load(p.read_text()) or {}
-                run_records.append((p, record))
-            except Exception as e:
-                errors.append(f"cannot parse TLC run evidence {p.relative_to(root)}: {e}")
-        for p in results_dir.rglob("*.json"):
-            try:
-                record = json.loads(p.read_text())
-                run_records.append((p, record))
-            except Exception as e:
-                errors.append(f"cannot parse TLC run evidence {p.relative_to(root)}: {e}")
+    coverage = [
+        entry
+        for entry in _sequence(manifest.get("normative_coverage"))
+        if isinstance(entry, dict)
+    ]
+    coverage_by_invariant: dict[str, dict] = {}
+    for entry in coverage:
+        invariant = entry.get("invariant")
+        if not isinstance(invariant, str):
+            continue
+        if invariant in coverage_by_invariant:
+            errors.append(f"normative_coverage lists {invariant} more than once")
+            continue
+        coverage_by_invariant[invariant] = entry
 
-    required_run_fields = set(result_policy.get("required_identity", [])) | set(result_policy.get("required_verification_evidence", []))
-    for path, record in run_records:
-        missing = sorted(required_run_fields - set(record))
-        if missing:
-            errors.append(f"TLC run evidence {path.relative_to(root)} missing required fields: {', '.join(missing)}")
-        unknown_ids = sorted(set(record.get("invariant_ids", [])) - set(ids))
-        if unknown_ids:
-            errors.append(f"TLC run evidence {path.relative_to(root)} references unknown invariant IDs: {', '.join(unknown_ids)}")
-        if record.get("tool") not in {None, "TLC"}:
-            errors.append(f"TLC run evidence {path.relative_to(root)} has unexpected tool {record.get('tool')}")
+    missing_coverage = sorted(heading_set - set(coverage_by_invariant))
+    if missing_coverage:
+        errors.append(
+            "spec invariant IDs missing from normative_coverage: "
+            + ", ".join(missing_coverage)
+        )
+    unknown_coverage = sorted(set(coverage_by_invariant) - heading_set)
+    if unknown_coverage:
+        errors.append(
+            "normative_coverage contains unknown invariant IDs: "
+            + ", ".join(unknown_coverage)
+        )
+    summary["invariants"] = len(heading_set)
 
-    for inv in invariants:
-        if inv.get("verification") == "checked":
-            evidence = [(p, r) for p, r in run_records if r.get("outcome") == "passed" and inv["id"] in r.get("invariant_ids", [])]
-            if not evidence:
-                errors.append(f"{inv['id']} is marked checked but has no passing TLC run evidence")
+    for claim_id, claim in sorted(claim_by_id.items()):
+        for source in _sequence(claim.get("normative_sources")):
+            if not isinstance(source, str):
                 continue
-            # Every config explicitly declared as required coverage for this invariant must have passing evidence.
-            tla = inv.get("tla", {})
-            required_cfgs = set(tla.get("focused_configs", [])) | set(tla.get("integrated_configs", []))
-            evidenced_cfgs = {r.get("model_config") for _, r in evidence}
-            missing_cfgs = sorted(required_cfgs - evidenced_cfgs)
-            if missing_cfgs:
-                errors.append(f"{inv['id']} is marked checked but lacks passing evidence for configs: {', '.join(missing_cfgs)}")
+            if source not in heading_set:
+                errors.append(f"{claim_id} references unknown normative source {source}")
+
+    coverage_claim_refs: dict[str, set[str]] = {}
+    for invariant, entry in sorted(coverage_by_invariant.items()):
+        formal = entry.get("formal_claims")
+        residual = entry.get("residual_claims")
+        formal = formal if isinstance(formal, list) else []
+        residual = residual if isinstance(residual, list) else []
+        coverage_value = entry.get("canonical_operational_coverage")
+
+        if coverage_value == "full":
+            if not formal or residual:
+                errors.append(
+                    f"{invariant} coverage is full but requires non-empty formal_claims "
+                    "and empty residual_claims"
+                )
+        elif coverage_value == "partial":
+            if not formal or not residual:
+                errors.append(
+                    f"{invariant} coverage is partial but requires both formal_claims "
+                    "and residual_claims to be non-empty"
+                )
+        elif coverage_value == "none":
+            if formal or not residual:
+                errors.append(
+                    f"{invariant} coverage is none but requires empty formal_claims "
+                    "and non-empty residual_claims"
+                )
+
+        referenced: set[str] = set()
+        for kind, claim_ids in (("formal_claims", formal), ("residual_claims", residual)):
+            for claim_id in claim_ids:
+                if not isinstance(claim_id, str):
+                    continue
+                referenced.add(claim_id)
+                claim = claim_by_id.get(claim_id)
+                if claim is None:
+                    errors.append(f"{invariant} {kind} references unknown {claim_id}")
+                    continue
+                sources = _sequence(claim.get("normative_sources"))
+                if invariant not in sources:
+                    errors.append(
+                        f"{invariant} {kind} lists {claim_id} but its normative_sources "
+                        f"do not include {invariant}"
+                    )
+                if kind == "formal_claims":
+                    if claim.get("assurance_domain") != "formal-behavioral":
+                        errors.append(
+                            f"{invariant} formal_claims lists non-formal-behavioral {claim_id}"
+                        )
+                    else:
+                        if claim.get("formal_semantic_domain") not in domain_ids:
+                            errors.append(
+                                f"{claim_id} has unknown formal_semantic_domain "
+                                f"{claim.get('formal_semantic_domain')!r}"
+                            )
+                        if claim.get("modality") not in behavioral_modalities:
+                            errors.append(
+                                f"{claim_id} has invalid behavioral modality "
+                                f"{claim.get('modality')!r}"
+                            )
+                else:
+                    if claim.get("assurance_domain") == "formal-behavioral":
+                        errors.append(
+                            f"{invariant} residual_claims lists formal-behavioral {claim_id}"
+                        )
+        coverage_claim_refs[invariant] = referenced
+
+    for claim_id, claim in sorted(claim_by_id.items()):
+        for source in _sequence(claim.get("normative_sources")):
+            if not isinstance(source, str):
+                continue
+            entry = coverage_by_invariant.get(source)
+            if entry is None:
+                continue
+            if claim_id not in coverage_claim_refs.get(source, set()):
+                errors.append(
+                    f"{claim_id} declares normative source {source} but {source} "
+                    "does not list it in formal_claims or residual_claims"
+                )
+
+    errors.extend(_migration_errors(root, set(claim_by_id)))
+    errors.extend(_realization_errors(root, manifest, claim_by_id, domain_ids))
+
+    review_records = load_review_records(root)
+    errors.extend(_review_evidence_errors(root, review_records))
+
+    manifest_bytes = (root / MANIFEST_RELATIVE).read_bytes()
+    gate_a = derive_gate_a(manifest_bytes, review_records)
+    summary["gate_a"] = gate_a
+
+    if (root / MODEL_RELATIVE).exists() and not gate_a["ready"]:
+        errors.append(
+            "formal/Turnlock.tla exists while Formal-Architecture-Ready is BLOCKED"
+        )
 
     if check_generated:
-        # Diagnose the generated projection without mutating repository state.
         renderer = root / "scripts" / "render-formal-mapping.py"
+        mapping_path = root / MAPPING_RELATIVE
         result = subprocess.run(
             [sys.executable, str(renderer), "--stdout"],
             cwd=root,
@@ -223,17 +621,27 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> tuple[list[st
                 "run python scripts/render-formal-mapping.py"
             )
 
-    return errors, len(ids)
+    return errors, summary
 
 
 def main() -> int:
-    errors, invariant_count = collect_errors(ROOT)
+    errors, summary = collect_errors(ROOT)
     if errors:
         print("formal traceability check: FAILED")
         for error in errors:
             print(f"- {error}")
         return 1
-    print(f"formal traceability check: OK ({invariant_count} invariants)")
+    gate_a = summary["gate_a"]
+    print(
+        f"formal traceability check: OK ({summary['invariants']} invariants, "
+        f"{summary['claims']} assurance claims)"
+    )
+    if gate_a["ready"]:
+        print(f"formal-architecture-ready: READY ({gate_a['reason']})")
+    else:
+        print(f"formal-architecture-ready: BLOCKED ({gate_a['reason']})")
+    print(f"canonical-formal-semantics-ready: {FUTURE_EVIDENCE_NOTE}")
+    print(f"formal-verification-ready: {FUTURE_EVIDENCE_NOTE}")
     return 0
 
 
