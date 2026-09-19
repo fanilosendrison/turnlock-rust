@@ -1,0 +1,259 @@
+schema_version: 1
+source:
+  manifest: formal/verification.yaml
+  schema_version: 2
+  repository_commit: 6d3c9851e0d66286280f8e49ebd8ed44da13d876
+target:
+  schema_version: 3
+entries:
+  - source_invariant: TL-INV-001
+    legacy_property: DeclaredControlFlowOnly
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-001
+  - source_invariant: TL-INV-002
+    legacy_property: EngineDoesNotInventTopology
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-001
+  - source_invariant: TL-INV-003
+    legacy_property: MechanicalExecutionNotAgentMediated
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-004
+  - source_invariant: TL-INV-004
+    legacy_property: HandoffPreservesContinuation
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-005
+  - source_invariant: TL-INV-004
+    legacy_property: HandoffCanResume
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-006
+  - source_invariant: TL-INV-005
+    legacy_property: MultipleHandoffsRepresentable
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-007
+  - source_invariant: TL-INV-006
+    legacy_property: EnclosingWorkflowPreservedDuringMainAgentRegion
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-008
+  - source_invariant: TL-INV-007
+    legacy_property: ResumePositionWellDefined
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-009
+  - source_invariant: TL-INV-008
+    legacy_property: StructuredReturnPath
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-010
+      - TL-CLAIM-011
+  - source_invariant: TL-INV-009
+    legacy_property: MainAgentLineagePreserved
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-012
+  - source_invariant: TL-INV-010
+    legacy_property: WorkflowStateExistsOutsideAgentState
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-009
+  - source_invariant: TL-INV-012
+    legacy_property: ExecutionFormsRemainDistinct
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-015
+  - source_invariant: TL-INV-013
+    legacy_property: AgentCannotAdvanceUndeclaredGlobalControl
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-001
+  - source_invariant: TL-INV-014
+    legacy_property: MainLineageNotForkedByHandoff
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-012
+  - source_invariant: TL-INV-016
+    legacy_property: WorkflowInvocationAvailableWheneverMainOwnsControl
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-019
+  - source_invariant: TL-INV-017
+    legacy_property: NestedInvocationSuspendsCaller
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-020
+  - source_invariant: TL-INV-017
+    legacy_property: CallerStackWellFormed
+    classification: supporting-model-property-candidate
+    migrated_to: []
+  - source_invariant: TL-INV-017
+    legacy_property: RecursiveNestedInvocationCanBeAdmitted
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-022
+  - source_invariant: TL-INV-018
+    legacy_property: ReturnToImmediateCaller
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-011
+  - source_invariant: TL-INV-019
+    legacy_property: NestedInvocationCannotRewriteOuterContinuation
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-023
+  - source_invariant: TL-INV-024
+    legacy_property: MixedBranchTypesCanCoexist
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-027
+  - source_invariant: TL-INV-024
+    legacy_property: MixedBranchSemanticsPreserved
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-028
+  - source_invariant: TL-INV-024
+    legacy_property: MainAgentCanParticipateInParallelRegion
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-027
+  - source_invariant: TL-INV-024
+    legacy_property: NestedWorkflowCanParticipateInAdmissibleParallelBranch
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-032
+  - source_invariant: TL-INV-025
+    legacy_property: IndependentAgentCanBeWorkflowDeclared
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-033
+  - source_invariant: TL-INV-025
+    legacy_property: IndependentAgentHasDistinctLineage
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-034
+  - source_invariant: TL-INV-025
+    legacy_property: IndependentAgentCanReceiveDelegatedNestedInvocationAuthority
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-036
+  - source_invariant: TL-INV-026
+    legacy_property: IndependentAgentContextIsExplicitlyDeclared
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-041
+  - source_invariant: TL-INV-027
+    legacy_property: NoPrematureJoin
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-030
+  - source_invariant: TL-INV-027
+    legacy_property: BranchCompletesAtMostOnce
+    classification: supporting-model-property-candidate
+    migrated_to: []
+  - source_invariant: TL-INV-027
+    legacy_property: MainAgentHandoffIsBranchLocal
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-029
+  - source_invariant: TL-INV-028
+    legacy_property: RawLLMIsBoundedLeaf
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-045
+      - TL-CLAIM-046
+  - source_invariant: TL-INV-028
+    legacy_property: RawLLMDoesNotCreateAgentLoop
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-045
+  - source_invariant: TL-INV-030
+    legacy_property: ProbabilisticLeafCannotOwnGlobalControl
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-001
+      - TL-CLAIM-003
+  - source_invariant: TL-INV-030
+    legacy_property: DelegatedIAInvocationDoesNotOwnGlobalControl
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-038
+  - source_invariant: TL-INV-031
+    legacy_property: RequiredCoreFormsComposable
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-048
+  - source_invariant: TL-INV-033
+    legacy_property: ObservedTerminationExposesActualExecutionTruth
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-051
+  - source_invariant: TL-INV-035
+    legacy_property: DeclaredInvocationAuthorizedByWorkflowProgram
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-080
+  - source_invariant: TL-INV-035
+    legacy_property: DeclaredInvocationDoesNotRequireAgentHandoff
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-059
+  - source_invariant: TL-INV-035
+    legacy_property: OnlyCallingContinuationSuspended
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-060
+  - source_invariant: TL-INV-035
+    legacy_property: DeclaredInvocationReturnsToImmediateCaller
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-011
+  - source_invariant: TL-INV-035
+    legacy_property: NestedInvocationCannotRewriteOuterContinuation
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-023
+  - source_invariant: TL-INV-035
+    legacy_property: DeclaredRecursiveInvocationCanBeAdmitted
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-022
+  - source_invariant: TL-INV-035
+    legacy_property: DeclaredInvocationCanOccupyAdmissibleRestrictedPlacement
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-032
+  - source_invariant: TL-INV-039
+    legacy_property: MainLineageNotForkedAcrossUnorderedConcurrentContinuations
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-075
+  - source_invariant: TL-INV-040
+    legacy_property: IASelectedInvocationCannotReachSessionMainLineage
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-078
+  - source_invariant: TL-INV-041
+    legacy_property: NestedInvocationRequiresAdmissibleComposition
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-080
+  - source_invariant: TL-INV-041
+    legacy_property: ApplicableRestrictionsPersistAcrossNestedAdmission
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-081
+  - source_invariant: TL-INV-041
+    legacy_property: UnestablishedCompatibilityRejectsInvocation
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-080
+  - source_invariant: TL-INV-041
+    legacy_property: RejectedInvocationCreatesNoCallee
+    classification: required-assurance-claim-candidate
+    migrated_to:
+      - TL-CLAIM-061
