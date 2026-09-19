@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:formal-verification-manifest:3",
+  "title": "TURNLOCK formal-assurance manifest (schema version 3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "authority",
+    "policy",
+    "claims",
+    "normative_coverage",
+    "formal_realizations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 3
+    },
+    "project": {
+      "const": "TURNLOCK"
+    },
+    "authority": {
+      "$ref": "#/$defs/authority"
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/claim"
+      }
+    },
+    "normative_coverage": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/coverageEntry"
+      }
+    },
+    "formal_realizations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/formalRealization"
+      }
+    }
+  },
+  "$defs": {
+    "invariantId": {
+      "type": "string",
+      "pattern": "^TL-INV-[0-9]{3}$"
+    },
+    "claimId": {
+      "type": "string",
+      "pattern": "^TL-CLAIM-[0-9]{3}$"
+    },
+    "adrId": {
+      "type": "string",
+      "pattern": "^ADR-[0-9]{3}$"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normative_spec",
+        "architecture_decisions",
+        "abstraction_constraints"
+      ],
+      "properties": {
+        "normative_spec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "architecture_decisions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/adrId"
+          }
+        },
+        "abstraction_constraints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/adrId"
+          }
+        }
+      }
+    },
+    "formalSemanticDomain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "representation",
+        "module",
+        "path",
+        "integrated_semantics_required",
+        "focused_analyses_are_restrictions"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "representation": {
+          "enum": [
+            "tla+"
+          ]
+        },
+        "module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "integrated_semantics_required": {
+          "const": true
+        },
+        "focused_analyses_are_restrictions": {
+          "const": true
+        }
+      }
+    },
+    "hostileReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_directory",
+        "evidence_schema",
+        "minimum_independent_reviewers",
+        "majority_vote_sufficient"
+      ],
+      "properties": {
+        "evidence_directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum_independent_reviewers": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "majority_vote_sufficient": {
+          "const": false
+        }
+      }
+    },
+    "tlcEvidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_directory",
+        "evidence_schema",
+        "exact_executed_artifact_identity_required"
+      ],
+      "properties": {
+        "evidence_directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exact_executed_artifact_identity_required": {
+          "const": true
+        }
+      }
+    },
+    "mechanicalEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tlc"
+      ],
+      "properties": {
+        "tlc": {
+          "$ref": "#/$defs/tlcEvidencePolicy"
+        }
+      }
+    },
+    "readinessGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "authorizes"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "formal-architecture-ready",
+            "canonical-formal-semantics-ready",
+            "formal-verification-ready"
+          ]
+        },
+        "authorizes": {
+          "enum": [
+            "candidate-formal-model-authoring",
+            "canonical-formal-semantic-promotion",
+            "verification-evidence-lifting"
+          ]
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formal_semantic_domains",
+        "behavioral_modalities",
+        "assurance_domains",
+        "hostile_review",
+        "mechanical_evidence",
+        "readiness_gates"
+      ],
+      "properties": {
+        "formal_semantic_domains": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/formalSemanticDomain"
+          }
+        },
+        "behavioral_modalities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "safety",
+              "reachability",
+              "liveness"
+            ]
+          }
+        },
+        "assurance_domains": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "formal-behavioral",
+              "conformance",
+              "architecture",
+              "semantic-quality"
+            ]
+          }
+        },
+        "hostile_review": {
+          "$ref": "#/$defs/hostileReview"
+        },
+        "mechanical_evidence": {
+          "$ref": "#/$defs/mechanicalEvidence"
+        },
+        "readiness_gates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/readinessGate"
+          }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement",
+        "normative_sources",
+        "assurance_domain"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/claimId"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "normative_sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/invariantId"
+          }
+        },
+        "assurance_domain": {
+          "enum": [
+            "formal-behavioral",
+            "conformance",
+            "architecture",
+            "semantic-quality"
+          ]
+        },
+        "modality": {
+          "enum": [
+            "safety",
+            "reachability",
+            "liveness"
+          ]
+        },
+        "formal_semantic_domain": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "assurance_domain": {
+                "const": "formal-behavioral"
+              }
+            },
+            "required": [
+              "assurance_domain"
+            ]
+          },
+          "then": {
+            "required": [
+              "modality",
+              "formal_semantic_domain"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "modality"
+                  ]
+                },
+                {
+                  "required": [
+                    "formal_semantic_domain"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "coverageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invariant",
+        "canonical_operational_coverage",
+        "formal_claims",
+        "residual_claims"
+      ],
+      "properties": {
+        "invariant": {
+          "$ref": "#/$defs/invariantId"
+        },
+        "canonical_operational_coverage": {
+          "enum": [
+            "full",
+            "partial",
+            "none"
+          ]
+        },
+        "formal_claims": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/claimId"
+          }
+        },
+        "residual_claims": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/claimId"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "canonical_operational_coverage": {
+                "const": "full"
+              }
+            },
+            "required": [
+              "canonical_operational_coverage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "formal_claims": {
+                "minItems": 1
+              },
+              "residual_claims": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "canonical_operational_coverage": {
+                "const": "partial"
+              }
+            },
+            "required": [
+              "canonical_operational_coverage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "formal_claims": {
+                "minItems": 1
+              },
+              "residual_claims": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "canonical_operational_coverage": {
+                "const": "none"
+              }
+            },
+            "required": [
+              "canonical_operational_coverage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "formal_claims": {
+                "maxItems": 0
+              },
+              "residual_claims": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "formalRealization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "formal_semantic_domain",
+        "backend",
+        "module",
+        "properties",
+        "state_variables",
+        "actions",
+        "verification_profiles"
+      ],
+      "properties": {
+        "claim": {
+          "$ref": "#/$defs/claimId"
+        },
+        "formal_semantic_domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "backend": {
+          "enum": [
+            "tla+"
+          ]
+        },
+        "module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "state_variables": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verification_profiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "properties"
+          ],
+          "properties": {
+            "properties": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "state_variables"
+          ],
+          "properties": {
+            "state_variables": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

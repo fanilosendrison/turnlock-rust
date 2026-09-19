@@ -1,1106 +1,1003 @@
-schema_version: 2
+schema_version: 3
 project: TURNLOCK
-policy:
-  governing_adr: ADR-015
+authority:
   normative_spec: docs/specification/turnlock-spec.md
-  formal_model:
-    module: Turnlock
-    path: formal/Turnlock.tla
-    status: not-yet-introduced
-  mapping_view: docs/formal/invariant-mapping.md
-  mapping_view_generated: true
-  integrated_model_required: true
-  focused_models_are_substitutes_for_integrated: false
-  default_semantic_change_checks:
-  - relevant-focused
-  - integrated-smoke
-  integrated_profiles:
-  - name: integrated-smoke
-    path: formal/models/integrated/smoke.cfg
-    status: planned
-    intent: All currently formalized core execution forms under small finite bounds for fast cross-feature feedback.
-  - name: integrated-standard
-    path: formal/models/integrated/standard.cfg
-    status: planned
-    intent: All currently formalized core execution forms under ordinary CI bounds.
-  - name: integrated-stress
-    path: formal/models/integrated/stress.cfg
-    status: planned
-    intent: Larger deliberately expensive integrated exploration.
-  result_artifacts:
-    directory: formal/results
-    schema: formal/tlc-result.schema.json
-    purpose: Record what TLC actually checked for a concrete repository revision; verification claims are derived from run
-      evidence, not from manifest intent alone.
-    required_identity:
-    - commit_sha
-    - model_config
-    - tla_module
-    - tool
-    - tool_version
-    - started_at
-    - finished_at
-    required_verification_evidence:
-    - outcome
-    - checked_properties
-    - invariant_ids
-    - finite_bounds
-  traceability_requirements:
-    prose_to_formal: Every formally applicable invariant maps to one or more TLA+ properties once modeled.
-    formal_mechanism_mapping: Modeled invariants may record the TLA+ state variables and actions/transitions on which their
-      properties depend.
-    reverse_traceability: The mapping must be mechanically invertible from TLA+ property/action/state variable to affected
-      invariant IDs.
-    modeled_reference_validation: Once an invariant is marked modeled or checked, referenced TLA+ modules, properties, state
-      variables, actions, and TLC configs must exist.
-    checked_requires_run_evidence: An invariant may be marked checked only when matching TLC result artifacts exist for the
-      declared required configs and repository revision/policy.
-    semantic_correspondence_reviewed: Machine validation proves link consistency, not that a TLA+ formula faithfully captures
-      prose intent; semantic correspondence remains a review obligation.
-status_vocabulary:
-  formal_model:
-    not-yet-introduced: The governed executable model path must not exist.
-    introduced: The governed executable model path exists; this does not imply complete mappings or successful TLC verification.
-  integrated_profile:
-    planned: The governed TLC configuration is intended but its path has not yet been introduced.
-    introduced: The governed TLC configuration path exists; this does not imply a successful TLC run.
-  formalization:
-    planned: Formalization is applicable and intended but not yet encoded.
-    partial: Only a formally meaningful subset of the prose invariant is intended for TLA+.
-    not-applicable: The invariant is intentionally outside the core TLA+ state-machine scope.
-  verification:
-    not-yet-modeled: No corresponding executable TLA+ property has yet been introduced.
-    modeled: Corresponding TLA+ property exists but has not yet been recorded as successfully checked.
-    checked: At least the declared TLC configurations have successfully checked the property at their stated finite bounds.
-    blocked: Formalization/checking is currently blocked and requires an explicit reason.
-  mapping:
-    pending-model: Formal names may be planned, but state/action dependencies are not yet bound to executable TLA+ identifiers.
-    mapped: The invariant is bound to executable TLA+ properties and any declared state/action dependencies.
-    not-applicable: No core TLA+ mapping is intended.
-invariants:
-- id: TL-INV-001
-  title: Workflow-orchestration invariant
-  spec_section: '3.1'
-  adrs:
-  - ADR-001
-  - ADR-014
-  kind: safety
-  formalization: planned
-  formalization_note: A future formula must constrain global progression to workflow-authorized transitions without
-    requiring one successor, output, schedule, or trace.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: DeclaredControlFlowOnly
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-002
-  title: Engine / decision-owner separation invariant
-  spec_section: 3.1A
-  adrs:
-  - ADR-014
-  kind: safety
-  formalization: planned
-  formalization_note: A future formula must distinguish executing a declared continuation selected through runtime data from
-    inventing an unauthorized continuation or topology.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: EngineDoesNotInventTopology
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-003
-  title: Mechanical-execution invariant
-  spec_section: '3.2'
-  adrs:
-  - ADR-004
-  kind: safety
-  formalization: planned
-  formalization_note: Mechanical denotes non-agent-mediated executable progression, not deterministic outputs or traces.
-    A future formula must permit declared transitions driven by probabilistic, nondeterministic, external, event, LLM, or
-    agent results.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: MechanicalExecutionNotAgentMediated
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-004
-  title: Reversible-handoff invariant
-  spec_section: '3.3'
-  adrs:
-  - ADR-005
-  - ADR-036
-  kind: capability+safety
-  formalization: planned
-  formalization_note: HandoffPreservesContinuation is a structural safety obligation and HandoffCanResume is a capability/reachability obligation. Neither property asserts that every main-agent region eventually completes or yields. Recognized completion/yield establishes the workflow-continuation consequence structurally; TL-INV-042 separately owns conditional occurrence-scoped non-starvation once TURNLOCK-owned progression remains continuously enabled and applicable.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: HandoffPreservesContinuation
-      status: planned
-    - name: HandoffCanResume
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-005
-  title: Repeatable-handoff invariant
-  spec_section: '3.4'
-  adrs:
-  - ADR-005
-  kind: reachability
-  formalization: planned
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: MultipleHandoffsRepresentable
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-006
-  title: Enclosing-workflow invariant
-  spec_section: '3.5'
-  adrs:
-  - ADR-005
-  kind: safety
-  formalization: planned
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: EnclosingWorkflowPreservedDuringMainAgentRegion
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-007
-  title: Resume-position invariant
-  spec_section: '3.6'
-  adrs:
-  - ADR-005
-  kind: safety
-  formalization: planned
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: ResumePositionWellDefined
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-008
-  title: Invocation/return continuity invariant
-  spec_section: '3.7'
-  adrs:
-  - ADR-006
-  - ADR-008
-  - ADR-036
-  kind: capability+safety
-  formalization: planned
-  formalization_note: StructuredReturnPath represents the preserved call/return capability and structural return semantics. This invariant does not assert that every invocation eventually completes. Recognized normal completion establishes the required structured return consequence; TL-INV-042 separately owns conditional occurrence-scoped non-starvation of later continuously enabled TURNLOCK-owned progression. No universal completion or fairness premise is introduced here.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: StructuredReturnPath
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-009
-  title: Main-agent identity/continuity invariant
-  spec_section: '3.8'
-  adrs:
-  - ADR-007
-  kind: safety
-  formalization: partial
-  formalization_note: TLA+ can model lineage identity/continuation tokens, but not prove equivalence of a real harness's conversational/cognitive
-    state.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: MainAgentLineagePreserved
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-010
-  title: Workflow-state independence invariant
-  spec_section: '3.9'
-  adrs:
-  - ADR-001
-  - ADR-005
-  kind: safety
-  formalization: planned
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: WorkflowStateExistsOutsideAgentState
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-011
-  title: Harness-semantics invariant
-  spec_section: '3.10'
-  adrs:
-  - ADR-010
-  kind: conformance
-  formalization: not-applicable
-  formalization_note: Cross-harness semantic conformance belongs to adapter conformance models/tests; the core TLA+ model
-    defines the harness-independent semantics they must realize.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-012
-  title: Non-equivalence of cognitive execution forms invariant
-  spec_section: '3.11'
-  adrs:
-  - ADR-007
-  - ADR-011
-  - ADR-012
-  kind: safety
-  formalization: planned
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: ExecutionFormsRemainDistinct
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-013
-  title: No-hidden-agent-orchestration invariant
-  spec_section: '3.12'
-  adrs:
-  - ADR-001
-  - ADR-014
-  kind: safety
-  formalization: planned
-  formalization_note: A future formula must distinguish legitimate local discretion inside a declared agentic region from
-    an agent advancing, creating, or reconstructing undeclared global control.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: AgentCannotAdvanceUndeclaredGlobalControl
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-014
-  title: Cognitive-lineage continuity invariant
-  spec_section: '3.13'
-  adrs:
-  - ADR-007
-  - ADR-032
-  kind: safety
-  formalization: partial
-  formalization_note: The abstract model can preserve a main-lineage identity across handoff; real cognitive equivalence remains a harness-level conformance obligation. TL-INV-039 separately owns the concurrency-specific prohibition on unordered forks of that continuing lineage.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: MainLineageNotForkedByHandoff
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-015
-  title: Ordinary-agency restoration invariant
-  spec_section: '3.14'
-  adrs:
-  - ADR-007
-  kind: conformance
-  formalization: not-applicable
-  formalization_note: The richness of ordinary harness agency is an integration capability requirement rather than a core
-    state-machine property.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-016
-  title: Workflow-availability invariant
-  spec_section: '3.15'
-  adrs:
-  - ADR-002
-  - ADR-008
-  kind: safety
-  formalization: planned
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: WorkflowInvocationAvailableWheneverMainOwnsControl
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-017
-  title: Nested-invocation invariant
-  spec_section: '3.16'
-  adrs:
-  - ADR-008
-  - ADR-033
-  kind: safety+reachability
-  formalization: planned
-  formalization_note: A future model must permit nested invocation ancestry to revisit a workflow already represented among its ancestors while preserving distinct invocation occurrences and caller suspension. The model must not encode workflow-definition acyclicity as a TURNLOCK product requirement. A finite invocation universe or bounded depth may be used as an explicit modeling choice without becoming a product-level recursion limit.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: NestedInvocationSuspendsCaller
-      status: planned
-    - name: CallerStackWellFormed
-      status: planned
-    - name: RecursiveNestedInvocationCanBeAdmitted
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-018
-  title: Immediate-caller return invariant
-  spec_section: '3.17'
-  adrs:
-  - ADR-008
-  - ADR-033
-  - ADR-034
-  - ADR-036
-  kind: safety
-  formalization: planned
-  formalization_note: The future model must preserve immediate-caller return for workflow-declared, main-agent-selected, and explicitly authorized independent-agent-selected nested invocation, including at every represented recursive/cyclic depth. An admitted IA-selected callee returns to the same independent-agent caller rather than skipping to the parent workflow or session main agent. Repeated workflow identity must not collapse or skip intermediate caller contexts. Normal completion establishes the correct return consequence for that exact occurrence; this invariant does not assert that every nested invocation eventually completes. Any bounded recursion depth used by a model remains a modeling bound rather than a TURNLOCK product limit. TL-INV-042 separately owns conditional occurrence-scoped non-starvation of later continuously enabled TURNLOCK-owned progression.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: ReturnToImmediateCaller
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-019
-  title: Outer-orchestration preservation invariant
-  spec_section: '3.18'
-  adrs:
-  - ADR-008
-  - ADR-014
-  - ADR-033
-  - ADR-034
-  kind: safety
-  formalization: planned
-  formalization_note: A future model must preserve ancestor orchestration and preserved continuations for workflow-declared, main-agent-selected, and explicitly authorized independent-agent-selected nested invocation. An IA-selected callee must not complete, replace, bypass, or rewrite its independent-agent caller or jump directly to the parent workflow or session main agent on normal return. These obligations remain unchanged when invocation ancestry is recursive or cyclic.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: NestedInvocationCannotRewriteOuterContinuation
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-020
-  title: Same-artifact authoring invariant
-  spec_section: '3.19'
-  adrs:
-  - ADR-009
-  kind: dx
-  formalization: not-applicable
-  formalization_note: Authoring artifact equivalence is a language/tooling conformance property, not a core temporal state-machine
-    property.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-021
-  title: Author-facing primitive invariant
-  spec_section: '3.20'
-  adrs:
-  - ADR-009
-  kind: dx
-  formalization: not-applicable
-  formalization_note: Primitive ergonomics and abstraction direction are checked by API/language design and conformance tests
-    rather than core TLA+.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-022
-  title: Harness-independence invariant
-  spec_section: '3.21'
-  adrs:
-  - ADR-010
-  kind: architecture
-  formalization: not-applicable
-  formalization_note: This governs dependency direction and adapter conformance; the core formal model itself must remain
-    harness-independent.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-023
-  title: Pi-reference invariant
-  spec_section: '3.22'
-  adrs:
-  - ADR-010
-  kind: architecture
-  formalization: not-applicable
-  formalization_note: Reference-harness choice is outside core TLA+ semantics.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-024
-  title: Heterogeneous parallel composition invariant
-  spec_section: 3.22A
-  adrs:
-  - ADR-013
-  - ADR-032
-  - ADR-035
-  kind: safety+reachability
-  formalization: planned
-  formalization_note: A future model must permit heterogeneous workflow-owned parallel branches, including main-agent continuation, while preserving branch-specific semantics. A branch may contain nested workflow invocation as branch-local composition when that attempted invocation is independently authorized and TL-INV-041-admissible. The model must preserve enough surrounding declared topology for applicable restrictions such as TL-INV-039 to see conflicts across workflow boundaries. Main-agent handoff remains branch-local, and silent serialization or scheduler order must not be modeled as conforming repairs for inadmissible composition.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: MixedBranchTypesCanCoexist
-      status: planned
-    - name: MixedBranchSemanticsPreserved
-      status: planned
-    - name: MainAgentCanParticipateInParallelRegion
-      status: planned
-    - name: NestedWorkflowCanParticipateInAdmissibleParallelBranch
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-025
-  title: Independent-agent first-class invariant
-  spec_section: '3.23'
-  adrs:
-  - ADR-011
-  - ADR-020
-  - ADR-021
-  - ADR-034
-  kind: reachability+safety
-  formalization: planned
-  formalization_note: A future formalization must preserve a fresh distinct independent-agent lineage, a workflow-declared semantic mission, autonomous multi-turn local authority, recognizable normal completion if reached, optional contract output, possible persistent effects, and workflow-owned continuation. Workflow semantics may explicitly delegate nested-workflow selection/invocation authority as local IA authority; that capability must not be implicit in independent-agent status or technical shell/tool access. The abstraction may permit dynamic callee selection and must not encode universal parent enumeration of exact callee identities as a TURNLOCK Core requirement. Delegated invocation must remain distinct from global orchestration ownership and from composition admissibility. TL-INV-040 separately owns the no-session-main-lineage restriction for IA-selected invocation subtrees. The model must not introduce a generic ACL/RBAC/capability-token system, concrete resource limit, or universal completion guarantee.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: IndependentAgentCanBeWorkflowDeclared
-      status: planned
-    - name: IndependentAgentHasDistinctLineage
-      status: planned
-    - name: IndependentAgentCanReceiveDelegatedNestedInvocationAuthority
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-026
-  title: Independent-agent context-provenance invariant
-  spec_section: '3.24'
-  adrs:
-  - ADR-011
-  - ADR-020
-  kind: semantic-boundary
-  formalization: partial
-  formalization_note: TLA+ can represent that a workflow-declared independent agent has a distinct lineage, receives no
-    implicit main-agent cognitive context, and begins with cognitive context supplied explicitly through workflow semantics.
-    It cannot prove semantic sufficiency or quality, govern children spawned only through local main-agent delegation, or
-    select a context API, representation, serialization, quantitative context limit, or resource budget.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: IndependentAgentContextIsExplicitlyDeclared
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-027
-  title: Parallel semantic fan-out/fan-in invariant
-  spec_section: '3.25'
-  adrs:
-  - ADR-011
-  - ADR-012
-  - ADR-013
-  - ADR-032
-  - ADR-036
-  kind: capability+safety
-  formalization: planned
-  formalization_note: A future model must preserve workflow-owned fan-out/fan-in when a branch contains main-agent continuation. Reaching the main-agent branch must not implicitly suspend independently enabled siblings, and branch completion must not release the join before the declared join requirements hold. Satisfaction of the declared requirements of a join occurrence establishes eligibility of its post-join continuation structurally, but this invariant does not assert that every branch or join requirement eventually completes. TL-INV-042 separately owns conditional occurrence-scoped non-starvation once TURNLOCK-owned progression remains continuously enabled and applicable.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: NoPrematureJoin
-      status: planned
-    - name: BranchCompletesAtMostOnce
-      status: planned
-    - name: MainAgentHandoffIsBranchLocal
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-028
-  title: Raw-LLM inference invariant
-  spec_section: '3.26'
-  adrs:
-  - ADR-012
-  kind: reachability+safety
-  formalization: planned
-  formalization_note: A future formalization must preserve one declared non-agentic semantic operation with explicit
-    instruction and context, no autonomous agent loop or persistent independent lineage, a result boundary if and when
-    the operation completes, and no global orchestration authority. The semantic boundary does not mean one physical provider request or attempt,
-    select a concrete turn, token, tool-call, cost, time, retry, or other resource limit, or assert universal completion.
-    Existing planned property names remain non-exhaustive inputs to Issue 1's property-level review.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: RawLLMIsBoundedLeaf
-      status: planned
-    - name: RawLLMDoesNotCreateAgentLoop
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-029
-  title: Minimum-sufficient cognition invariant
-  spec_section: '3.27'
-  adrs:
-  - ADR-012
-  kind: authoring-principle
-  formalization: not-applicable
-  formalization_note: Whether a chosen execution form is the minimum semantically sufficient one depends on task quality/cost
-    judgments outside the state-machine model.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-030
-  title: Workflow-owned-control / probabilistic-result invariant
-  spec_section: '3.28'
-  adrs:
-  - ADR-012
-  - ADR-014
-  - ADR-029
-  - ADR-034
-  kind: safety
-  formalization: planned
-  formalization_note: A future formula must constrain every global control transition to workflow-authorized semantics while permitting runtime results to select among declared continuations and independent agents to exercise declared local authority, including explicitly delegated nested-workflow selection/invocation authority. Exercising that delegated authority must not make the independent agent owner of enclosing sequencing, branching, fan-out, synchronization, continuation, or main-agent escalation. Progression after a raw-LLM result or independent-agent normal completion remains conditional on that event and does not assert universal occurrence. TL-INV-040 separately owns the transitive no-session-main-lineage restriction on IA-selected invocation subtrees. The formula must not assert one enabled transition, output, schedule, trace, replay, resource budget, or termination guarantee.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: ProbabilisticLeafCannotOwnGlobalControl
-      status: planned
-    - name: DelegatedIAInvocationDoesNotOwnGlobalControl
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-031
-  title: Workflow expressive-power invariant
-  spec_section: '3.29'
-  adrs:
-  - ADR-011
-  - ADR-012
-  - ADR-013
-  - ADR-014
-  - ADR-032
-  - ADR-033
-  - ADR-034
-  kind: capability
-  formalization: partial
-  formalization_note: The abstract model can demonstrate composition/reachability of the required execution forms, including main-agent continuation inside workflow-owned parallel topology subject to TL-INV-039, recursive/cyclic composition through ordinary workflow invocation, and explicitly delegated independent-agent-selected nested invocation subject to TL-INV-040; it cannot prove universal adequacy for every real workflow. Finite workflow sets or recursion bounds in a concrete model are modeling choices and must not become mandatory parent-enumerated callee whitelists or TURNLOCK product recursion limits.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: RequiredCoreFormsComposable
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-032
-  title: Authorship / execution-authority separation invariant
-  spec_section: '3.30'
-  adrs:
-  - ADR-009
-  - ADR-014
-  - ADR-016
-  - ADR-029
-  kind: architecture+conformance
-  formalization: not-applicable
-  formalization_note: Whether an authoring/runtime integration independently executes an artifact rather than returning
-    scheduling authority to its author is an architecture and API/runtime conformance concern. TL-INV-001, TL-INV-002, and
-    TL-INV-013 cover the state-machine consequences of hidden agent orchestration; author provenance should not be introduced
-    into the core TLA+ model solely for this invariant.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-033
-  title: Execution-inspectability invariant
-  spec_section: '3.31'
-  adrs:
-  - ADR-018
-  - ADR-039
-  kind: safety+semantic-quality+conformance
-  formalization: partial
-  formalization_note: A future abstract model can require an accepted invocation for which TURNLOCK observes a terminal
-    or cessation outcome to expose boundary-level facts sufficient to distinguish its realized progression or realized prefix
-    and actually known terminal facts; preserve abstract structural/causal and control-resolution distinctions needed for progression;
-    permit semantically redundant facts to be omitted when unambiguously derivable from the governing definition plus remaining
-    inspection truth; and forbid irreversible loss of required execution truth before an abstract realizable terminal inspection
-    handoff. The abstraction must not invent a concrete event schema, identifier, serialization, timestamp, storage mechanism,
-    retention duration, disclosure or authorization mechanism, comparison algorithm, replay system, evaluator, or crash-durability
-    contract. TLA+ cannot prove universal subjective evaluation quality, concrete confidentiality, UI usefulness, or external
-    persistence correctness.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: ObservedTerminationExposesActualExecutionTruth
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-034
-  title: Evaluation/optimization-policy boundary invariant
-  spec_section: '3.32'
-  adrs:
-  - ADR-019
-  kind: architecture+conformance
-  formalization: not-applicable
-  formalization_note: This boundary constrains product responsibility and implementation conformance rather than
-    an executable state predicate. The state-machine consequences of silently changing declared progression are already
-    covered by TL-INV-001, TL-INV-002, TL-INV-013, TL-INV-030, and TL-INV-032; a core evaluator, metric, comparison,
-    experiment, or optimizer facility is constrained by product scope and conformance review, not by a new TLA+ property.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-035
-  title: Declared-invocation invariant
-  spec_section: '3.33'
-  adrs:
-  - ADR-022
-  - ADR-023
-  - ADR-033
-  - ADR-035
-  kind: capability+safety
-  formalization: planned
-  formalization_note: A future formalization must represent a workflow-declared invocation as authorized by the declared topology and executed without an agent handoff solely to reproduce the declared call. It must preserve the caller context, suspended return-bearing continuation, callee-local progression, immediate-caller return, and branch-local suspension semantics. Workflow-declared invocation may occur inside a parallel or otherwise restricted context when independently authorized and TL-INV-041-admissible, and may participate in recursive/cyclic call graphs under ADR-033. A rejected pre-acceptance declared invocation creates no callee and must not enable the normal successful post-call continuation. The model must not assert universal completion, disable unrelated concurrent contexts, use scheduler order to repair inadmissibility, turn bounded model depth into a product recursion limit, or select the concrete admissibility algorithm, failure policy, or workflow-reference resolution mechanism.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: DeclaredInvocationAuthorizedByWorkflowProgram
-      status: planned
-    - name: DeclaredInvocationDoesNotRequireAgentHandoff
-      status: planned
-    - name: OnlyCallingContinuationSuspended
-      status: planned
-    - name: DeclaredInvocationReturnsToImmediateCaller
-      status: planned
-    - name: NestedInvocationCannotRewriteOuterContinuation
-      status: planned
-    - name: DeclaredRecursiveInvocationCanBeAdmitted
-      status: planned
-    - name: DeclaredInvocationCanOccupyAdmissibleRestrictedPlacement
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-036
-  title: Effective execution-condition provenance invariant
-  spec_section: '3.34'
-  adrs:
-  - ADR-024
-  - ADR-025
-  - ADR-026
-  kind: safety+semantic-boundary+conformance
-  formalization: partial
-  formalization_note: A future abstract model can represent that an effective condition TURNLOCK selects, binds, explicitly
-    supplies, or resolves governs an execution scope, preserve that attribution instead of substituting unrelated later
-    state, and distinguish unknown or unavailable provenance from a known condition occurrence bound to its governed scope,
-    including a protected state that is not substituted by generic loss before or during the required realizable capture
-    handoff. It can also represent that an owed provenance obligation cannot be irreversibly lost before its abstract capture
-    handoff is discharged, where discharge abstracts completion of TURNLOCK's side of a semantic-boundary interaction through
-    a structurally realizable capture capability and does not require actual consumer participation, successful delivery, or
-    acknowledgment. This invariant alone imposes no post-handoff availability requirement. The abstraction
-    must not imply post-handoff lifetime, exact-value disclosure, stable cross-run identity, underlying-value equality and
-    difference evidence, delivery acknowledgment, persistence, retention, or a concrete capture mechanism. TLA+ cannot
-    establish real provider, harness, or adapter metadata exposure, protection against information leakage, semantic
-    sufficiency at a concrete boundary, authorization, privacy, serialization, storage, retention, or UI behavior. No
-    property, state variable, action, or config identifier is recorded before the executable shared model introduces it.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-037
-  title: Active-invocation governing-definition stability invariant
-  spec_section: '3.35'
-  adrs:
-  - ADR-027
-  - ADR-028
-  - ADR-029
-  - ADR-033
-  - ADR-035
-  kind: safety
-  formalization: planned
-  formalization_note: A future abstract model must represent that once an invocation is accepted with governing definition D, that
-    governing definition remains unchanged while the invocation is active. Every transition represented by the current accepted
-    model that would change an active invocation's governing definition from D to another definition D' must violate the modeled
-    TL-INV-037 safety property; the model must not provide an authorization-gated or otherwise reserved exception path. A nested
-    invocation J, including a recursive/cyclic descendant that revisits an ancestor workflow identity, has its own governing
-    definition determined for J; caller acceptance does not imply a transitive root/run-wide snapshot, and a descendant binding
-    that differs from an active ancestor binding is not rebinding of that ancestor. Active replanning, active rebinding, and replacement of an accepted invocation's governing definition are outside
-    and contrary to the current product contract, so no transition, guard, or placeholder may be reserved for them. Runtime
-    results may select among continuations the governing definition already authorizes, but selecting a declared possibility is
-    not a change to the governing definition. The abstraction must not select or imply a revision mechanism, hash, snapshot
-    representation, copy mechanism, storage choice, lock mechanism, authorization implementation, replay implication, or
-    reproducibility implication. The ADR-029 responsibility boundary that general filesystem, tool, OS, repository, and sandbox
-    permissions belong to the surrounding execution environment is formalization-not-applicable, so the model must not introduce
-    permission or meta-workflow state such as workflowWritePermission, metaWorkflow, AuthorizedMutation, or ReplanPermission, or
-    any equivalent. TLA+ cannot establish real filesystem edit semantics, what counts as invocation acceptance in a concrete
-    harness, or which local restrictions the environment supplies. No property, state variable, action, or config identifier is
-    recorded before the executable shared model introduces it. For nested-invocation admission, the model may represent a definition being evaluated before acceptance without treating that attempt as an accepted invocation. If the invocation is accepted, the definition whose composition was admitted must be the governing definition bound to that invocation; the model must not validate one definition and bind another under the same admission decision. If admission is rejected before acceptance, no callee governing definition is bound.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-038
-  title: Runtime-realization composability invariant
-  spec_section: '3.36'
-  adrs:
-  - ADR-030
-  - ADR-031
-  kind: conformance
-  formalization: not-applicable
-  formalization_note: >-
-    The distinctive obligation concerns runtime composition with an already-built
-    TURNLOCK Core without requiring Core source modification or recompilation.
-    This is an architecture/conformance boundary rather than a property of the
-    core workflow state machine.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: not-applicable
-    module: null
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-039
-  title: Main-agent concurrent-lineage non-forkability invariant
-  spec_section: '3.37'
-  adrs:
-  - ADR-007
-  - ADR-013
-  - ADR-032
-  kind: safety
-  formalization: planned
-  formalization_note: A future model must represent one continuing main-agent lineage and declared branch causality well enough to forbid unordered co-reachable continuations of that lineage while allowing causally ordered or established mutually exclusive uses. Runtime scheduler order must not create semantic ordering. The model may abstract mutual exclusion and must not select a static-analysis algorithm, theorem prover, graph algorithm, scheduler, lock, token, or proof representation as product semantics.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: MainLineageNotForkedAcrossUnorderedConcurrentContinuations
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-040
-  title: Independent-agent-selected invocation main-lineage isolation invariant
-  spec_section: '3.38'
-  adrs:
-  - ADR-007
-  - ADR-011
-  - ADR-014
-  - ADR-020
-  - ADR-023
-  - ADR-032
-  - ADR-033
-  - ADR-034
-  kind: safety
-  formalization: planned
-  formalization_note: A future model must ensure that every represented invocation subtree causally rooted in a nested workflow invocation selected by an independent-agent region under explicitly delegated invocation authority cannot transitively reach the coding session's existing main-agent cognitive lineage. The restriction must persist across represented nested calls, workflow-declared calls, conditions, parallel composition, recursion, and cyclic invocation, and must not be reset by another workflow boundary. The abstraction must distinguish this forbidden nested-subtree reachability from a later workflow-owned main-agent continuation selected by the parent after structured return from the IA-selected call or completion of the IA region. The model may use finite workflows or finite depth as modeling bounds but must not select a graph algorithm, theorem prover, effect system, capability lattice, ACL/RBAC mechanism, mandatory exact-callee whitelist, token representation, scheduler, DSL syntax, Rust type, process model, or harness-specific enforcement mechanism as product semantics.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: IASelectedInvocationCannotReachSessionMainLineage
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-041
-  title: Nested-composition admissibility-closure invariant
-  spec_section: '3.39'
-  adrs:
-  - ADR-008
-  - ADR-013
-  - ADR-014
-  - ADR-022
-  - ADR-023
-  - ADR-027
-  - ADR-032
-  - ADR-033
-  - ADR-034
-  - ADR-035
-  kind: safety
-  formalization: planned
-  formalization_note: A future model must guard every represented nested-invocation acceptance with independent invocation authority and composition admissibility under every restriction whose accepted scope applies to the caller/prospective-callee context. Restrictions whose scope extends into descendants must remain effective across later nested, recursive, and cyclic invocation boundaries. The abstraction must preserve enough declared topology for contextual restrictions such as TL-INV-039 and enough IA-selected-subtree provenance for TL-INV-040, without requiring a flat effect-set representation. Runtime scheduler order must not manufacture admissibility. If required compatibility cannot be established at the modeled acceptance boundary, the invocation must not be accepted. Caller acceptance must not pre-authorize future descendant invocations. The definition admitted for a successful invocation must be the definition bound as governing at acceptance; rejected pre-acceptance attempts create no callee invocation, bind no callee governing definition, consume no successful return continuation, and do not enable a workflow-declared normal post-call continuation. The model may use finite workflows, finite depth, predicates, relations, summaries, flags, or other abstractions as modeling choices but must not make an effect system, capability lattice, graph algorithm, theorem prover, scheduler, proof object, runtime token, Rust type, DSL syntax, workflow hash, or validation architecture part of TURNLOCK product semantics.
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties:
-    - name: NestedInvocationRequiresAdmissibleComposition
-      status: planned
-    - name: ApplicableRestrictionsPersistAcrossNestedAdmission
-      status: planned
-    - name: UnestablishedCompatibilityRejectsInvocation
-      status: planned
-    - name: RejectedInvocationCreatesNoCallee
-      status: planned
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
-- id: TL-INV-042
-  title: Conditional orchestration-progress invariant
-  spec_section: '3.40'
-  adrs:
-  - ADR-036
-  - ADR-037
-  kind: liveness
-  formalization: planned
-  formalization_note: "A future model must represent the conditional liveness obligation for each relevant TURNLOCK-owned progression occurrence independently: if a particular occurrence remains continuously enabled and applicable under its governing workflow semantics, TURNLOCK must eventually advance that same occurrence. Progress by another occurrence is not evidence for this obligation, and no competing progression or scheduler-choice cause is required: indefinite non-advancement while the premise remains continuously true violates TL-INV-042 even if TURNLOCK performs no other progression. The premise does not assert that an external resource, agentic region, raw-LLM operation, mechanical/external operation, workflow invocation, branch, branch set, or workflow eventually produces the completion/yield/result condition that enables progression. Issue #3 owns the occurrence abstraction and fairness encoding, and Issue #1 owns the property-level verification/evidence metamodel. No runtime identifier, scheduler mechanism, TLA+ property identifier, state variable, action, fairness formula, or configuration is selected before the executable model introduces it."
-  verification: not-yet-modeled
-  tla:
-    mapping_status: pending-model
-    module: Turnlock
-    properties: []
-    state_variables: []
-    actions: []
-    focused_configs: []
-    integrated_configs: []
-  implementation:
-    tests: []
+  architecture_decisions:
+    - ADR-015
+    - ADR-041
+  abstraction_constraints:
+    - ADR-040
+policy:
+  formal_semantic_domains:
+    - id: operational
+      representation: tla+
+      module: Turnlock
+      path: formal/Turnlock.tla
+      integrated_semantics_required: true
+      focused_analyses_are_restrictions: true
+  behavioral_modalities:
+    - safety
+    - reachability
+    - liveness
+  assurance_domains:
+    - formal-behavioral
+    - conformance
+    - architecture
+    - semantic-quality
+  hostile_review:
+    evidence_directory: formal/reviews
+    evidence_schema: formal/reviews/review-evidence.schema.json
+    minimum_independent_reviewers: 2
+    majority_vote_sufficient: false
+  mechanical_evidence:
+    tlc:
+      evidence_directory: formal/results
+      evidence_schema: formal/tlc-result.schema.json
+      exact_executed_artifact_identity_required: true
+  readiness_gates:
+    - id: formal-architecture-ready
+      authorizes: candidate-formal-model-authoring
+    - id: canonical-formal-semantics-ready
+      authorizes: canonical-formal-semantic-promotion
+    - id: formal-verification-ready
+      authorizes: verification-evidence-lifting
+claims:
+  - id: TL-CLAIM-001
+    statement: >-
+      Every change in global control of an active workflow is authorized by executable workflow semantics; neither TURNLOCK nor an execution resource invents an undeclared global continuation or topology.
+    normative_sources:
+      - TL-INV-001
+      - TL-INV-002
+      - TL-INV-013
+      - TL-INV-030
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-002
+    statement: >-
+      Declared non-agentic workflow control can progress without requiring the main agent to act as the global scheduler or reconstruct missing orchestration.
+    normative_sources:
+      - TL-INV-001
+      - TL-INV-013
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-003
+    statement: >-
+      Probabilistic, nondeterministic, external, LLM-produced, or agent-produced results can select among continuations already authorized by executable workflow semantics without acquiring global orchestration authority.
+    normative_sources:
+      - TL-INV-002
+      - TL-INV-003
+      - TL-INV-030
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-004
+    statement: >-
+      A mechanical step progresses only according to its executable semantics and available runtime inputs, results, state, or events, or produces a defined non-success outcome; it does not require an agent to supply an orchestration decision absent from those semantics.
+    normative_sources:
+      - TL-INV-003
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-005
+    statement: >-
+      A handoff to the main agent preserves the continuation capability and workflow state required for later workflow resumption.
+    normative_sources:
+      - TL-INV-004
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-006
+    statement: >-
+      For every nonterminal main-agent step, a workflow-to-main-agent-to-workflow control path is admissible.
+    normative_sources:
+      - TL-INV-004
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-007
+    statement: >-
+      A workflow can represent more than one main-agent step or handoff; the architecture does not impose a single-handoff limit.
+    normative_sources:
+      - TL-INV-005
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-008
+    statement: >-
+      While a main-agent region is active, the workflow remains the enclosing execution and local agent autonomy does not redefine the workflow's remaining declared progression.
+    normative_sources:
+      - TL-INV-006
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-009
+    statement: >-
+      Sufficient workflow execution state and the correct continuation remain represented independently of the main agent's conversational recollection so workflow resumption does not require reconstruction from agent memory.
+    normative_sources:
+      - TL-INV-007
+      - TL-INV-010
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-010
+    statement: >-
+      Acceptance of a workflow invocation preserves a structured return relation carrying the appropriate continuation to that invocation's exact immediate caller context.
+    normative_sources:
+      - TL-INV-008
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-011
+    statement: >-
+      Normal completion of an invocation returns that exact invocation occurrence to the same immediate caller context and authorizes only the continuation appropriate to that caller.
+    normative_sources:
+      - TL-INV-008
+      - TL-INV-018
+      - TL-INV-019
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-012
+    statement: >-
+      A TURNLOCK main-agent continuation preserves one continuing abstract main-agent lineage rather than silently replacing it with a distinct independent-agent lineage.
+    normative_sources:
+      - TL-INV-009
+      - TL-INV-014
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-013
+    statement: >-
+      A concrete harness realization presented as a TURNLOCK main-agent step preserves the required interactive and cognitive-lineage continuity, and any weaker capability is explicitly identified as weaker rather than represented as equivalent.
+    normative_sources:
+      - TL-INV-009
+      - TL-INV-014
+    assurance_domain: conformance
+  - id: TL-CLAIM-014
+    statement: >-
+      Every harness declared supported by TURNLOCK realizes the same abstract TURNLOCK workflow semantics; harness-specific mechanisms or capability limitations do not silently redefine those semantics.
+    normative_sources:
+      - TL-INV-011
+      - TL-INV-022
+    assurance_domain: conformance
+  - id: TL-CLAIM-015
+    statement: >-
+      Mechanical execution, raw LLM inference, independent-agent execution, and main-agent continuation remain semantically distinct execution forms.
+    normative_sources:
+      - TL-INV-012
+      - TL-INV-028
+      - TL-INV-029
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-016
+    statement: >-
+      A concrete realization claiming one TURNLOCK cognitive execution form satisfies that form's contract rather than silently substituting another form.
+    normative_sources:
+      - TL-INV-012
+      - TL-INV-028
+    assurance_domain: conformance
+  - id: TL-CLAIM-017
+    statement: >-
+      A concrete implementation does not delegate hidden global scheduling or workflow reconstruction to an agent while claiming workflow-owned orchestration or independent workflow execution.
+    normative_sources:
+      - TL-INV-013
+      - TL-INV-032
+    assurance_domain: conformance
+  - id: TL-CLAIM-018
+    statement: >-
+      A main-agent step restores the ordinary interactive coding-agent behavior required by that region and is not reduced to a stateless or one-shot request/response mechanism.
+    normative_sources:
+      - TL-INV-015
+    assurance_domain: conformance
+  - id: TL-CLAIM-019
+    statement: >-
+      Whenever the session main agent owns control, TURNLOCK workflows available to that session remain invocable, including when that control was reached through a main-agent region of another workflow.
+    normative_sources:
+      - TL-INV-016
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-020
+    statement: >-
+      An accepted nested invocation suspends and preserves its immediate caller rather than discarding, replacing, or implicitly completing that caller.
+    normative_sources:
+      - TL-INV-017
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-021
+    statement: >-
+      Accepted invocation occurrences remain distinct even when a workflow identity repeats through recursive or cyclic invocation.
+    normative_sources:
+      - TL-INV-017
+      - TL-INV-018
+      - TL-INV-035
+      - TL-INV-037
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-022
+    statement: >-
+      A recursive or cyclic workflow invocation can be admitted when otherwise authorized and admissible; equality with or reachability to an ancestor workflow identity is not itself a rejection condition.
+    normative_sources:
+      - TL-INV-017
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-023
+    statement: >-
+      A nested callee cannot replace, rewrite, capture, skip, or implicitly complete an ancestor invocation's preserved continuation or declared progression.
+    normative_sources:
+      - TL-INV-019
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-024
+    statement: >-
+      Workflows authored directly by developers and workflows authored or modified by coding agents target the same semantic workflow artifact and execution model.
+    normative_sources:
+      - TL-INV-020
+    assurance_domain: conformance
+  - id: TL-CLAIM-025
+    statement: >-
+      TURNLOCK author-facing primitives directly express TURNLOCK control concepts so workflow authors do not need to encode harness-internal control mechanisms.
+    normative_sources:
+      - TL-INV-021
+    assurance_domain: architecture
+  - id: TL-CLAIM-026
+    statement: >-
+      TURNLOCK semantics remain independent of any one coding harness, and Pi-specific or other reference-harness mechanics do not become normative merely because they are implemented first.
+    normative_sources:
+      - TL-INV-022
+      - TL-INV-023
+    assurance_domain: architecture
+  - id: TL-CLAIM-027
+    statement: >-
+      Workflow-owned parallel fan-out and fan-in can represent independent semantic work, including admissible heterogeneous branch types and main-agent continuation.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-027
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-028
+    statement: >-
+      Parallel composition preserves each branch type's lifecycle, context, authority, completion, effects, lineage, and declared output semantics while fan-out, synchronization, collection, join, and continuation remain workflow-owned.
+    normative_sources:
+      - TL-INV-024
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-029
+    statement: >-
+      A main-agent handoff reached inside one parallel branch is local to that branch and does not implicitly suspend unrelated sibling branches that remain enabled by the declared topology.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-027
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-030
+    statement: >-
+      Completion of one branch, including a main-agent branch, cannot make a post-join continuation eligible before the declared join requirements are satisfied.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-027
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-031
+    statement: >-
+      When the declared requirements of a particular join occurrence are satisfied, its declared post-join continuation becomes eligible according to the workflow topology; eventual advancement is a separate liveness obligation.
+    normative_sources:
+      - TL-INV-027
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-032
+    statement: >-
+      A nested workflow invocation can occur as branch-local composition inside an admissible parallel or otherwise restricted context and is not treated as a separate parallel execution form.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-033
+    statement: >-
+      A workflow can directly declare an independent-agent execution region without yielding to the main agent solely to create an agent already required by the workflow topology.
+    normative_sources:
+      - TL-INV-025
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-034
+    statement: >-
+      Each workflow-declared independent-agent occurrence has a fresh cognitive lineage distinct from the session main-agent lineage.
+    normative_sources:
+      - TL-INV-025
+      - TL-INV-026
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-035
+    statement: >-
+      An independent-agent region may exercise its declared local semantic and discretionary authority without acquiring ownership of enclosing global workflow orchestration.
+    normative_sources:
+      - TL-INV-025
+      - TL-INV-030
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-036
+    statement: >-
+      Workflow semantics can explicitly delegate local nested-workflow selection and invocation authority to an independent agent, including dynamic selection without a universal requirement to pre-enumerate every exact callee identity.
+    normative_sources:
+      - TL-INV-025
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-037
+    statement: >-
+      Independent-agent status, local judgment, tool or shell access, TURNLOCK access, workflow visibility, or knowledge of a workflow do not by themselves grant TURNLOCK semantic authority to create a nested workflow invocation.
+    normative_sources:
+      - TL-INV-025
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-038
+    statement: >-
+      Delegated independent-agent nested-invocation authority does not transfer ownership of enclosing sequencing, branching, fan-out, synchronization, join, continuation, or main-agent transitions.
+    normative_sources:
+      - TL-INV-025
+      - TL-INV-030
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-039
+    statement: >-
+      If an independent-agent occurrence reaches normal completion, TURNLOCK recognizes that completion, follows the workflow-declared continuation, and makes any output required by the region contract available.
+    normative_sources:
+      - TL-INV-025
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-040
+    statement: >-
+      A concrete independent-agent realization provides autonomous multi-turn local behavior compatible with the region's declared mission, distinct lineage, and available local authority.
+    normative_sources:
+      - TL-INV-025
+    assurance_domain: conformance
+  - id: TL-CLAIM-041
+    statement: >-
+      The initial cognitive context of a workflow-declared independent agent contains no implicit inheritance of main-agent cognitive context; semantic inputs from that context are supplied explicitly through workflow semantics.
+    normative_sources:
+      - TL-INV-026
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-042
+    statement: >-
+      Concrete independent-agent context construction satisfies the explicit-input and no-implicit-main-context contract.
+    normative_sources:
+      - TL-INV-026
+    assurance_domain: conformance
+  - id: TL-CLAIM-043
+    statement: >-
+      The no-implicit-context rule does not prohibit explicitly supplied main-agent-derived summaries, artifacts, files, or prior results, and does not prohibit an independent agent from acquiring information later through its available capabilities.
+    normative_sources:
+      - TL-INV-026
+    assurance_domain: conformance
+  - id: TL-CLAIM-044
+    statement: >-
+      Raw LLM inference is directly available as a declared bounded non-agentic semantic operation without requiring creation of an autonomous agent loop or a main-agent handoff solely to obtain model intelligence.
+    normative_sources:
+      - TL-INV-028
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-045
+    statement: >-
+      A raw LLM inference occurrence has no autonomous observe-reason-act loop, no persistent independent cognitive lineage, and no global workflow-orchestration authority.
+    normative_sources:
+      - TL-INV-028
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-046
+    statement: >-
+      A raw LLM inference semantic operation has explicit instruction and context and a result boundary while remaining bounded and non-agentic.
+    normative_sources:
+      - TL-INV-028
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-047
+    statement: >-
+      The authoring model preserves the author's ability to choose the least powerful execution form semantically sufficient for a region rather than collapsing all cognitive work into one universal agent step.
+    normative_sources:
+      - TL-INV-029
+    assurance_domain: semantic-quality
+  - id: TL-CLAIM-048
+    statement: >-
+      The required core TURNLOCK execution and control forms are jointly composable so known orchestration decisions can remain executable workflow logic rather than being delegated back to an agent for lack of expressive power.
+    normative_sources:
+      - TL-INV-031
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-049
+    statement: >-
+      The authoring and control surface provides a sufficiently small orthogonal set of primitives to express the required workflow space without forcing known decisions back into agent interpretation.
+    normative_sources:
+      - TL-INV-031
+    assurance_domain: architecture
+  - id: TL-CLAIM-050
+    statement: >-
+      The identity or nature of a workflow's author does not confer runtime orchestration authority, and an authored or generated workflow remains independently represented and executed.
+    normative_sources:
+      - TL-INV-032
+    assurance_domain: architecture
+  - id: TL-CLAIM-051
+    statement: >-
+      For an accepted invocation whose normal completion or other terminal or cessation outcome is observed by TURNLOCK, inspection exposes the actual realized execution or realized prefix and only terminal facts TURNLOCK actually knows.
+    normative_sources:
+      - TL-INV-033
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-052
+    statement: >-
+      Inspectable execution truth preserves occurrence distinctions and multiplicity, structural and causal relationships, effective control resolutions, and input or result attribution whenever those distinctions are necessary to determine realized progression.
+    normative_sources:
+      - TL-INV-033
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-053
+    statement: >-
+      Inspection does not impose an artificial total order on concurrent occurrences that TURNLOCK semantics do not causally order.
+    normative_sources:
+      - TL-INV-033
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-054
+    statement: >-
+      Inspection that depends on workflow definition semantics uses the exact governing definition that actually governed the invocation rather than a later mutable workflow definition.
+    normative_sources:
+      - TL-INV-033
+      - TL-INV-037
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-055
+    statement: >-
+      Required execution truth is not irreversibly lost before a realizable terminal inspection handoff makes a semantically sufficient representation acquirable by an eligible inspection context.
+    normative_sources:
+      - TL-INV-033
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-056
+    statement: >-
+      A concrete inspection realization provides a semantically sufficient representation to an eligible inspection context while preserving the distinction between underlying execution truth and a potentially more restrictive consumer-visible disclosure view.
+    normative_sources:
+      - TL-INV-033
+    assurance_domain: conformance
+  - id: TL-CLAIM-057
+    statement: >-
+      TURNLOCK Core defines no universal evaluation objective, universal quality metric, default superiority relation, experiment policy, or autonomous workflow optimizer.
+    normative_sources:
+      - TL-INV-034
+    assurance_domain: architecture
+  - id: TL-CLAIM-058
+    statement: >-
+      Evaluation or optimization behavior receives no privileged runtime authority, and workflow improvement remains authorship rather than active invocation replanning.
+    normative_sources:
+      - TL-INV-034
+    assurance_domain: architecture
+  - id: TL-CLAIM-059
+    statement: >-
+      A workflow-declared invocation can execute directly from declared workflow topology without a main-agent handoff whose only purpose would be to reproduce an invocation decision already present in that topology.
+    normative_sources:
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-060
+    statement: >-
+      A declared nested invocation suspends only the calling continuation associated with that invocation and does not implicitly suspend independently active concurrent contexts allowed to continue by the declared topology.
+    normative_sources:
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-061
+    statement: >-
+      An attempted invocation rejected before acceptance creates no accepted callee, callee lifetime, governing definition, or call-return episode and does not enable the normal successful post-call continuation.
+    normative_sources:
+      - TL-INV-035
+      - TL-INV-037
+      - TL-INV-041
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-062
+    statement: >-
+      Every effective execution condition that TURNLOCK selects, binds, explicitly supplies, or resolves remains semantically distinguished and attributable to the execution scope it governs until the required semantic-boundary capture handoff.
+    normative_sources:
+      - TL-INV-036
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-063
+    statement: >-
+      Required execution-condition provenance is not irreversibly lost before TURNLOCK discharges its side of the realizable semantic-boundary capture handoff.
+    normative_sources:
+      - TL-INV-036
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-064
+    statement: >-
+      A concrete provenance-capture boundary is realizable without depending on inaccessible transient internal state or accidental timing, and discharge does not require an actual consumer, successful delivery, processing, or acknowledgment.
+    normative_sources:
+      - TL-INV-036
+    assurance_domain: conformance
+  - id: TL-CLAIM-065
+    statement: >-
+      An execution condition outside TURNLOCK observation or control may remain unknown or unavailable, and unknown provenance is not represented as known-equal across executions or as evidence that no relevant difference exists.
+    normative_sources:
+      - TL-INV-036
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-066
+    statement: >-
+      Known but protected execution-condition provenance retains condition-specific information bound to its occurrence and governed scope through the required capture handoff; redaction does not replace that underlying provenance with unknown or with a generic marker as the sole representation.
+    normative_sources:
+      - TL-INV-036
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-067
+    statement: >-
+      Later failure, cancellation, or interruption does not retroactively erase a condition's governed-scope attribution or its pre-handoff provenance obligation.
+    normative_sources:
+      - TL-INV-036
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-068
+    statement: >-
+      Every accepted invocation has one governing workflow definition no later than acceptance, and that governing definition remains unchanged throughout the invocation's active lifetime without active replanning or rebinding.
+    normative_sources:
+      - TL-INV-037
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-069
+    statement: >-
+      Each accepted nested invocation independently binds its own governing definition, and repeated workflow identity does not merge invocation occurrences or their governing bindings.
+    normative_sources:
+      - TL-INV-037
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-070
+    statement: >-
+      A descendant or later invocation can bind a resolved governing definition different from an active ancestor's governing definition without rebinding or mutating that ancestor.
+    normative_sources:
+      - TL-INV-037
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-071
+    statement: >-
+      For a successfully admitted invocation, the workflow definition whose composition was admitted is exactly the definition bound as governing at acceptance; a rejected attempt binds no governing definition.
+    normative_sources:
+      - TL-INV-037
+      - TL-INV-041
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-072
+    statement: >-
+      When an execution-relevant realization is not fixed by TURNLOCK semantics and a semantically preserving alternative is technically realizable at runtime, TURNLOCK Core provides a supported runtime composition path for that alternative without requiring Core modification or recompilation.
+    normative_sources:
+      - TL-INV-038
+    assurance_domain: conformance
+  - id: TL-CLAIM-073
+    statement: >-
+      A runtime-supplied realization can become effective before the first causal use it is intended to govern.
+    normative_sources:
+      - TL-INV-038
+    assurance_domain: conformance
+  - id: TL-CLAIM-074
+    statement: >-
+      Once an external realization has been accepted as governing an applicable use, that governed use does not silently execute through a different realization unless applicable TURNLOCK semantics authorize the alternative.
+    normative_sources:
+      - TL-INV-038
+    assurance_domain: conformance
+  - id: TL-CLAIM-075
+    statement: >-
+      The same continuing main-agent cognitive lineage is not admitted into two independently concurrent, non-causally-ordered continuations.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-039
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-076
+    statement: >-
+      Multiple uses of the same continuing main-agent lineage remain admissible when declared causal ordering or established mutual exclusion prevents them from becoming unordered concurrent continuations.
+    normative_sources:
+      - TL-INV-039
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-077
+    statement: >-
+      An incompatible topology is not made conforming by scheduler order, silent serialization, lineage cloning, execution-form substitution, or invented causal order; when required compatibility cannot be established, the topology or invocation is not admitted.
+    normative_sources:
+      - TL-INV-039
+      - TL-INV-041
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-078
+    statement: >-
+      Every invocation subtree causally rooted in an independent-agent-selected nested invocation is unable to transitively reach the coding session's existing main-agent cognitive lineage across nested, declared, parallel, recursive, or cyclic composition.
+    normative_sources:
+      - TL-INV-040
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-079
+    statement: >-
+      After structured return from an independent-agent-selected invocation subtree and appropriate continuation or completion of its independent-agent caller, the enclosing parent workflow can later select a main-agent continuation through its own declared semantics.
+    normative_sources:
+      - TL-INV-040
+    assurance_domain: formal-behavioral
+    modality: reachability
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-080
+    statement: >-
+      A nested workflow invocation is accepted only when it is independently authorized and preserves every applicable admissibility restriction; when required compatibility cannot be established at the acceptance boundary, the invocation is rejected.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-035
+      - TL-INV-041
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-081
+    statement: >-
+      Restrictions whose accepted scope extends into descendant composition remain effective across nested, recursive, and cyclic workflow boundaries, and neither a workflow boundary nor runtime scheduler order resets, weakens, widens, or manufactures admissibility.
+    normative_sources:
+      - TL-INV-024
+      - TL-INV-040
+      - TL-INV-041
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-082
+    statement: >-
+      Acceptance of a caller invocation does not pre-authorize future descendant invocations; every attempted nested invocation occurrence has its own admission boundary.
+    normative_sources:
+      - TL-INV-041
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-083
+    statement: >-
+      For every particular TURNLOCK-owned progression occurrence, if that occurrence is eligible and remains continuously eligible and continuously applicable under its governing workflow semantics, TURNLOCK eventually advances that same occurrence.
+    normative_sources:
+      - TL-INV-042
+    assurance_domain: formal-behavioral
+    modality: liveness
+    formal_semantic_domain: operational
+normative_coverage:
+  - invariant: TL-INV-001
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-001
+      - TL-CLAIM-002
+    residual_claims: []
+  - invariant: TL-INV-002
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-001
+      - TL-CLAIM-003
+    residual_claims: []
+  - invariant: TL-INV-003
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-003
+      - TL-CLAIM-004
+    residual_claims: []
+  - invariant: TL-INV-004
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-005
+      - TL-CLAIM-006
+    residual_claims: []
+  - invariant: TL-INV-005
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-007
+    residual_claims: []
+  - invariant: TL-INV-006
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-008
+    residual_claims: []
+  - invariant: TL-INV-007
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-009
+    residual_claims: []
+  - invariant: TL-INV-008
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-010
+      - TL-CLAIM-011
+    residual_claims: []
+  - invariant: TL-INV-009
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-012
+    residual_claims:
+      - TL-CLAIM-013
+  - invariant: TL-INV-010
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-009
+    residual_claims: []
+  - invariant: TL-INV-011
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-014
+  - invariant: TL-INV-012
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-015
+    residual_claims:
+      - TL-CLAIM-016
+  - invariant: TL-INV-013
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-001
+      - TL-CLAIM-002
+    residual_claims:
+      - TL-CLAIM-017
+  - invariant: TL-INV-014
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-012
+    residual_claims:
+      - TL-CLAIM-013
+  - invariant: TL-INV-015
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-018
+  - invariant: TL-INV-016
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-019
+    residual_claims: []
+  - invariant: TL-INV-017
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-020
+      - TL-CLAIM-021
+      - TL-CLAIM-022
+    residual_claims: []
+  - invariant: TL-INV-018
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-011
+      - TL-CLAIM-021
+    residual_claims: []
+  - invariant: TL-INV-019
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-011
+      - TL-CLAIM-023
+    residual_claims: []
+  - invariant: TL-INV-020
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-024
+  - invariant: TL-INV-021
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-025
+  - invariant: TL-INV-022
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-014
+      - TL-CLAIM-026
+  - invariant: TL-INV-023
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-026
+  - invariant: TL-INV-024
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-027
+      - TL-CLAIM-028
+      - TL-CLAIM-029
+      - TL-CLAIM-030
+      - TL-CLAIM-032
+      - TL-CLAIM-075
+      - TL-CLAIM-080
+      - TL-CLAIM-081
+    residual_claims: []
+  - invariant: TL-INV-025
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-033
+      - TL-CLAIM-034
+      - TL-CLAIM-035
+      - TL-CLAIM-036
+      - TL-CLAIM-037
+      - TL-CLAIM-038
+      - TL-CLAIM-039
+    residual_claims:
+      - TL-CLAIM-040
+  - invariant: TL-INV-026
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-034
+      - TL-CLAIM-041
+    residual_claims:
+      - TL-CLAIM-042
+      - TL-CLAIM-043
+  - invariant: TL-INV-027
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-027
+      - TL-CLAIM-029
+      - TL-CLAIM-030
+      - TL-CLAIM-031
+    residual_claims: []
+  - invariant: TL-INV-028
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-015
+      - TL-CLAIM-044
+      - TL-CLAIM-045
+      - TL-CLAIM-046
+    residual_claims:
+      - TL-CLAIM-016
+  - invariant: TL-INV-029
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-015
+    residual_claims:
+      - TL-CLAIM-047
+  - invariant: TL-INV-030
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-001
+      - TL-CLAIM-003
+      - TL-CLAIM-035
+      - TL-CLAIM-038
+    residual_claims: []
+  - invariant: TL-INV-031
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-048
+    residual_claims:
+      - TL-CLAIM-049
+  - invariant: TL-INV-032
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-017
+      - TL-CLAIM-050
+  - invariant: TL-INV-033
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-051
+      - TL-CLAIM-052
+      - TL-CLAIM-053
+      - TL-CLAIM-054
+      - TL-CLAIM-055
+    residual_claims:
+      - TL-CLAIM-056
+  - invariant: TL-INV-034
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-057
+      - TL-CLAIM-058
+  - invariant: TL-INV-035
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-010
+      - TL-CLAIM-011
+      - TL-CLAIM-020
+      - TL-CLAIM-021
+      - TL-CLAIM-022
+      - TL-CLAIM-023
+      - TL-CLAIM-032
+      - TL-CLAIM-059
+      - TL-CLAIM-060
+      - TL-CLAIM-061
+      - TL-CLAIM-080
+    residual_claims: []
+  - invariant: TL-INV-036
+    canonical_operational_coverage: partial
+    formal_claims:
+      - TL-CLAIM-062
+      - TL-CLAIM-063
+      - TL-CLAIM-065
+      - TL-CLAIM-066
+      - TL-CLAIM-067
+    residual_claims:
+      - TL-CLAIM-064
+  - invariant: TL-INV-037
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-021
+      - TL-CLAIM-054
+      - TL-CLAIM-061
+      - TL-CLAIM-068
+      - TL-CLAIM-069
+      - TL-CLAIM-070
+      - TL-CLAIM-071
+    residual_claims: []
+  - invariant: TL-INV-038
+    canonical_operational_coverage: none
+    formal_claims: []
+    residual_claims:
+      - TL-CLAIM-072
+      - TL-CLAIM-073
+      - TL-CLAIM-074
+  - invariant: TL-INV-039
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-075
+      - TL-CLAIM-076
+      - TL-CLAIM-077
+    residual_claims: []
+  - invariant: TL-INV-040
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-078
+      - TL-CLAIM-079
+      - TL-CLAIM-081
+    residual_claims: []
+  - invariant: TL-INV-041
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-061
+      - TL-CLAIM-071
+      - TL-CLAIM-077
+      - TL-CLAIM-080
+      - TL-CLAIM-081
+      - TL-CLAIM-082
+    residual_claims: []
+  - invariant: TL-INV-042
+    canonical_operational_coverage: full
+    formal_claims:
+      - TL-CLAIM-083
+    residual_claims: []
+formal_realizations: []
