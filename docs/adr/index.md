@@ -54,6 +54,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-035](adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md) | Define transitive nested-composition admissibility and fail-closed invocation acceptance | accepted | 2026-09-18 | complete | General transitive admissibility closure for nested workflow composition<br>Per-invocation fail-closed admission before nested invocation acceptance<br>Workflow invocation inside parallel or otherwise restricted contexts when independently authorized and admissible<br>Pre-acceptance rejection semantics for nested invocation attempts |
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | Define occurrence-scoped conditional orchestration progress without universal completion | accepted | 2026-09-18 | complete | Separation of execution-resource completion from TURNLOCK-owned orchestration progress<br>Structural control consequences after recognized completion, yield, return, and join satisfaction<br>Occurrence-scoped conditional non-starvation of continuously enabled TURNLOCK-owned progression<br>Absence of a universal TURNLOCK completion guarantee |
 | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) | Require eventual advance of continuously enabled orchestration progress | accepted | 2026-09-18 | complete | Unqualified eventual advance of continuously enabled and applicable TURNLOCK-owned progression<br>Removal of competing-progress or scheduling-cause as a precondition of TL-INV-042<br>Non-conformance of indefinite engine inaction while eligible progression remains applicable |
+| [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | Assume native harness workflow convergence | accepted | 2026-09-19 | complete | Architectural treatment of increasing native workflow capabilities in coding-agent harnesses<br>TURNLOCK value independence from current harness capability gaps<br>Reuse of semantically compatible harness-native mechanisms as execution realizations<br>Perfect-harness stress test for TURNLOCK architecture and implementation proposals |
 
 ## Recorded outgoing relations
 
@@ -143,6 +144,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | clarifies | [ADR-023](adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md) |
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | clarifies | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) |
 | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) | amends | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
+| [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | clarifies | [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) |
+| [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | confirms | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 
 ## Derived incoming relations
 
@@ -177,6 +180,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-035](adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md) |
 | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) | clarified by | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-009](adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md) | clarified by | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) |
+| [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) | clarified by | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) |
 | [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-020](adr-020-define-independent-agent-context-provenance.md) |
 | [ADR-011](adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md) | clarified by | [ADR-021](adr-021-separate-independent-agent-completion-output-and-effects.md) |
@@ -226,6 +230,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | clarified by | [ADR-034](adr-034-delegate-nested-workflow-invocation-to-independent-agent-regions-without-main-agent-reachability.md) |
 | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) | confirmed by | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | clarified by | [ADR-031](adr-031-clarify-the-runtime-realization-composability-trigger.md) |
+| [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) | confirmed by | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) |
 | [ADR-032](adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md) | clarified by | [ADR-035](adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md) |
 | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarified by | [ADR-034](adr-034-delegate-nested-workflow-invocation-to-independent-agent-regions-without-main-agent-reachability.md) |
 | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarified by | [ADR-035](adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md) |
