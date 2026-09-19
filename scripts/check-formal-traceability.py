@@ -51,9 +51,19 @@ GATE_A_REVIEW_CLASS = "assurance-decomposition"
 GATE_A_SUBJECT_SELECTOR = "gate-a-assurance-decomposition-v1"
 GATE_A_BLOCKING_STATUSES = {"open", "routed", "resolved"}
 REVIEW_PACKET_PREFIX = "formal/reviews/packets/"
+REVIEW_PACKET_SUFFIX = ".json"
 REVIEW_PROMPT_PREFIX = "formal/reviews/prompts/"
 REVIEW_RAW_OUTPUT_PREFIX = "formal/reviews/raw/"
 REVIEW_CHALLENGE_PREFIX = "formal/reviews/challenges/"
+REVIEW_TEXT_SUFFIX = ".md"
+REVIEW_ARTIFACT_PREFIXES = (
+    REVIEW_PACKET_PREFIX,
+    REVIEW_PROMPT_PREFIX,
+    REVIEW_RAW_OUTPUT_PREFIX,
+    REVIEW_CHALLENGE_PREFIX,
+)
+REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
+REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
 MATERIALITY_AXES = (
     "authority_or_upstream_decision",
     "claim_structure",
@@ -68,6 +78,19 @@ FUTURE_EVIDENCE_NOTE = "NOT-APPLICABLE (candidate model absent)"
 
 def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def _canonical_json_document_bytes(value: object) -> bytes:
+    return _canonical_json_bytes(value) + b"\n"
 
 
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
@@ -267,10 +290,12 @@ def load_review_records(root: Path) -> tuple[list[tuple[Path, dict]], list[str]]
             continue
         if path.name == REVIEW_SCHEMA_RELATIVE.name:
             continue
+        label = path.relative_to(root).as_posix()
+        if any(label.startswith(prefix) for prefix in REVIEW_ARTIFACT_PREFIXES):
+            continue
         suffix = path.suffix.lower()
         if suffix not in REVIEW_SUFFIXES:
             continue
-        label = path.relative_to(root).as_posix()
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
@@ -301,49 +326,302 @@ def _finding_is_material(finding: dict) -> bool:
     return any(materiality.get(axis) is True for axis in MATERIALITY_AXES)
 
 
-def _review_artifact_errors(
+def _read_review_artifact(
     root: Path,
     reference: object,
     label: str,
     prefix: str,
-) -> list[str]:
-    """Validate a repository-relative, content-addressed review artifact."""
-    errors: list[str] = []
+    suffix: str,
+) -> tuple[bytes | None, list[str]]:
+    """Read a review artifact reached through a direct non-symlink path."""
     artifact = _mapping(reference)
     raw_path = artifact.get("path")
     expected_sha = artifact.get("sha256")
     if not isinstance(raw_path, str) or not raw_path:
-        errors.append(f"{label}: artifact path must be a non-empty string")
-        return errors
+        return None, [f"{label}: artifact path must be a non-empty string"]
     path = Path(raw_path)
     if path.is_absolute():
-        errors.append(f"{label}: artifact path must be repository-relative: {raw_path}")
-        return errors
+        return None, [f"{label}: artifact path must be repository-relative: {raw_path}"]
     if ".." in path.parts:
-        errors.append(f"{label}: artifact path must not contain '..': {raw_path}")
-        return errors
+        return None, [f"{label}: artifact path must not contain '..': {raw_path}"]
     normalized = path.as_posix()
     if not normalized.startswith(prefix):
-        errors.append(f"{label}: artifact path must be under {prefix}: {raw_path}")
-        return errors
-    if not normalized.endswith(".md"):
-        errors.append(f"{label}: artifact path must be a Markdown file: {raw_path}")
-        return errors
-    target = root / normalized
+        return None, [f"{label}: artifact path must be under {prefix}: {raw_path}"]
+    if not normalized.endswith(suffix):
+        return None, [f"{label}: artifact path must use the {suffix} suffix: {raw_path}"]
+
+    root_resolved = root.resolve()
+    target = root_resolved
+    for part in path.parts:
+        target = target / part
+        if target.is_symlink():
+            return None, [
+                f"{label}: artifact path must not traverse symlinks: {raw_path}"
+            ]
+
     if not target.exists():
-        errors.append(f"{label}: artifact does not exist: {raw_path}")
-        return errors
+        return None, [f"{label}: artifact does not exist: {raw_path}"]
     if not target.is_file():
-        errors.append(f"{label}: artifact is not a regular file: {raw_path}")
-        return errors
+        return None, [f"{label}: artifact is not a regular file: {raw_path}"]
+
+    allowed_directory = (root_resolved / prefix.rstrip("/")).resolve()
+    try:
+        resolved_target = target.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        return None, [f"{label}: artifact cannot be resolved: {raw_path} ({error})"]
+    for container in (root_resolved, allowed_directory):
+        try:
+            resolved_target.relative_to(container)
+        except ValueError:
+            return None, [
+                f"{label}: artifact resolved path escapes allowed directory: {raw_path}"
+            ]
+
     try:
         data = target.read_bytes()
     except OSError as error:
-        errors.append(f"{label}: cannot read artifact {raw_path}: {error}")
-        return errors
+        return None, [f"{label}: cannot read artifact {raw_path}: {error}"]
     if expected_sha != sha256_hex(data):
-        errors.append(f"{label}: artifact sha256 does not match {raw_path}")
+        return None, [f"{label}: artifact sha256 does not match {raw_path}"]
+    return data, []
+
+
+def _gate_a_review_packet_authority_errors(
+    packet: dict,
+    subject_payload: dict,
+    label: str,
+) -> list[str]:
+    """Validate embedded authority contents against the reviewed subject payload."""
+    errors: list[str] = []
+    authority = _mapping(subject_payload.get("authority"))
+
+    expected_metadata: list[dict] = []
+    normative_spec = authority.get("normative_spec")
+    if isinstance(normative_spec, dict):
+        expected_metadata.append(
+            {
+                "role": "normative-spec",
+                "id": None,
+                "path": normative_spec.get("path"),
+                "sha256": normative_spec.get("sha256"),
+            }
+        )
+    for relation, role in (
+        ("architecture_decisions", "architecture-decision"),
+        ("abstraction_constraints", "abstraction-constraint"),
+    ):
+        descriptors = [
+            descriptor
+            for descriptor in _sequence(authority.get(relation))
+            if isinstance(descriptor, dict)
+        ]
+        descriptors.sort(key=lambda descriptor: str(descriptor.get("id", "")))
+        for descriptor in descriptors:
+            expected_metadata.append(
+                {
+                    "role": role,
+                    "id": descriptor.get("id"),
+                    "path": descriptor.get("path"),
+                    "sha256": descriptor.get("sha256"),
+                }
+            )
+
+    authority_contents = packet.get("authority_contents")
+    if not isinstance(authority_contents, list):
+        return [
+            f"{label}: Gate A review packet authority contents do not match "
+            "subject authority"
+        ]
+    if len(authority_contents) != len(expected_metadata):
+        return [
+            f"{label}: Gate A review packet authority contents do not match "
+            "subject authority"
+        ]
+
+    expected_entry_keys = {"role", "id", "path", "sha256", "content_utf8"}
+    for entry, expected in zip(authority_contents, expected_metadata):
+        if not isinstance(entry, dict) or set(entry) != expected_entry_keys:
+            errors.append(
+                f"{label}: Gate A review packet authority contents do not match "
+                "subject authority"
+            )
+            continue
+        actual = {key: entry.get(key) for key in ("role", "id", "path", "sha256")}
+        if actual != expected:
+            errors.append(
+                f"{label}: Gate A review packet authority contents do not match "
+                "subject authority"
+            )
+            continue
+        content = entry.get("content_utf8")
+        if not isinstance(content, str):
+            errors.append(
+                f"{label}: Gate A review packet authority contents do not match "
+                "subject authority"
+            )
+            continue
+        if sha256_hex(content.encode("utf-8")) != entry.get("sha256"):
+            errors.append(
+                f"{label}: Gate A review packet authority content sha256 mismatch"
+            )
     return errors
+
+
+def _gate_a_review_packet_errors(
+    packet_bytes: bytes,
+    record_subjects: object,
+    label: str,
+) -> list[str]:
+    """Validate a self-contained canonical Gate A review packet."""
+    try:
+        text = packet_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return [f"{label}: Gate A review packet must be valid UTF-8"]
+    try:
+        packet = json.loads(text)
+    except json.JSONDecodeError:
+        return [f"{label}: Gate A review packet must be valid JSON"]
+    if not isinstance(packet, dict):
+        return [f"{label}: Gate A review packet must be a JSON object"]
+
+    errors: list[str] = []
+    if packet_bytes != _canonical_json_document_bytes(packet):
+        errors.append(
+            f"{label}: Gate A review packet must use canonical JSON serialization"
+        )
+
+    expected_top_level_keys = {
+        "packet_schema_version",
+        "subject",
+        "subject_payload",
+        "authority_contents",
+    }
+    if set(packet) != expected_top_level_keys:
+        errors.append(
+            f"{label}: Gate A review packet must contain exactly "
+            "packet_schema_version, subject, subject_payload, authority_contents"
+        )
+        return errors
+
+    if packet.get("packet_schema_version") != 1:
+        errors.append(
+            f"{label}: Gate A review packet packet_schema_version must be 1"
+        )
+
+    subject = packet.get("subject")
+    if not isinstance(subject, dict) or set(subject) != {
+        "subject_type",
+        "selector",
+        "sha256",
+    }:
+        errors.append(
+            f"{label}: Gate A review packet subject must contain exactly "
+            "subject_type, selector, sha256"
+        )
+        return errors
+    if subject.get("subject_type") != "derived":
+        errors.append(
+            f"{label}: Gate A review packet subject subject_type must be derived"
+        )
+    if subject.get("selector") != GATE_A_SUBJECT_SELECTOR:
+        errors.append(
+            f"{label}: Gate A review packet subject selector must be "
+            f"{GATE_A_SUBJECT_SELECTOR}"
+        )
+
+    subject_payload = packet.get("subject_payload")
+    if not isinstance(subject_payload, dict):
+        errors.append(
+            f"{label}: Gate A review packet subject_payload must be a JSON object"
+        )
+        return errors
+    if subject_payload.get("subject_schema_version") != 1:
+        errors.append(
+            f"{label}: Gate A review packet subject_payload subject_schema_version "
+            "must be 1"
+        )
+    if subject_payload.get("selector") != GATE_A_SUBJECT_SELECTOR:
+        errors.append(
+            f"{label}: Gate A review packet subject_payload selector must be "
+            f"{GATE_A_SUBJECT_SELECTOR}"
+        )
+
+    expected_subject_sha = sha256_hex(_canonical_json_bytes(subject_payload))
+    if subject.get("sha256") != expected_subject_sha:
+        errors.append(
+            f"{label}: Gate A review packet subject sha256 does not match "
+            "subject_payload"
+        )
+
+    if not any(
+        isinstance(item, dict) and item == subject
+        for item in _sequence(record_subjects)
+    ):
+        errors.append(
+            f"{label}: Gate A review packet subject is not one of the review "
+            "record subjects"
+        )
+
+    errors.extend(
+        _gate_a_review_packet_authority_errors(packet, subject_payload, label)
+    )
+    return errors
+
+
+def _refutation_challenge_subject_payload(finding: dict) -> dict:
+    """Build the canonical refutation-challenge subject payload for a finding."""
+    disposition = _mapping(finding.get("disposition"))
+    sources = [
+        {
+            "execution_id": source.get("execution_id"),
+            "raw_finding_id": source.get("raw_finding_id"),
+        }
+        for source in _sequence(finding.get("sources"))
+        if isinstance(source, dict)
+    ]
+    sources.sort(
+        key=lambda source: (
+            str(source.get("execution_id", "")),
+            str(source.get("raw_finding_id", "")),
+        )
+    )
+    evidence_references = sorted(
+        reference
+        for reference in _sequence(disposition.get("evidence_references"))
+        if isinstance(reference, str)
+    )
+    return {
+        "subject_schema_version": REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION,
+        "selector": REFUTATION_CHALLENGE_SELECTOR,
+        "finding": {
+            "finding_id": finding.get("finding_id"),
+            "sources": sources,
+            "statement": finding.get("statement"),
+            "argument": finding.get("argument"),
+            "counterexample": finding.get("counterexample"),
+            "materiality": dict(_mapping(finding.get("materiality"))),
+            "status": finding.get("status"),
+            "refutation": {
+                "kind": disposition.get("kind"),
+                "ground": disposition.get("ground"),
+                "attacked_premise_or_inference": disposition.get(
+                    "attacked_premise_or_inference"
+                ),
+                "evidence_references": evidence_references,
+                "argument": disposition.get("argument"),
+                "counterexample_disposition": disposition.get(
+                    "counterexample_disposition"
+                ),
+            },
+        },
+    }
+
+
+def _refutation_challenge_subject_sha256(finding: dict) -> str:
+    """Hash the canonical refutation-challenge subject for a finding."""
+    return sha256_hex(
+        _canonical_json_bytes(_refutation_challenge_subject_payload(finding))
+    )
 
 
 def _refutation_errors(
@@ -371,29 +649,37 @@ def _refutation_errors(
                 f"{label}: finding {finding_id!r} declares a counterexample and "
                 "requires counterexample_disposition"
             )
-    if not _finding_is_material(finding):
-        return errors
     challenge = disposition.get("challenge")
-    if not isinstance(challenge, dict):
+    if _finding_is_material(finding) and not isinstance(challenge, dict):
         errors.append(
             f"{label}: material refuted finding {finding_id!r} requires a challenge "
             "artifact"
         )
+    if not isinstance(challenge, dict):
         return errors
+
     challenger_execution_id = challenge.get("challenger_execution_id")
     if challenger_execution_id not in declared_raw_ids:
         errors.append(
             f"{label}: finding {finding_id!r} challenge references unknown execution "
             f"{challenger_execution_id!r}"
         )
-    errors.extend(
-        _review_artifact_errors(
-            root,
-            _mapping(challenge.get("output")),
-            f"{label}: finding {finding_id!r} challenge output",
-            REVIEW_CHALLENGE_PREFIX,
+
+    expected_refutation_sha = _refutation_challenge_subject_sha256(finding)
+    if challenge.get("challenged_refutation_sha256") != expected_refutation_sha:
+        errors.append(
+            f"{label}: finding {finding_id!r} challenge does not bind the exact "
+            "refutation"
         )
+
+    _, output_errors = _read_review_artifact(
+        root,
+        _mapping(challenge.get("output")),
+        f"{label}: finding {finding_id!r} challenge output",
+        REVIEW_CHALLENGE_PREFIX,
+        REVIEW_TEXT_SUFFIX,
     )
+    errors.extend(output_errors)
     return errors
 
 
@@ -427,22 +713,40 @@ def _review_evidence_errors(
         protocol = _mapping(record.get("protocol"))
         review_packet = _mapping(protocol.get("review_packet"))
         prompt = _mapping(protocol.get("prompt"))
-        errors.extend(
-            _review_artifact_errors(
-                root,
-                review_packet,
-                f"{label}: protocol.review_packet",
-                REVIEW_PACKET_PREFIX,
+        packet_bytes, packet_errors = _read_review_artifact(
+            root,
+            review_packet,
+            f"{label}: protocol.review_packet",
+            REVIEW_PACKET_PREFIX,
+            REVIEW_PACKET_SUFFIX,
+        )
+        errors.extend(packet_errors)
+        _, prompt_errors = _read_review_artifact(
+            root,
+            prompt,
+            f"{label}: protocol.prompt",
+            REVIEW_PROMPT_PREFIX,
+            REVIEW_TEXT_SUFFIX,
+        )
+        errors.extend(prompt_errors)
+
+        is_gate_a_derived_subject_review = (
+            record.get("review_class") == GATE_A_REVIEW_CLASS
+            and any(
+                isinstance(subject, dict)
+                and subject.get("subject_type") == "derived"
+                and subject.get("selector") == GATE_A_SUBJECT_SELECTOR
+                for subject in _sequence(record.get("subjects"))
             )
         )
-        errors.extend(
-            _review_artifact_errors(
-                root,
-                prompt,
-                f"{label}: protocol.prompt",
-                REVIEW_PROMPT_PREFIX,
+        if is_gate_a_derived_subject_review and packet_bytes is not None:
+            errors.extend(
+                _gate_a_review_packet_errors(
+                    packet_bytes,
+                    record.get("subjects"),
+                    f"{label}: protocol.review_packet",
+                )
             )
-        )
 
         declared_raw_ids: dict[str, set[str]] = {}
         raw_paths: list[str] = []
@@ -459,14 +763,14 @@ def _review_evidence_errors(
                     f"{exec_label} prompt_sha256 must equal protocol.prompt.sha256"
                 )
             raw_output = _mapping(execution.get("raw_output"))
-            errors.extend(
-                _review_artifact_errors(
-                    root,
-                    raw_output,
-                    f"{exec_label} raw_output",
-                    REVIEW_RAW_OUTPUT_PREFIX,
-                )
+            _, raw_errors = _read_review_artifact(
+                root,
+                raw_output,
+                f"{exec_label} raw_output",
+                REVIEW_RAW_OUTPUT_PREFIX,
+                REVIEW_TEXT_SUFFIX,
             )
+            errors.extend(raw_errors)
             raw_path = raw_output.get("path")
             if isinstance(raw_path, str):
                 raw_paths.append(raw_path)
@@ -716,20 +1020,106 @@ def build_gate_a_review_subject(
     payload, errors = build_gate_a_subject_payload(root, manifest)
     if payload is None:
         return None, errors
-    canonical = json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode("utf-8")
     return (
         {
             "subject_type": "derived",
             "selector": GATE_A_SUBJECT_SELECTOR,
-            "sha256": sha256_hex(canonical),
+            "sha256": sha256_hex(_canonical_json_bytes(payload)),
         },
         [],
     )
+
+
+def build_gate_a_review_packet_payload(
+    root: Path,
+    manifest: dict,
+) -> tuple[dict | None, list[str]]:
+    """Build the self-contained canonical Gate A review packet payload."""
+    subject_payload, errors = build_gate_a_subject_payload(root, manifest)
+    if subject_payload is None:
+        return None, errors
+
+    subject = {
+        "subject_type": "derived",
+        "selector": GATE_A_SUBJECT_SELECTOR,
+        "sha256": sha256_hex(_canonical_json_bytes(subject_payload)),
+    }
+
+    authority = _mapping(subject_payload.get("authority"))
+    descriptors: list[tuple[str, dict, object]] = []
+    normative_spec = authority.get("normative_spec")
+    if isinstance(normative_spec, dict):
+        descriptors.append(("normative-spec", normative_spec, None))
+    else:
+        errors.append("cannot embed authority content: normative_spec is missing")
+    for relation, role in (
+        ("architecture_decisions", "architecture-decision"),
+        ("abstraction_constraints", "abstraction-constraint"),
+    ):
+        entries = [
+            descriptor
+            for descriptor in _sequence(authority.get(relation))
+            if isinstance(descriptor, dict)
+        ]
+        entries.sort(key=lambda descriptor: str(descriptor.get("id", "")))
+        for descriptor in entries:
+            descriptors.append((role, descriptor, descriptor.get("id")))
+
+    authority_contents: list[dict] = []
+    for role, descriptor, identifier in descriptors:
+        raw_path = descriptor.get("path")
+        expected_sha = descriptor.get("sha256")
+        if not isinstance(raw_path, str) or not raw_path:
+            errors.append(f"cannot embed authority content: invalid path {raw_path!r}")
+            continue
+        try:
+            data = (root / raw_path).read_bytes()
+        except OSError as error:
+            errors.append(f"cannot embed authority content {raw_path}: {error}")
+            continue
+        try:
+            content = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            errors.append(f"cannot embed authority content {raw_path}: {error}")
+            continue
+        if not isinstance(expected_sha, str) or sha256_hex(data) != expected_sha:
+            errors.append(
+                f"cannot embed authority content {raw_path}: sha256 mismatch"
+            )
+            continue
+        authority_contents.append(
+            {
+                "role": role,
+                "id": identifier,
+                "path": raw_path,
+                "sha256": expected_sha,
+                "content_utf8": content,
+            }
+        )
+
+    if errors:
+        return None, errors
+
+    return (
+        {
+            "packet_schema_version": 1,
+            "subject": subject,
+            "subject_payload": subject_payload,
+            "authority_contents": authority_contents,
+        },
+        [],
+    )
+
+
+def build_gate_a_review_packet_bytes(
+    root: Path,
+    manifest: dict,
+) -> tuple[bytes | None, list[str]]:
+    """Build the canonical JSON document bytes for the Gate A review packet."""
+    payload, errors = build_gate_a_review_packet_payload(root, manifest)
+    if payload is None:
+        return None, errors
+    return _canonical_json_document_bytes(payload), []
 
 
 def derive_gate_a(
