@@ -484,6 +484,22 @@ def review_challenge_schema_errors(fixture_root: Path, challenge: dict) -> list:
     return list(Draft202012Validator(wrapper).iter_errors(challenge))
 
 
+def fake_gate_a_subject() -> tuple[dict, dict]:
+    fake_subject_payload = {
+        "subject_schema_version": 1,
+        "selector": checker.GATE_A_SUBJECT_SELECTOR,
+        "authority": {},
+    }
+    fake_subject = {
+        "subject_type": "derived",
+        "selector": checker.GATE_A_SUBJECT_SELECTOR,
+        "sha256": checker.sha256_hex(
+            checker._canonical_json_bytes(fake_subject_payload)
+        ),
+    }
+    return fake_subject_payload, fake_subject
+
+
 class FormalTraceabilityTests(unittest.TestCase):
     def test_repository_conforms(self) -> None:
         errors, summary = checker.collect_errors(ROOT)
@@ -1472,6 +1488,161 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertEqual(
                 "hostile assurance-decomposition review evidence required",
                 summary["gate_a"]["reason"],
+            )
+
+    def test_multi_gate_a_subject_confusion_is_integrity_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root,
+                load_manifest(fixture_root),
+            )
+            self.assertEqual([], subject_errors)
+            self.assertIsNotNone(current_subject)
+            fake_subject_payload, fake_subject = fake_gate_a_subject()
+            self.assertNotEqual(fake_subject, current_subject)
+            fake_packet = {
+                "packet_schema_version": 1,
+                "subject": fake_subject,
+                "subject_payload": fake_subject_payload,
+                "authority_contents": [],
+            }
+            fake_packet_bytes = checker._canonical_json_document_bytes(fake_packet)
+            record["protocol"]["review_packet"] = write_raw_review_bytes(
+                fixture_root,
+                "formal/reviews/packets/packet.json",
+                fake_packet_bytes,
+            )
+            for item in record["executions"]:
+                item["review_packet_sha256"] = record["protocol"]["review_packet"][
+                    "sha256"
+                ]
+            record["subjects"] = [current_subject, fake_subject]
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertTrue(errors)
+            self.assertTrue(
+                any(
+                    "must declare exactly one Gate A derived subject" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_duplicate_gate_a_derived_subject_is_integrity_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root,
+                load_manifest(fixture_root),
+            )
+            self.assertEqual([], subject_errors)
+            self.assertIsNotNone(current_subject)
+            record["subjects"] = [current_subject, dict(current_subject)]
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertTrue(errors)
+            self.assertTrue(
+                any(
+                    "must declare exactly one Gate A derived subject" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_gate_a_packet_must_equal_unique_declared_gate_a_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            _fake_payload, fake_subject = fake_gate_a_subject()
+            record["subjects"] = [fake_subject]
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertTrue(
+                any(
+                    "does not equal the review record's unique Gate A derived "
+                    "subject" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile review evidence integrity failure",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_single_gate_a_subject_with_additional_artifact_subject_can_satisfy_gate_a(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root,
+                load_manifest(fixture_root),
+            )
+            self.assertEqual([], subject_errors)
+            self.assertIsNotNone(current_subject)
+            artifact_subject = {
+                "subject_type": "artifact",
+                "path": "formal/verification.yaml",
+                "sha256": checker.sha256_hex(
+                    (fixture_root / "formal/verification.yaml").read_bytes()
+                ),
+            }
+            record["subjects"] = [current_subject, artifact_subject]
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_derive_gate_a_does_not_count_multi_gate_a_subject_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            record = make_review(fixture_root)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root,
+                manifest,
+            )
+            self.assertEqual([], subject_errors)
+            self.assertIsNotNone(current_subject)
+            _fake_payload, fake_subject = fake_gate_a_subject()
+            record["subjects"] = [current_subject, fake_subject]
+            summary = checker.derive_gate_a(
+                manifest,
+                current_subject,
+                [(Path("formal/reviews/REVIEW-CONFUSED.yaml"), record)],
+            )
+            self.assertFalse(summary["ready"])
+            self.assertEqual(
+                "hostile assurance-decomposition review evidence required",
+                summary["reason"],
             )
 
     def test_missing_review_packet_is_integrity_failure(self) -> None:
