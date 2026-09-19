@@ -55,6 +55,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | Define occurrence-scoped conditional orchestration progress without universal completion | accepted | 2026-09-18 | complete | Separation of execution-resource completion from TURNLOCK-owned orchestration progress<br>Structural control consequences after recognized completion, yield, return, and join satisfaction<br>Occurrence-scoped conditional non-starvation of continuously enabled TURNLOCK-owned progression<br>Absence of a universal TURNLOCK completion guarantee |
 | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) | Require eventual advance of continuously enabled orchestration progress | accepted | 2026-09-18 | complete | Unqualified eventual advance of continuously enabled and applicable TURNLOCK-owned progression<br>Removal of competing-progress or scheduling-cause as a precondition of TL-INV-042<br>Non-conformance of indefinite engine inaction while eligible progression remains applicable |
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | Assume native harness workflow convergence | accepted | 2026-09-19 | complete | Architectural treatment of increasing native workflow capabilities in coding-agent harnesses<br>TURNLOCK value independence from current harness capability gaps<br>Reuse of semantically compatible harness-native mechanisms as execution realizations<br>Perfect-harness stress test for TURNLOCK architecture and implementation proposals |
+| [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) | Define sufficient execution inspectability and terminal inspection handoff | accepted | 2026-09-19 | complete | Semantic sufficiency of execution inspection under TL-INV-033<br>Inspectable realized prefixes for TURNLOCK-observed terminal or cessation outcomes<br>Realizable terminal inspection handoff and disclosure separation |
 
 ## Recorded outgoing relations
 
@@ -146,6 +147,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) | amends | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | clarifies | [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) |
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | confirms | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
+| [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) | amends | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) |
 
 ## Derived incoming relations
 
@@ -199,6 +201,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
 | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | clarified by | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | amended by | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | confirmed by | [ADR-024](adr-024-preserve-effective-execution-condition-provenance.md) |

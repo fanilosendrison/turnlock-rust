@@ -62,10 +62,14 @@ Later ADRs record subsequently accepted decisions.
     body-preserving metadata migration, stores outgoing relations only, and
     separates the generated mechanical projection from this annotated history.
 18. [ADR-018: Require completed workflow execution inspectability][18] —
-    **Accepted**. Completed executions expose enough actual TURNLOCK-visible
-    behavior for user- or system-led evaluation and iterative refinement,
-    without making TURNLOCK itself the evaluator or optimizer or selecting a
-    tracing, storage, replay, comparison, or reproducibility mechanism.
+    **Accepted**, amended by ADR-039. ADR-018 historically introduced
+    completed-execution inspectability: completed executions expose enough
+    actual TURNLOCK-visible behavior for user- or system-led evaluation and
+    iterative refinement, without making TURNLOCK itself the evaluator or
+    optimizer or selecting a tracing, storage, replay, comparison, or
+    reproducibility mechanism. ADR-039 later generalized that obligation into
+    the current execution-inspectability contract and made its semantic
+    sufficiency and realizable-terminal-inspection-handoff semantics precise.
 
 19. [ADR-019: Keep evaluation and optimization policy outside TURNLOCK core][19] —
     **Accepted**. TURNLOCK remains the execution substrate: it exposes
@@ -188,6 +192,7 @@ Later ADRs record subsequently accepted decisions.
 36. [ADR-036: Define occurrence-scoped conditional orchestration progress without universal completion](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) — **Accepted**. Separates execution-resource completion from TURNLOCK-owned orchestration progress: TURNLOCK does not universally guarantee completion of regions, invocations, branches, or workflows; recognized completion/yield/return/join satisfaction establishes its required structural control consequence; and each TURNLOCK-owned progression occurrence that remains continuously enabled and applicable must not be indefinitely starved by TURNLOCK's own scheduling. Occurrence representation and formal fairness encoding remain downstream modeling choices.
 37. [ADR-037: Require eventual advance of continuously enabled orchestration progress](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) — **Accepted**. Amends ADR-036 by removing the competing-progress/scheduling-cause qualifier from `TL-INV-042`: every particular TURNLOCK-owned progression occurrence that remains continuously enabled and applicable must eventually be advanced by TURNLOCK, including when no competing progression is selected. The amendment preserves the absence of universal work-completion, crash-recovery, durability, runtime-identity, scheduler-mechanism, and formal-fairness guarantees.
 38. [ADR-038: Assume native harness workflow convergence](adr-038-assume-native-harness-workflow-convergence.md) — **Accepted**. TURNLOCK is designed as an augmentation layer whose durable value does not depend on capability gaps in current coding-agent harnesses; compatible native harness workflow mechanisms are realization assets under TURNLOCK semantics, and architecture proposals are stress-tested against a hypothetical capability-complete harness.
+39. [ADR-039: Define sufficient execution inspectability and terminal inspection handoff](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) — **Accepted**, amends ADR-018. `TL-INV-033` remains the single execution-inspectability invariant: semantic sufficiency preserves realized TURNLOCK progression without requiring an event catalog, observed non-success outcomes expose realized-prefix and actually known terminal truth, and required execution truth must reach a realizable terminal inspection handoff before irreversible loss. Disclosure may be more restrictive than underlying inspection truth, while persistence, retention duration, replay, cross-run comparison, evaluation policy, and crash-durable post-mortem evidence remain outside the universal core floor. Under ADR-038, conforming harness-native inspection facilities may serve as realization assets without becoming semantic authority.
 
 <!-- adr-annotated-trace:end -->
 
