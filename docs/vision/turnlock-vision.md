@@ -156,6 +156,55 @@ The workflow episode must not make the user abandon the working relationship,
 context, or ordinary harness-native interaction already established in the
 session.
 
+### 4.1 Designing for harness convergence
+
+TURNLOCK is an augmentation layer for coding-agent harnesses, not a bet on
+their current limitations.
+
+The architectural design assumes that coding-agent harnesses may progressively
+gain native workflow execution, explicit control-flow machinery,
+suspend/resume, main-agent re-entry, durable state, richer tracing, and
+evaluation-adjacent capabilities. TURNLOCK must remain useful if those
+mechanisms become excellent native harness features.
+
+When a harness-native mechanism can faithfully realize TURNLOCK semantics, that
+capability is an asset to the integration rather than a reason to duplicate the
+mechanism merely to keep it TURNLOCK-owned:
+
+```text
+TURNLOCK semantics
+        ↓
+required capabilities / conformance
+        ↓
+best compatible realization available in the harness or environment
+```
+
+The harness mechanism remains a realization rather than semantic authority.
+A stronger harness can therefore make TURNLOCK easier or more capable to
+realize without redefining what a TURNLOCK workflow means.
+
+A useful architectural stress test is the **Perfect Harness Test**:
+
+```text
+assume the coding harness already implements
+the underlying mechanism extremely well
+
+        ↓
+
+what TURNLOCK-specific value still remains?
+```
+
+If the only value of a proposed TURNLOCK mechanism disappears under that
+assumption, the mechanism is not by itself durable product differentiation.
+If TURNLOCK-specific semantics, authority boundaries, conformance,
+harness-independent meaning, or accepted evidence responsibilities remain,
+those responsibilities still belong above the native mechanism.
+
+This is deliberately a forward-looking design assumption rather than a vendor
+forecast. It creates no claim about when or whether a particular harness will
+ship any capability, and it does not require capability parity across supported
+harnesses.
+
 ## 5. Why the main agent is not equivalent to a fresh agent
 
 The existing main agent carries a living cognitive lineage that may include:
