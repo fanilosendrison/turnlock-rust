@@ -324,6 +324,16 @@ def _sorted_strings(value: object) -> list[str]:
     return sorted(item for item in _sequence(value) if isinstance(item, str))
 
 
+def _canonical_formal_semantic_domains(value: object) -> list[dict]:
+    domains = [
+        dict(item)
+        for item in _sequence(value)
+        if isinstance(item, dict)
+    ]
+    domains.sort(key=lambda item: str(item.get("id", "")))
+    return domains
+
+
 def _authority_artifact_entries(
     root: Path, adr_ids: list[str], relation: str
 ) -> tuple[list[dict], list[str]]:
@@ -434,11 +444,13 @@ def build_gate_a_subject_payload(
         "formal_assurance_context": {
             "schema_version": manifest.get("schema_version"),
             "project": manifest.get("project"),
-            "formal_semantic_domains": _sequence(
+            "formal_semantic_domains": _canonical_formal_semantic_domains(
                 policy.get("formal_semantic_domains")
             ),
-            "behavioral_modalities": _sequence(policy.get("behavioral_modalities")),
-            "assurance_domains": _sequence(policy.get("assurance_domains")),
+            "behavioral_modalities": _sorted_strings(
+                policy.get("behavioral_modalities")
+            ),
+            "assurance_domains": _sorted_strings(policy.get("assurance_domains")),
         },
         "claims": claims,
         "normative_coverage": coverage,
