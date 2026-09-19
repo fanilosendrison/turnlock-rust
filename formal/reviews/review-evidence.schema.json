@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:2",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:3",
   "title": "TURNLOCK hostile semantic-review evidence",
   "type": "object",
   "additionalProperties": false,
@@ -19,7 +19,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "2.0"
+      "const": "3.0"
     },
     "review_id": {
       "type": "string",
@@ -340,6 +340,7 @@
       "additionalProperties": false,
       "required": [
         "challenger_execution_id",
+        "challenged_refutation_sha256",
         "output",
         "surviving_material_argument",
         "rationale"
@@ -348,6 +349,10 @@
         "challenger_execution_id": {
           "type": "string",
           "minLength": 1
+        },
+        "challenged_refutation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         },
         "output": {
           "$ref": "#/$defs/artifactReference"
