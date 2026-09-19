@@ -574,6 +574,81 @@ process to implicit agent scheduling. Independent agents remain deliberate
 forks; main-agent regions remain deliberate continuations; bounded inference
 remains non-agentic semantic computation.
 
+## 12.1 Long-term abstraction trajectory beyond TURNLOCK
+
+TURNLOCK is also a concrete discovery domain in a broader research program about
+how agentic software problem solving, and ultimately problem solving more
+generally, should be represented.
+
+The intended long-term abstraction trajectory is:
+
+```text
+TURNLOCK
+    ↓ extraction / abstraction
+software problem-solving representation / IR
+    ↓ extraction / abstraction
+SCOPE general problem-solving representation / IR
+```
+
+This does not mean that TURNLOCK itself should become a generic problem-solving
+framework. TURNLOCK remains responsible for stating TURNLOCK semantics precisely,
+including distinctions that may turn out to be specific to executable agentic
+workflow orchestration.
+
+The research value of TURNLOCK is partly that a sufficiently precise concrete
+system can reveal which distinctions are actually necessary. Formalization,
+counterexamples, concrete workflow structures, and later execution experience
+can expose which concepts are specific to TURNLOCK and which may survive
+abstraction into a broader software problem-solving model.
+
+The intended direction is therefore bottom-up:
+
+```text
+concrete system
+    ↓
+necessary semantic distinctions
+    ↓
+formalization / counterexamples / use
+    ↓
+comparison with broader concrete domains
+    ↓
+extracted abstraction
+```
+
+not top-down:
+
+```text
+speculative universal ontology
+    ↓
+force concrete systems to fit it
+```
+
+Future architecture and representation work should preserve the ability to
+distinguish three levels when that distinction becomes relevant:
+
+```text
+TURNLOCK-specific
+software-problem-solving-level
+potentially general problem-solving
+```
+
+Those classifications do not need to be decided prematurely. A concept appearing
+in TURNLOCK is not evidence by itself that the concept belongs in a software-
+general or universal problem-solving representation.
+
+Likewise, this direction does not currently define a generic IR, software
+problem-solving IR, SCOPE IR, shared AST, lowering pipeline, compilation model,
+or common physical schema. Those abstractions must be earned by evidence from
+concrete domains rather than invented in advance.
+
+The architectural goal is narrower: preserve TURNLOCK's semantic precision while
+avoiding unnecessary representation choices that would make later extraction of
+higher-level abstractions artificially difficult.
+
+ADR-040 records this as an architectural design constraint. It creates no new
+TURNLOCK product semantics, workflow primitive, invariant, formal-verification
+claim, or implementation authorization.
+
 ## 13. What TURNLOCK intentionally does not define
 
 This vision does not select:

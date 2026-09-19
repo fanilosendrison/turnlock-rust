@@ -221,6 +221,43 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   requires otherwise.
 - Do not freeze topics that the normative specification explicitly leaves open.
 
+### Generalization and future abstraction boundaries
+
+- Apply ADR-040 when introducing or changing semantic representations,
+  metamodels, IRs, ASTs, schemas, formal abstraction boundaries, or architecture
+  that encodes TURNLOCK concepts.
+- Keep TURNLOCK concrete and TURNLOCK-specific where its accepted semantics
+  require that precision. Never weaken, merge, erase, or rename a necessary
+  TURNLOCK distinction merely to make it look reusable by a future higher-level
+  model.
+- Preserve the ability to distinguish, when relevant, between concepts that are
+  intrinsically TURNLOCK-specific, concepts that may generalize to software
+  problem solving, and concepts that may generalize beyond software to general
+  problem solving.
+- Treat the long-term abstraction direction as:
+  `TURNLOCK -> software problem-solving representation -> SCOPE general
+  problem-solving representation`.
+- Discover generalization bottom-up from concrete domains, formalization,
+  counterexamples, and recurring structure. Do not treat the presence of a
+  concept in TURNLOCK as proof that it is a universal problem-solving primitive.
+- Do not introduce speculative generic nodes, universal cognitive operations,
+  generic problem graphs, a software problem-solving IR, a SCOPE IR, or another
+  higher-level abstraction into this repository merely to anticipate future
+  reuse. Such artifacts require separately scoped work and sufficient evidence.
+- Where two representation or architecture choices preserve current TURNLOCK
+  semantics equally well, prefer the one that avoids unnecessary entanglement
+  between TURNLOCK-specific assumptions and potentially extractable semantic
+  dimensions. This preference never overrides correctness, semantic precision,
+  accepted authority, or a simpler representation of the current contract.
+- Treat formal-model pressure, model-checking counterexamples, and verification
+  structure as possible evidence for later abstraction work, not as authority
+  to promote a TURNLOCK modeling convenience into a software-general or
+  problem-solving-general concept.
+- A future higher-level software problem-solving or SCOPE representation does
+  not become TURNLOCK semantic authority automatically. TURNLOCK authority
+  remains governed by the normative specification and accepted TURNLOCK
+  decisions unless a later explicit governance decision changes that boundary.
+
 ## Formal-verification rules
 
 - Preserve published `TL-INV-NNN` identities. Supersede or migrate an identity

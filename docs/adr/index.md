@@ -56,6 +56,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) | Require eventual advance of continuously enabled orchestration progress | accepted | 2026-09-18 | complete | Unqualified eventual advance of continuously enabled and applicable TURNLOCK-owned progression<br>Removal of competing-progress or scheduling-cause as a precondition of TL-INV-042<br>Non-conformance of indefinite engine inaction while eligible progression remains applicable |
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | Assume native harness workflow convergence | accepted | 2026-09-19 | complete | Architectural treatment of increasing native workflow capabilities in coding-agent harnesses<br>TURNLOCK value independence from current harness capability gaps<br>Reuse of semantically compatible harness-native mechanisms as execution realizations<br>Perfect-harness stress test for TURNLOCK architecture and implementation proposals |
 | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) | Define sufficient execution inspectability and terminal inspection handoff | accepted | 2026-09-19 | complete | Semantic sufficiency of execution inspection under TL-INV-033<br>Inspectable realized prefixes for TURNLOCK-observed terminal or cessation outcomes<br>Realizable terminal inspection handoff and disclosure separation |
+| [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | Preserve future abstraction extractability without prematurely generalizing TURNLOCK | accepted | 2026-09-19 | complete | Long-term abstraction trajectory from TURNLOCK toward software problem-solving and general problem-solving representations<br>Architectural treatment of potentially generalizable TURNLOCK concepts<br>Separation of TURNLOCK-specific semantics from future higher-level abstraction<br>Prohibition on premature genericization for future SCOPE reuse |
 
 ## Recorded outgoing relations
 
@@ -148,6 +149,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | clarifies | [ADR-010](adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md) |
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | confirms | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) | amends | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) |
+| [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | confirms | [ADR-003](adr-003-make-product-intent-and-derived-invariants-govern-implementation.md) |
 
 ## Derived incoming relations
 
@@ -161,6 +163,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-002](adr-002-require-natural-skill-like-slash-command-invocation.md) | clarified by | [ADR-006](adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md) |
 | [ADR-002](adr-002-require-natural-skill-like-slash-command-invocation.md) | clarified by | [ADR-008](adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md) |
 | [ADR-003](adr-003-make-product-intent-and-derived-invariants-govern-implementation.md) | clarified by | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) |
+| [ADR-003](adr-003-make-product-intent-and-derived-invariants-govern-implementation.md) | confirmed by | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) |
 | [ADR-004](adr-004-make-mechanical-steps-first-class-and-non-agent-mediated.md) | clarified by | [ADR-005](adr-005-model-main-agent-steps-as-reversible-repeatable-control-handoffs.md) |
 | [ADR-005](adr-005-model-main-agent-steps-as-reversible-repeatable-control-handoffs.md) | clarified by | [ADR-006](adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md) |
 | [ADR-005](adr-005-model-main-agent-steps-as-reversible-repeatable-control-handoffs.md) | clarified by | [ADR-007](adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md) |
