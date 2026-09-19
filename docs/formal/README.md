@@ -4,8 +4,11 @@ This directory documents how the normative TURNLOCK specification is connected
 to formal-assurance artifacts. The governing decisions are
 [ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md),
 [ADR-041](../adr/adr-041-establish-turnlock-formal-assurance-architecture.md),
-and, for hostile-review campaign execution and adjudication,
-[ADR-042](../adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md).
+and, for hostile-review campaign execution, adjudication, and exact evidence
+binding,
+[ADR-042](../adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md)
+and
+[ADR-043](../adr/adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md).
 
 ## Architecture
 
@@ -166,10 +169,31 @@ ADR-042 changes review adequacy mechanics, not
 `gate-a-assurance-decomposition-v1` dependencies. ADR-042 is not added to
 `formal/verification.yaml authority.architecture_decisions`.
 
-At the acceptance of ADR-042 (2026-09-19), the current valid subject fingerprint
-was `2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b`. The live
-derived subject value remains owned by `formal/verification.yaml` and its
-generated projection in `invariant-mapping.md`.
+ADR-043 amends hostile-review evidence mechanics only.
+
+ADR-043 does not enter `gate-a-assurance-decomposition-v1`.
+
+The Gate A semantic subject remains owned by the existing authority dependency
+set.
+
+The current valid subject fingerprint is exactly:
+
+```text
+2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b
+```
+
+The live derived subject value remains owned by `formal/verification.yaml` and
+its generated projection in `invariant-mapping.md`, not by ADR-042 or ADR-043.
+
+Gate A review packets are self-contained canonical JSON artifacts. Verification
+recomputes the packet subject SHA from its embedded `subject_payload`, requires
+the packet subject to equal a subject declared by the review record, and
+recomputes each embedded authority SHA from its UTF-8 contents. A stale
+historical packet validates against its own embedded historical subject rather
+than current repository authority, so historical evidence remains verifiable
+after the repository evolves. Material refutation challenges are bound by
+`challenged_refutation_sha256` to the exact canonical refutation subject, and
+review evidence paths must be direct non-symlink repository paths.
 
 ## Hostile review is first-class evidence, not proof
 

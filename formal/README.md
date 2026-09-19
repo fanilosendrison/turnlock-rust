@@ -25,7 +25,7 @@ formal/
 ├── reviews/                                # hostile semantic-review evidence and campaign artifacts
 │   ├── README.md
 │   ├── review-evidence.schema.json
-│   ├── packets/                            # future canonical review packets
+│   ├── packets/                            # future canonical review packets (JSON)
 │   ├── prompts/                            # future canonical review prompts
 │   ├── raw/                                # future sealed raw reviewer outputs
 │   └── challenges/                         # future hostile challenge outputs
@@ -137,8 +137,12 @@ prevent Gate A subject derivation.
   packet/prompt/raw/challenge artifacts; a lossless raw-finding to
   normalized-finding ledger; no surviving current material `open`, `routed`, or
   `resolved` finding; and a valid structured refutation plus hostile challenge
-  for every current material `refuted` finding. It is derived from current review
-  evidence; it is not stored as a manifest status.
+  for every current material `refuted` finding. Gate A review packet validity is
+  not merely artifact SHA validity: the packet is self-contained and
+  cryptographically bound to its declared derived subject. Material refutation
+  challenges are bound to the exact canonical refutation subject. Review
+  evidence paths are direct non-symlink repository paths. It is derived from
+  current review evidence; it is not stored as a manifest status.
 - **Gate B — Canonical-Formal-Semantics-Ready** promotes an exact candidate
   artifact/version to the current canonical formal semantics for its declared
   scope after hostile semantic review.

@@ -16,10 +16,23 @@ Review evidence never constitutes mathematical proof of natural-language/formal
 equivalence; the strongest valid conclusion is bounded reviewed semantic
 correspondence under the executed review protocol.
 
-The evidence contract is `review-evidence.schema.json` schema version `2.0`.
-Version 2.0 is a breaking contract; no compatibility branch for the previous
-`1.1` shape exists. No `1.1` review record was ever authored, so no migration is
-required.
+The evidence contract is `review-evidence.schema.json` schema version `3.0`.
+Version 3.0 is a breaking contract; no compatibility branch for the previous
+`2.0` shape exists. No `2.0` campaign evidence exists, so no campaign evidence
+migration is required.
+
+Schema 3.0 adds three exact-binding guarantees on top of schema 2.0:
+
+```text
+Gate A review packets are self-contained canonical JSON artifacts
+cryptographically bound to the exact derived subject they represent;
+
+hostile challenges are bound by challenged_refutation_sha256 to the exact
+canonical finding and refutation payload they challenged;
+
+all review-evidence artifact paths resolve directly without traversing any
+symlink, including in-repository symlink aliases.
+```
 
 Review records are declarative evidence artifacts. They MUST validate against
 `review-evidence.schema.json`; the repository formal traceability checker
@@ -50,6 +63,58 @@ adjudication are recorded elsewhere in the campaign evidence.
 The campaign evidence connects every execution to its execution identity, model
 identity, packet SHA-256, prompt SHA-256, attack objectives, isolation
 declaration, sealed raw-output artifact, and declared raw finding IDs.
+
+## Canonical Gate A review packet
+
+The Gate A review packet is a self-contained canonical JSON file:
+
+```text
+formal/reviews/packets/*.json
+```
+
+It is not a new semantic authority. It is a canonical self-contained projection
+of the exact reviewed subject and its textual authority.
+
+It contains the exact `subject_payload`, the exact subject identity, and the
+exact UTF-8 authority contents:
+
+```text
+packet_schema_version
+subject              = {subject_type, selector, sha256}
+subject_payload      = exact canonical Gate A subject payload
+authority_contents   = ordered normative spec, architecture decisions,
+                       and abstraction constraints with id, path, sha256,
+                       and content_utf8
+```
+
+The packet artifact SHA alone is insufficient. Packet validation recomputes:
+
+```text
+subject SHA = SHA256(canonical_json_bytes(subject_payload))
+entry SHA   = SHA256(content_utf8 encoded as UTF-8)
+```
+
+The packet subject must equal a subject listed by the review record, and the
+embedded authority hashes must equal the authority descriptors in the reviewed
+subject payload. The packet is serialized as canonical JSON document bytes
+(`json.dumps(value, sort_keys=True, separators=(",", ":"),
+ensure_ascii=False).encode("utf-8")` plus one trailing newline). The packet
+subject SHA intentionally differs from the packet artifact SHA.
+
+A stale historical packet validates against its own embedded reviewed subject,
+not against current repository semantics. Packet validation is self-contained
+from the packet plus its review record and never compares embedded authority to
+the current manifest.
+
+## Symlink prohibition
+
+No review-evidence artifact path may traverse a symlink, including a symlink
+that remains inside the repository. Every path component from the resolved
+repository root to the referenced artifact must be a non-symlink filesystem
+object, and the artifact itself must be a regular file. This applies to the
+review packet, the prompt, the raw reviewer output, and any challenge output.
+A declared path must be the direct filesystem identity of the reviewed artifact,
+not an alias.
 
 ## Operational independence
 
@@ -189,6 +254,33 @@ identifies the exact challenge output by path and SHA-256, declares
 reviewer's consent is not authority; the only question is whether a valid
 material argument or counterexample survives.
 
+Every non-null challenge, including a challenge attached to a non-material
+refuted finding, is bound to the exact canonical
+`hostile-refutation-challenge-v1` subject through the required
+`challenged_refutation_sha256` field. The challenge subject includes:
+
+```text
+finding_id
+sources                  (canonicalized, sorted by execution_id, raw_finding_id)
+statement
+argument
+counterexample
+materiality
+status                   (= refuted)
+refutation:
+  kind
+  ground
+  attacked_premise_or_inference
+  evidence_references    (canonicalized, sorted lexicographically)
+  argument
+  counterexample_disposition
+```
+
+The challenge itself is excluded from its subject. Changing any included
+finding or refutation content invalidates the previous challenge. Reordering
+sources or evidence references alone does not change the challenge-subject
+hash.
+
 ## Subject kinds
 
 Review evidence identifies its reviewed subject with one of two exact shapes:
@@ -279,8 +371,13 @@ Gate A requires a current assurance-decomposition campaign that:
 
 - reviews the current exact Gate A subject;
 - is structurally and referentially valid;
+- uses a self-contained canonical Gate A review packet whose recomputed subject
+  SHA matches its embedded `subject_payload` and whose subject equals the
+  subject declared by the review record;
+- embeds exact authority contents whose recomputed SHA-256 matches each embedded
+  authority entry;
 - references only existing packet, prompt, raw, and challenge artifacts whose
-  bytes match their declared SHA-256;
+  bytes match their declared SHA-256 and whose paths traverse no symlink;
 - has at least `minimum_independent_reviewers` distinct
   `(provider, model, model_version)` model identities;
 - covers the complete required attack-objective set in each qualifying
@@ -290,8 +387,9 @@ Gate A requires a current assurance-decomposition campaign that:
 - declares isolated contexts and no cross-reviewer visibility before sealing;
 - represents every declared raw finding exactly once in the normalized ledger;
 - has no current material `open`, `routed`, or `resolved` finding;
-- carries a valid structured refutation and a valid hostile challenge for every
-  current material `refuted` finding.
+- carries a valid structured refutation and, for every current material
+  `refuted` finding, a valid hostile challenge bound to the exact canonical
+  refutation subject.
 
 All current assurance-decomposition review records for the exact current subject
 participate in surviving-finding evaluation. One material `open`, `routed`, or
@@ -307,7 +405,7 @@ manifest's Gate A.
 Campaign artifacts use these repository-relative conventions:
 
 ```text
-formal/reviews/packets/*.md
+formal/reviews/packets/*.json
 formal/reviews/prompts/*.md
 formal/reviews/raw/*.md
 formal/reviews/challenges/*.md

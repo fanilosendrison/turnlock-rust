@@ -329,6 +329,19 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - invalid hostile-review evidence makes the gate BLOCKED;
 - a real material correction changes the subject and requires a new current
   review campaign rather than patching old evidence.
+- A Gate A review packet is not trusted merely because its artifact SHA matches.
+- Gate A packets are canonical JSON self-contained representations of the exact
+  reviewed derived subject and its textual authority.
+- Recompute the packet subject SHA from subject_payload and recompute authority
+  hashes from embedded UTF-8 content.
+- The packet subject must be one of the review record's exact subjects.
+- Never validate stale packet semantics by comparing them to current repository
+  authority; stale packets remain self-contained historical evidence.
+- Every non-null hostile challenge is bound to the exact canonical refutation
+  subject by challenged_refutation_sha256.
+- Changing the finding/refutation content invalidates its previous challenge.
+- Review evidence artifacts must never traverse symlinks, including
+  in-repository symlink aliases.
 - `formal_realizations` may be introduced after Gate A when real formal
   identifiers exist; their presence alone does not imply Gate B or Gate C.
 - Hostile-review evidence MUST be invalidated according to its declared semantic
