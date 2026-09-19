@@ -59,6 +59,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | Preserve future abstraction extractability without prematurely generalizing TURNLOCK | accepted | 2026-09-19 | complete | Long-term abstraction trajectory from TURNLOCK toward software problem-solving and general problem-solving representations<br>Architectural treatment of potentially generalizable TURNLOCK concepts<br>Separation of TURNLOCK-specific semantics from future higher-level abstraction<br>Prohibition on premature genericization for future SCOPE reuse |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | Establish TURNLOCK formal assurance architecture | accepted | 2026-09-19 | complete | Formal-assurance authority and trust chain<br>Canonical formal semantics and future Formal IR admission<br>Required assurance claims and verification obligations<br>Formal-semantic projection and verification-backend boundaries<br>Integrated formal semantics and focused verification restrictions<br>Hostile semantic-review assurance and evidence<br>Responsibility of formal/verification.yaml<br>Formal-discovery routing<br>Formal-readiness gates |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | Define auditable hostile-review campaign execution and adjudication | accepted | 2026-09-19 | complete | Operational independence of hostile-review executions<br>Sealed hostile-review execution evidence<br>Lossless hostile-review finding normalization<br>Hostile-review materiality and adjudication<br>Gate A hostile-review readiness mechanics |
+| [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | Bind hostile-review evidence to exact reviewed inputs | accepted | 2026-09-19 | complete | Canonical Gate A hostile-review packet identity<br>Hostile-review packet-to-subject binding<br>Refutation-to-challenge binding<br>Hostile-review repository path containment |
 
 ## Recorded outgoing relations
 
@@ -155,6 +156,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | amends | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirms | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | clarifies | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
+| [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amends | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
+| [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | confirms | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 
 ## Derived incoming relations
 
@@ -251,3 +254,5 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | amended by | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) |
 | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | confirmed by | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | clarified by | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
+| [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
+| [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | amended by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
