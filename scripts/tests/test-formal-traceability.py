@@ -1343,6 +1343,55 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertEqual([], second_errors)
             self.assertEqual(first, second)
 
+    def test_duplicate_formal_semantic_domain_id_prevents_subject_derivation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            original_domain = manifest["policy"]["formal_semantic_domains"][0]
+            duplicate_domain = {
+                "id": "operational",
+                "representation": "tla+",
+                "module": "DuplicateTurnlock",
+                "path": "formal/DuplicateTurnlock.tla",
+                "integrated_semantics_required": True,
+                "focused_analyses_are_restrictions": True,
+            }
+            self.assertNotEqual(original_domain, duplicate_domain)
+            manifest["policy"]["formal_semantic_domains"].append(duplicate_domain)
+            subject, errors = checker.build_gate_a_review_subject(
+                fixture_root,
+                manifest,
+            )
+            self.assertIsNone(subject)
+            self.assertIn(
+                "cannot derive Gate A subject: duplicate formal semantic domain id 'operational'",
+                errors,
+            )
+
+    def test_duplicate_formal_semantic_domain_id_fails_repository_integrity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            duplicate_domain = {
+                "id": "operational",
+                "representation": "tla+",
+                "module": "DuplicateTurnlock",
+                "path": "formal/DuplicateTurnlock.tla",
+                "integrated_semantics_required": True,
+                "focused_analyses_are_restrictions": True,
+            }
+            manifest["policy"]["formal_semantic_domains"].append(duplicate_domain)
+            save_manifest(fixture_root, manifest)
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertIn(
+                "cannot derive Gate A subject: duplicate formal semantic domain id 'operational'",
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
 
 if __name__ == "__main__":
     unittest.main()
