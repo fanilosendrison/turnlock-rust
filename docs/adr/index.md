@@ -57,6 +57,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | Assume native harness workflow convergence | accepted | 2026-09-19 | complete | Architectural treatment of increasing native workflow capabilities in coding-agent harnesses<br>TURNLOCK value independence from current harness capability gaps<br>Reuse of semantically compatible harness-native mechanisms as execution realizations<br>Perfect-harness stress test for TURNLOCK architecture and implementation proposals |
 | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) | Define sufficient execution inspectability and terminal inspection handoff | accepted | 2026-09-19 | complete | Semantic sufficiency of execution inspection under TL-INV-033<br>Inspectable realized prefixes for TURNLOCK-observed terminal or cessation outcomes<br>Realizable terminal inspection handoff and disclosure separation |
 | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | Preserve future abstraction extractability without prematurely generalizing TURNLOCK | accepted | 2026-09-19 | complete | Long-term abstraction trajectory from TURNLOCK toward software problem-solving and general problem-solving representations<br>Architectural treatment of potentially generalizable TURNLOCK concepts<br>Separation of TURNLOCK-specific semantics from future higher-level abstraction<br>Prohibition on premature genericization for future SCOPE reuse |
+| [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | Establish TURNLOCK formal assurance architecture | accepted | 2026-09-19 | complete | Formal-assurance authority and trust chain<br>Canonical formal semantics and future Formal IR admission<br>Required assurance claims and verification obligations<br>Formal-semantic projection and verification-backend boundaries<br>Integrated formal semantics and focused verification restrictions<br>Hostile semantic-review assurance and evidence<br>Responsibility of formal/verification.yaml<br>Formal-discovery routing<br>Formal-readiness gates |
 
 ## Recorded outgoing relations
 
@@ -150,6 +151,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-038](adr-038-assume-native-harness-workflow-convergence.md) | confirms | [ADR-030](adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md) |
 | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) | amends | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) |
 | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | confirms | [ADR-003](adr-003-make-product-intent-and-derived-invariants-govern-implementation.md) |
+| [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | amends | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) |
+| [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirms | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) |
 
 ## Derived incoming relations
 
@@ -202,6 +205,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-035](adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | clarified by | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-014](adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md) | confirmed by | [ADR-027](adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md) |
+| [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | amended by | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | clarified by | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | amended by | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) |
@@ -243,3 +247,4 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-033](adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md) | clarified by | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-034](adr-034-delegate-nested-workflow-invocation-to-independent-agent-regions-without-main-agent-reachability.md) | clarified by | [ADR-035](adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md) |
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | amended by | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) |
+| [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | confirmed by | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
