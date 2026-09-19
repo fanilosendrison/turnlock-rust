@@ -334,6 +334,20 @@ def _canonical_formal_semantic_domains(value: object) -> list[dict]:
     return domains
 
 
+def _duplicate_formal_semantic_domain_ids(value: object) -> list[str]:
+    domain_ids = [
+        item.get("id")
+        for item in _sequence(value)
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    ]
+    counts = Counter(domain_ids)
+    return sorted(
+        domain_id
+        for domain_id, count in counts.items()
+        if count > 1
+    )
+
+
 def _authority_artifact_entries(
     root: Path, adr_ids: list[str], relation: str
 ) -> tuple[list[dict], list[str]]:
@@ -409,6 +423,15 @@ def build_gate_a_subject_payload(
     errors.extend(constraint_errors)
 
     policy = _mapping(manifest.get("policy"))
+
+    duplicate_domain_ids = _duplicate_formal_semantic_domain_ids(
+        policy.get("formal_semantic_domains")
+    )
+    for domain_id in duplicate_domain_ids:
+        errors.append(
+            f"cannot derive Gate A subject: duplicate formal semantic domain id {domain_id!r}"
+        )
+
     claims = [
         {
             **claim,
@@ -670,18 +693,22 @@ def collect_errors(
     behavioral_modalities = {
         item for item in _sequence(policy.get("behavioral_modalities")) if isinstance(item, str)
     }
+    formal_semantic_domains = _sequence(policy.get("formal_semantic_domains"))
     domain_ids = {
         item.get("id")
-        for item in _sequence(policy.get("formal_semantic_domains"))
+        for item in formal_semantic_domains
         if isinstance(item, dict) and isinstance(item.get("id"), str)
     }
-    domain_modules = {
-        item["id"]: item["module"]
-        for item in _sequence(policy.get("formal_semantic_domains"))
-        if isinstance(item, dict)
-        and isinstance(item.get("id"), str)
-        and isinstance(item.get("module"), str)
-    }
+    domain_modules: dict[str, str] = {}
+    for item in formal_semantic_domains:
+        if not isinstance(item, dict):
+            continue
+        domain_id = item.get("id")
+        module = item.get("module")
+        if not isinstance(domain_id, str) or not isinstance(module, str):
+            continue
+        if domain_id not in domain_modules:
+            domain_modules[domain_id] = module
 
     claims = [claim for claim in _sequence(manifest.get("claims")) if isinstance(claim, dict)]
     claim_by_id: dict[str, dict] = {}
