@@ -60,6 +60,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | Establish TURNLOCK formal assurance architecture | accepted | 2026-09-19 | complete | Formal-assurance authority and trust chain<br>Canonical formal semantics and future Formal IR admission<br>Required assurance claims and verification obligations<br>Formal-semantic projection and verification-backend boundaries<br>Integrated formal semantics and focused verification restrictions<br>Hostile semantic-review assurance and evidence<br>Responsibility of formal/verification.yaml<br>Formal-discovery routing<br>Formal-readiness gates |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | Define auditable hostile-review campaign execution and adjudication | accepted | 2026-09-19 | complete | Operational independence of hostile-review executions<br>Sealed hostile-review execution evidence<br>Lossless hostile-review finding normalization<br>Hostile-review materiality and adjudication<br>Gate A hostile-review readiness mechanics |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | Bind hostile-review evidence to exact reviewed inputs | accepted | 2026-09-19 | complete | Canonical Gate A hostile-review packet identity<br>Hostile-review packet-to-subject binding<br>Refutation-to-challenge binding<br>Hostile-review repository path containment |
+| [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | Require one unambiguous Gate A review subject | accepted | 2026-09-19 | complete | Gate A review-record subject cardinality<br>Gate A packet-to-record subject identity<br>Gate A current-review subject selection |
 
 ## Recorded outgoing relations
 
@@ -158,6 +159,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | clarifies | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amends | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | confirms | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
+| [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | amends | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
+| [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | confirms | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
 
 ## Derived incoming relations
 
@@ -256,3 +259,5 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | clarified by | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | amended by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
+| [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | confirmed by | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
+| [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amended by | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
