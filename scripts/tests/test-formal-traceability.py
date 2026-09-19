@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import unittest
 
+from jsonschema import Draft202012Validator
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -114,16 +116,16 @@ def make_review(
     attack_objectives: list[str] | None = None,
 ) -> dict:
     if subjects is None:
-        subjects = [
-            {
-                "path": MANIFEST_RELATIVE.as_posix(),
-                "sha256": manifest_sha(fixture_root),
-            }
-        ]
+        subject, errors = checker.build_gate_a_review_subject(
+            fixture_root, load_manifest(fixture_root)
+        )
+        if errors or subject is None:
+            raise AssertionError(errors or "Gate A subject derivation failed")
+        subjects = [subject]
     if reviewers is None:
         reviewers = [reviewer("r1"), reviewer("r2")]
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "review_id": review_id,
         "review_class": review_class,
         "repository_commit": "6d3c9851e0d66286280f8e49ebd8ed44da13d876",
@@ -179,6 +181,15 @@ def realization_payload(**overrides) -> dict:
     }
     data.update(overrides)
     return data
+
+
+def review_schema_errors(fixture_root: Path, record: dict) -> list:
+    schema = json.loads(
+        (
+            fixture_root / "formal" / "reviews" / "review-evidence.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    return list(Draft202012Validator(schema).iter_errors(record))
 
 
 def finding(
@@ -562,7 +573,7 @@ class FormalTraceabilityTests(unittest.TestCase):
                 errors,
             )
 
-    def test_wrong_artifact_hash_does_not_satisfy_current_review_coverage(self) -> None:
+    def test_raw_manifest_artifact_subject_does_not_qualify(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             write_review(
@@ -571,8 +582,9 @@ class FormalTraceabilityTests(unittest.TestCase):
                     fixture_root,
                     subjects=[
                         {
+                            "subject_type": "artifact",
                             "path": MANIFEST_RELATIVE.as_posix(),
-                            "sha256": "0" * 64,
+                            "sha256": manifest_sha(fixture_root),
                         }
                     ],
                 ),
@@ -582,6 +594,10 @@ class FormalTraceabilityTests(unittest.TestCase):
             )
             self.assertEqual([], errors)
             self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile assurance-decomposition review evidence required",
+                summary["gate_a"]["reason"],
+            )
 
     def test_material_open_finding_prevents_review_from_satisfying_gate_a(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -934,6 +950,280 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertNotEqual(0, result.returncode)
             self.assertIn(b"cannot parse review evidence", result.stderr)
             self.assertEqual(before, mapping_path.read_bytes())
+
+    def test_adding_formal_realizations_does_not_change_gate_a_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, first_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], first_errors)
+            manifest["formal_realizations"] = [realization_payload()]
+            second, second_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], second_errors)
+            self.assertEqual(first, second)
+            self.assertEqual(first["sha256"], second["sha256"])
+
+    def test_full_lifecycle_review_remains_current_after_realization(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(fixture_root, make_review(fixture_root))
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+            manifest = load_manifest(fixture_root)
+            manifest["formal_realizations"] = [realization_payload()]
+            save_manifest(fixture_root, manifest)
+            write_candidate_model(fixture_root)
+
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_changing_claim_statement_invalidates_gate_a_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(fixture_root, make_review(fixture_root))
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+            manifest = load_manifest(fixture_root)
+            manifest["claims"][0]["statement"] = (
+                manifest["claims"][0]["statement"] + " (fixture change)"
+            )
+            save_manifest(fixture_root, manifest)
+
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+            self.assertEqual(
+                "hostile assurance-decomposition review evidence required",
+                summary["gate_a"]["reason"],
+            )
+
+    def test_changing_claim_normative_sources_changes_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            claim = next(
+                claim
+                for claim in manifest["claims"]
+                if claim["id"] == "TL-CLAIM-002"
+            )
+            claim["normative_sources"] = sorted(
+                claim["normative_sources"] + ["TL-INV-005"]
+            )
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_changing_normative_coverage_changes_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            entry = coverage_entry(manifest, "TL-INV-004")
+            entry["formal_claims"] = sorted(
+                entry["formal_claims"] + ["TL-CLAIM-001"]
+            )
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_changing_normative_specification_bytes_invalidates_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            first, _ = checker.build_gate_a_review_subject(
+                fixture_root, load_manifest(fixture_root)
+            )
+            spec_path = fixture_root / "docs" / "specification" / "turnlock-spec.md"
+            with open(spec_path, "a", encoding="utf-8") as handle:
+                handle.write("\n<!-- fixture change -->\n")
+            second, _ = checker.build_gate_a_review_subject(
+                fixture_root, load_manifest(fixture_root)
+            )
+            self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_changing_referenced_adr_bytes_invalidates_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            first, _ = checker.build_gate_a_review_subject(
+                fixture_root, load_manifest(fixture_root)
+            )
+            adr_path = next((fixture_root / "docs" / "adr").glob("adr-041-*.md"))
+            with open(adr_path, "a", encoding="utf-8") as handle:
+                handle.write("\n<!-- fixture change -->\n")
+            second, _ = checker.build_gate_a_review_subject(
+                fixture_root, load_manifest(fixture_root)
+            )
+            self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_mechanical_evidence_policy_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            manifest["policy"]["mechanical_evidence"]["tlc"][
+                "evidence_directory"
+            ] = "formal/other-results"
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertEqual(first, second)
+
+    def test_hostile_review_policy_is_not_part_of_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            manifest["policy"]["hostile_review"][
+                "minimum_independent_reviewers"
+            ] = 3
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertEqual(first, second)
+
+    def test_claim_ordering_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            manifest["claims"] = list(reversed(manifest["claims"]))
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertEqual(first, second)
+
+    def test_normative_coverage_ordering_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            manifest["normative_coverage"] = list(
+                reversed(manifest["normative_coverage"])
+            )
+            for entry in manifest["normative_coverage"]:
+                entry["formal_claims"] = list(reversed(entry["formal_claims"]))
+                entry["residual_claims"] = list(reversed(entry["residual_claims"]))
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertEqual(first, second)
+
+    def test_normative_source_ordering_does_not_change_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            claim = next(
+                claim
+                for claim in manifest["claims"]
+                if len(claim["normative_sources"]) > 1
+            )
+            claim["normative_sources"] = list(reversed(claim["normative_sources"]))
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertEqual(first, second)
+
+    def test_formal_semantic_domain_change_changes_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            first, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            manifest["policy"]["formal_semantic_domains"][0][
+                "module"
+            ] = "TurnlockFixture"
+            second, _ = checker.build_gate_a_review_subject(fixture_root, manifest)
+            self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_missing_authority_artifact_fails_subject_derivation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            adr_path = next((fixture_root / "docs" / "adr").glob("adr-040-*.md"))
+            adr_path.unlink()
+            subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root, load_manifest(fixture_root)
+            )
+            self.assertIsNone(subject)
+            self.assertTrue(subject_errors)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(errors)
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_ambiguous_adr_resolution_fails_subject_derivation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            duplicate = (
+                fixture_root / "docs" / "adr" / "adr-041-duplicate-fixture.md"
+            )
+            duplicate.write_text("# fixture duplicate\n", encoding="utf-8")
+            subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root, load_manifest(fixture_root)
+            )
+            self.assertIsNone(subject)
+            self.assertTrue(
+                any(
+                    "cannot derive Gate A subject: expected exactly one file for "
+                    "ADR-041; found 2" in error
+                    for error in subject_errors
+                ),
+                subject_errors,
+            )
+
+    def test_review_schema_accepts_derived_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self.assertEqual(
+                [], review_schema_errors(fixture_root, make_review(fixture_root))
+            )
+
+    def test_review_schema_accepts_artifact_subject(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                subjects=[
+                    {
+                        "subject_type": "artifact",
+                        "path": "some/file",
+                        "sha256": "a" * 64,
+                    }
+                ],
+            )
+            self.assertEqual([], review_schema_errors(fixture_root, record))
+
+    def test_review_schema_rejects_ambiguous_subject_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            mixed = make_review(
+                fixture_root,
+                subjects=[
+                    {
+                        "subject_type": "derived",
+                        "selector": "gate-a-assurance-decomposition-v1",
+                        "path": "formal/verification.yaml",
+                        "sha256": "a" * 64,
+                    }
+                ],
+            )
+            self.assertTrue(review_schema_errors(fixture_root, mixed))
+            untyped = make_review(
+                fixture_root,
+                subjects=[
+                    {
+                        "path": "formal/verification.yaml",
+                        "selector": "gate-a-assurance-decomposition-v1",
+                        "sha256": "a" * 64,
+                    }
+                ],
+            )
+            self.assertTrue(review_schema_errors(fixture_root, untyped))
 
 
 if __name__ == "__main__":
