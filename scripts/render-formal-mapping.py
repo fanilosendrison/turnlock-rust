@@ -1,114 +1,262 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
-from collections import defaultdict
+import importlib.util
 from pathlib import Path
 import sys
+
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
+MANIFEST_RELATIVE = Path("formal/verification.yaml")
+MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
+REVIEW_DIRECTORY_RELATIVE = Path("formal/reviews")
+RESULTS_DIRECTORY_RELATIVE = Path("formal/results")
+MODEL_RELATIVE = Path("formal/Turnlock.tla")
+
+
+def _load_checker():
+    path = Path(__file__).with_name("check-formal-traceability.py")
+    spec = importlib.util.spec_from_file_location("formal_traceability", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _markdown_cell(value: object) -> str:
+    text = str(value)
+    return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
+
+
+def _claim_list_markdown(claim_ids: list[str]) -> str:
+    if not claim_ids:
+        return "—"
+    return ", ".join(f"`{claim_id}`" for claim_id in claim_ids)
+
+
+def _count_records(directory: Path) -> int:
+    if not directory.is_dir():
+        return 0
+    suffixes = {".json", ".yaml", ".yml"}
+    return sum(
+        1
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+        and path.suffix.lower() in suffixes
+        and path.name != "review-evidence.schema.json"
+    )
+
 
 def render_mapping(root: Path) -> str:
-    manifest_path = root / "formal" / "verification.yaml"
-    data = yaml.safe_load(manifest_path.read_text())
-    rows = []
-    reverse_props = defaultdict(list)
-    reverse_actions = defaultdict(list)
-    reverse_vars = defaultdict(list)
+    root = root.resolve()
+    checker = _load_checker()
+    data = yaml.safe_load((root / MANIFEST_RELATIVE).read_text(encoding="utf-8"))
+    manifest_bytes = (root / MANIFEST_RELATIVE).read_bytes()
+    review_records = checker.load_review_records(root)
+    gate_a = checker.derive_gate_a(manifest_bytes, review_records)
 
-    for inv in data["invariants"]:
-        tla = inv.get("tla", {})
-        props = tla.get("properties", []) or []
-        prop_names = [p["name"] if isinstance(p, dict) else p for p in props]
-        vars_ = tla.get("state_variables", []) or []
-        actions = tla.get("actions", []) or []
-        for name in prop_names:
-            reverse_props[name].append(inv["id"])
-        for name in vars_:
-            reverse_vars[name].append(inv["id"])
-        for name in actions:
-            reverse_actions[name].append(inv["id"])
+    claims = [claim for claim in data.get("claims", []) if isinstance(claim, dict)]
+    coverage = [
+        entry for entry in data.get("normative_coverage", []) if isinstance(entry, dict)
+    ]
+    realizations = data.get("formal_realizations", [])
+    if not isinstance(realizations, list):
+        realizations = []
 
-        props_text = ", ".join(f"`{p}`" for p in prop_names) if prop_names else "—"
-        vars_text = ", ".join(f"`{v}`" for v in vars_) if vars_ else "—"
-        actions_text = ", ".join(f"`{a}`" for a in actions) if actions else "—"
-        adrs = ", ".join(inv.get("adrs", [])) or "—"
-        rows.append(
-            f"| `{inv['id']}` | {inv['title']} | {inv.get('kind','—')} | "
-            f"{inv.get('formalization','—')} | {tla.get('mapping_status','—')} | {props_text} | "
-            f"{vars_text} | {actions_text} | {inv.get('verification','—')} | {adrs} |"
+    migration = yaml.safe_load((root / MIGRATION_RELATIVE).read_text(encoding="utf-8"))
+    migration_entries = migration.get("entries", []) if isinstance(migration, dict) else []
+    classification_counts: dict[str, int] = {}
+    for entry in migration_entries:
+        if not isinstance(entry, dict):
+            continue
+        classification = entry.get("classification")
+        if isinstance(classification, str):
+            classification_counts[classification] = (
+                classification_counts.get(classification, 0) + 1
+            )
+
+    evidence_policy = data.get("policy", {}).get("hostile_review", {})
+    mechanical_policy = (
+        data.get("policy", {}).get("mechanical_evidence", {}).get("tlc", {})
+    )
+    review_evidence_schema = evidence_policy.get(
+        "evidence_schema", "formal/reviews/review-evidence.schema.json"
+    )
+    tlc_evidence_schema = mechanical_policy.get(
+        "evidence_schema", "formal/tlc-result.schema.json"
+    )
+
+    lines: list[str] = [
+        "# TURNLOCK formal assurance mapping",
+        "",
+        "> **Generated file.** Source of truth: "
+        "[`../../formal/verification.yaml`](../../formal/verification.yaml).",
+        "> Regenerate with `.venv/bin/python scripts/render-formal-mapping.py`. "
+        "Do not edit manually.",
+        "",
+        "## Authority and artifact roles",
+        "",
+        "Normative product authority remains `docs/specification/turnlock-spec.md` "
+        "together with accepted ADRs. This document is a generated projection of the "
+        "formal-assurance graph; it creates no semantics, no claim, and no "
+        "verification result.",
+        "",
+        "- [`formal/verification.yaml`](../../formal/verification.yaml) owns the "
+        "formal-assurance graph: normative provenance, required assurance claims, "
+        "coverage, residual assurance, domain bindings, review requirements, and "
+        "evidence contracts.",
+        "- [`formal/reviews/`](../../formal/reviews/) owns durable hostile "
+        "semantic-review evidence for exact reviewed artifacts.",
+        "- [`formal/results/`](../../formal/results/) owns concrete mechanism-specific "
+        "bounded checker evidence.",
+        "- The canonical formal semantic representation (initially integrated TLA+ "
+        "after Gate B) will define the checked abstract semantics for the operational "
+        "domain. It is not normative product authority.",
+        "",
+        "## Readiness",
+        "",
+    ]
+
+    if gate_a["ready"]:
+        lines.append("Formal-Architecture-Ready: READY")
+        lines.append(f"reason: {gate_a['reason']}")
+    else:
+        lines.append("Formal-Architecture-Ready: BLOCKED")
+        lines.append(f"reason: {gate_a['reason']}")
+    lines.extend(
+        [
+            "",
+            "Canonical-Formal-Semantics-Ready:",
+            "NOT-APPLICABLE — candidate model absent",
+            "",
+            "Formal-Verification-Ready:",
+            "NOT-APPLICABLE — candidate model absent",
+            "",
+            "## Normative coverage",
+            "",
+            "| Invariant | Canonical operational coverage | Formal claims | Residual claims |",
+            "|---|---|---|---|",
+        ]
+    )
+    for entry in coverage:
+        lines.append(
+            f"| `{entry.get('invariant', '—')}` "
+            f"| {entry.get('canonical_operational_coverage', '—')} "
+            f"| {_claim_list_markdown(entry.get('formal_claims') or [])} "
+            f"| {_claim_list_markdown(entry.get('residual_claims') or [])} |"
         )
 
-    formal_model = data["policy"]["formal_model"]
-    content = f'''# TURNLOCK invariant ↔ formal verification mapping
+    lines.extend(
+        [
+            "",
+            "## Required assurance claims",
+            "",
+            "| Claim | Assurance domain | Modality | Normative sources | Statement |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    for claim in claims:
+        modality = claim.get("modality")
+        modality_text = modality if isinstance(modality, str) else "—"
+        sources = claim.get("normative_sources") or []
+        sources_text = ", ".join(f"`{source}`" for source in sources) or "—"
+        lines.append(
+            f"| `{claim.get('id', '—')}` "
+            f"| {claim.get('assurance_domain', '—')} "
+            f"| {modality_text} "
+            f"| {sources_text} "
+            f"| {_markdown_cell(claim.get('statement', '—'))} |"
+        )
 
-> **Generated file.** Source of truth: [`../../formal/verification.yaml`](../../formal/verification.yaml).  
-> Regenerate with `python scripts/render-formal-mapping.py`.
-
-The normative meaning of every invariant lives in [`../specification/turnlock-spec.md`](../specification/turnlock-spec.md). This file is a generated traceability view, not a substitute for the prose or the TLA+ formulas themselves.
-
-Current executable formal-model status: **{formal_model['status']}**. No `checked` claim should be inferred from the existence of a row.
-
-## Forward traceability
-
-| Invariant | Title | Kind | Formalization | TLA+ mapping | Properties | State variables | Actions / transitions | Verification | ADRs |
-|---|---|---|---|---|---|---|---|---|---|
-{chr(10).join(rows)}
-
-## Reverse traceability
-
-The same manifest is mechanically invertible. Once state/action mappings are populated, this section answers questions such as “which product invariants may be affected if `CompleteWorkflow` changes?”.
-
-### TLA+ properties → invariant IDs
-'''
-    if reverse_props:
-        for name in sorted(reverse_props):
-            content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_props[name])}\n"
+    lines.extend(["", "## Formal realizations", ""])
+    if not realizations:
+        lines.append("No executable formal realizations are declared yet.")
     else:
-        content += "- No TLA+ properties mapped yet.\n"
+        for realization in realizations:
+            if not isinstance(realization, dict):
+                continue
+            claim = realization.get("claim", "—")
+            lines.append(
+                f"- `{realization.get('backend', '—')}:{realization.get('module', '—')}:"
+                f"{claim}` → `{claim}`"
+            )
 
-    content += "\n### TLA+ state variables → invariant IDs\n"
-    if reverse_vars:
-        for name in sorted(reverse_vars):
-            content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_vars[name])}\n"
-    else:
-        content += "- No executable state-variable mappings yet.\n"
+    lines.extend(["", "## Reverse traceability", "", "### Claim → invariant IDs", ""])
+    for claim in claims:
+        sources = claim.get("normative_sources") or []
+        source_text = ", ".join(f"`{source}`" for source in sources) or "—"
+        lines.append(f"- `{claim.get('id', '—')}` → {source_text}")
+    lines.extend(
+        [
+            "",
+            "Once formal realizations exist, this section also renders "
+            "`formal realization identifier → claim IDs → invariant IDs`.",
+        ]
+    )
+    if realizations:
+        lines.extend(["", "### Formal realization → claim → invariant IDs", ""])
+        for realization in realizations:
+            if not isinstance(realization, dict):
+                continue
+            claim = realization.get("claim", "—")
+            claim_record = next(
+                (item for item in claims if item.get("id") == claim), {}
+            )
+            sources = claim_record.get("normative_sources") or []
+            source_text = ", ".join(f"`{source}`" for source in sources) or "—"
+            lines.append(
+                f"- `{realization.get('backend', '—')}:{realization.get('module', '—')}:"
+                f"{claim}` → `{claim}` → {source_text}"
+            )
 
-    content += "\n### TLA+ actions / transitions → invariant IDs\n"
-    if reverse_actions:
-        for name in sorted(reverse_actions):
-            content += f"- `{name}` → {', '.join(f'`{i}`' for i in reverse_actions[name])}\n"
-    else:
-        content += "- No executable action/transition mappings yet.\n"
-
-    content += '''
-
-## Integrated verification policy
-
-Focused configurations are not substitutes for integrated exploration. The planned integrated profiles are:
-
-'''
-    for profile in data["policy"]["integrated_profiles"]:
-        content += f"- **{profile['name']}** — `{profile['path']}` — {profile['status']}: {profile['intent']}\n"
-
-    results = data["policy"]["result_artifacts"]
-    content += f'''
-
-## Verification evidence
-
-`verification.yaml` describes **intended traceability and coverage**. Successful TLC execution evidence is a separate artifact class under `{results['directory']}` and is governed by `{results['schema']}`.
-
-An invariant must not be considered `checked` merely because it maps to a TLA+ property or TLC config. A `checked` claim requires matching run evidence for the relevant repository revision and finite bounds.
-
-## Notes on applicability
-
-`not-applicable` does not mean unimportant. It means the invariant is not expected to be proven by the core TLA+ state-machine model. Examples include developer-experience requirements, reference-harness policy, or semantic-quality judgments such as whether a chosen cognition form is truly the minimum sufficient one.
-
-`partial` means TLA+ can check a meaningful structural subset while some real-world semantic obligation remains an implementation/harness/review concern.
-
-Machine-readable linkage validates traceability consistency. It does **not** prove that a TLA+ formula faithfully captures the prose meaning; that semantic correspondence remains a formal-review obligation.
-'''
-    return content
+    review_count = len(review_records)
+    results_count = _count_records(root / RESULTS_DIRECTORY_RELATIVE)
+    lines.extend(
+        [
+            "",
+            "## Evidence classes",
+            "",
+            f"- **Hostile semantic-review evidence** — `formal/reviews/`, schema "
+            f"`{review_evidence_schema}`; {review_count} record(s) present.",
+            f"- **Mechanical TLC evidence** — `formal/results/`, schema "
+            f"`{tlc_evidence_schema}`; {results_count} record(s) present.",
+            "- **Future conformance evidence** — not yet represented by a repository "
+            "evidence contract.",
+            "",
+            "## Legacy v2 property migration",
+            "",
+            f"{len(migration_entries)} historical planned property entries were audited:",
+            "",
+            f"- {classification_counts.get('required-assurance-claim-candidate', 0)} "
+            "migrated to required assurance intent;",
+            f"- {classification_counts.get('supporting-model-property-candidate', 0)} "
+            "retained only as supporting-model-property candidates;",
+            f"- {classification_counts.get('obsolete-or-misplaced-planning-artifact', 0)} "
+            "discarded as meaningless.",
+            "",
+            "Audit: "
+            "[`../../formal/migrations/verification-v2-to-v3-property-audit.yaml`]"
+            "(../../formal/migrations/verification-v2-to-v3-property-audit.yaml).",
+            "",
+            "## Notes",
+            "",
+            "This projection derives its readiness state from repository artifacts and "
+            "review evidence. Assurance claims record intended assurance; they are not "
+            "verification results. Hostile review is bounded reviewed semantic "
+            "correspondence, not mathematical proof. Mechanical checker evidence cannot "
+            "by itself support an invariant directly; it is lifted through reviewed "
+            "claim/property correspondence and declared coverage.",
+            "",
+            f"Model presence: `{MODEL_RELATIVE.as_posix()}` "
+            + ("exists." if (root / MODEL_RELATIVE).exists() else "does not exist."),
+            "",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def write_mapping(root: Path) -> Path:
@@ -119,7 +267,7 @@ def write_mapping(root: Path) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Render the TURNLOCK invariant mapping from the formal manifest"
+        description="Render the TURNLOCK formal-assurance mapping from the formal manifest"
     )
     parser.add_argument(
         "--stdout",
