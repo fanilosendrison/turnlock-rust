@@ -49,7 +49,20 @@ LEGACY_CLASSIFICATIONS = {
 REVIEW_SUFFIXES = {".json", ".yaml", ".yml"}
 GATE_A_REVIEW_CLASS = "assurance-decomposition"
 GATE_A_SUBJECT_SELECTOR = "gate-a-assurance-decomposition-v1"
-UNRESOLVED_FINDING_STATUSES = {"open", "routed"}
+GATE_A_BLOCKING_STATUSES = {"open", "routed", "resolved"}
+REVIEW_PACKET_PREFIX = "formal/reviews/packets/"
+REVIEW_PROMPT_PREFIX = "formal/reviews/prompts/"
+REVIEW_RAW_OUTPUT_PREFIX = "formal/reviews/raw/"
+REVIEW_CHALLENGE_PREFIX = "formal/reviews/challenges/"
+MATERIALITY_AXES = (
+    "authority_or_upstream_decision",
+    "claim_structure",
+    "normative_provenance",
+    "modality_or_assurance_domain",
+    "coverage_or_residual_assurance",
+    "interaction_scope",
+    "candidate_model_authorization",
+)
 FUTURE_EVIDENCE_NOTE = "NOT-APPLICABLE (candidate model absent)"
 
 
@@ -282,6 +295,108 @@ def load_review_records(root: Path) -> tuple[list[tuple[Path, dict]], list[str]]
     return records, errors
 
 
+def _finding_is_material(finding: dict) -> bool:
+    """Derive materiality from the declared impact axes only."""
+    materiality = _mapping(finding.get("materiality"))
+    return any(materiality.get(axis) is True for axis in MATERIALITY_AXES)
+
+
+def _review_artifact_errors(
+    root: Path,
+    reference: object,
+    label: str,
+    prefix: str,
+) -> list[str]:
+    """Validate a repository-relative, content-addressed review artifact."""
+    errors: list[str] = []
+    artifact = _mapping(reference)
+    raw_path = artifact.get("path")
+    expected_sha = artifact.get("sha256")
+    if not isinstance(raw_path, str) or not raw_path:
+        errors.append(f"{label}: artifact path must be a non-empty string")
+        return errors
+    path = Path(raw_path)
+    if path.is_absolute():
+        errors.append(f"{label}: artifact path must be repository-relative: {raw_path}")
+        return errors
+    if ".." in path.parts:
+        errors.append(f"{label}: artifact path must not contain '..': {raw_path}")
+        return errors
+    normalized = path.as_posix()
+    if not normalized.startswith(prefix):
+        errors.append(f"{label}: artifact path must be under {prefix}: {raw_path}")
+        return errors
+    if not normalized.endswith(".md"):
+        errors.append(f"{label}: artifact path must be a Markdown file: {raw_path}")
+        return errors
+    target = root / normalized
+    if not target.exists():
+        errors.append(f"{label}: artifact does not exist: {raw_path}")
+        return errors
+    if not target.is_file():
+        errors.append(f"{label}: artifact is not a regular file: {raw_path}")
+        return errors
+    try:
+        data = target.read_bytes()
+    except OSError as error:
+        errors.append(f"{label}: cannot read artifact {raw_path}: {error}")
+        return errors
+    if expected_sha != sha256_hex(data):
+        errors.append(f"{label}: artifact sha256 does not match {raw_path}")
+    return errors
+
+
+def _refutation_errors(
+    root: Path,
+    label: str,
+    finding: dict,
+    declared_raw_ids: dict[str, set[str]],
+) -> list[str]:
+    """Validate the structured refutation contract for a single finding."""
+    if finding.get("status") != "refuted":
+        return []
+    errors: list[str] = []
+    finding_id = finding.get("finding_id")
+    disposition = _mapping(finding.get("disposition"))
+    if disposition.get("kind") != "refuted":
+        errors.append(
+            f"{label}: finding {finding_id!r} with status 'refuted' must carry a "
+            "refuted disposition"
+        )
+        return errors
+    counterexample = finding.get("counterexample")
+    if isinstance(counterexample, str) and counterexample.strip():
+        if not isinstance(disposition.get("counterexample_disposition"), dict):
+            errors.append(
+                f"{label}: finding {finding_id!r} declares a counterexample and "
+                "requires counterexample_disposition"
+            )
+    if not _finding_is_material(finding):
+        return errors
+    challenge = disposition.get("challenge")
+    if not isinstance(challenge, dict):
+        errors.append(
+            f"{label}: material refuted finding {finding_id!r} requires a challenge "
+            "artifact"
+        )
+        return errors
+    challenger_execution_id = challenge.get("challenger_execution_id")
+    if challenger_execution_id not in declared_raw_ids:
+        errors.append(
+            f"{label}: finding {finding_id!r} challenge references unknown execution "
+            f"{challenger_execution_id!r}"
+        )
+    errors.extend(
+        _review_artifact_errors(
+            root,
+            _mapping(challenge.get("output")),
+            f"{label}: finding {finding_id!r} challenge output",
+            REVIEW_CHALLENGE_PREFIX,
+        )
+    )
+    return errors
+
+
 def _review_evidence_errors(
     root: Path, records: list[tuple[Path, dict]]
 ) -> list[str]:
@@ -295,21 +410,131 @@ def _review_evidence_errors(
     for path, record in records:
         label = path.relative_to(root).as_posix()
         errors.extend(_schema_violations(validator, record, label))
-        reviewer_ids = [
-            reviewer.get("reviewer_id")
-            for reviewer in _sequence(record.get("reviewers"))
-            if isinstance(reviewer, dict)
+
+        executions = [
+            execution
+            for execution in _sequence(record.get("executions"))
+            if isinstance(execution, dict)
         ]
-        if len(reviewer_ids) != len(set(reviewer_ids)):
-            errors.append(f"{label}: reviewer_id values must be unique")
+        execution_ids = [
+            execution.get("execution_id")
+            for execution in executions
+            if isinstance(execution.get("execution_id"), str)
+        ]
+        if len(execution_ids) != len(set(execution_ids)):
+            errors.append(f"{label}: execution_id values must be unique")
+
+        protocol = _mapping(record.get("protocol"))
+        review_packet = _mapping(protocol.get("review_packet"))
+        prompt = _mapping(protocol.get("prompt"))
+        errors.extend(
+            _review_artifact_errors(
+                root,
+                review_packet,
+                f"{label}: protocol.review_packet",
+                REVIEW_PACKET_PREFIX,
+            )
+        )
+        errors.extend(
+            _review_artifact_errors(
+                root,
+                prompt,
+                f"{label}: protocol.prompt",
+                REVIEW_PROMPT_PREFIX,
+            )
+        )
+
+        declared_raw_ids: dict[str, set[str]] = {}
+        raw_paths: list[str] = []
+        for execution in executions:
+            execution_id = execution.get("execution_id")
+            exec_label = f"{label}: execution {execution_id!r}"
+            if execution.get("review_packet_sha256") != review_packet.get("sha256"):
+                errors.append(
+                    f"{exec_label} review_packet_sha256 must equal "
+                    "protocol.review_packet.sha256"
+                )
+            if execution.get("prompt_sha256") != prompt.get("sha256"):
+                errors.append(
+                    f"{exec_label} prompt_sha256 must equal protocol.prompt.sha256"
+                )
+            raw_output = _mapping(execution.get("raw_output"))
+            errors.extend(
+                _review_artifact_errors(
+                    root,
+                    raw_output,
+                    f"{exec_label} raw_output",
+                    REVIEW_RAW_OUTPUT_PREFIX,
+                )
+            )
+            raw_path = raw_output.get("path")
+            if isinstance(raw_path, str):
+                raw_paths.append(raw_path)
+            if isinstance(execution_id, str):
+                declared_raw_ids.setdefault(execution_id, set()).update(
+                    raw_finding_id
+                    for raw_finding_id in _sequence(execution.get("raw_finding_ids"))
+                    if isinstance(raw_finding_id, str)
+                )
+
+        duplicates = sorted(
+            raw_path for raw_path, count in Counter(raw_paths).items() if count > 1
+        )
+        for duplicate in duplicates:
+            errors.append(f"{label}: duplicate raw_output path {duplicate}")
+
+        destinations: dict[tuple[str, str], list[str]] = {}
+        finding_ids: list[str] = []
         for finding in _sequence(record.get("findings")):
             if not isinstance(finding, dict):
                 continue
-            for reviewer_id in _sequence(finding.get("reviewer_ids")):
-                if reviewer_id not in reviewer_ids:
+            finding_id = finding.get("finding_id")
+            if isinstance(finding_id, str):
+                finding_ids.append(finding_id)
+            for source in _sequence(finding.get("sources")):
+                if not isinstance(source, dict):
+                    continue
+                execution_id = source.get("execution_id")
+                raw_finding_id = source.get("raw_finding_id")
+                if execution_id not in declared_raw_ids:
                     errors.append(
-                        f"{label}: finding references unknown reviewer {reviewer_id!r}"
+                        f"{label}: finding {finding_id!r} references unknown "
+                        f"execution {execution_id!r}"
                     )
+                    continue
+                if raw_finding_id not in declared_raw_ids[execution_id]:
+                    errors.append(
+                        f"{label}: finding {finding_id!r} references unknown raw "
+                        f"finding {raw_finding_id!r} of execution {execution_id!r}"
+                    )
+                    continue
+                destinations.setdefault((execution_id, raw_finding_id), []).append(
+                    finding_id
+                )
+
+        if len(finding_ids) != len(set(finding_ids)):
+            errors.append(f"{label}: normalized finding_id values must be unique")
+
+        for (execution_id, raw_finding_id), targets in sorted(destinations.items()):
+            if len(targets) > 1:
+                errors.append(
+                    f"{label}: raw finding ({execution_id!r}, {raw_finding_id!r}) "
+                    "maps to multiple normalized findings"
+                )
+        for execution_id, raw_ids in sorted(declared_raw_ids.items()):
+            for raw_finding_id in sorted(raw_ids):
+                if (execution_id, raw_finding_id) not in destinations:
+                    errors.append(
+                        f"{label}: declared raw finding ({execution_id!r}, "
+                        f"{raw_finding_id!r}) has no normalized destination"
+                    )
+
+        for finding in _sequence(record.get("findings")):
+            if not isinstance(finding, dict):
+                continue
+            errors.extend(
+                _refutation_errors(root, label, finding, declared_raw_ids)
+            )
     return errors
 
 
@@ -530,16 +755,17 @@ def derive_gate_a(
         }
 
     for record in current:
-        if any(
-            isinstance(finding, dict)
-            and finding.get("material") is True
-            and finding.get("status") in UNRESOLVED_FINDING_STATUSES
-            for finding in _sequence(record.get("findings"))
-        ):
-            return {
-                "ready": False,
-                "reason": "unresolved material hostile-review finding exists",
-            }
+        for finding in _sequence(record.get("findings")):
+            if not isinstance(finding, dict):
+                continue
+            if (
+                _finding_is_material(finding)
+                and finding.get("status") in GATE_A_BLOCKING_STATUSES
+            ):
+                return {
+                    "ready": False,
+                    "reason": "surviving material hostile-review finding exists",
+                }
 
     hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
     minimum_reviewers = hostile_review.get("minimum_independent_reviewers")
@@ -556,26 +782,53 @@ def derive_gate_a(
     }
 
     for record in current:
-        if len(_sequence(record.get("reviewers"))) < minimum_reviewers:
+        executions = [
+            execution
+            for execution in _sequence(record.get("executions"))
+            if isinstance(execution, dict)
+        ]
+        if not executions:
             continue
-        objectives = {
-            objective
-            for objective in _sequence(record.get("attack_objectives"))
-            if isinstance(objective, str)
-        }
-        if required_objectives.issubset(objectives):
+        qualifying = True
+        identities: set[tuple] = set()
+        for execution in executions:
+            if (
+                execution.get("isolated_context") is not True
+                or execution.get("cross_reviewer_visibility_before_seal") is not False
+            ):
+                qualifying = False
+                break
+            objectives = {
+                objective
+                for objective in _sequence(execution.get("attack_objectives"))
+                if isinstance(objective, str)
+            }
+            if not required_objectives.issubset(objectives):
+                qualifying = False
+                break
+            identities.add(
+                (
+                    execution.get("provider"),
+                    execution.get("model"),
+                    execution.get("model_version"),
+                )
+            )
+        if not qualifying:
+            continue
+        if len(identities) >= minimum_reviewers:
             return {
                 "ready": True,
                 "reason": (
-                    "current hostile assurance-decomposition review evidence "
-                    "satisfies required attack coverage with no unresolved material finding"
+                    "current hostile assurance-decomposition campaign satisfies "
+                    "operational independence, per-execution attack coverage, sealed "
+                    "evidence, and material-finding disposition requirements"
                 ),
             }
     return {
         "ready": False,
         "reason": (
             "current assurance-decomposition review evidence does not satisfy "
-            "required attack coverage and reviewer minimum"
+            "operational independence and per-execution attack coverage"
         ),
     }
 
@@ -854,10 +1107,18 @@ def collect_errors(
     errors.extend(subject_errors)
 
     review_records, review_load_errors = load_review_records(root)
-    errors.extend(review_load_errors)
-    errors.extend(_review_evidence_errors(root, review_records))
+    review_validation_errors = _review_evidence_errors(root, review_records)
 
-    gate_a = derive_gate_a(manifest, current_subject, review_records)
+    errors.extend(review_load_errors)
+    errors.extend(review_validation_errors)
+
+    if review_load_errors or review_validation_errors:
+        gate_a = {
+            "ready": False,
+            "reason": "hostile review evidence integrity failure",
+        }
+    else:
+        gate_a = derive_gate_a(manifest, current_subject, review_records)
     summary["gate_a"] = gate_a
 
     if (root / MODEL_RELATIVE).exists() and not gate_a["ready"]:
