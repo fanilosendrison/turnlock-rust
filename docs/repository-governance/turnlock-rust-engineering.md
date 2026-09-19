@@ -411,6 +411,9 @@ The intended views are:
 - `Formal Architecture`: table filtered to `Phase: Formal Architecture`.
 - `Formal Verification`: table filtered to `Phase: Formal Verification`.
 - `Implementation`: table filtered to `Phase: Implementation`.
+- `Legacy Specification`: table filtered to `Phase: Specification`. This view is
+  historical only; it preserves access to Project items classified under the
+  previous taxonomy and MUST NOT be used for new work.
 
 Treat any difference between these declarations and live GitHub configuration as
 an inconsistency to report before relying on the affected routing.
