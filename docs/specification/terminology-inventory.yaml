@@ -140,7 +140,13 @@ occurrences:
   section: '2.9'
   heading: 2.9 Execution inspectability
   role: canonical-definition
-  fingerprint: 5b0997e46662b0da4b4882347bbe80729d04521b4c07ef6f7c8f12f88e232bde
+  fingerprint: 3b862889acaa6ec47d203ecbeaa539e87c90f1171ae217d72942ede7748d9f16
+- concepts:
+  - realizable-terminal-inspection-handoff
+  section: '2.9'
+  heading: 2.9 Execution inspectability
+  role: canonical-definition
+  fingerprint: 04d6aa525a4e59c6012e17776cc42b5d7d421740a6648a9934fe4cb4c05699e6
 - concepts:
   - effective-execution-condition-provenance
   section: '2.10'
@@ -237,23 +243,23 @@ occurrences:
 - concepts:
   - main-agent
   section: 0.10C
-  heading: 0.10C Parallel fan-out may be homogeneous or heterogeneous, including
-    main-agent continuation
+  heading: 0.10C Parallel fan-out may be homogeneous or heterogeneous, including main-agent
+    continuation
   role: intent
   fingerprint: 95821c47cd4cbea6e9d1888c2e291d67be94a7081477f96d6c910ab46b7a5c2a
 - concepts:
   - workflow
   section: 0.10E
-  heading: 0.10E Independent-agent regions may receive delegated nested-workflow
-    invocation authority
+  heading: 0.10E Independent-agent regions may receive delegated nested-workflow invocation
+    authority
   role: intent
   fingerprint: 64e2bb8fed5faa15b4610e70f7f6095dded3a79dc53ccc25c9f5665859572b04
 - concepts:
   - independent-agent
   - workflow
   section: 0.10E
-  heading: 0.10E Independent-agent regions may receive delegated nested-workflow
-    invocation authority
+  heading: 0.10E Independent-agent regions may receive delegated nested-workflow invocation
+    authority
   role: intent
   fingerprint: 4316aabe31e434b2d083b97f9bdcd50127db3effe4fa6b607de1bdb8f7bb358f
 - concepts:
@@ -278,9 +284,15 @@ occurrences:
 - concepts:
   - workflow
   section: 0.13B
-  heading: 0.13B Completed execution remains inspectable for iterative refinement
+  heading: 0.13B Realized execution remains inspectable for iterative refinement
   role: intent
-  fingerprint: 613fffb1b2eca1245413c79210fc4b392a6145469e249697eb12c74a0570009e
+  fingerprint: 2961b2c85bf8ef23cadfb2d1ea59574e3a85420efede40f175f32c8b43237931
+- concepts:
+  - execution-inspectability
+  section: 0.13B
+  heading: 0.13B Realized execution remains inspectable for iterative refinement
+  role: intent
+  fingerprint: 079c19307f8a796530e4a6f59a96c579ee41d1a4c4a32c02edbad3c71de17848
 - concepts:
   - nested-workflow-invocation
   section: 0.13E
@@ -356,4 +368,4 @@ occurrences:
   section: '4'
   heading: "4. Current boundaries \u2014 intentionally not yet specified"
   role: reference
-  fingerprint: 303d48f6fcfc4c9848e1c5d77add82bef32ac571d40e315209e1c00d5c0d1c2f
+  fingerprint: 3f3d55ce24f2b1521c065d5e25670ff76d4891220079a87f33c18b64adc9b8ba
