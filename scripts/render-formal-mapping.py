@@ -59,11 +59,13 @@ def render_mapping(root: Path) -> str:
     root = root.resolve()
     checker = _load_checker()
     data = yaml.safe_load((root / MANIFEST_RELATIVE).read_text(encoding="utf-8"))
-    manifest_bytes = (root / MANIFEST_RELATIVE).read_bytes()
     review_records, review_load_errors = checker.load_review_records(root)
     if review_load_errors:
         raise MappingRenderError("\n".join(review_load_errors))
-    gate_a = checker.derive_gate_a(data, manifest_bytes, review_records)
+    current_subject, subject_errors = checker.build_gate_a_review_subject(root, data)
+    if subject_errors:
+        raise MappingRenderError("\n".join(subject_errors))
+    gate_a = checker.derive_gate_a(data, current_subject, review_records)
 
     claims = [claim for claim in data.get("claims", []) if isinstance(claim, dict)]
     coverage = [
@@ -133,6 +135,14 @@ def render_mapping(root: Path) -> str:
     else:
         lines.append("Formal-Architecture-Ready: BLOCKED")
         lines.append(f"reason: {gate_a['reason']}")
+    lines.extend(
+        [
+            "",
+            "Gate A assurance-decomposition subject:",
+            f"- selector: `{checker.GATE_A_SUBJECT_SELECTOR}`",
+            f"- SHA-256: `{current_subject['sha256']}`",
+        ]
+    )
     lines.extend(
         [
             "",

@@ -48,6 +48,7 @@ LEGACY_CLASSIFICATIONS = {
 
 REVIEW_SUFFIXES = {".json", ".yaml", ".yml"}
 GATE_A_REVIEW_CLASS = "assurance-decomposition"
+GATE_A_SUBJECT_SELECTOR = "gate-a-assurance-decomposition-v1"
 UNRESOLVED_FINDING_STATUSES = {"open", "routed"}
 FUTURE_EVIDENCE_NOTE = "NOT-APPLICABLE (candidate model absent)"
 
@@ -319,24 +320,172 @@ def _concise_parser_error(error: Exception) -> str:
     return text[:200] if text else error.__class__.__name__
 
 
+def _sorted_strings(value: object) -> list[str]:
+    return sorted(item for item in _sequence(value) if isinstance(item, str))
+
+
+def _authority_artifact_entries(
+    root: Path, adr_ids: list[str], relation: str
+) -> tuple[list[dict], list[str]]:
+    entries: list[dict] = []
+    errors: list[str] = []
+    for adr_id in sorted(set(adr_ids)):
+        if not isinstance(adr_id, str) or not ADR_ID.fullmatch(adr_id):
+            errors.append(
+                f"cannot derive Gate A subject: invalid {relation} entry {adr_id!r}"
+            )
+            continue
+        number = adr_id.split("-")[1]
+        matches = sorted((root / ADR_DIRECTORY_RELATIVE).glob(f"adr-{number}-*.md"))
+        if len(matches) != 1:
+            errors.append(
+                f"cannot derive Gate A subject: expected exactly one file for "
+                f"{adr_id}; found {len(matches)}"
+            )
+            continue
+        path = matches[0]
+        relative = path.relative_to(root).as_posix()
+        try:
+            data = path.read_bytes()
+        except OSError as error:
+            errors.append(
+                f"cannot derive Gate A subject: cannot read {relative}: {error}"
+            )
+            continue
+        entries.append({"id": adr_id, "path": relative, "sha256": sha256_hex(data)})
+    entries.sort(key=lambda entry: entry["id"])
+    return entries, errors
+
+
+def build_gate_a_subject_payload(
+    root: Path,
+    manifest: dict,
+) -> tuple[dict | None, list[str]]:
+    """Build the canonical Gate A assurance-decomposition subject payload."""
+    errors: list[str] = []
+    authority = _mapping(manifest.get("authority"))
+
+    normative_spec: dict | None = None
+    normative_spec_path = authority.get("normative_spec")
+    if not isinstance(normative_spec_path, str) or not normative_spec_path:
+        errors.append(
+            "cannot derive Gate A subject: authority.normative_spec is not a path"
+        )
+    else:
+        try:
+            data = (root / normative_spec_path).read_bytes()
+        except OSError as error:
+            errors.append(
+                "cannot derive Gate A subject: cannot read normative specification "
+                f"{normative_spec_path}: {error}"
+            )
+        else:
+            normative_spec = {
+                "path": normative_spec_path,
+                "sha256": sha256_hex(data),
+            }
+
+    architecture_decisions, architecture_errors = _authority_artifact_entries(
+        root,
+        [item for item in _sequence(authority.get("architecture_decisions")) if isinstance(item, str)],
+        "architecture_decisions",
+    )
+    abstraction_constraints, constraint_errors = _authority_artifact_entries(
+        root,
+        [item for item in _sequence(authority.get("abstraction_constraints")) if isinstance(item, str)],
+        "abstraction_constraints",
+    )
+    errors.extend(architecture_errors)
+    errors.extend(constraint_errors)
+
+    policy = _mapping(manifest.get("policy"))
+    claims = [
+        {
+            **claim,
+            "normative_sources": _sorted_strings(claim.get("normative_sources")),
+        }
+        for claim in _sequence(manifest.get("claims"))
+        if isinstance(claim, dict)
+    ]
+    claims.sort(key=lambda claim: str(claim.get("id", "")))
+
+    coverage = [
+        {
+            "invariant": entry.get("invariant"),
+            "canonical_operational_coverage": entry.get(
+                "canonical_operational_coverage"
+            ),
+            "formal_claims": _sorted_strings(entry.get("formal_claims")),
+            "residual_claims": _sorted_strings(entry.get("residual_claims")),
+        }
+        for entry in _sequence(manifest.get("normative_coverage"))
+        if isinstance(entry, dict)
+    ]
+    coverage.sort(key=lambda entry: str(entry.get("invariant", "")))
+
+    payload = {
+        "subject_schema_version": 1,
+        "selector": GATE_A_SUBJECT_SELECTOR,
+        "authority": {
+            "normative_spec": normative_spec,
+            "architecture_decisions": architecture_decisions,
+            "abstraction_constraints": abstraction_constraints,
+        },
+        "formal_assurance_context": {
+            "schema_version": manifest.get("schema_version"),
+            "project": manifest.get("project"),
+            "formal_semantic_domains": _sequence(
+                policy.get("formal_semantic_domains")
+            ),
+            "behavioral_modalities": _sequence(policy.get("behavioral_modalities")),
+            "assurance_domains": _sequence(policy.get("assurance_domains")),
+        },
+        "claims": claims,
+        "normative_coverage": coverage,
+    }
+    if errors:
+        return None, errors
+    return payload, []
+
+
+def build_gate_a_review_subject(
+    root: Path,
+    manifest: dict,
+) -> tuple[dict | None, list[str]]:
+    """Derive the canonical Gate A review subject descriptor."""
+    payload, errors = build_gate_a_subject_payload(root, manifest)
+    if payload is None:
+        return None, errors
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return (
+        {
+            "subject_type": "derived",
+            "selector": GATE_A_SUBJECT_SELECTOR,
+            "sha256": sha256_hex(canonical),
+        },
+        [],
+    )
+
+
 def derive_gate_a(
     manifest: dict,
-    manifest_bytes: bytes,
+    current_subject: dict | None,
     records: list[tuple[Path, dict]],
 ) -> dict:
     """Derive Formal-Architecture-Ready from current review evidence."""
-    manifest_sha = sha256_hex(manifest_bytes)
     current: list[dict] = []
     for _path, record in records:
         if record.get("review_class") != GATE_A_REVIEW_CLASS:
             continue
-        current_for_manifest = any(
-            isinstance(subject, dict)
-            and subject.get("path") == MANIFEST_RELATIVE.as_posix()
-            and subject.get("sha256") == manifest_sha
+        if current_subject is not None and any(
+            isinstance(subject, dict) and subject == current_subject
             for subject in _sequence(record.get("subjects"))
-        )
-        if current_for_manifest:
+        ):
             current.append(record)
 
     if not current:
@@ -482,7 +631,7 @@ def collect_errors(
     summary: dict = {
         "invariants": 0,
         "claims": 0,
-        "gate_a": derive_gate_a({}, b"", []),
+        "gate_a": derive_gate_a({}, None, []),
     }
 
     manifest, load_errors = _load_yaml(root, MANIFEST_RELATIVE)
@@ -662,12 +811,14 @@ def collect_errors(
     errors.extend(_migration_errors(root, set(claim_by_id)))
     errors.extend(_realization_errors(root, manifest, claim_by_id, domain_modules))
 
+    current_subject, subject_errors = build_gate_a_review_subject(root, manifest)
+    errors.extend(subject_errors)
+
     review_records, review_load_errors = load_review_records(root)
     errors.extend(review_load_errors)
     errors.extend(_review_evidence_errors(root, review_records))
 
-    manifest_bytes = (root / MANIFEST_RELATIVE).read_bytes()
-    gate_a = derive_gate_a(manifest, manifest_bytes, review_records)
+    gate_a = derive_gate_a(manifest, current_subject, review_records)
     summary["gate_a"] = gate_a
 
     if (root / MODEL_RELATIVE).exists() and not gate_a["ready"]:
