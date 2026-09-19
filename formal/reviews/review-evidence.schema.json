@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:1",
+  "title": "TURNLOCK hostile semantic-review evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_id",
+    "review_class",
+    "repository_commit",
+    "subjects",
+    "attack_objectives",
+    "reviewers",
+    "findings",
+    "supersedes_review_ids",
+    "started_at",
+    "completed_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "review_id": {
+      "type": "string",
+      "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+    },
+    "review_class": {
+      "enum": [
+        "assurance-decomposition",
+        "normative-to-formal-semantics",
+        "claim-property-correspondence",
+        "formal-semantic-projection",
+        "verification-profile-adequacy",
+        "evidence-interpretation"
+      ]
+    },
+    "repository_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/subject"
+      }
+    },
+    "attack_objectives": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "semantic-strengthening",
+          "semantic-weakening",
+          "omitted-valid-behavior",
+          "invented-behavior",
+          "collapsed-normative-distinction",
+          "invented-formal-distinction",
+          "hidden-assumption",
+          "wrong-quantification",
+          "wrong-occurrence-scope",
+          "modality-mismatch",
+          "vacuity",
+          "coverage-gap",
+          "alternative-compatible-interpretation",
+          "cross-feature-interaction-failure",
+          "incorrect-evidence-lifting"
+        ]
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/reviewer"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "supersedes_review_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "completed_at": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "reviewer_type",
+        "provider",
+        "model",
+        "model_version",
+        "prompt_sha256"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewer_type": {
+          "const": "frontier-llm"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "reviewer_ids",
+        "material",
+        "statement",
+        "argument",
+        "counterexample",
+        "status",
+        "disposition_rationale"
+      ],
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewer_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "material": {
+          "type": "boolean"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterexample": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "open",
+            "resolved",
+            "refuted",
+            "routed"
+          ]
+        },
+        "disposition_rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "resolved",
+                  "refuted"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "disposition_rationale": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
