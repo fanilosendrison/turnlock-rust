@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "5.0.0"
+version: "6.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -59,6 +59,12 @@ It intentionally does not define module-internal algorithms. Those belong in NIB
 Version `5.0.0` is a breaking construction-contract revision of version `4.0.0`.
 It adds the required typed M6-to-M5 cognitive-attempt validation boundary and
 closes candidate-construction and execution-receipt lifecycle gaps before NIB-M.
+
+Version `6.0.0` is a breaking construction-contract revision of version `5.0.0`.
+It makes the durable dispatch-arm boundary self-contained across M2, M4, M7,
+and M8: an armed externally effectful Execution carries its exact WorkItem,
+dispatch intent/evidence, and recovery capability, and becomes immediately
+unresolved after Arm until an authoritative terminal disposition exists.
 
 ## 2. System objective
 
@@ -1040,6 +1046,14 @@ interface RecoveryCapabilityRef {
   readonly reconciliationOperation: ArtifactRef;
 }
 
+interface ArmedExecutionDispatchRef {
+  readonly execution: ExecutionRef;
+  readonly workItem: WorkItemRef;
+  readonly dispatchIntent: ArtifactRef;
+  readonly dispatchEvidence: readonly ArtifactRef[];
+  readonly recoveryCapability: RecoveryCapabilityRef | null;
+}
+
 interface UnresolvedExecutionRecoveryRef {
   readonly execution: ExecutionRef;
   readonly workItem: WorkItemRef;
@@ -1049,6 +1063,35 @@ interface UnresolvedExecutionRecoveryRef {
   readonly terminalOutcome: RecoveredExecutionOutcome | null;
   readonly recoveryCapability: RecoveryCapabilityRef | null;
 }
+
+`ArmedExecutionDispatchRef` is the complete cross-module dispatch identity handed
+to an externally effectful executor after M2 has durably admitted the exact Arm
+transition.
+
+The successful Arm commit is the authoritative transition from
+`AUTHORIZED-NOT-DISPATCHED` to `POSSIBLY-DISPATCHED`.
+
+From that commit until an authoritative terminal execution disposition exists,
+the Execution is unresolved even if the process crashes before M4 or M7 returns
+and even if the actual external call may not have begun.
+
+For an armed Execution with no later uncertainty enrichment or terminal
+material, M2 reconstructs its recovery descriptor as:
+
+```text
+execution          = ArmedExecutionDispatchRef.execution
+workItem           = ArmedExecutionDispatchRef.workItem
+dispatchState      = POSSIBLY-DISPATCHED
+dispatchIntent     = ArmedExecutionDispatchRef.dispatchIntent
+dispatchEvidence   = ArmedExecutionDispatchRef.dispatchEvidence
+terminalOutcome    = null
+recoveryCapability = ArmedExecutionDispatchRef.recoveryCapability
+```
+
+A later admitted executor uncertainty observation may only add exact
+dispatch/recovery evidence and an exact already-known terminal outcome. It does
+not create unresolvedness and may not change the bound Execution, WorkItem, or
+dispatch intent.
 
 type ExecutionRecoveryObservation =
   | {
@@ -1447,7 +1490,7 @@ For every `campaign-required` result, M1 must obtain `ReviewerPrerequisiteResolu
 
 ```ts
 interface CognitiveExecutionRequest {
-  readonly execution: ExecutionRef;
+  readonly dispatch: ArmedExecutionDispatchRef;
   readonly reviewContext: ReviewContext;
   readonly role: CognitiveExecutionRole;
   readonly reviewerProfileId: string;
@@ -1470,6 +1513,39 @@ type CognitiveExecutionCapture =
     };
 
 For `kind = "uncertain"`, `value.terminalOutcome` may be non-null only when a terminal outcome has already been durably captured but the exact authoritative execution disposition still requires recovery reconciliation.
+
+M4 must execute only an `ArmedExecutionDispatchRef` produced after successful
+M2 Arm admission. It must not reconstruct a WorkItem, dispatch intent,
+dispatch evidence, or recovery identity from `ExecutionRef` alone.
+
+For every M4 capture:
+
+```text
+captured.value.execution
+or
+technical-failure.value.execution
+or
+uncertain.value.execution
+==
+request.dispatch.execution
+```
+
+For `kind = "uncertain"`, M4 must preserve exactly:
+
+```text
+value.workItem       == request.dispatch.workItem
+value.dispatchIntent == request.dispatch.dispatchIntent
+```
+
+Its returned `dispatchEvidence` must contain the exact arm-time dispatch
+evidence and may append only exact evidence observed during this same external
+execution.
+
+Its returned `recoveryCapability` must equal the arm-time capability unless the
+executor has obtained a strictly more specific capability for the same exact
+dispatch. It may remain `null`.
+
+M4 never removes or weakens durable arm-time dispatch evidence.
 
 M4 never converts `TechnicalExecutionFailure` into `CapturedExecutionResult`.
 
@@ -1753,7 +1829,8 @@ validator in TypeScript.
 The request and result bindings are exact:
 
 - `runId` must equal `executionRequest.reviewContext.runId`;
-- `capturedResult.execution` must equal `executionRequest.execution`;
+- `capturedResult.execution` must equal `executionRequest.dispatch.execution`;
+- `executionRequest.dispatch.workItem.workItemId` must equal `executionRequest.dispatch.execution.workItemId`;
 - the result's `executionRequest` and `capturedResult` must equal the exact
   request values;
 - role, reviewer profile, prompt, packet, campaign, protocol bundle, execution,
@@ -1820,7 +1897,7 @@ type PublicationPreparationResult =
     };
 
 interface PublicationExecutionRequest {
-  readonly execution: ExecutionRef;
+  readonly dispatch: ArmedExecutionDispatchRef;
   readonly intent: PublicationIntentRef;
   readonly candidate: CandidateRevisionRef;
 }
@@ -1863,9 +1940,23 @@ Only after that exact intent is durable may M7 attempt the conditional mutation 
 
 Publication itself executes as a normal campaign WorkItem/Execution owned by M7.
 
+M7 may perform the remote publication mutation only from an
+`ArmedExecutionDispatchRef` produced after successful M2 Arm admission.
+
+The armed dispatch must identify the exact repository-control WorkItem and
+Execution authorized for the exact `PublicationIntent`.
+
+M7 must not reconstruct dispatch identity or recovery provenance from
+`ExecutionRef`, `PublicationIntentRef`, a repository path, or remote state
+alone.
+
 `PublicationExecutionCapture.kind = "captured"` means M7 obtained one exact durable publication-attempt observation artifact. It does not by itself mean publication is confirmed.
 
-`PublicationExecutionCapture.kind = "uncertain"` carries the complete `UnresolvedExecutionRecoveryRef`.
+`PublicationExecutionCapture.kind = "uncertain"` carries the complete
+`UnresolvedExecutionRecoveryRef` for `request.dispatch`. Its `execution`,
+`workItem`, and `dispatchIntent` must equal the exact armed-dispatch values.
+Its dispatch evidence may only preserve the arm-time evidence and append exact
+evidence observed during this same publication attempt.
 
 M7 never returns `RECONCILABLE` or `UNRESOLVABLE`.
 
@@ -2075,6 +2166,24 @@ Only M2 commits authoritative state changes, under orchestration by M1.
 
 Externally effectful work must have durable intent before dispatch.
 
+The durable M2 Arm transition is the side-effect permission linearization point.
+
+Before successful Arm commit, the corresponding external effect is not treated
+as having become possible.
+
+After successful Arm commit, the effect is conservatively treated as possibly
+executed and the Execution is unresolved until an authoritative terminal
+execution disposition is admitted.
+
+This remains true if the runner process crashes after Arm and before the owning
+executor returns, including the case where the actual external call did not in
+fact begin.
+
+The exact Arm authority must therefore contain enough immutable information to
+reconstruct `ArmedExecutionDispatchRef` and the initial
+`UnresolvedExecutionRecoveryRef` after restart without consulting mutable
+workspace state.
+
 The runner distinguishes:
 
 ```text
@@ -2114,6 +2223,13 @@ A possibly executed unresolved cognitive execution may not be blindly retried.
 
 M4 and M7 implement `ExecutionRecoveryPort` for externally effectful executions that can become epistemically ambiguous.
 
+M4 and M7 receive the exact `ArmedExecutionDispatchRef` for the execution they
+perform. Neither module may manufacture or infer missing arm-time dispatch
+identity from an `ExecutionRef`.
+
+An executor return of `kind = "uncertain"` enriches the durable unresolved
+record. It is not the transition that makes the Execution unresolved.
+
 M6 does not implement `ExecutionRecoveryPort`: its Python validation subprocesses are required to be read-only with respect to authoritative external systems and replay-safe against the same exact immutable validation input.
 
 M8 is the sole execution-uncertainty classifier and recovery-barrier consumer of those ports. An executor may report evidence through its port; it may not commit a recovery classification or authoritative state directly.
@@ -2124,7 +2240,17 @@ If an outcome cannot be established, automatic progression stops with `OPERATOR-
 
 A session taking ownership of an existing `GateARun` must cross a recovery barrier before it normally dispatches new campaign effects.
 
-The barrier consumes each complete `UnresolvedExecutionRecoveryRef`, including its WorkItem, durable dispatch state, dispatch intent/evidence, any captured result, and exact executor-owned recovery capability.
+The complete unresolved set includes every Execution for which a durable Arm
+fact exists and no authoritative terminal execution disposition exists,
+regardless of whether M4 or M7 ever returned an explicit uncertain capture.
+
+The barrier consumes each complete `UnresolvedExecutionRecoveryRef`, including
+its WorkItem, durable dispatch state, dispatch intent/evidence, any captured
+result, and executor-owned recovery capability when one exists.
+
+For a crash immediately after Arm with no later executor material, that
+descriptor is reconstructed directly from the exact durable
+`ArmedExecutionDispatchRef`.
 
 The barrier must:
 
@@ -2982,23 +3108,58 @@ run(command):
 
             M1 never invents retry permission
 
-            immediately before each external dispatch:
-                revalidate:
-                    WorkItem still enabled
-                    authorization still effective
-                    expected StateRevision still current
-                    ownership generation still current
+            for each M4 or M7 externally effectful Execution selected for dispatch:
 
-            dispatch through the owning module
+                immediately before Arm:
+                    revalidate:
+                        WorkItem still enabled
+                        authorization still effective
+                        expected StateRevision still current
+                        ownership generation still current
+
+                seal the exact Arm mutation artifact containing:
+                    exact Execution
+                    exact WorkItem
+                    exact operation/input binding
+                    exact current StateRevision
+                    exact current OwnershipGeneration
+                    exact fresh dispatch-revalidation basis
+                    exact dispatch evidence
+                    exact executor-owned RecoveryCapabilityRef if one is
+                    available, otherwise null
+
+                commit ArmExecutionDispatch through M2
+
+                require the Arm commit succeeds before any external invocation
+
+                armed_dispatch = construct ArmedExecutionDispatchRef from the
+                    exact committed Arm authority
+
+                from this point the Execution is unresolved until an
+                authoritative terminal execution disposition exists
+
+                mechanically dispatch through the owning executor using
+                    armed_dispatch
 
             durably capture one of:
                 captured result
                 known technical failure with no completed response
-                execution uncertainty with its complete
-                UnresolvedExecutionRecoveryRef
+                execution uncertainty enriching the already-durable unresolved
+                descriptor
 
             if the capture is execution uncertainty:
-                commit the exact UnresolvedExecutionRecoveryRef through M2
+                require capture.value.execution == armed_dispatch.execution
+                require capture.value.workItem == armed_dispatch.workItem
+                require capture.value.dispatchIntent == armed_dispatch.dispatchIntent
+
+                commit the exact uncertainty enrichment through M2
+
+                note:
+                    if the process crashes after Arm but before this capture,
+                    no uncertainty-enrichment mutation exists;
+                    on resume M2 still reconstructs this Execution in
+                    snapshot.unresolvedExecutions from the durable Arm authority
+                    alone
 
                 recovery = recovery_operator.classify_unresolved_execution(
                     exact descriptor
@@ -3118,26 +3279,49 @@ run(command):
 
             commit intent through M2
 
-            immediately before publication dispatch:
+            publication_execution = authorize exact repository-control Execution
+            for the exact PublicationIntent WorkItem
+
+            immediately before publication Arm:
                 revalidate:
                     qualification still effective
                     no new blocker exists
                     exact target ref still equals transition.predecessor
                     transition.successor still equals prepared immutable repository object
                     fast-forward ancestry proof still valid
+                    expected StateRevision still current
                     ownership generation still current
 
-            publication_execution = authorize exact repository-control Execution
-            for the exact PublicationIntent WorkItem
+            seal the exact publication Arm mutation artifact containing:
+                publication_execution
+                exact PublicationIntent WorkItem
+                exact transition/input binding
+                exact current StateRevision
+                exact current OwnershipGeneration
+                exact fresh publication revalidation basis
+                exact dispatch evidence
+                exact M7 RecoveryCapabilityRef if one is available,
+                otherwise null
+
+            commit ArmExecutionDispatch through M2
+
+            require the Arm commit succeeds before remote mutation
+
+            publication_dispatch = construct ArmedExecutionDispatchRef from the
+                exact committed Arm authority
 
             capture = repository_control.publish_conditionally({
-                execution: publication_execution,
+                dispatch: publication_dispatch,
                 intent: intent,
                 candidate: exact candidate
             })
 
             if capture.kind == "uncertain":
-                commit capture.value through M2
+                require capture.value.execution == publication_dispatch.execution
+                require capture.value.workItem == publication_dispatch.workItem
+                require capture.value.dispatchIntent == publication_dispatch.dispatchIntent
+
+                commit the exact publication uncertainty enrichment through M2
 
                 recovery = recovery_operator.classify_unresolved_execution(
                     capture.value
@@ -3475,6 +3659,22 @@ GI-64  No schema-v3 hostile-review execution receipt is admitted before one
        qualified attempt exists. Exhaustion without qualification preserves
        exact GateARun attempt history and produces OPERATOR-ACTION-REQUIRED,
        not an incomplete receipt.
+
+GI-65  A successful durable Arm transition is the external-effect permission
+       linearization point. From that commit until authoritative terminal
+       execution disposition, the armed Execution is conservatively
+       POSSIBLY-DISPATCHED and belongs to the unresolved recovery set, even if
+       the owning executor never returned.
+
+GI-66  M4 and M7 execute only from an exact ArmedExecutionDispatchRef produced
+       after successful M2 Arm admission. Neither executor reconstructs its
+       WorkItem, dispatch intent/evidence, or recovery identity from
+       ExecutionRef alone.
+
+GI-67  An explicit executor uncertainty capture enriches an already-unresolved
+       armed Execution; it does not create unresolvedness. Restart recovery can
+       reconstruct the initial unresolved descriptor from durable Arm authority
+       alone.
 ```
 
 ## 40. Cross-cutting policies
@@ -3571,6 +3771,18 @@ Only the first qualified attempt permits M5 to assemble and seal the complete
 schema-v3 receipt. No-qualified exhaustion retains the history, creates an
 operational blocker, and admits no partial receipt.
 
+### CP-14 — Arm is the unresolved-effect boundary
+
+A successful durable Arm commit is the last authoritative boundary before an
+externally effectful M4 or M7 invocation.
+
+Before Arm, the exact Execution is not conservatively treated as externally
+executed.
+
+After Arm, it is conservatively unresolved until exact terminal disposition,
+and restart may not depend on whether the executor managed to return an
+uncertainty object before process interruption.
+
 ## 41. NIB-M decomposition required by this System Brief
 
 Issue #30 must produce active NIB-M coverage for exactly these implementation modules:
@@ -3647,6 +3859,7 @@ what happens after subject-changing and candidate-only repairs
 how M2 atomically bootstraps the run and initial writer
 who may write state
 what exact recovery descriptors and ports exist after crash/ownership transfer
+how one successful Arm produces the exact M4/M7 dispatch context and makes the Execution immediately reconstructible as unresolved across crash/restart
 how WorkItems and Executions differ
 how cognitive WorkItem, runner Execution, hostile-review receipt, receipt attempt, llm-runtime call, and provider transport attempt identities map without collapse
 how M4 capture reaches existing Python validation through M6 and then M5 without reimplementation
