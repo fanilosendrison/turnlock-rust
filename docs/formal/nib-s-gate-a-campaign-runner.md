@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.1"
+version: "6.0.2"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -69,6 +69,12 @@ unresolved after Arm until an authoritative terminal disposition exists.
 Version `6.0.1` corrects the M1 multi-dispatch pseudocode so each external
 capture and uncertainty-recovery branch remains bound to the exact
 `ArmedExecutionDispatchRef` created for that loop iteration.
+
+Version `6.0.2` corrects two implementation-contract continuation gaps without
+changing TURNLOCK product semantics: blocked recovery plans retain the exact
+pending reconciliation references required for M2 admission, and resume
+orchestration can re-enter an incomplete bootstrap preflight after its exact
+operational blockers have been resolved.
 
 ## 2. System objective
 
@@ -1996,6 +2002,7 @@ type RecoveryPlan =
       readonly kind: "blocked";
       readonly expectedStateRevision: StateRevision;
       readonly resolutions: readonly ExecutionRecoveryResolution[];
+      readonly pending: readonly ReconciliationPendingRef[];
       readonly blockers: readonly OperationalBlocker[];
     };
 
@@ -2069,6 +2076,45 @@ automatic reconciliation policy exhausted while still pending
 `RecoveryPlan.kind = "cleared"` is valid only when every supplied unresolved execution has a terminal `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` resolution and no recovery blocker remains.
 
 `RecoveryPlan.kind = "blocked"` is required when any execution is `UNRESOLVABLE` or when the finite automatic reconciliation policy ends while a reconcilable execution is still pending.
+
+For `RecoveryPlan.kind = "blocked"`, `resolutions`, `pending`, and `blockers`
+preserve the order of the corresponding entries in
+`RecoveryRequest.unresolvedExecutions`.
+
+Each supplied unresolved Execution contributes to exactly one recovery position:
+
+```text
+terminal classification
+→ exactly one ExecutionRecoveryResolution in resolutions
+→ no ReconciliationPendingRef for that Execution
+
+pending after finite automatic reconciliation exhaustion
+→ no ExecutionRecoveryResolution for that Execution
+→ exactly one ReconciliationPendingRef in pending
+```
+
+An Execution may never appear in both `resolutions` and `pending`.
+
+For every `UNRESOLVABLE` resolution, `blockers` contains exactly the
+OperationalBlocker carried by that resolution.
+
+For every entry in `pending`, `blockers` contains exactly one
+OperationalBlocker for that same Execution and that pending-policy-exhaustion
+episode.
+
+A `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` resolution creates no recovery
+blocker merely by being proven.
+
+The `pending` array is empty when the blocked plan contains no
+pending-policy-exhausted Execution.
+
+The `resolutions` array may contain proven terminal resolutions alongside
+`UNRESOLVABLE` terminal resolutions when different unresolved Executions in the
+same RecoveryRequest produce different classifications.
+
+This transport is required so M1 can construct the exact
+`AdmitExecutionRecoveryV1` shape already defined by M2 without reconstructing,
+dropping, or inventing M8 recovery facts.
 
 `ClassifyUnresolvedExecutionResult.kind = "resolved"` returns only a proven non-execution or proven completed terminal outcome.
 
@@ -2982,6 +3028,62 @@ run(command):
             commit resolution through M2
             snapshot = committed snapshot
 
+        root_preflight_obligation = exact obligation from snapshot where:
+            obligationId ==
+                deriveId(
+                    "gate-a-root-preflight-obligation.v1",
+                    run.runId,
+                    contracts.preflightObligationDefinition.sha256
+                )
+            runId == run.runId
+            candidateId == null
+            reviewCampaignId == null
+            definition == contracts.preflightObligationDefinition
+
+        require exactly one such root_preflight_obligation exists
+
+        if root_preflight_obligation is outstanding:
+            if any outstanding OperationalBlocker exists:
+                return project_runner_result(snapshot)
+
+            preflight = campaign_authority.preflight(
+                run,
+                command.repositoryPath
+            )
+
+            if preflight is blocked:
+                require every blocker references root_preflight_obligation
+                commit exact blockers through M2 using
+                    ownership + snapshot.stateRevision
+                return project_runner_result()
+
+            require preflight.kind == established
+
+            commit exact baseline authority + publication target + satisfied
+                root_preflight_obligation through M2
+            snapshot = committed snapshot
+
+            sealed_candidate = repository_control.seal_initial_candidate(
+                run,
+                preflight.baselineAuthority
+            )
+
+            candidate_subject = campaign_authority.derive_subject({
+                sealedCandidate: sealed_candidate.sealedCandidate
+            })
+
+            candidate = construct complete CandidateRevision(
+                runId = run.runId,
+                ordinal = 0,
+                parentCandidateId = null,
+                materialization = sealed_candidate.sealedCandidate.materialization,
+                semanticSubject = candidate_subject.semanticSubject,
+                producedByRepairIntentId = null
+            )
+
+            commit exact candidate through M2
+            snapshot = committed snapshot
+
         recovery_plan = recovery_operator.reconcile_prior_sessions({
             runId: run.runId,
             stateRevision: snapshot.stateRevision,
@@ -3418,6 +3520,17 @@ run(command):
 
             continue
 ```
+
+An incomplete bootstrap preflight is resumed only after the exact root preflight
+obligation is still outstanding and no OperationalBlocker remains outstanding.
+Resolving an operational blocker does not itself satisfy the preflight
+obligation, establish repository authority, create the initial candidate, or
+authorize normal campaign progression. M1 must re-run the existing M3 preflight
+boundary and, on success, complete the same baseline-authority,
+publication-target, root-obligation, sealed-candidate, semantic-subject, and
+CandidateRevision ordinal-0 construction used by `start`. If preflight blocks
+again, the newly established exact blockers are committed and the run remains
+`OPERATOR-ACTION-REQUIRED`.
 
 The orchestrator never creates semantic authority.
 
