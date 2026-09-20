@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.0"
+version: "1.0.1"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -772,7 +772,7 @@ require W exists
 require at least one source obligation is outstanding
 require run is not GATE-A-READY
 require semantic progression does not prohibit new work
-require no outstanding operational blocker permits progression
+require no outstanding OperationalBlocker exists
 ```
 
 Let existing executions for W be ordered by `attemptOrdinal`.
@@ -882,7 +882,7 @@ require E has no terminal outcome
 require E has no terminal recovery resolution
 require E's WorkItem has at least one outstanding source obligation
 require no semantic terminal prevents new side effects
-require no outstanding operational blocker permits continued dispatch
+require no outstanding OperationalBlocker exists
 
 require mutation.ownershipGeneration == current WriteAuthorityRef.generation
 require mutation base revision == exact current revision
