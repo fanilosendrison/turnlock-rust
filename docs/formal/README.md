@@ -298,6 +298,22 @@ The campaign-runner System Brief is stored in
 The brief's own NIB metadata is the sole source for its construction lifecycle
 status.
 
+M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
+
+- [`nib-m-gate-a-campaign-state-persistence-ownership.md`](nib-m-gate-a-campaign-state-persistence-ownership.md)
+  — SQLite-backed authoritative persistence, immutable artifact storage,
+  bootstrap, ownership, and fencing;
+- [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md)
+  — authoritative mutation admission, obligations/blockers, retries, dispatch,
+  recovery admission, qualification, and publication state transitions;
+- [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md)
+  — deterministic snapshot reconstruction, unresolved-execution projection,
+  retained-state integrity, and provenance-root materialization.
+
+The persistence/ownership Module Brief selects SQLite and therefore requires a
+separate `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` Dependency Contract before
+GREEN. That Dependency Contract is not part of the current task.
+
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native
 relationships, and Turnlock-Rust Engineering own live implementation work
