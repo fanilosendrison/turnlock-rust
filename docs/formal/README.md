@@ -286,3 +286,14 @@ that execution. Historical protocol bundles are preserved and recursively
 validated through the `v4 -> v3 -> v2 -> v1` predecessor chain, where v1, v2,
 and v3 are immutable. This changes no TURNLOCK semantics and does not change the
 Gate A semantic subject.
+
+## Gate A campaign runner construction
+
+The non-authoritative construction sequence for the Gate A hostile-review
+campaign runner is documented in
+[`gate-a-campaign-runner-construction-plan.md`](gate-a-campaign-runner-construction-plan.md).
+
+That document is a stable construction map, not a live work tracker, product
+authority, hostile-review protocol, or evidence record. GitHub Issues, native
+relationships, and Turnlock-Rust Engineering own live implementation work
+state.
