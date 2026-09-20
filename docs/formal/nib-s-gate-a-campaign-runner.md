@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "4.0.0"
+version: "5.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -55,6 +55,10 @@ This NIB-S fixes:
 - global invariants and cross-cutting policies.
 
 It intentionally does not define module-internal algorithms. Those belong in NIB-M.
+
+Version `5.0.0` is a breaking construction-contract revision of version `4.0.0`.
+It adds the required typed M6-to-M5 cognitive-attempt validation boundary and
+closes candidate-construction and execution-receipt lifecycle gaps before NIB-M.
 
 ## 2. System objective
 
@@ -210,18 +214,20 @@ Branching, merging, speculative parallel candidate trees, and candidate selectio
 
 A `CandidateRevision` is:
 
-* immutable after sealing;
+* constructed only after one exact repository materialization is sealed and its
+  exact semantic subject is derived;
+* immutable after admission;
 * bound to one exact repository materialization;
 * bound to one parent candidate except `C0`;
 * bound to exact construction/repair provenance;
-* assigned one exact derived semantic subject identity after sealing.
+* bound to that exact derived semantic subject identity.
 
 A mutable worktree under repair is not a CandidateRevision.
 
 The construction boundary is:
 
 ```text
-sealed CandidateRevision Cn
+complete admitted CandidateRevision Cn
         ↓
 exact qualified RepairIntent
         ↓
@@ -229,11 +235,11 @@ mutable CandidateDraft
         ↓
 exact approved patch applied
         ↓
-seal
-        ↓
-CandidateRevision Cn+1
+seal candidate materialization Cn+1
         ↓
 derive exact S(n+1)
+        ↓
+construct and admit complete CandidateRevision Cn+1
 ```
 
 No review evidence may target a mutable draft.
@@ -341,15 +347,17 @@ For a cognitive WorkItem, construction identity is bound to the accepted
 hostile-review receipt hierarchy from ADR-049:
 
 ```text
-cognitive WorkItem
-→ one logical hostile-review execution receipt
+cognitive WorkItem / logical hostile-review execution identity
 → zero or more runner Executions that reach the cognitive call boundary
-→ one receipt protocol attempt per such executed runner Execution
+→ one protocol attempt per such executed runner Execution
 → one llm-runtime call per protocol attempt
 → provider/transport attempts internal to that call
+→ after the first qualified attempt, one complete hostile-review receipt
+  aggregates every ordered protocol attempt
 ```
 
-For a cognitive WorkItem:
+If a cognitive WorkItem reaches a qualified attempt and its complete
+receipt is assembled:
 
 ```text
 receipt.execution_id == WorkItemId
@@ -427,9 +435,11 @@ new-run preflight OR resume recovery barrier
     ↓
 resolve exact baseline repository authority
     ↓
-materialize/seal current CandidateRevision
+materialize/seal current candidate materialization
     ↓
 derive exact semantic subject S
+    ↓
+construct/admit complete current CandidateRevision
     ↓
 load/validate exact current protocol P
     ↓
@@ -461,6 +471,11 @@ execute cognitive/mechanical work
     ↓
 seal and admit exact execution results
     ↓
+for each completed cognitive response:
+    M6 obtains exact checker-derived attempt classification
+    M5 consumes that classification and either authorizes an admissible retry
+    or, after the first qualified attempt, assembles the complete receipt
+    ↓
 mechanical one-to-one finding normalization
     ↓
 protocol adjudication / hostile challenge paths
@@ -478,9 +493,11 @@ if uniquely derived repair is authorized:
     ↓
     exact mechanical patch application
     ↓
-    seal successor CandidateRevision
+    seal successor candidate materialization
     ↓
-    recompute S
+    derive successor S
+    ↓
+    construct/admit complete successor CandidateRevision
     ↓
     if S changed:
         prior ReviewCampaign set becomes historical for the successor subject
@@ -597,7 +614,8 @@ Owns:
 * mapping from cognitive WorkItem/Execution identity to ADR-049 receipt execution/attempt identity, `llm-runtime` call identity, and provider-attempt evidence;
 * dispatch/cancellation integration;
 * raw result capture;
-* exact runtime metadata needed by execution receipts;
+* exact attempt artifacts and runtime metadata needed to preserve pre-receipt
+  history and later assemble execution receipts;
 * secret injection into the LLM dependency boundary.
 
 It does not adjudicate semantic correctness.
@@ -609,7 +627,10 @@ It does not retry outside the exact behavior authorized by the protocol and the 
 Owns:
 
 * protocol-derived obligations and WorkItems;
+* consumption of exact M6 cognitive-attempt classifications;
 * checker-derived cognitive protocol-attempt admissibility and exact retry-authorization products;
+* assembly and sealing of one complete schema-v3 execution receipt only after
+  the first qualified attempt;
 * review-campaign artifact relationships;
 * exact one-to-one finding normalization;
 * finding/evidence provenance;
@@ -633,7 +654,10 @@ It does not declare Gate A READY independently of existing mechanical authority.
 Owns:
 
 * subprocess invocation of existing repository Python validation authorities;
-* exact capture of validator inputs, outputs, exit status, and candidate identity;
+* role-aware classification of exact captured cognitive attempts through the
+  existing Python hostile-review validation authority;
+* exact capture of validator inputs, outputs, exit status, candidate identity,
+  and cognitive-attempt identity;
 * admission-ready mechanical result artifacts;
 * final mechanical Gate A qualification request for one exact sealed candidate;
 * post-publication repository validation request.
@@ -642,7 +666,9 @@ It must invoke existing authorities rather than reimplementing them in TypeScrip
 
 M6 validation invocations are read-only with respect to authoritative external systems.
 
-They execute only against exact sealed candidate inputs or an exact `PublishedRepositoryViewRef`.
+They execute only against exact immutable validation inputs: an exact
+cognitive execution request plus captured result, an exact sealed candidate, or
+an exact `PublishedRepositoryViewRef`.
 
 A validator subprocess interruption does not create an ambiguous external authoritative side effect.
 
@@ -1119,9 +1145,12 @@ For `reason = "technical-failure"`, the referenced prior Execution must have an
 exact admitted `TechnicalExecutionFailure`.
 
 For `reason = "protocol-invalid"`, the referenced prior Execution must have an
-exact completed captured response that the accepted deterministic protocol
-validation classifies as `protocol-invalid`; this reason is permitted only for
-the deterministically validated roles `initial-reviewer` and `challenge`.
+exact completed captured response and an exact
+`CognitiveAttemptValidationResult` from M6 that classifies that response as
+`protocol-invalid`. M5 may establish the retry authorization only when the same
+M2 transition also admits the result's exact validation evidence or that
+evidence is already admitted. This reason is permitted only for the
+deterministically validated roles `initial-reviewer` and `challenge`.
 
 A completed response for a role without a deterministic output validator is
 terminal and may never produce a `protocol-invalid` retry authorization.
@@ -1453,12 +1482,14 @@ M4 performs exactly the external call for that runner Execution and seals the
 result/evidence. It does not decide that an inconvenient completed semantic
 result should be retried.
 
-A completed captured response may later be classified by accepted protocol
-validation as either `qualified` or, only for the deterministically validated
-roles, `protocol-invalid`.
+A completed captured response must be submitted by M1 to M6. M6 invokes the
+existing Python hostile-review validation authority and returns the exact typed
+classification as either `qualified` or, only for the deterministically
+validated roles, `protocol-invalid`.
 
-M5 owns the cross-module retry-authorization product derived from that accepted
-attempt classification.
+M5 consumes that exact M6 result and owns the cross-module retry-authorization
+product derived from the accepted attempt classification. M4 and M5 never
+reimplement or override the Python classification.
 
 M4 may perform only dependency-internal provider/transport retries inside the
 same `llm-runtime` call when the Dependency Contract authorizes them. Those
@@ -1568,6 +1599,8 @@ interface AssuranceDerivationRequest {
   readonly snapshot: GateARunSnapshot;
   readonly newlyCapturedResults: readonly CapturedExecutionResult[];
   readonly newlyKnownTechnicalFailures: readonly TechnicalExecutionFailure[];
+  readonly newlyValidatedCognitiveAttempts:
+    readonly CognitiveAttemptValidationResult[];
   readonly admittedArtifacts: readonly ArtifactRef[];
 }
 
@@ -1594,7 +1627,10 @@ satisfaction/supersession, qualified RepairIntent, qualified Decision Request,
 execution-retry authorization, or candidate-review-readiness determination
 behind only a new WorkItem or blocker.
 
-M2 returns those admitted products in `GateARunSnapshot`; M5 receives the complete prior ledger plus exact newly captured results and technical failures. No module may reconstruct the ledger by rescanning mutable workspaces.
+M2 returns those admitted products in `GateARunSnapshot`; M5 receives the
+complete prior ledger plus exact newly captured results, technical failures,
+and exact M6 cognitive-attempt validation results. No module may reconstruct
+the ledger by rescanning mutable workspaces.
 
 M5 must return complete cross-module `ObligationRef` values, not bare newly invented IDs.
 
@@ -1604,10 +1640,64 @@ The internal serialized schemas and algorithms for these exact product categorie
 
 The cross-module rule is fixed: M5 returns one `AssuranceLedgerDelta`. It never commits state directly.
 
+Before a cognitive WorkItem has a qualified attempt, M5 preserves its exact
+runner Executions, captured results or technical failures, M4 runtime evidence,
+sealed completed outputs, and M6 validation evidence as GateARun operational
+history. That pre-receipt history is not a hostile-review execution receipt and
+must not be written or admitted under `formal/reviews/executions/`.
+
+When M6 returns the first `qualified` classification for the logical cognitive
+execution, M5 mechanically assembles and seals one complete schema-v3 receipt.
+The receipt includes every runner Execution for that WorkItem that reached the
+cognitive call boundary, in attempt-ordinal order, together with its applicable
+exact M4 and M6 evidence. The qualified attempt is final. M5 returns the sealed receipt
+through the existing `EvidenceRef` category; it does not create another
+cross-module ledger-product category.
+
+If finite runner retry policy ends before any qualified attempt exists, M5
+returns an exact `OperationalBlocker`, the external projection is
+`OPERATOR-ACTION-REQUIRED`, and no schema-v3 hostile-review receipt is admitted.
+The complete operational attempt history remains durable in the GateARun. If a
+later accepted continuation lawfully reaches a qualified attempt for that same
+WorkItem, the eventual receipt includes the preserved earlier attempts.
+
+A partial or no-qualified receipt is never review evidence. Validator evidence
+for an individual attempt is likewise not a substitute for the complete
+schema-v3 receipt.
+
 ### M6
 
 ```ts
+interface CognitiveAttemptValidationRequest {
+  readonly kind: "cognitive-attempt";
+  readonly runId: GateARunId;
+  readonly repositoryPath: string;
+  readonly executionRequest: CognitiveExecutionRequest;
+  readonly capturedResult: CapturedExecutionResult;
+}
+
+type CognitiveAttemptValidationResult =
+  | {
+      readonly requestKind: "cognitive-attempt";
+      readonly executionRequest: CognitiveExecutionRequest;
+      readonly capturedResult: CapturedExecutionResult;
+      readonly classification: "qualified";
+      readonly protocolErrors: readonly [];
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly requestKind: "cognitive-attempt";
+      readonly executionRequest: CognitiveExecutionRequest & {
+        readonly role: "initial-reviewer" | "challenge";
+      };
+      readonly capturedResult: CapturedExecutionResult;
+      readonly classification: "protocol-invalid";
+      readonly protocolErrors: readonly [string, ...string[]];
+      readonly evidence: readonly ArtifactRef[];
+    };
+
 type MechanicalValidationRequest =
+  | CognitiveAttemptValidationRequest
   | {
       readonly kind: "repository-integrity";
       readonly runId: GateARunId;
@@ -1628,6 +1718,7 @@ type MechanicalValidationRequest =
     };
 
 type MechanicalValidationResult =
+  | CognitiveAttemptValidationResult
   | {
       readonly requestKind: "repository-integrity";
       readonly candidateId: CandidateRevisionId;
@@ -1652,6 +1743,36 @@ type MechanicalValidationResult =
       readonly evidence: readonly ArtifactRef[];
     };
 ```
+
+For `cognitive-attempt`, M6 must invoke a supported thin Python entry point
+that delegates to the existing hostile-review checker authority. It must not
+run the whole-repository checker against an intentionally incomplete receipt,
+infer attempt classification from a process exit code, or reproduce the
+validator in TypeScript.
+
+The request and result bindings are exact:
+
+- `runId` must equal `executionRequest.reviewContext.runId`;
+- `capturedResult.execution` must equal `executionRequest.execution`;
+- the result's `executionRequest` and `capturedResult` must equal the exact
+  request values;
+- role, reviewer profile, prompt, packet, campaign, protocol bundle, execution,
+  raw output, and runtime evidence must remain those of the exact dispatch and
+  capture.
+
+For `initial-reviewer` and `challenge`, the Python authority derives
+`qualified` or `protocol-invalid` from the exact sealed output and exact bound
+protocol inputs. For the seven roles without deterministic output validators,
+the first completed response is classified `qualified` by the accepted
+role-policy admission rule; this classification does not assert semantic
+correctness. `protocol-invalid` is impossible for those seven roles.
+
+A technical failure has no completed response and therefore creates no
+`CognitiveAttemptValidationRequest`.
+
+Failure to obtain a trustworthy Python classification is an
+implementation/integrity failure. It produces neither `protocol-invalid`, a
+retry authorization, nor a hostile-review receipt.
 
 For `gate-a-qualification`, `reviewReadiness` must name the same candidate as the request. The result campaign-ID lists must equal the complete ordered lists in `reviewReadiness` and obey `GateAQualificationRef` completeness rules.
 
@@ -2057,14 +2178,17 @@ For cognitive WorkItems, the construction binding is exact:
 
 ```text
 receipt.execution_id = WorkItemId
-receipt.attempt_id = ExecutionId
-receipt.attempt.call_id = exact llm-runtime call identity
+receipt.attempts[*].attempt_id = corresponding ExecutionId
+receipt.attempts[*].call_id = exact llm-runtime call identity
 ```
 
-A runner-level protocol retry therefore creates a new `Execution` and a new
-receipt attempt for the same WorkItem/receipt identity.
+A runner-level protocol retry therefore creates a new `Execution` and, if a
+qualified attempt is eventually reached, a new receipt attempt for the same
+WorkItem/receipt identity.
 
-A dependency-internal transport retry does not.
+A dependency-internal transport retry does not. Before qualification, the exact
+attempt remains GateARun operational history rather than an incomplete
+hostile-review receipt.
 
 and must define:
 
@@ -2216,7 +2340,11 @@ The runner does not define an independent Gate A acceptance algorithm.
 
 Existing repository mechanical authorities remain authoritative for the exact checks they own.
 
-M6 invokes them against one exact sealed candidate workspace.
+For cognitive-attempt classification, M6 invokes the existing Python
+hostile-review authority against the exact immutable execution request and
+captured result. For repository integrity and Gate A qualification, M6 invokes
+the existing repository authorities against one exact sealed candidate
+workspace.
 
 A candidate becomes publication-eligible only after:
 
@@ -2906,11 +3034,30 @@ run(command):
 
                     continue
 
+            for each newly captured cognitive result:
+                attempt_validation = mechanical_validation.validate_cognitive_attempt({
+                    kind: cognitive-attempt,
+                    runId: run.runId,
+                    repositoryPath: exact candidate repository path,
+                    executionRequest: exact CognitiveExecutionRequest,
+                    capturedResult: exact CapturedExecutionResult
+                })
+
+                require attempt_validation binds the exact execution request,
+                    execution, WorkItem, campaign, protocol bundle, role,
+                    reviewer profile, prompt, packet, captured output, and
+                    runtime evidence
+
+                preserve attempt_validation as a newly validated cognitive attempt
+
+            require no CognitiveAttemptValidationRequest exists for a technical failure
+
             delta = assurance_ledger.derive_complete_delta(
                 evaluation_context,
                 current authoritative snapshot,
                 newly captured results,
                 newly known technical failures,
+                newly validated cognitive attempts,
                 newly admitted artifacts
             )
 
@@ -3156,7 +3303,9 @@ GI-01  RunnerSession != GateARun != ReviewCampaign.
 GI-02  ReviewCampaign provenance is permanently bound to its exact production
        candidate/run identity when runner-owned, exact repository authority,
        exact S, and exact P; currentness is independently derived from (S, P).
-GI-03  CandidateRevision identity is immutable after seal.
+GI-03  CandidateRevision is constructed only from a sealed candidate
+       materialization plus its exact derived semantic subject and is immutable
+       after admission.
 GI-04  A repair that changes S requires a full new ReviewCampaign; a
        CandidateRevision-only change with unchanged (S, P) does not.
 GI-05  A protocol change never rewrites historical campaign evidence.
@@ -3307,15 +3456,25 @@ GI-60  M6 validation subprocesses are read-only with respect to authoritative
        validation input; M6 does not implement ExecutionRecoveryPort.
 
 GI-61  For cognitive WorkItems, hostile-review receipt execution_id is the
-       WorkItemId, each executed runner Execution contributes one receipt
-       attempt whose attempt_id is that ExecutionId, and the attempt call_id
-       binds the exact llm-runtime call. Provider/transport retries remain
-       below this identity boundary.
+       WorkItemId. If a qualified attempt is reached, each executed runner
+       Execution contributes one receipt attempt whose attempt_id is that
+       ExecutionId, and the attempt call_id binds the exact llm-runtime call.
+       Provider/transport retries remain below this identity boundary.
 
 GI-62  M1 never invents cognitive protocol retry permission. M5 alone exposes
        an exact retry authorization from accepted attempt admissibility, and
        M2 consumes that authorization at most once when creating the
        replacement Execution.
+
+GI-63  M4 captures exact cognitive attempt material, M6 alone obtains the
+       checker-derived role-aware attempt classification through existing
+       Python authority, and M5 consumes that exact typed result without
+       reclassifying it.
+
+GI-64  No schema-v3 hostile-review execution receipt is admitted before one
+       qualified attempt exists. Exhaustion without qualification preserves
+       exact GateARun attempt history and produces OPERATOR-ACTION-REQUIRED,
+       not an incomplete receipt.
 ```
 
 ## 40. Cross-cutting policies
@@ -3403,6 +3562,15 @@ A `PublicationConfirmationRef` alone is insufficient for `GATE-A-READY`.
 The exact bound post-publication validation must pass before the terminal ready
 fact may be committed.
 
+### CP-13 — Receipt admission requires qualification
+
+A logical cognitive execution has durable runner attempt history before it has
+hostile-review receipt evidence.
+
+Only the first qualified attempt permits M5 to assemble and seal the complete
+schema-v3 receipt. No-qualified exhaustion retains the history, creates an
+operational blocker, and admits no partial receipt.
+
 ## 41. NIB-M decomposition required by this System Brief
 
 Issue #30 must produce active NIB-M coverage for exactly these implementation modules:
@@ -3481,6 +3649,8 @@ who may write state
 what exact recovery descriptors and ports exist after crash/ownership transfer
 how WorkItems and Executions differ
 how cognitive WorkItem, runner Execution, hostile-review receipt, receipt attempt, llm-runtime call, and provider transport attempt identities map without collapse
+how M4 capture reaches existing Python validation through M6 and then M5 without reimplementation
+how pre-receipt attempt history becomes one complete schema-v3 receipt only after qualification
 where llm-runtime is allowed
 where Python authority remains authoritative
 how repair may proceed
