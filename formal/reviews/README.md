@@ -221,7 +221,11 @@ cause a fresh retry using the exact same semantic input. A valid semantic
 response is never retried merely because its content is inconvenient, and no
 model-shopping is permitted after a semantically valid result.
 
-Every completed protocol attempt is recorded in the execution receipt. Attempt validity is checker-derived from sealed output, not runner labels.
+Every completed protocol attempt is sealed and preserved in exact runner
+history. Once the logical cognitive execution has a qualified attempt, every
+protocol attempt belonging to that execution is recorded in its complete
+execution receipt. Attempt validity is checker-derived from sealed output, not
+runner labels.
 
 Protocol v3 recognizes exactly two execution-validation classes. The deterministically validated roles are exactly:
 
@@ -248,12 +252,23 @@ For these roles, `protocol-invalid` is forbidden. Any number of `technical-failu
 
 ## Execution receipts
 
-Every logical cognitive protocol execution participating in the campaign has
-one content-addressed execution receipt:
+A logical cognitive protocol execution is admitted as hostile-review evidence
+through one content-addressed execution receipt only after it has exactly one
+qualified attempt:
 
 ```text
 formal/reviews/executions/*.json
 ```
+
+Before qualification, exact attempts, sealed completed outputs, runtime
+metadata, and checker evidence remain durable runner operational history. They
+are not a partial execution receipt and are not admitted under the execution
+receipt path.
+
+If finite runner retry policy ends without a qualified attempt, no conforming
+schema-v3 execution receipt exists for that logical execution. The operational
+history remains durable, and the campaign runner requires operator action
+rather than manufacturing an incomplete receipt.
 
 The receipt's top-level `execution_id` identifies that logical cognitive
 protocol execution.
@@ -266,8 +281,9 @@ attempt boundary and are represented by the attempt's transport evidence,
 including `transport_attempt_count`.
 
 An admissible retry after a checker-derived `technical-failure` or
-`protocol-invalid` outcome creates another protocol attempt in the same receipt;
-it does not create a second receipt for the same logical cognitive execution.
+`protocol-invalid` outcome creates another protocol attempt for the same logical
+cognitive execution. If qualification is later reached, the complete receipt
+contains all such attempts in order; the retry does not create a second receipt.
 The first `qualified` attempt remains terminal and final.
 
 The receipt also records the role, reviewer profile, protocol bundle SHA-256,

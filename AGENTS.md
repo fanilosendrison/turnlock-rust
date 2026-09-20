@@ -390,11 +390,13 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Initial hostile reviewer raw outputs MUST be structured JSON under
   `formal/reviews/raw/*.json` and MUST assess all 14 Gate A objectives exactly
   once with reciprocal objective/finding references.
-- Every completed cognitive LLM call MUST have a content-addressed execution
-  receipt under `formal/reviews/executions/*.json`; every completed response MUST
-  be sealed even when protocol-invalid; at most one attempt per receipt may be
-  `qualified`; a valid semantic result MUST NOT be retried and no model-shopping
-  is permitted.
+- Every completed cognitive LLM call MUST be sealed and preserved as exact
+  attempt history even when protocol-invalid. A content-addressed execution
+  receipt under `formal/reviews/executions/*.json` is admitted only after the
+  same logical cognitive execution has exactly one qualified attempt; it then
+  contains every preserved protocol attempt in order. No partial/no-qualified
+  receipt is admitted. A valid semantic result MUST NOT be retried and no
+  model-shopping is permitted.
 - Published versioned hostile-review protocol bundles and every prompt/schema
   they reference are append-only and must not be edited or deleted; protocol
   evolution creates a new bundle/path and links the previous bundle through

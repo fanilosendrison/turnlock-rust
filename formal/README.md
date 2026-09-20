@@ -152,7 +152,8 @@ prevent Gate A subject derivation.
   execution; the same exact canonical packet and prompt across qualifying
   executions; declared isolated contexts with no cross-reviewer visibility
   before sealing; content-addressed sealed packet/prompt/raw/challenge artifacts
-  plus per-call execution receipts; structured JSON raw outputs; exact
+  plus one complete execution receipt per qualified logical cognitive execution;
+  structured JSON raw outputs; exact
   one-to-one raw-finding normalization; a valid zero-objection hostile
   materiality challenge for every non-material finding; no surviving current
   material `open`, `routed`, or `resolved` finding; a valid zero-objection
