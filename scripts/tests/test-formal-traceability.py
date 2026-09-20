@@ -92,7 +92,7 @@ def coverage_entry(manifest: dict, invariant: str) -> dict:
     raise AssertionError(f"missing coverage entry {invariant}")
 
 
-PROTOCOL_BUNDLE_RELATIVE = "formal/reviews/protocols/gate-a-campaign-protocol-v1.json"
+PROTOCOL_BUNDLE_RELATIVE = "formal/reviews/protocols/gate-a-campaign-protocol-v2.json"
 
 SUPPORTING_PROFILE_DEFAULTS = {
     "profile-challenge": ("provider-challenge", "model-challenge"),
@@ -216,7 +216,7 @@ def install_protocol_bundle(
     else:
         derived = (
             "formal/reviews/protocols/"
-            f"gate-a-campaign-protocol-v1-{sha256[:16]}.json"
+            f"gate-a-campaign-protocol-v2-{sha256[:16]}.json"
         )
         path = fixture_root / derived
         path.write_bytes(data)
@@ -379,7 +379,9 @@ def build_receipt_payload(
                 raw_output=raw_output,
             )
         ]
-    attempt_id = attempts[0]["attempt_id"] if attempts else "ATTEMPT-1"
+    attempt_id = next(
+        attempt["attempt_id"] for attempt in attempts if attempt["outcome"] == "qualified"
+    )
     if resolved_identity is None and outcome == "qualified":
         resolved_identity = {
             "provider": provider,
@@ -389,7 +391,7 @@ def build_receipt_payload(
             "evidence_attempt_id": attempt_id,
         }
     payload = {
-        "receipt_schema_version": "1.0",
+        "receipt_schema_version": "2.0",
         "execution_id": execution_id,
         "role": role,
         "reviewer_profile_id": reviewer_profile_id,
@@ -401,8 +403,10 @@ def build_receipt_payload(
         "runtime": {"name": "fixture-runtime", "version": "1.0"},
         "request": {"provider": provider, "model": model},
         "attempts": attempts,
-        "qualifying_attempt_id": (
-            attempt_id if outcome == "qualified" else None
+        "qualifying_attempt_id": next(
+            attempt["attempt_id"]
+            for attempt in attempts
+            if attempt["outcome"] == "qualified"
         ),
         "resolved_identity": resolved_identity,
     }
@@ -604,6 +608,18 @@ def replace_execution_raw_output(
     return reference
 
 
+def make_challenge_packet(fixture_root: Path, protocol: dict, *, name: str, kind: str, selector: str, payload: dict, objectives: tuple[str, ...]) -> dict:
+    review_reference = protocol["review_packet"]
+    review_payload = json.loads((fixture_root / review_reference["path"]).read_text(encoding="utf-8"))
+    packet = {
+        "challenge_packet_schema_version": "1.0",
+        "challenge_kind": kind,
+        "challenge_subject": {"selector": selector, "sha256": checker.sha256_hex(checker._canonical_json_bytes(payload)), "payload": payload},
+        "required_objectives": list(objectives),
+        "review_packet": {"sha256": review_reference["sha256"], "payload": review_payload},
+    }
+    return write_json_artifact(fixture_root, f"formal/reviews/challenge-packets/{name}.json", packet)
+
 def attach_materiality_evidence(
     fixture_root: Path,
     protocol: dict,
@@ -644,6 +660,7 @@ def attach_materiality_evidence(
     challenged_sha = checker._materiality_challenge_subject_sha256(
         substantive_finding, materiality_mapping
     )
+    challenge_packet = make_challenge_packet(fixture_root, protocol, name=f"materiality-{name}", kind="materiality", selector=checker.MATERIALITY_CHALLENGE_SELECTOR, payload=checker._materiality_challenge_subject_payload(substantive_finding, materiality_mapping), objectives=checker.MATERIALITY_AXES)
     challenge_output = challenge_output_payload(
         "materiality",
         checker.MATERIALITY_AXES,
@@ -662,12 +679,13 @@ def attach_materiality_evidence(
         bundle_reference=bundle_reference,
         bundle_payload=bundle_payload,
         prompt_key="challenge",
-        packet_reference=protocol["review_packet"],
+        packet_reference=challenge_packet,
         output_reference=challenge_output_reference,
     )
     supporting.append(challenge_receipt)
     materiality_mapping["challenge"] = {
         "challenged_materiality_sha256": challenged_sha,
+        "packet": challenge_packet,
         "execution_receipt": challenge_receipt,
         "output": challenge_output_reference,
         "rationale": "Fixture hostile materiality challenge.",
@@ -698,6 +716,7 @@ def replace_materiality_challenge(
     challenged_sha = checker._materiality_challenge_subject_sha256(
         substantive_finding, materiality_mapping
     )
+    challenge_packet = make_challenge_packet(fixture_root, protocol, name=f"materiality-{name}-revision", kind="materiality", selector=checker.MATERIALITY_CHALLENGE_SELECTOR, payload=checker._materiality_challenge_subject_payload(substantive_finding, materiality_mapping), objectives=checker.MATERIALITY_AXES)
     challenge_output = challenge_output_payload(
         "materiality", checker.MATERIALITY_AXES, objections
     )
@@ -714,12 +733,13 @@ def replace_materiality_challenge(
         bundle_reference=bundle_reference,
         bundle_payload=bundle_payload,
         prompt_key="challenge",
-        packet_reference=protocol["review_packet"],
+        packet_reference=challenge_packet,
         output_reference=challenge_output_reference,
     )
     supporting.append(challenge_receipt)
     materiality_mapping["challenge"] = {
         "challenged_materiality_sha256": challenged_sha,
+        "packet": challenge_packet,
         "execution_receipt": challenge_receipt,
         "output": challenge_output_reference,
         "rationale": "Fixture revised hostile materiality challenge.",
@@ -783,6 +803,7 @@ def attach_challenge(
             f"formal/reviews/challenges/refutation-{finding['finding_id']}.json",
             challenge_output,
         )
+    challenge_packet = make_challenge_packet(fixture_root, record["protocol"], name=f"refutation-{finding['finding_id']}", kind="refutation", selector=checker.REFUTATION_CHALLENGE_SELECTOR, payload=checker._refutation_challenge_subject_payload(finding), objectives=checker.REFUTATION_CHALLENGE_OBJECTIVES)
     if execution_receipt is None:
         receipt_payload = build_receipt_payload(
             execution_id=f"EXEC-CHALLENGE-{finding['finding_id'].upper().replace('-', '')}",
@@ -790,7 +811,7 @@ def attach_challenge(
             reviewer_profile_id="profile-challenge",
             protocol_bundle_sha256=bundle_reference["sha256"],
             prompt=bundle_payload["prompts"]["challenge"],
-            packet=record["protocol"]["review_packet"],
+            packet=challenge_packet,
             provider="provider-challenge" if role == "challenge" else "provider-adjudicator",
             model="model-challenge" if role == "challenge" else "model-adjudicator",
             model_version="1",
@@ -807,6 +828,7 @@ def attach_challenge(
         "challenged_refutation_sha256": (
             binding if binding is not None else expected_sha
         ),
+        "packet": challenge_packet,
         "execution_receipt": execution_receipt,
         "output": output,
         "rationale": "Fixture hostile refutation challenge.",
@@ -878,6 +900,7 @@ def make_re_adjudication(
                 f"formal/reviews/challenges/readj-{source_review_id}-{source_finding['finding_id']}.json",
                 challenge_output,
             )
+            challenge_packet = make_challenge_packet(fixture_root, protocol, name=f"readj-{source_review_id}-{source_finding['finding_id']}", kind="refutation", selector=checker.REFUTATION_CHALLENGE_SELECTOR, payload=checker._re_adjudication_refutation_subject_payload(source_finding, item), objectives=checker.REFUTATION_CHALLENGE_OBJECTIVES)
             challenge_receipt = make_support_receipt(
                 fixture_root,
                 name=f"readj-challenge-{source_review_id}-{source_finding['finding_id']}",
@@ -886,12 +909,13 @@ def make_re_adjudication(
                 bundle_reference=bundle_reference,
                 bundle_payload=bundle_payload,
                 prompt_key="challenge",
-                packet_reference=protocol["review_packet"],
+                packet_reference=challenge_packet,
                 output_reference=challenge_output_reference,
             )
             supporting.append(challenge_receipt)
             item["disposition"]["challenge"] = {
                 "challenged_refutation_sha256": expected_sha,
+                "packet": challenge_packet,
                 "execution_receipt": challenge_receipt,
                 "output": challenge_output_reference,
                 "rationale": "Fixture hostile re-adjudication refutation challenge.",
@@ -1164,7 +1188,7 @@ def make_review(
         ] = reference
 
     return {
-        "schema_version": "4.0",
+        "schema_version": "5.0",
         "review_id": review_id,
         "review_class": review_class,
         "repository_commit": "6d3c9851e0d66286280f8e49ebd8ed44da13d876",
@@ -5116,6 +5140,1132 @@ class GateAProtocolV4Tests(unittest.TestCase):
             subject["sha256"],
         )
 
+
+class GateAProtocolV5RegressionTests(unittest.TestCase):
+    def test_published_protocol_v1_artifacts_remain_byte_identical(self):
+        expected = {
+            "formal/reviews/protocols/gate-a-campaign-protocol-v1.json": "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1",
+            "formal/reviews/prompts/gate-a-initial-review-v1.md": "516c63b4df16c72fb7ac1718fa4af5a9ab402e0ecf9c460d44a65858b7862748",
+            "formal/reviews/prompts/gate-a-adjudication-v1.md": "76a342dd88f2566a9fa40ee3b9f5ccbd6d5b399de822227b3ccd451774dc2f50",
+            "formal/reviews/prompts/gate-a-challenge-v1.md": "b5fef8fd42eef80175556322c8067dc5ea9c1eb66869061e22ef194a434aeb65",
+            "formal/reviews/prompts/gate-a-repair-v1.md": "3c7e1e97667c5f0e3d2e578d6c256a22cf5227b66865f858421cc7d23dad5a6c",
+            "formal/reviews/schemas/raw-review-output-v1.schema.json": "ab9c8f7c8d0e0314a925a7feb589975c98314c0e47e70c7794c1e1443aca8b6c",
+            "formal/reviews/schemas/challenge-output-v1.schema.json": "418245a1619b51090fc52e431996f05303ce6f38736423212879b6cb768419f2",
+            "formal/reviews/schemas/execution-receipt-v1.schema.json": "f23511730695a61d4a79102874228196c26af9c6c8ce3b4af6251c1429dd8d2b",
+        }
+        for relative, expected_hash in expected.items():
+            self.assertEqual(expected_hash, checker.sha256_hex((ROOT / relative).read_bytes()))
+
+    def test_current_protocol_is_v2_and_predecessor_is_exact_v1(self):
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+        self.assertEqual("formal/reviews/protocols/gate-a-campaign-protocol-v2.json", reference["path"])
+        bundle = json.loads((ROOT / reference["path"]).read_text())
+        self.assertEqual("gate-a-campaign-protocol-v2", bundle["protocol_id"])
+        self.assertEqual({"path": "formal/reviews/protocols/gate-a-campaign-protocol-v1.json", "sha256": "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1"}, bundle["predecessor"])
+
+    def test_current_protocol_v2_change_does_not_change_gate_a_subject(self):
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+        bundle = json.loads((ROOT / reference["path"]).read_text())
+        self.assertEqual(2, bundle["protocol_bundle_schema_version"])
+        subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
+        self.assertEqual([], errors)
+        self.assertEqual("2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b", subject["sha256"])
+
+    def test_review_schema5_is_current(self):
+        schema = json.loads((ROOT / "formal/reviews/review-evidence.schema.json").read_text())
+        self.assertEqual("5.0", schema["properties"]["schema_version"]["const"])
+
+    def test_schema4_review_record_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            record["schema_version"] = "4.0"
+            self.assertTrue(review_schema_errors(fixture_root, record))
+
+    def test_initial_valid_output_cannot_be_declared_protocol_invalid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            raw = write_json_artifact(root, "formal/reviews/raw/valid.json", raw_review_payload(), canonical=False)
+            bundle_ref = current_protocol_bundle_reference(root)
+            validators, errors = checker._bundle_selected_validators(root, bundle_document(root), "test")
+            self.assertEqual([], errors)
+            profile = default_profile("EXEC-ONE")
+            attempts = [attempt_payload("ATTEMPT-1", outcome="protocol-invalid", raw_output=raw, protocol_errors=["claimed"]), attempt_payload("ATTEMPT-2", outcome="qualified", raw_output=write_json_artifact(root, "formal/reviews/raw/valid2.json", raw_review_payload(), canonical=False), provider_model="1")]
+            receipt = build_receipt_payload(execution_id="EXEC-ONE", role="initial-reviewer", reviewer_profile_id=profile["profile_id"], protocol_bundle_sha256=bundle_ref["sha256"], prompt=bundle_document(root)["prompts"]["initial-reviewer"], packet=write_gate_a_review_packet(root), provider=profile["provider"], model=profile["request_model"], attempts=attempts)
+            errors, _ = checker._validate_execution_receipt(root, receipt, "test", {profile["profile_id"]: profile}, bundle_ref["sha256"], validators)
+            self.assertTrue(any("declared protocol-invalid but output is protocol-valid" in error for error in errors))
+
+    def test_initial_qualified_attempt_must_be_final(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            raw = write_json_artifact(root, "formal/reviews/raw/valid.json", raw_review_payload(), canonical=False)
+            bundle_ref = current_protocol_bundle_reference(root); bundle = bundle_document(root)
+            validators, _ = checker._bundle_selected_validators(root, bundle, "test"); profile = default_profile("EXEC-ONE")
+            attempts=[attempt_payload("ATTEMPT-1", outcome="qualified", raw_output=raw, provider_model="1"), attempt_payload("ATTEMPT-2", outcome="technical-failure", raw_output=None)]
+            receipt=build_receipt_payload(execution_id="EXEC-ONE", role="initial-reviewer", reviewer_profile_id=profile["profile_id"], protocol_bundle_sha256=bundle_ref["sha256"], prompt=bundle["prompts"]["initial-reviewer"], packet=write_gate_a_review_packet(root), provider=profile["provider"], model=profile["request_model"], attempts=attempts)
+            errors,_=checker._validate_execution_receipt(root,receipt,"test",{profile["profile_id"]:profile},bundle_ref["sha256"],validators)
+            self.assertTrue(any("qualified attempt must be final" in error for error in errors))
+
+    def test_initial_protocol_invalid_output_can_precede_qualified_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            raw_reference = dict(record["executions"][0]["raw_output"])
+            invalid_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/exec-a-invalid-predecessor.json",
+                {"protocol_invalid": True},
+                canonical=False,
+            )
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"] = [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        provider_model="1",
+                        raw_output=invalid_reference,
+                        protocol_errors=["schema-invalid"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=raw_reference),
+                ]
+                payload["qualifying_attempt_id"] = "ATTEMPT-2"
+                payload["resolved_identity"]["evidence_attempt_id"] = "ATTEMPT-2"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def _receipt_schema_violations(
+        self, fixture_root: Path, attempts: list[dict]
+    ) -> list[str]:
+        bundle = bundle_document(fixture_root)
+        validators, errors = checker._bundle_selected_validators(
+            fixture_root, bundle, "test"
+        )
+        self.assertEqual([], errors)
+        payload = build_receipt_payload(
+            execution_id="EXEC-SCHEMA",
+            role="initial-reviewer",
+            reviewer_profile_id="profile-schema",
+            protocol_bundle_sha256="0" * 64,
+            prompt=bundle["prompts"]["initial-reviewer"],
+            packet={
+                "path": "formal/reviews/packets/packet.json",
+                "sha256": "0" * 64,
+            },
+            provider="provider-schema",
+            model="model-schema",
+            attempts=attempts,
+        )
+        return checker._schema_violations(
+            validators["execution-receipt"], payload, "receipt"
+        )
+
+    def test_initial_protocol_invalid_attempt_requires_nonempty_protocol_errors(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-attempt-one.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            second_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-attempt-two.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            violations = self._receipt_schema_violations(
+                fixture_root,
+                [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        provider_model="1",
+                        raw_output=raw_reference,
+                        protocol_errors=[],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=second_reference),
+                ],
+            )
+            self.assertTrue(
+                any("protocol_errors" in violation for violation in violations),
+                violations,
+            )
+
+    def test_initial_qualified_attempt_requires_empty_protocol_errors(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-qualified.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            violations = self._receipt_schema_violations(
+                fixture_root,
+                [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        raw_output=raw_reference,
+                        protocol_errors=["claimed-invalid"],
+                    )
+                ],
+            )
+            self.assertTrue(
+                any("protocol_errors" in violation for violation in violations),
+                violations,
+            )
+
+    def test_initial_qualified_output_that_is_protocol_invalid_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            invalid_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/exec-a-qualified-invalid.json",
+                {"not": "a raw review output"},
+                canonical=False,
+            )
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"] = [
+                    attempt_payload("ATTEMPT-1", raw_output=invalid_reference)
+                ]
+                payload["qualifying_attempt_id"] = "ATTEMPT-1"
+                payload["resolved_identity"]["evidence_attempt_id"] = "ATTEMPT-1"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "declared qualified but output is protocol-invalid" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_technical_failure_attempt_must_not_have_raw_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-technical-raw.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            violations = self._receipt_schema_violations(
+                fixture_root,
+                [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="technical-failure",
+                        provider_model=None,
+                        raw_output=raw_reference,
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=raw_reference),
+                ],
+            )
+            self.assertTrue(
+                any("raw_output" in violation for violation in violations),
+                violations,
+            )
+
+    def test_technical_failure_attempt_must_not_have_protocol_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-technical-errors.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            violations = self._receipt_schema_violations(
+                fixture_root,
+                [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="technical-failure",
+                        provider_model=None,
+                        raw_output=None,
+                        protocol_errors=["unexpected"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=raw_reference),
+                ],
+            )
+            self.assertTrue(
+                any("protocol_errors" in violation for violation in violations),
+                violations,
+            )
+
+    def test_execution_call_ids_must_be_unique(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-call-one.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            second_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/schema-call-two.json",
+                raw_review_payload(),
+                canonical=False,
+            )
+            bundle_reference = current_protocol_bundle_reference(fixture_root)
+            bundle = bundle_document(fixture_root)
+            validators, errors = checker._bundle_selected_validators(
+                fixture_root, bundle, "test"
+            )
+            self.assertEqual([], errors)
+            profile = default_profile("EXEC-CALL")
+            attempts = [
+                attempt_payload("ATTEMPT-1", raw_output=raw_reference),
+                attempt_payload(
+                    "ATTEMPT-2",
+                    raw_output=second_reference,
+                    call_id="CALL-ATTEMPT-1",
+                ),
+            ]
+            receipt = build_receipt_payload(
+                execution_id="EXEC-CALL",
+                role="initial-reviewer",
+                reviewer_profile_id=profile["profile_id"],
+                protocol_bundle_sha256=bundle_reference["sha256"],
+                prompt=bundle["prompts"]["initial-reviewer"],
+                packet=write_gate_a_review_packet(fixture_root),
+                provider=profile["provider"],
+                model=profile["request_model"],
+                attempts=attempts,
+            )
+            receipt_errors, _ = checker._validate_execution_receipt(
+                fixture_root,
+                receipt,
+                "test",
+                {profile["profile_id"]: profile},
+                bundle_reference["sha256"],
+                validators,
+            )
+            self.assertTrue(
+                any("call_id values must be unique" in error for error in receipt_errors),
+                receipt_errors,
+            )
+
+    def _materiality_record(self, fixture_root: Path) -> tuple[dict, dict, dict]:
+        record = make_review(fixture_root, findings=[finding(material=False)])
+        challenge = record["findings"][0]["materiality"]["challenge"]
+        return record, record["findings"][0], challenge
+
+    def _refutation_record(self, fixture_root: Path) -> tuple[dict, dict, dict]:
+        record = make_review(
+            fixture_root,
+            findings=[finding(status="refuted", disposition=refuted_disposition())],
+        )
+        attach_challenge(fixture_root, record, record["findings"][0])
+        challenge = record["findings"][0]["disposition"]["challenge"]
+        return record, record["findings"][0], challenge
+
+    def test_materiality_challenge_requires_packet(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root, findings=[finding(material=False)])
+            del record["findings"][0]["materiality"]["challenge"]["packet"]
+            self.assertTrue(review_schema_errors(fixture_root, record))
+
+    def test_refutation_challenge_requires_packet(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[finding(status="refuted", disposition=refuted_disposition())],
+            )
+            attach_challenge(fixture_root, record, record["findings"][0])
+            del record["findings"][0]["disposition"]["challenge"]["packet"]
+            self.assertTrue(review_schema_errors(fixture_root, record))
+
+    def test_challenge_packet_must_be_canonical_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+            packet_payload = json.loads(
+                (fixture_root / challenge["packet"]["path"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            reference = write_bytes_artifact(
+                fixture_root,
+                "formal/reviews/challenge-packets/not-canonical.json",
+                json.dumps(packet_payload, indent=2).encode("utf-8"),
+            )
+            challenge["packet"] = reference
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "canonical JSON document serialization" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_challenge_packet_hash_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+            reference = dict(challenge["packet"])
+            reference["sha256"] = "0" * 64
+            challenge["packet"] = reference
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("artifact sha256 does not match" in error for error in errors),
+                errors,
+            )
+
+    def test_challenge_packet_embedded_review_packet_sha_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+
+            def mutate(payload: dict) -> None:
+                payload["review_packet"]["sha256"] = "0" * 64
+
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                mutate,
+                "materiality-embedded-sha",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root, record, challenge, reference, "materiality-embedded-sha"
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "embedded review packet sha256 must equal" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_challenge_packet_embedded_review_packet_payload_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+
+            def mutate(payload: dict) -> None:
+                payload["review_packet"]["payload"] = dict(
+                    payload["review_packet"]["payload"],
+                    unexpected_authority="injected",
+                )
+
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                mutate,
+                "materiality-embedded-payload",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root,
+                record,
+                challenge,
+                reference,
+                "materiality-embedded-payload",
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "embedded review packet payload must equal the exact campaign "
+                    "review packet" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_materiality_challenge_packet_subject_payload_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                lambda payload: self._inject_subject(payload),
+                "materiality-subject-payload",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root,
+                record,
+                challenge,
+                reference,
+                "materiality-subject-payload",
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "subject payload does not equal exact challenged candidate"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    @staticmethod
+    def _inject_subject(payload: dict) -> None:
+        mutated = dict(payload["challenge_subject"]["payload"], injected="x")
+        payload["challenge_subject"]["payload"] = mutated
+        payload["challenge_subject"]["sha256"] = checker.sha256_hex(
+            checker._canonical_json_bytes(mutated)
+        )
+
+    def test_materiality_challenge_packet_subject_sha_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                lambda payload: payload["challenge_subject"].__setitem__(
+                    "sha256", "0" * 64
+                ),
+                "materiality-subject-sha",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root,
+                record,
+                challenge,
+                reference,
+                "materiality-subject-sha",
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "subject sha256 does not equal exact challenged candidate"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_materiality_challenge_packet_required_objectives_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                lambda payload: payload.__setitem__(
+                    "required_objectives", payload["required_objectives"][:-1]
+                ),
+                "materiality-objectives",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root, record, challenge, reference, "materiality-objectives"
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "required_objectives must equal the exact required objectives"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_refutation_challenge_packet_subject_payload_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                lambda payload: self._inject_subject(payload),
+                "refutation-subject-payload",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root,
+                record,
+                challenge,
+                reference,
+                "refutation-subject-payload",
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "subject payload does not equal exact challenged candidate"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_refutation_challenge_packet_subject_sha_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                lambda payload: payload["challenge_subject"].__setitem__(
+                    "sha256", "0" * 64
+                ),
+                "refutation-subject-sha",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root, record, challenge, reference, "refutation-subject-sha"
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "subject sha256 does not equal exact challenged candidate"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_refutation_challenge_packet_required_objectives_mismatch_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            reference = _mutated_challenge_packet(
+                fixture_root,
+                challenge["packet"],
+                lambda payload: payload.__setitem__(
+                    "required_objectives", payload["required_objectives"][:-1]
+                ),
+                "refutation-objectives",
+            )
+            challenge["packet"] = reference
+            _rewrite_challenge_receipt_packet(
+                fixture_root, record, challenge, reference, "refutation-objectives"
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "required_objectives must equal the exact required objectives"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def _other_canonical_challenge_packet(
+        self, fixture_root: Path, challenge: dict, name: str
+    ) -> dict:
+        return _mutated_challenge_packet(
+            fixture_root,
+            challenge["packet"],
+            lambda payload: self._inject_subject(payload),
+            name,
+        )
+
+    def test_materiality_challenge_receipt_packet_must_equal_challenge_packet(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._materiality_record(fixture_root)
+            other_reference = self._other_canonical_challenge_packet(
+                fixture_root, challenge, "materiality-other-packet"
+            )
+            _rewrite_challenge_receipt_packet(
+                fixture_root,
+                record,
+                challenge,
+                other_reference,
+                "materiality-other-receipt",
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "materiality challenge receipt packet must equal the challenge "
+                    "packet" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_refutation_challenge_receipt_packet_must_equal_challenge_packet(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            other_reference = self._other_canonical_challenge_packet(
+                fixture_root, challenge, "refutation-other-packet"
+            )
+            _rewrite_challenge_receipt_packet(
+                fixture_root,
+                record,
+                challenge,
+                other_reference,
+                "refutation-other-receipt",
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "refutation challenge receipt packet must equal the challenge "
+                    "packet" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_valid_challenge_output_cannot_be_declared_protocol_invalid(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            output_reference = dict(challenge["output"])
+            second_output_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/challenges/refutation-second-qualified.json",
+                json.loads(
+                    (fixture_root / output_reference["path"]).read_text(
+                        encoding="utf-8"
+                    )
+                ),
+            )
+            _rewrite_challenge_receipt_attempts(
+                fixture_root,
+                record,
+                challenge,
+                [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        provider_model="1",
+                        raw_output=output_reference,
+                        protocol_errors=["claimed"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=second_output_reference),
+                ],
+                "challenge-refutation-cherry",
+            )
+            challenge["output"] = second_output_reference
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "declared protocol-invalid but output is protocol-valid" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_invalid_challenge_output_can_precede_qualified_output(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            invalid_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/challenges/refutation-invalid-attempt.json",
+                {
+                    "challenge_output_schema_version": "1.0",
+                    "challenge_kind": "refutation",
+                    "objective_assessments": [],
+                    "objections": [],
+                },
+            )
+            _rewrite_challenge_receipt_attempts(
+                fixture_root,
+                record,
+                challenge,
+                [
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        provider_model="1",
+                        raw_output=invalid_reference,
+                        protocol_errors=["objective-coverage"],
+                    ),
+                    attempt_payload(
+                        "ATTEMPT-2", raw_output=dict(challenge["output"])
+                    ),
+                ],
+                "challenge-refutation-retry",
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_challenge_qualified_output_must_match_packet_kind(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[finding(status="refuted", disposition=refuted_disposition())],
+            )
+            custom_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/challenges/refutation-wrong-kind.json",
+                challenge_output_payload(
+                    "materiality", checker.REFUTATION_CHALLENGE_OBJECTIVES
+                ),
+            )
+            attach_challenge(
+                fixture_root,
+                record,
+                record["findings"][0],
+                output=custom_reference,
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "challenge output challenge_kind must be refutation" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_challenge_qualified_output_must_cover_packet_required_objectives(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                findings=[finding(status="refuted", disposition=refuted_disposition())],
+            )
+            custom_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/challenges/refutation-missing-objective.json",
+                challenge_output_payload(
+                    "refutation", checker.REFUTATION_CHALLENGE_OBJECTIVES[:-1]
+                ),
+            )
+            attach_challenge(
+                fixture_root,
+                record,
+                record["findings"][0],
+                output=custom_reference,
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "objective assessments must cover exactly 7 required objectives "
+                    "once each" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_challenge_must_be_separate_receipt_with_role_challenge(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record, _finding, challenge = self._refutation_record(fixture_root)
+            receipt_reference = challenge["execution_receipt"]
+            payload = json.loads(
+                (fixture_root / receipt_reference["path"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            payload["role"] = "materiality-assessor"
+            new_reference = write_receipt_payload(
+                fixture_root, payload, "refutation-wrong-role"
+            )
+            _replace_supporting_receipt(record, receipt_reference, new_reference)
+            challenge["execution_receipt"] = new_reference
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "refutation challenge receipt role must be challenge" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_v2_missing_predecessor_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload.pop("predecessor", None)
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v2-missing-predecessor.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("predecessor" in error for error in errors), errors
+            )
+
+    def test_protocol_predecessor_hash_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload["predecessor"] = {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v1.json",
+                "sha256": "0" * 64,
+            }
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v2-bad-predecessor.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("artifact sha256 does not match" in error for error in errors),
+                errors,
+            )
+
+    def test_protocol_predecessor_cycle_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            reference = current_protocol_bundle_reference(fixture_root)
+            validator, errors = checker._load_schema_validator(
+                ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+            )
+            self.assertEqual([], errors)
+            # A hash-valid self-referential cycle is unsatisfiable by content
+            # addressing, so the guard is exercised with seeded chain state.
+            _, cycle_errors = checker._load_protocol_bundle_document(
+                fixture_root,
+                reference,
+                "cycle",
+                validator,
+                {},
+                {reference["path"]},
+                set(),
+            )
+            self.assertTrue(
+                any(
+                    "protocol predecessor cycle" in error
+                    for error in cycle_errors
+                ),
+                cycle_errors,
+            )
+
+    def test_protocol_predecessor_duplicate_protocol_id_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            bundle_b = dict(payload)
+            bundle_b["protocol_id"] = "duplicate-protocol-id"
+            bundle_b["predecessor"] = {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v1.json",
+                "sha256": (
+                    "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1"
+                ),
+            }
+            reference_b = write_json_artifact(
+                fixture_root,
+                "formal/reviews/protocols/duplicate-b.json",
+                bundle_b,
+            )
+            bundle_a = dict(payload)
+            bundle_a["protocol_id"] = "duplicate-protocol-id"
+            bundle_a["predecessor"] = reference_b
+            _install_manifest_bundle(
+                fixture_root,
+                bundle_a,
+                "formal/reviews/protocols/duplicate-a.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "duplicate protocol_id in predecessor chain" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_protocol_v1_still_validates_unchanged_under_bundle_schema(
+        self,
+    ) -> None:
+        validator, errors = checker._load_schema_validator(
+            ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+        )
+        self.assertEqual([], errors)
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v1.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [], checker._schema_violations(validator, bundle, "protocol-v1")
+        )
+
+
+def _install_manifest_bundle(
+    fixture_root: Path, payload: dict, relative_path: str
+) -> dict:
+    reference = write_json_artifact(fixture_root, relative_path, payload)
+    manifest = load_manifest(fixture_root)
+    manifest["policy"]["hostile_review"]["current_protocol_bundle"] = reference
+    save_manifest(fixture_root, manifest)
+    return reference
+
+
+def _replace_supporting_receipt(
+    record: dict, old_reference: dict, new_reference: dict
+) -> None:
+    supporting = record.setdefault("supporting_executions", [])
+    key = (old_reference.get("path"), old_reference.get("sha256"))
+    for index, item in enumerate(supporting):
+        if (item.get("path"), item.get("sha256")) == key:
+            supporting[index] = new_reference
+            return
+    raise AssertionError("supporting receipt not found")
+
+
+def _rewrite_challenge_receipt_packet(
+    fixture_root: Path,
+    record: dict,
+    challenge: dict,
+    packet_reference: dict,
+    name: str,
+) -> dict:
+    receipt_reference = challenge["execution_receipt"]
+    payload = json.loads(
+        (fixture_root / receipt_reference["path"]).read_text(encoding="utf-8")
+    )
+    payload["input"]["packet"] = packet_reference
+    new_reference = write_receipt_payload(fixture_root, payload, name)
+    _replace_supporting_receipt(record, receipt_reference, new_reference)
+    challenge["execution_receipt"] = new_reference
+    return new_reference
+
+
+def _rewrite_challenge_receipt_attempts(
+    fixture_root: Path,
+    record: dict,
+    challenge: dict,
+    attempts: list[dict],
+    name: str,
+) -> dict:
+    receipt_reference = challenge["execution_receipt"]
+    payload = json.loads(
+        (fixture_root / receipt_reference["path"]).read_text(encoding="utf-8")
+    )
+    payload["attempts"] = attempts
+    qualifying = next(
+        attempt for attempt in attempts if attempt["outcome"] == "qualified"
+    )
+    payload["qualifying_attempt_id"] = qualifying["attempt_id"]
+    if isinstance(payload.get("resolved_identity"), dict):
+        payload["resolved_identity"]["evidence_attempt_id"] = qualifying[
+            "attempt_id"
+        ]
+    new_reference = write_receipt_payload(fixture_root, payload, name)
+    _replace_supporting_receipt(record, receipt_reference, new_reference)
+    challenge["execution_receipt"] = new_reference
+    return new_reference
+
+
+def _mutated_challenge_packet(
+    fixture_root: Path, reference: dict, mutate, name: str
+) -> dict:
+    payload = json.loads(
+        (fixture_root / reference["path"]).read_text(encoding="utf-8")
+    )
+    mutate(payload)
+    return write_json_artifact(
+        fixture_root, f"formal/reviews/challenge-packets/{name}.json", payload
+    )
 
 if __name__ == "__main__":
     unittest.main()

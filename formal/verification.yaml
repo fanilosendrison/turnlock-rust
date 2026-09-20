@@ -28,8 +28,8 @@ policy:
     evidence_directory: formal/reviews
     evidence_schema: formal/reviews/review-evidence.schema.json
     current_protocol_bundle:
-      path: formal/reviews/protocols/gate-a-campaign-protocol-v1.json
-      sha256: 156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1
+      path: formal/reviews/protocols/gate-a-campaign-protocol-v2.json
+      sha256: ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9
     minimum_independent_reviewers: 2
     majority_vote_sufficient: false
     required_attack_objectives:

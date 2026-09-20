@@ -395,6 +395,17 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   be sealed even when protocol-invalid; at most one attempt per receipt may be
   `qualified`; a valid semantic result MUST NOT be retried and no model-shopping
   is permitted.
+- Published versioned hostile-review protocol bundles and every prompt/schema
+  they reference are append-only and must not be edited or deleted; protocol
+  evolution creates a new bundle/path and links the previous bundle through
+  `predecessor`.
+- A completed response's protocol validity is derived by the checker, not trusted
+  from the runner's outcome label. The first protocol-valid completed response is
+  terminal and must be the final attempt; technical-failure means no completed
+  response/raw output.
+- Materiality/refutation challenges require a canonical challenge packet whose
+  exact bytes are the receipt `input.packet`; each embeds the exact reviewed Gate
+  A packet and exact challenged candidate.
 - Normalization MUST be exactly one raw finding to exactly one normalized
   finding; normalized `statement`, `argument`, and `counterexample` MUST equal
   the raw finding values exactly.

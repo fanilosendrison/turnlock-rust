@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:4",
-  "title": "TURNLOCK hostile semantic-review evidence (schema version 4.0)",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:5",
+  "title": "TURNLOCK hostile semantic-review evidence (schema version 5.0)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -21,7 +21,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "4.0"
+      "const": "5.0"
     },
     "review_id": {
       "type": "string",
@@ -306,6 +306,7 @@
       "additionalProperties": false,
       "required": [
         "challenged_materiality_sha256",
+        "packet",
         "execution_receipt",
         "output",
         "rationale"
@@ -314,6 +315,9 @@
         "challenged_materiality_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "packet": {
+          "$ref": "#/$defs/artifactReference"
         },
         "execution_receipt": {
           "$ref": "#/$defs/artifactReference"
@@ -409,6 +413,7 @@
       "additionalProperties": false,
       "required": [
         "challenged_refutation_sha256",
+        "packet",
         "execution_receipt",
         "output",
         "rationale"
@@ -417,6 +422,9 @@
         "challenged_refutation_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "packet": {
+          "$ref": "#/$defs/artifactReference"
         },
         "execution_receipt": {
           "$ref": "#/$defs/artifactReference"

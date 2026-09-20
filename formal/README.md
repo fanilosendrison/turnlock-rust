@@ -24,7 +24,7 @@ formal/
 ├── verification.schema.json                # schema for that graph
 ├── reviews/                                # hostile semantic-review evidence and campaign artifacts
 │   ├── README.md
-│   ├── review-evidence.schema.json         # hostile-review evidence contract, schema 4.0
+│   ├── review-evidence.schema.json         # hostile-review evidence contract, schema 5.0
 │   ├── review-protocol-bundle.schema.json  # hostile-review protocol-bundle schema
 │   ├── packets/                            # future canonical review packets (JSON)
 │   ├── prompts/                            # future canonical review prompts (Markdown)
@@ -167,3 +167,7 @@ prevent Gate A subject derivation.
 `scripts/check-formal-traceability.py` derives and reports the current gate
 state. Focused configurations may restrict the integrated semantics; they must
 never become independent mini-semantics.
+
+## Hostile-review protocol v2
+
+The current hostile-review protocol identity `P` is `gate-a-campaign-protocol-v2`, and review evidence is schema `5.0`. Challenge evidence is bound to an exact canonical self-contained challenge packet embedding the reviewed Gate A packet and challenged candidate. Retry admissibility is checker-derived from sealed output; the first protocol-valid completion is terminal. Historical published protocol bundles and their artifacts remain available through the recursively validated predecessor chain. These assurance changes do not change TURNLOCK semantics or the Gate A semantic subject.

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-protocol-bundle:1",
-  "title": "TURNLOCK hostile-review protocol bundle (schema version 1)",
+  "title": "TURNLOCK hostile-review protocol bundle (schema versions 1 and 2)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,11 +15,24 @@
   ],
   "properties": {
     "protocol_bundle_schema_version": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "protocol_id": {
       "type": "string",
       "minLength": 1
+    },
+    "predecessor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/artifactReference"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "review_class": {
       "const": "assurance-decomposition"
@@ -65,6 +78,9 @@
         },
         "challenge-output": {
           "$ref": "#/$defs/artifactReference"
+        },
+        "challenge-packet": {
+          "$ref": "#/$defs/artifactReference"
         }
       }
     },
@@ -78,6 +94,26 @@
       "$ref": "#/$defs/policies"
     }
   },
+  "allOf": [
+    {
+      "if": {"properties": {"protocol_bundle_schema_version": {"const": 2}}, "required": ["protocol_bundle_schema_version"]},
+      "then": {
+        "required": ["predecessor"],
+        "properties": {
+          "predecessor": {"$ref": "#/$defs/artifactReference"},
+          "schemas": {"required": ["challenge-packet"]},
+          "policies": {
+            "required": ["artifact_lifecycle"],
+            "properties": {
+              "retry": {"required": ["outcome_classification", "first_protocol_valid_completion_is_terminal"]},
+              "challenge": {"required": ["exact_input_packet_binding_required"]},
+              "artifact_lifecycle": {"const": {"predecessor_chain_required": true, "referenced_artifacts_immutable_by_path": true, "protocol_changes_require_new_artifact_paths": true}}
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "artifactReference": {
       "type": "object",
@@ -196,6 +232,12 @@
             },
             "all_completed_attempts_must_be_sealed": {
               "const": true
+            },
+            "outcome_classification": {
+              "const": "checker-derived"
+            },
+            "first_protocol_valid_completion_is_terminal": {
+              "const": true
             }
           }
         },
@@ -216,7 +258,24 @@
             },
             "incidental_findings_allowed": {
               "const": false
+            },
+            "exact_input_packet_binding_required": {
+              "const": true
             }
+          }
+        },
+        "artifact_lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "predecessor_chain_required",
+            "referenced_artifacts_immutable_by_path",
+            "protocol_changes_require_new_artifact_paths"
+          ],
+          "properties": {
+            "predecessor_chain_required": {"type": "boolean"},
+            "referenced_artifacts_immutable_by_path": {"type": "boolean"},
+            "protocol_changes_require_new_artifact_paths": {"type": "boolean"}
           }
         },
         "model_identity": {

@@ -256,3 +256,7 @@ review-evidence integrity, legacy migration totals, and generated-projection
 freshness. Machine-readable linkage validates traceability consistency; it does
 not prove that a future TLA+ formula faithfully captures the prose meaning.
 Semantic correspondence remains a hostile-review obligation.
+
+## Hostile-review protocol v2
+
+The current hostile-review protocol identity `P` is `gate-a-campaign-protocol-v2`, and review evidence is schema `5.0`. Challenge evidence is bound to an exact canonical self-contained challenge packet embedding the exact reviewed Gate A packet and challenged candidate. Retry admissibility is checker-derived from sealed output and the first protocol-valid completion is terminal. Historical protocol bundles are preserved and recursively validated through the predecessor chain. This changes no TURNLOCK semantics and does not change the Gate A semantic subject.

@@ -17,10 +17,8 @@ Review evidence never constitutes mathematical proof of natural-language/formal
 equivalence; the strongest valid conclusion is bounded reviewed semantic
 correspondence under the executed review protocol.
 
-The evidence contract is `review-evidence.schema.json` schema version `4.0`.
-Version 4.0 is a breaking contract; no compatibility branch for the previous
-`3.0` shape exists. No `3.0` campaign evidence exists, so no campaign evidence
-migration is required.
+The evidence contract is `review-evidence.schema.json` schema version `5.0`.
+Version 5.0 is a breaking contract; no compatibility branch for schema 4.0 exists. No real campaign evidence exists, so no campaign evidence migration is required.
 
 ## Dual currentness: semantic subject and review protocol
 
@@ -56,7 +54,9 @@ prompt artifacts, canonical schema artifacts, reviewer profiles, and protocol
 policies. A protocol change requires a new content identity `P`. A review made
 under a stale `P` does not satisfy current Gate A.
 
-The current v1 bundle intentionally declares:
+The current bundle is `gate-a-campaign-protocol-v2`. It cryptographically links the immutable v1 bundle as its predecessor; predecessor bundles and their referenced prompts and schemas are recursively checked. Published versioned protocol bundles and referenced prompt/schema artifacts are append-only by path and bytes.
+
+The historical v1 bundle intentionally declares:
 
 ```json
 "reviewer_profiles": []
@@ -102,7 +102,7 @@ exact UTF-8 authority contents. Packet validation recomputes the subject SHA fro
 `subject_payload` and each embedded authority SHA from its UTF-8 contents. The
 packet subject must equal the unique Gate A derived subject declared by the
 review record. A stale historical packet validates against its own embedded
-reviewed subject, not against current repository semantics.
+reviewed subject, not against current repository semantics. Materiality and refutation challenges additionally use a canonical challenge packet that embeds this exact parsed review packet and the exact challenged candidate; the challenge receipt `input.packet` must be byte-identical to the declared challenge packet.
 
 ## Reviewer profiles and qualification
 
@@ -179,8 +179,7 @@ cause a fresh retry using the exact same semantic input. A valid semantic
 response is never retried merely because its content is inconvenient, and no
 model-shopping is permitted after a semantically valid result.
 
-Every completed protocol attempt is recorded in the execution receipt. At most
-one attempt in a qualifying execution may have outcome `qualified`.
+Every completed protocol attempt is recorded in the execution receipt. Attempt validity is checker-derived from sealed output, not runner labels: `technical-failure` has no raw output; `protocol-invalid` must actually fail deterministic validation; and `qualified` must pass it. The first protocol-valid completion is terminal and is the final attempt.
 
 ## Execution receipts
 
@@ -477,6 +476,7 @@ Campaign artifacts use these repository-relative conventions:
 
 ```text
 formal/reviews/packets/*.json
+formal/reviews/challenge-packets/*.json
 formal/reviews/prompts/*.md
 formal/reviews/protocols/*.json
 formal/reviews/schemas/*.json

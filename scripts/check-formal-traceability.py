@@ -74,6 +74,8 @@ REVIEW_RAW_OUTPUT_PREFIX = "formal/reviews/raw/"
 REVIEW_RAW_OUTPUT_SUFFIX = ".json"
 REVIEW_CHALLENGE_PREFIX = "formal/reviews/challenges/"
 REVIEW_CHALLENGE_SUFFIX = ".json"
+REVIEW_CHALLENGE_PACKET_PREFIX = "formal/reviews/challenge-packets/"
+REVIEW_CHALLENGE_PACKET_SUFFIX = ".json"
 REVIEW_PROTOCOLS_PREFIX = "formal/reviews/protocols/"
 REVIEW_PROTOCOL_BUNDLE_SUFFIX = ".json"
 REVIEW_SCHEMAS_PREFIX = "formal/reviews/schemas/"
@@ -86,6 +88,7 @@ REVIEW_ARTIFACT_PREFIXES = (
     REVIEW_PROMPT_PREFIX,
     REVIEW_RAW_OUTPUT_PREFIX,
     REVIEW_CHALLENGE_PREFIX,
+    REVIEW_CHALLENGE_PACKET_PREFIX,
     REVIEW_PROTOCOLS_PREFIX,
     REVIEW_SCHEMAS_PREFIX,
     REVIEW_EXECUTIONS_PREFIX,
@@ -96,15 +99,6 @@ REVIEW_ARTIFACT_EXCLUDED_FILE_NAMES = (
     "review-protocol-bundle.schema.json",
 )
 PROTOCOL_BUNDLE_SCHEMA_RELATIVE = Path("formal/reviews/review-protocol-bundle.schema.json")
-RAW_REVIEW_SCHEMA_RELATIVE = Path(
-    "formal/reviews/schemas/raw-review-output-v1.schema.json"
-)
-CHALLENGE_OUTPUT_SCHEMA_RELATIVE = Path(
-    "formal/reviews/schemas/challenge-output-v1.schema.json"
-)
-EXECUTION_RECEIPT_SCHEMA_RELATIVE = Path(
-    "formal/reviews/schemas/execution-receipt-v1.schema.json"
-)
 REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
 REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
 MATERIALITY_CHALLENGE_SELECTOR = "hostile-materiality-challenge-v1"
@@ -821,81 +815,109 @@ def _protocol_profile_map(bundle: object) -> dict[str, dict]:
 
 
 def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
+    """Validate every immutable artifact referenced by one bundle."""
     errors: list[str] = []
     prompts = _mapping(bundle.get("prompts"))
     for key in ("initial-reviewer", "adjudication", "challenge", "repair"):
-        _, prompt_errors = _read_review_artifact(
-            root,
-            _mapping(prompts.get(key)),
-            f"{label}: prompts.{key}",
-            REVIEW_PROMPT_PREFIX,
-            REVIEW_PROMPT_SUFFIX,
-        )
-        errors.extend(prompt_errors)
+        _, artifact_errors = _read_review_artifact(root, _mapping(prompts.get(key)), f"{label}: prompts.{key}", REVIEW_PROMPT_PREFIX, REVIEW_PROMPT_SUFFIX)
+        errors.extend(artifact_errors)
     schemas = _mapping(bundle.get("schemas"))
-    for key in ("raw-review-output", "execution-receipt", "challenge-output"):
-        _, schema_errors = _read_review_artifact(
-            root,
-            _mapping(schemas.get(key)),
-            f"{label}: schemas.{key}",
-            REVIEW_SCHEMAS_PREFIX,
-            REVIEW_JSON_OUTPUT_SUFFIX,
-        )
-        errors.extend(schema_errors)
-    profile_ids = [
-        profile.get("profile_id")
-        for profile in _sequence(bundle.get("reviewer_profiles"))
-        if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str)
-    ]
-    duplicate_ids = sorted(
-        profile_id for profile_id, count in Counter(profile_ids).items() if count > 1
-    )
-    for profile_id in duplicate_ids:
-        errors.append(f"{label}: duplicate reviewer profile_id {profile_id!r}")
+    keys = ["raw-review-output", "execution-receipt", "challenge-output"]
+    if bundle.get("protocol_bundle_schema_version") == 2:
+        keys.append("challenge-packet")
+    for key in keys:
+        data, artifact_errors = _read_review_artifact(root, _mapping(schemas.get(key)), f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
+        errors.extend(artifact_errors)
+        if data is not None:
+            try:
+                schema = json.loads(data.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                errors.append(f"{label}: schemas.{key} must be valid JSON ({_concise_parser_error(error)})")
+            else:
+                _validator_value, schema_errors = _validator(schema)
+                errors.extend(f"{label}: schemas.{key}: {error}" for error in schema_errors)
+    profile_ids = [profile.get("profile_id") for profile in _sequence(bundle.get("reviewer_profiles")) if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str)]
+    for profile_id, count in Counter(profile_ids).items():
+        if count > 1:
+            errors.append(f"{label}: duplicate reviewer profile_id {profile_id!r}")
     return errors
 
 
-def _load_protocol_bundle_document(
-    root: Path,
-    reference: object,
-    label: str,
-    validator: Draft202012Validator | None,
-    cache: dict[str, tuple[dict | None, list[str]]],
-) -> tuple[dict | None, list[str]]:
+def _bundle_selected_validators(root: Path, bundle: dict | None, label: str) -> tuple[dict[str, Draft202012Validator | None], list[str]]:
+    validators: dict[str, Draft202012Validator | None] = {}
+    errors: list[str] = []
+    if bundle is None:
+        return validators, errors
+    schemas = _mapping(bundle.get("schemas"))
+    for key in ("raw-review-output", "execution-receipt", "challenge-output", "challenge-packet"):
+        ref = schemas.get(key)
+        if ref is None:
+            continue
+        data, artifact_errors = _read_review_artifact(root, ref, f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
+        errors.extend(artifact_errors)
+        if data is None:
+            continue
+        try:
+            schema = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            errors.append(f"{label}: schemas.{key} must be valid JSON ({_concise_parser_error(error)})")
+            continue
+        validator, validator_errors = _validator(schema)
+        errors.extend(f"{label}: schemas.{key}: {error}" for error in validator_errors)
+        validators[key] = validator
+    return validators, errors
+
+
+def _load_protocol_bundle_document(root: Path, reference: object, label: str, validator: Draft202012Validator | None, cache: dict[str, tuple[dict | None, list[str]]], chain_paths: set[str] | None = None, chain_ids: set[str] | None = None) -> tuple[dict | None, list[str]]:
     bundle_reference = _mapping(reference)
     cache_key = bundle_reference.get("sha256")
-    if isinstance(cache_key, str) and cache_key in cache:
+    # Cache only fully checked acyclic chains.
+    if chain_paths is None and isinstance(cache_key, str) and cache_key in cache:
         return cache[cache_key]
-    bundle, errors = _load_json_object_artifact(
-        root,
-        bundle_reference,
-        label,
-        REVIEW_PROTOCOLS_PREFIX,
-        REVIEW_PROTOCOL_BUNDLE_SUFFIX,
-        require_canonical=True,
-    )
-    if bundle is not None and validator is not None:
+    bundle, errors = _load_json_object_artifact(root, bundle_reference, label, REVIEW_PROTOCOLS_PREFIX, REVIEW_PROTOCOL_BUNDLE_SUFFIX, require_canonical=True)
+    if bundle is None:
+        return None, errors
+    if validator is not None:
         errors.extend(_schema_violations(validator, bundle, label))
-        errors.extend(_protocol_bundle_errors(root, bundle, label))
-    if isinstance(cache_key, str):
+    errors.extend(_protocol_bundle_errors(root, bundle, label))
+    path = _mapping(reference).get("path")
+    protocol_id = bundle.get("protocol_id")
+    paths = set(chain_paths or ())
+    ids = set(chain_ids or ())
+    if isinstance(path, str) and path in paths:
+        errors.append(f"{label}: protocol predecessor cycle or duplicate bundle path")
+        return bundle, errors
+    if isinstance(protocol_id, str) and protocol_id in ids:
+        errors.append(f"{label}: duplicate protocol_id in predecessor chain {protocol_id!r}")
+        return bundle, errors
+    if isinstance(path, str): paths.add(path)
+    if isinstance(protocol_id, str): ids.add(protocol_id)
+    version = bundle.get("protocol_bundle_schema_version")
+    predecessor = bundle.get("predecessor")
+    if version == 2:
+        if not isinstance(predecessor, dict):
+            errors.append(f"{label}: schema-version-2 bundle requires predecessor")
+        else:
+            _, predecessor_errors = _load_protocol_bundle_document(root, predecessor, f"{label}: predecessor", validator, cache, paths, ids)
+            errors.extend(predecessor_errors)
+    elif predecessor is not None:
+        errors.append(f"{label}: schema-version-1 bundle must not declare predecessor")
+    if chain_paths is None and isinstance(cache_key, str):
         cache[cache_key] = (bundle, list(errors))
     return bundle, errors
 
 
-def _current_protocol_bundle_errors(
-    root: Path,
-    manifest: dict,
-    validator: Draft202012Validator | None,
-    cache: dict[str, tuple[dict | None, list[str]]],
-) -> tuple[object, dict | None, list[str]]:
+def _current_protocol_bundle_errors(root: Path, manifest: dict, validator: Draft202012Validator | None, cache: dict[str, tuple[dict | None, list[str]]]) -> tuple[object, dict | None, list[str]]:
     hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
     reference = _mapping(hostile_review.get("current_protocol_bundle"))
     label = "policy.hostile_review.current_protocol_bundle"
-    bundle, errors = _load_protocol_bundle_document(
-        root, reference, label, validator, cache
-    )
+    bundle, errors = _load_protocol_bundle_document(root, reference, label, validator, cache)
+    # v2 establishes the fixed v1 lineage root.
+    if bundle is not None and bundle.get("protocol_bundle_schema_version") == 2:
+        predecessor = _mapping(bundle.get("predecessor"))
+        if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v1.json" or predecessor.get("sha256") != "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1":
+            errors.append(f"{label}: current protocol v2 predecessor must be the exact published v1 bundle")
     return reference, bundle, errors
-
 
 def _load_execution_receipt(
     root: Path,
@@ -947,6 +969,64 @@ def _read_receipt_output(
     ]
 
 
+def _validate_initial_reviewer_protocol_output(root: Path, reference: object, validator: Draft202012Validator | None, required_objectives: tuple[str, ...] = GATE_A_ATTACK_OBJECTIVES) -> tuple[dict | None, list[str]]:
+    raw, errors = _load_json_object_artifact(root, reference, "initial-reviewer raw output", REVIEW_RAW_OUTPUT_PREFIX, REVIEW_RAW_OUTPUT_SUFFIX, require_canonical=False)
+    if raw is None:
+        return None, errors
+    if validator is not None:
+        errors.extend(_schema_violations(validator, raw, "initial-reviewer raw output"))
+    findings: dict[str, dict] = {}
+    for finding in _sequence(raw.get("findings")):
+        if not isinstance(finding, dict) or not isinstance(finding.get("raw_finding_id"), str):
+            continue
+        raw_id=finding["raw_finding_id"]
+        if raw_id in findings: errors.append(f"initial-reviewer raw output: duplicate raw_finding_id {raw_id!r}")
+        findings[raw_id]=finding
+    assessments=[x for x in _sequence(raw.get("objective_assessments")) if isinstance(x,dict)]
+    objectives=[x.get("objective") for x in assessments if isinstance(x.get("objective"),str)]
+    if len(assessments)!=len(required_objectives) or len(set(objectives))!=len(required_objectives) or set(objectives)!=set(required_objectives):
+        errors.append("initial-reviewer raw output: raw output must assess exactly the 14 Gate A attack objectives once each")
+    listed: dict[str,set[str]]={}
+    for assessment in assessments:
+        objective=assessment.get("objective")
+        if not isinstance(objective,str): continue
+        ids={x for x in _sequence(assessment.get("finding_ids")) if isinstance(x,str)}
+        listed[objective]=ids
+        for raw_id in ids:
+            if raw_id not in findings: errors.append(f"initial-reviewer raw output: objective assessment {objective!r} references unknown raw finding {raw_id!r}")
+    for raw_id,finding in findings.items():
+        declared={x for x in _sequence(finding.get("attack_objectives")) if isinstance(x,str)}
+        for objective in declared:
+            if raw_id not in listed.get(objective,set()): errors.append(f"initial-reviewer raw output: raw finding {raw_id!r} declares objective {objective!r} that does not reference it reciprocally")
+        for objective,ids in listed.items():
+            if raw_id in ids and objective not in declared: errors.append(f"initial-reviewer raw output: objective assessment {objective!r} references raw finding {raw_id!r} that does not declare it")
+    return raw,errors
+
+
+def _validate_challenge_protocol_output(root: Path, reference: object, validator: Draft202012Validator | None, packet: dict | None) -> tuple[dict | None,list[str]]:
+    output, errors = _load_json_object_artifact(root, reference, "challenge output", REVIEW_CHALLENGE_PREFIX, REVIEW_CHALLENGE_SUFFIX, require_canonical=False)
+    if output is None: return None,errors
+    if validator is not None: errors.extend(_schema_violations(validator,output,"challenge output"))
+    if packet is None: return output, errors+["challenge output: canonical challenge packet is unavailable"]
+    if output.get("challenge_kind") != packet.get("challenge_kind"): errors.append("challenge output: challenge_kind must equal the bound challenge packet")
+    errors.extend(_challenge_objective_errors(output,"challenge output",tuple(_sequence(packet.get("required_objectives")))))
+    errors.extend(_challenge_objection_errors(output,"challenge output"))
+    return output,errors
+
+
+def _load_challenge_packet(root: Path, reference: object, record_packet: dict | None, record_packet_ref: dict, validator: Draft202012Validator | None, label: str) -> tuple[dict | None,list[str]]:
+    packet, errors = _load_json_object_artifact(root, reference, label, REVIEW_CHALLENGE_PACKET_PREFIX, REVIEW_CHALLENGE_PACKET_SUFFIX, require_canonical=True)
+    if packet is None: return None,errors
+    if validator is not None: errors.extend(_schema_violations(validator,packet,label))
+    review=_mapping(packet.get("review_packet"))
+    if review.get("sha256") != record_packet_ref.get("sha256"): errors.append(f"{label}: embedded review packet sha256 must equal record protocol review packet")
+    if record_packet is not None and review.get("payload") != record_packet: errors.append(f"{label}: embedded review packet payload must equal the exact campaign review packet")
+    if isinstance(review.get("payload"),dict):
+        errors.extend(_gate_a_review_packet_authority_errors(review["payload"], _mapping(review["payload"].get("subject_payload")), label))
+        expected=sha256_hex(_canonical_json_bytes(_mapping(packet.get("challenge_subject")).get("payload")))
+        if _mapping(packet.get("challenge_subject")).get("sha256") != expected: errors.append(f"{label}: challenge_subject sha256 does not match payload")
+    return packet,errors
+
 def _unique_qualifying_attempt(receipt: dict) -> dict | None:
     qualified = [
         attempt
@@ -956,155 +1036,67 @@ def _unique_qualifying_attempt(receipt: dict) -> dict | None:
     return qualified[0] if len(qualified) == 1 else None
 
 
-def _validate_execution_receipt(
-    root: Path,
-    receipt: dict,
-    label: str,
-    profile_map: dict[str, dict],
-    expected_bundle_sha256: object,
-) -> tuple[list[str], dict | None]:
-    """Validate one receipt and return its unique qualified attempt, if any."""
-    errors: list[str] = []
-    role = receipt.get("role")
-    profile_id = receipt.get("reviewer_profile_id")
-    profile = profile_map.get(profile_id) if isinstance(profile_id, str) else None
-    if profile is None:
-        errors.append(
-            f"{label}: receipt references unknown reviewer profile {profile_id!r}"
-        )
+def _validate_execution_receipt(root: Path, receipt: dict, label: str, profile_map: dict[str,dict], expected_bundle_sha256: object, validators: dict[str,Draft202012Validator | None] | None = None, challenge_packet: dict | None = None) -> tuple[list[str],dict|None]:
+    errors: list[str]=[]; validators=validators or {}; role=receipt.get("role"); profile_id=receipt.get("reviewer_profile_id"); profile=profile_map.get(profile_id) if isinstance(profile_id,str) else None
+    if profile is None: errors.append(f"{label}: receipt references unknown reviewer profile {profile_id!r}")
     else:
-        if profile.get("frontier_eligible") is not True:
-            errors.append(
-                f"{label}: reviewer profile {profile_id!r} is not frontier eligible"
-            )
-        request = _mapping(receipt.get("request"))
-        if request.get("provider") != profile.get("provider"):
-            errors.append(
-                f"{label}: receipt request provider does not match its reviewer profile"
-            )
-        if request.get("model") != profile.get("request_model"):
-            errors.append(
-                f"{label}: receipt request model does not match its reviewer profile "
-                "request_model"
-            )
-    if receipt.get("isolated_context") is not True:
-        errors.append(f"{label}: receipt isolated_context must be true")
-    if receipt.get("cross_reviewer_visibility_before_seal") is not False:
-        errors.append(
-            f"{label}: receipt cross_reviewer_visibility_before_seal must be false"
-        )
-    if receipt.get("tools_enabled") is not False:
-        errors.append(f"{label}: receipt tools_enabled must be false")
-    if isinstance(expected_bundle_sha256, str) and receipt.get(
-        "protocol_bundle_sha256"
-    ) != expected_bundle_sha256:
-        errors.append(
-            f"{label}: receipt protocol_bundle_sha256 does not match the review "
-            "protocol bundle"
-        )
-
-    attempts = [
-        attempt
-        for attempt in _sequence(receipt.get("attempts"))
-        if isinstance(attempt, dict)
-    ]
-    attempt_ids = [
-        attempt.get("attempt_id")
-        for attempt in attempts
-        if isinstance(attempt.get("attempt_id"), str)
-    ]
-    if len(attempt_ids) != len(set(attempt_ids)):
-        errors.append(f"{label}: attempt_id values must be unique")
-    qualified = [
-        attempt for attempt in attempts if attempt.get("outcome") == "qualified"
-    ]
-    if len(qualified) != 1:
-        errors.append(
-            f"{label}: exactly one attempt must have outcome qualified; "
-            f"found {len(qualified)}"
-        )
-    qualifying_attempt = qualified[0] if len(qualified) == 1 else None
-    if qualifying_attempt is not None:
-        if receipt.get("qualifying_attempt_id") != qualifying_attempt.get("attempt_id"):
-            errors.append(
-                f"{label}: qualifying_attempt_id must name the qualified attempt"
-            )
-
-    output_paths: list[str] = []
+        if profile.get("frontier_eligible") is not True: errors.append(f"{label}: reviewer profile {profile_id!r} is not frontier eligible")
+        request=_mapping(receipt.get("request"))
+        if request.get("provider")!=profile.get("provider"): errors.append(f"{label}: receipt request provider does not match its reviewer profile")
+        if request.get("model")!=profile.get("request_model"): errors.append(f"{label}: receipt request model does not match its reviewer profile request_model")
+    if receipt.get("isolated_context") is not True: errors.append(f"{label}: receipt isolated_context must be true")
+    if receipt.get("cross_reviewer_visibility_before_seal") is not False: errors.append(f"{label}: receipt cross_reviewer_visibility_before_seal must be false")
+    if receipt.get("tools_enabled") is not False: errors.append(f"{label}: receipt tools_enabled must be false")
+    if isinstance(expected_bundle_sha256,str) and receipt.get("protocol_bundle_sha256")!=expected_bundle_sha256: errors.append(f"{label}: receipt protocol_bundle_sha256 does not match the review protocol bundle")
+    attempts=[a for a in _sequence(receipt.get("attempts")) if isinstance(a,dict)]
+    for field in ("attempt_id","call_id"):
+        values=[a.get(field) for a in attempts if isinstance(a.get(field),str)]
+        if len(values)!=len(set(values)): errors.append(f"{label}: {field} values must be unique")
+    qualified=[a for a in attempts if a.get("outcome")=="qualified"]
+    if len(qualified)!=1: errors.append(f"{label}: exactly one attempt must have outcome qualified; found {len(qualified)}")
+    qualifying=qualified[0] if len(qualified)==1 else None
+    if qualifying is not None:
+        if receipt.get("qualifying_attempt_id") != qualifying.get("attempt_id"): errors.append(f"{label}: qualifying_attempt_id must name the qualified attempt")
+        if attempts and attempts[-1] is not qualifying: errors.append(f"{label}: the qualified attempt must be final")
+    output_paths=[]
     for attempt in attempts:
-        raw_output = attempt.get("raw_output")
-        attempt_label = f"{label}: attempt {attempt.get('attempt_id')!r}"
-        if raw_output is None:
-            if attempt.get("outcome") in ("protocol-invalid", "qualified"):
-                errors.append(
-                    f"{attempt_label}: a completed {attempt.get('outcome')} attempt "
-                    "must seal its raw output"
-                )
+        outcome=attempt.get("outcome"); raw=attempt.get("raw_output"); alabel=f"{label}: attempt {attempt.get('attempt_id')!r}"
+        if outcome=="technical-failure":
+            if raw is not None: errors.append(f"{alabel}: technical-failure must not have raw_output")
+            if _sequence(attempt.get("protocol_errors")): errors.append(f"{alabel}: technical-failure must not have protocol_errors")
             continue
-        _, output_errors = _read_receipt_output(
-            root, raw_output, attempt_label, _receipt_output_prefixes(role)
-        )
-        errors.extend(output_errors)
-        path = _mapping(raw_output).get("path")
-        if isinstance(path, str):
-            output_paths.append(path)
-    duplicates = sorted(
-        path for path, count in Counter(output_paths).items() if count > 1
-    )
-    for duplicate in duplicates:
-        errors.append(f"{label}: duplicate attempt raw_output path {duplicate}")
-
-    resolved = receipt.get("resolved_identity")
-    if qualifying_attempt is not None:
-        if not isinstance(resolved, dict):
-            errors.append(f"{label}: a qualified attempt requires a resolved identity")
-            return errors, qualifying_attempt
-        if resolved.get("evidence_attempt_id") != qualifying_attempt.get("attempt_id"):
-            errors.append(
-                f"{label}: resolved identity must reference the qualifying attempt"
-            )
-        request = _mapping(receipt.get("request"))
-        if resolved.get("provider") != request.get(
-            "provider"
-        ) or resolved.get("model") != request.get("model"):
-            errors.append(
-                f"{label}: resolved identity provider/model must match the receipt request"
-            )
-        if profile is not None:
-            identity_resolution = _mapping(profile.get("identity_resolution"))
-            kind = identity_resolution.get("kind")
-            if resolved.get("resolution_kind") != kind:
-                errors.append(
-                    f"{label}: resolved identity resolution_kind must match the "
-                    "reviewer profile"
-                )
-            if kind == "provider-reported":
-                provider_model = qualifying_attempt.get("provider_model")
-                if not isinstance(provider_model, str) or not provider_model:
-                    errors.append(
-                        f"{label}: provider-reported identity requires a non-empty "
-                        "provider_model"
-                    )
-                elif resolved.get("model_version") != provider_model:
-                    errors.append(
-                        f"{label}: provider-reported model_version must equal the "
-                        "qualified attempt provider_model"
-                    )
-            elif kind == "pinned-request-model":
-                if identity_resolution.get(
-                    "request_model_is_immutable_version"
-                ) is not True:
-                    errors.append(
-                        f"{label}: pinned-request-model requires "
-                        "request_model_is_immutable_version = true"
-                    )
-                if resolved.get("model_version") != profile.get("request_model"):
-                    errors.append(
-                        f"{label}: pinned-request-model model_version must equal the "
-                        "profile request_model"
-                    )
-    return errors, qualifying_attempt
-
+        if raw is None:
+            errors.append(f"{alabel}: a completed {outcome} attempt must seal its raw output"); continue
+        if outcome=="protocol-invalid" and not _sequence(attempt.get("protocol_errors")): errors.append(f"{alabel}: protocol-invalid attempt requires nonempty protocol_errors")
+        if outcome=="qualified" and _sequence(attempt.get("protocol_errors")): errors.append(f"{alabel}: qualified attempt requires empty protocol_errors")
+        _,read_errors=_read_receipt_output(root,raw,alabel,_receipt_output_prefixes(role));errors.extend(read_errors)
+        path=_mapping(raw).get("path");
+        if isinstance(path,str): output_paths.append(path)
+        derived: list[str] | None = None
+        if role==INITIAL_REVIEWER_ROLE: _parsed,derived=_validate_initial_reviewer_protocol_output(root,raw,validators.get("raw-review-output"))
+        elif role==CHALLENGE_ROLE and challenge_packet is not None: _parsed,derived=_validate_challenge_protocol_output(root,raw,validators.get("challenge-output"),challenge_packet)
+        if derived is not None:
+            if outcome=="protocol-invalid" and not derived: errors.append(f"{alabel}: declared protocol-invalid but output is protocol-valid")
+            if outcome=="qualified" and derived: errors.append(f"{alabel}: declared qualified but output is protocol-invalid")
+    for path,count in Counter(output_paths).items():
+        if count>1: errors.append(f"{label}: duplicate attempt raw_output path {path}")
+    resolved=receipt.get("resolved_identity")
+    if qualifying is not None:
+        if not isinstance(resolved,dict): errors.append(f"{label}: a qualified attempt requires a resolved identity")
+        else:
+            if resolved.get("evidence_attempt_id")!=qualifying.get("attempt_id"): errors.append(f"{label}: resolved identity must reference the qualifying attempt")
+            request=_mapping(receipt.get("request"))
+            if resolved.get("provider")!=request.get("provider") or resolved.get("model")!=request.get("model"): errors.append(f"{label}: resolved identity provider/model must match the receipt request")
+            if profile is not None:
+                resolution=_mapping(profile.get("identity_resolution"));kind=resolution.get("kind")
+                if resolved.get("resolution_kind")!=kind: errors.append(f"{label}: resolved identity resolution_kind must match the reviewer profile")
+                if kind=="provider-reported":
+                    if not isinstance(qualifying.get("provider_model"),str) or not qualifying.get("provider_model"): errors.append(f"{label}: provider-reported identity requires a non-empty provider_model")
+                    elif resolved.get("model_version")!=qualifying.get("provider_model"): errors.append(f"{label}: provider-reported model_version must equal the qualified attempt provider_model")
+                elif kind=="pinned-request-model":
+                    if resolution.get("request_model_is_immutable_version") is not True: errors.append(f"{label}: pinned-request-model requires request_model_is_immutable_version = true")
+                    if resolved.get("model_version")!=profile.get("request_model"): errors.append(f"{label}: pinned-request-model model_version must equal the profile request_model")
+    return errors,qualifying
 
 def _initial_reviewer_receipt_errors(
     record: dict,
@@ -1372,6 +1364,23 @@ def _supporting_receipt(
     return supporting.get(key)
 
 
+def _bound_challenge_packet_errors(root: Path, challenge: dict, bundle: dict | None, review_packet_ref: dict, parsed_review_packet: dict | None, packet_validator: Draft202012Validator | None, expected_kind: str, expected_selector: str, expected_payload: dict, expected_sha: str, expected_objectives: tuple[str, ...], label: str) -> tuple[dict | None, list[str]]:
+    packet, errors = _load_challenge_packet(root, challenge.get("packet"), parsed_review_packet, review_packet_ref, packet_validator, f"{label}: challenge packet")
+    if packet is None:
+        return None, errors
+    subject = _mapping(packet.get("challenge_subject"))
+    if packet.get("challenge_kind") != expected_kind:
+        errors.append(f"{label}: challenge packet challenge_kind must be {expected_kind}")
+    if subject.get("selector") != expected_selector:
+        errors.append(f"{label}: challenge packet selector must be {expected_selector}")
+    if subject.get("payload") != expected_payload:
+        errors.append(f"{label}: challenge packet subject payload does not equal exact challenged candidate")
+    if subject.get("sha256") != expected_sha:
+        errors.append(f"{label}: challenge packet subject sha256 does not equal exact challenged candidate")
+    if tuple(_sequence(packet.get("required_objectives"))) != expected_objectives:
+        errors.append(f"{label}: challenge packet required_objectives must equal the exact required objectives")
+    return packet, errors
+
 def _materiality_errors(
     root: Path,
     label: str,
@@ -1380,6 +1389,10 @@ def _materiality_errors(
     bundle: dict | None,
     supporting: dict[tuple, dict],
     challenge_validator: Draft202012Validator | None,
+    review_packet_ref: dict | None = None,
+    parsed_review_packet: dict | None = None,
+    packet_validator: Draft202012Validator | None = None,
+    bundle_sha256: object = None,
 ) -> list[str]:
     errors: list[str] = []
     materiality_mapping = _mapping(materiality)
@@ -1419,6 +1432,8 @@ def _materiality_errors(
             f"{label}: materiality challenge does not bind the exact candidate "
             "materiality assessment"
         )
+    packet, packet_errors = _bound_challenge_packet_errors(root, challenge, bundle, review_packet_ref or {}, parsed_review_packet, packet_validator, "materiality", MATERIALITY_CHALLENGE_SELECTOR, _materiality_challenge_subject_payload(source_finding, materiality_mapping), expected_sha, MATERIALITY_AXES, label)
+    errors.extend(packet_errors)
     receipt = _supporting_receipt(supporting, challenge.get("execution_receipt"))
     if receipt is None:
         errors.append(
@@ -1435,6 +1450,12 @@ def _materiality_errors(
                 f"{label}: materiality challenge receipt prompt must equal the "
                 "protocol bundle challenge prompt"
             )
+        if inputs.get("packet") != challenge.get("packet"):
+            errors.append(f"{label}: materiality challenge receipt packet must equal the challenge packet")
+        validators, validator_errors = _bundle_selected_validators(root, bundle, f"{label}: protocol bundle")
+        errors.extend(validator_errors)
+        receipt_errors, _ = _validate_execution_receipt(root, receipt, f"{label}: materiality challenge receipt", _protocol_profile_map(bundle), bundle_sha256, validators, packet)
+        errors.extend(receipt_errors)
         qualifying = _unique_qualifying_attempt(receipt)
         if qualifying is not None and qualifying.get(
             "raw_output"
@@ -1474,10 +1495,17 @@ def _refutation_challenge_errors(
     bundle: dict | None,
     supporting: dict[tuple, dict],
     challenge_validator: Draft202012Validator | None,
+    review_packet_ref: dict | None = None,
+    parsed_review_packet: dict | None = None,
+    packet_validator: Draft202012Validator | None = None,
+    expected_payload: dict | None = None,
+    bundle_sha256: object = None,
 ) -> list[str]:
     errors: list[str] = []
     if challenge.get("challenged_refutation_sha256") != expected_sha:
         errors.append(f"{label}: challenge does not bind the exact refutation")
+    packet, packet_errors = _bound_challenge_packet_errors(root, challenge, bundle, review_packet_ref or {}, parsed_review_packet, packet_validator, "refutation", REFUTATION_CHALLENGE_SELECTOR, expected_payload or {}, expected_sha, REFUTATION_CHALLENGE_OBJECTIVES, label)
+    errors.extend(packet_errors)
     receipt = _supporting_receipt(supporting, challenge.get("execution_receipt"))
     if receipt is None:
         errors.append(
@@ -1494,6 +1522,12 @@ def _refutation_challenge_errors(
                 f"{label}: refutation challenge receipt prompt must equal the "
                 "protocol bundle challenge prompt"
             )
+        if inputs.get("packet") != challenge.get("packet"):
+            errors.append(f"{label}: refutation challenge receipt packet must equal the challenge packet")
+        validators, validator_errors = _bundle_selected_validators(root, bundle, f"{label}: protocol bundle")
+        errors.extend(validator_errors)
+        receipt_errors, _ = _validate_execution_receipt(root, receipt, f"{label}: refutation challenge receipt", _protocol_profile_map(bundle), bundle_sha256, validators, packet)
+        errors.extend(receipt_errors)
         qualifying = _unique_qualifying_attempt(receipt)
         if qualifying is not None and qualifying.get(
             "raw_output"
@@ -1533,6 +1567,11 @@ def _disposition_errors(
     supporting: dict[tuple, dict],
     challenge_validator: Draft202012Validator | None,
     refutation_subject_sha256: str,
+    review_packet_ref: dict | None = None,
+    parsed_review_packet: dict | None = None,
+    packet_validator: Draft202012Validator | None = None,
+    refutation_payload: dict | None = None,
+    bundle_sha256: object = None,
 ) -> list[str]:
     errors: list[str] = []
     material = _finding_is_material({"materiality": materiality})
@@ -1571,6 +1610,11 @@ def _disposition_errors(
                     bundle,
                     supporting,
                     challenge_validator,
+                    review_packet_ref,
+                    parsed_review_packet,
+                    packet_validator,
+                    refutation_payload,
+                    bundle_sha256,
                 )
             )
     elif status in ("routed", "resolved"):
@@ -1614,19 +1658,7 @@ def _review_evidence_errors(
     bundle_validator, bundle_schema_errors = _load_schema_validator(
         root, PROTOCOL_BUNDLE_SCHEMA_RELATIVE
     )
-    raw_validator, raw_schema_errors = _load_schema_validator(
-        root, RAW_REVIEW_SCHEMA_RELATIVE
-    )
-    challenge_validator, challenge_schema_errors = _load_schema_validator(
-        root, CHALLENGE_OUTPUT_SCHEMA_RELATIVE
-    )
-    receipt_validator, receipt_schema_errors = _load_schema_validator(
-        root, EXECUTION_RECEIPT_SCHEMA_RELATIVE
-    )
     errors.extend(bundle_schema_errors)
-    errors.extend(raw_schema_errors)
-    errors.extend(challenge_schema_errors)
-    errors.extend(receipt_schema_errors)
 
     bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
     _current_reference, _current_bundle, current_errors = (
@@ -1657,6 +1689,14 @@ def _review_evidence_errors(
             REVIEW_PACKET_SUFFIX,
         )
         errors.extend(packet_errors)
+        parsed_review_packet: dict | None = None
+        if packet_bytes is not None:
+            try:
+                candidate_packet = json.loads(packet_bytes.decode("utf-8"))
+                if isinstance(candidate_packet, dict):
+                    parsed_review_packet = candidate_packet
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                pass
         prompt_reference = _mapping(protocol.get("prompt"))
         _, prompt_errors = _read_review_artifact(
             root,
@@ -1675,6 +1715,10 @@ def _review_evidence_errors(
             bundle_cache,
         )
         errors.extend(bundle_errors)
+        selected_validators, selected_validator_errors = _bundle_selected_validators(
+            root, bundle, f"{label}: protocol.protocol_bundle"
+        )
+        errors.extend(selected_validator_errors)
         bundle_sha = bundle_reference.get("sha256")
         profile_map = _protocol_profile_map(bundle)
         prompts = _mapping(_mapping(bundle).get("prompts"))
@@ -1694,7 +1738,7 @@ def _review_evidence_errors(
             reference = _mapping(reference)
             ref_label = f"{label}: supporting_executions[{index}]"
             receipt, receipt_errors = _load_execution_receipt(
-                root, reference, ref_label, receipt_validator
+                root, reference, ref_label, selected_validators.get("execution-receipt")
             )
             errors.extend(receipt_errors)
             path_value = reference.get("path")
@@ -1708,7 +1752,7 @@ def _review_evidence_errors(
                     "not supporting_executions"
                 )
             receipt_errors, _attempt = _validate_execution_receipt(
-                root, receipt, ref_label, profile_map, bundle_sha
+                root, receipt, ref_label, profile_map, bundle_sha, selected_validators
             )
             errors.extend(receipt_errors)
             supporting[(reference.get("path"), reference.get("sha256"))] = receipt
@@ -1771,7 +1815,7 @@ def _review_evidence_errors(
                 root,
                 receipt_reference,
                 f"{exec_label} execution_receipt",
-                receipt_validator,
+                selected_validators.get("execution-receipt"),
             )
             errors.extend(receipt_errors)
             if receipt is not None:
@@ -1781,6 +1825,7 @@ def _review_evidence_errors(
                     f"{exec_label} execution_receipt",
                     profile_map,
                     bundle_sha,
+                    selected_validators,
                 )
                 errors.extend(receipt_errors)
                 errors.extend(
@@ -1793,7 +1838,7 @@ def _review_evidence_errors(
                 raw_paths.append(raw_path)
             if is_gate_a_subject_review:
                 raw_findings, raw_errors = _raw_review_errors(
-                    root, f"{exec_label} raw_output", execution, raw_validator
+                    root, f"{exec_label} raw_output", execution, selected_validators.get("raw-review-output")
                 )
                 errors.extend(raw_errors)
                 if raw_findings is not None and isinstance(execution_id, str):
@@ -1880,7 +1925,11 @@ def _review_evidence_errors(
                     finding.get("materiality"),
                     bundle,
                     supporting,
-                    challenge_validator,
+                    selected_validators.get("challenge-output"),
+                    review_packet,
+                    parsed_review_packet,
+                    selected_validators.get("challenge-packet"),
+                    bundle_sha,
                 )
             )
             errors.extend(
@@ -1893,8 +1942,13 @@ def _review_evidence_errors(
                     finding.get("disposition"),
                     bundle,
                     supporting,
-                    challenge_validator,
+                    selected_validators.get("challenge-output"),
                     _refutation_challenge_subject_sha256(finding),
+                    review_packet,
+                    parsed_review_packet,
+                    selected_validators.get("challenge-packet"),
+                    _refutation_challenge_subject_payload(finding),
+                    bundle_sha,
                 )
             )
 
@@ -1961,7 +2015,11 @@ def _review_evidence_errors(
                     item.get("materiality"),
                     bundle,
                     supporting,
-                    challenge_validator,
+                    selected_validators.get("challenge-output"),
+                    review_packet,
+                    parsed_review_packet,
+                    selected_validators.get("challenge-packet"),
+                    bundle_sha,
                 )
             )
             errors.extend(
@@ -1974,8 +2032,13 @@ def _review_evidence_errors(
                     item.get("disposition"),
                     bundle,
                     supporting,
-                    challenge_validator,
+                    selected_validators.get("challenge-output"),
                     _re_adjudication_refutation_subject_sha256(source_finding, item),
+                    review_packet,
+                    parsed_review_packet,
+                    selected_validators.get("challenge-packet"),
+                    _re_adjudication_refutation_subject_payload(source_finding, item),
+                    bundle_sha,
                 )
             )
 
