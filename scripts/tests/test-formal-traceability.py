@@ -391,7 +391,7 @@ def build_receipt_payload(
             "evidence_attempt_id": attempt_id,
         }
     payload = {
-        "receipt_schema_version": "2.0",
+        "receipt_schema_version": "3.0",
         "execution_id": execution_id,
         "role": role,
         "reviewer_profile_id": reviewer_profile_id,
@@ -5156,18 +5156,31 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         for relative, expected_hash in expected.items():
             self.assertEqual(expected_hash, checker.sha256_hex((ROOT / relative).read_bytes()))
 
+    def test_published_protocol_v2_artifacts_remain_byte_identical(self):
+        expected = {
+            "formal/reviews/protocols/gate-a-campaign-protocol-v2.json": "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9",
+            "formal/reviews/schemas/challenge-packet-v1.schema.json": "82f8c7956c860235def469a1975c3baf9572091bd9ce39b709bd1547338911ba",
+            "formal/reviews/schemas/execution-receipt-v2.schema.json": "51b7a911e05cb1469ad289147ab5d3158673fff8c703168d15501e2dfd731026",
+        }
+        for relative, expected_hash in expected.items():
+            self.assertEqual(expected_hash, checker.sha256_hex((ROOT / relative).read_bytes()))
+
     def test_current_protocol_is_v2_and_predecessor_is_exact_v1(self):
-        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
-        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
-        self.assertEqual("formal/reviews/protocols/gate-a-campaign-protocol-v2.json", reference["path"])
-        bundle = json.loads((ROOT / reference["path"]).read_text())
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v2.json"
+            ).read_text(encoding="utf-8")
+        )
         self.assertEqual("gate-a-campaign-protocol-v2", bundle["protocol_id"])
         self.assertEqual({"path": "formal/reviews/protocols/gate-a-campaign-protocol-v1.json", "sha256": "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1"}, bundle["predecessor"])
 
     def test_current_protocol_v2_change_does_not_change_gate_a_subject(self):
         manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
-        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
-        bundle = json.loads((ROOT / reference["path"]).read_text())
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v2.json"
+            ).read_text(encoding="utf-8")
+        )
         self.assertEqual(2, bundle["protocol_bundle_schema_version"])
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
@@ -6188,6 +6201,477 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         self.assertEqual(
             [], checker._schema_violations(validator, bundle, "protocol-v1")
         )
+
+    def test_current_protocol_is_v3_and_predecessor_is_exact_v2(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+        self.assertEqual(
+            "formal/reviews/protocols/gate-a-campaign-protocol-v3.json",
+            reference["path"],
+        )
+        bundle = json.loads((ROOT / reference["path"]).read_text(encoding="utf-8"))
+        self.assertEqual("gate-a-campaign-protocol-v3", bundle["protocol_id"])
+        self.assertEqual(3, bundle["protocol_bundle_schema_version"])
+        self.assertEqual(
+            {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
+                "sha256": "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9",
+            },
+            bundle["predecessor"],
+        )
+
+    def test_protocol_v3_uses_execution_receipt_v3(self) -> None:
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v3.json"
+            ).read_text(encoding="utf-8")
+        )
+        reference = bundle["schemas"]["execution-receipt"]
+        self.assertEqual(
+            "formal/reviews/schemas/execution-receipt-v3.schema.json",
+            reference["path"],
+        )
+        self.assertEqual(
+            checker.sha256_hex((ROOT / reference["path"]).read_bytes()),
+            reference["sha256"],
+        )
+
+    def test_protocol_v3_role_aware_retry_policy_is_exact(self) -> None:
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v3.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            {
+                "technical_retry_allowed": True,
+                "schema_invalid_completion_retry_allowed": True,
+                "semantic_result_retry_allowed": False,
+                "all_completed_attempts_must_be_sealed": True,
+                "first_protocol_valid_completion_is_terminal": True,
+                "outcome_classification": "role-aware-conservative",
+                "deterministically_validated_roles": [
+                    "initial-reviewer",
+                    "challenge",
+                ],
+                "roles_without_deterministic_output_validator": [
+                    "materiality-assessor",
+                    "refutation-builder",
+                    "discovery-classifier",
+                    "derivation-builder",
+                    "decision-necessity-challenger",
+                    "repair-synthesizer",
+                    "decision-projection",
+                ],
+                "roles_without_deterministic_output_validator_protocol_invalid_allowed": False,
+                "roles_without_deterministic_output_validator_first_completed_response_terminal": True,
+            },
+            bundle["policies"]["retry"],
+        )
+
+    def test_protocol_v3_change_does_not_change_gate_a_subject(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+        bundle = json.loads((ROOT / reference["path"]).read_text(encoding="utf-8"))
+        self.assertEqual(3, bundle["protocol_bundle_schema_version"])
+        subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
+        self.assertEqual([], errors)
+        self.assertEqual(
+            "2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b",
+            subject["sha256"],
+        )
+
+    def test_protocol_v2_still_validates_unchanged_under_bundle_schema(self) -> None:
+        validator, errors = checker._load_schema_validator(
+            ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+        )
+        self.assertEqual([], errors)
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v2.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [], checker._schema_violations(validator, bundle, "protocol-v2")
+        )
+
+    def test_protocol_v3_missing_predecessor_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload.pop("predecessor", None)
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v3-missing-predecessor.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("predecessor" in error for error in errors), errors
+            )
+
+    def test_protocol_v3_wrong_predecessor_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload["predecessor"] = {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
+                "sha256": "0" * 64,
+            }
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v3-wrong-predecessor.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "current protocol v3 predecessor must be the exact published "
+                    "v2 bundle" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_receipt_v3_forbids_protocol_invalid_for_all_unvalidated_roles(
+        self,
+    ) -> None:
+        schema = json.loads(
+            (
+                ROOT / "formal/reviews/schemas/execution-receipt-v3.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        validator = Draft202012Validator(schema)
+        raw_reference = {
+            "path": "formal/reviews/raw/attempt.json",
+            "sha256": "a" * 64,
+        }
+        roles = [
+            "materiality-assessor",
+            "refutation-builder",
+            "discovery-classifier",
+            "derivation-builder",
+            "decision-necessity-challenger",
+            "repair-synthesizer",
+            "decision-projection",
+        ]
+        for role in roles:
+            payload = build_receipt_payload(
+                execution_id="EXEC-V3-UNVALIDATED",
+                role=role,
+                reviewer_profile_id="profile-v3-unvalidated",
+                protocol_bundle_sha256="0" * 64,
+                prompt={
+                    "path": "formal/reviews/prompts/gate-a-initial-review-v1.md",
+                    "sha256": "0" * 64,
+                },
+                packet={
+                    "path": "formal/reviews/packets/packet.json",
+                    "sha256": "0" * 64,
+                },
+                provider="provider-v3",
+                model="model-v3",
+                attempts=[
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        raw_output=raw_reference,
+                        protocol_errors=["claimed-invalid"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=raw_reference),
+                ],
+            )
+            self.assertEqual("3.0", payload["receipt_schema_version"], role)
+            violations = list(validator.iter_errors(payload))
+            self.assertTrue(violations, role)
+
+    def test_checker_forbids_protocol_invalid_for_unvalidated_role(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/unvalidated-invalid.json",
+                {"not": "a validated protocol output"},
+                canonical=False,
+            )
+            second_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/unvalidated-qualified.json",
+                {"admitted": "completion"},
+                canonical=False,
+            )
+            profile = supporting_profile("profile-materiality-assessor")
+            receipt = build_receipt_payload(
+                execution_id="EXEC-UNVALIDATED",
+                role="materiality-assessor",
+                reviewer_profile_id="profile-materiality-assessor",
+                protocol_bundle_sha256="0" * 64,
+                prompt={
+                    "path": "formal/reviews/prompts/gate-a-adjudication-v1.md",
+                    "sha256": "0" * 64,
+                },
+                packet=write_gate_a_review_packet(fixture_root),
+                provider=profile["provider"],
+                model=profile["request_model"],
+                attempts=[
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        raw_output=raw_reference,
+                        protocol_errors=["claimed-invalid"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=second_reference),
+                ],
+            )
+            self.assertEqual("3.0", receipt["receipt_schema_version"])
+            errors, _qualifying = checker._validate_execution_receipt(
+                fixture_root,
+                receipt,
+                "test",
+                {profile["profile_id"]: profile},
+                receipt["protocol_bundle_sha256"],
+                {},
+            )
+            self.assertTrue(
+                any(
+                    "protocol-invalid is forbidden for roles without a "
+                    "deterministic output validator" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_unvalidated_role_allows_technical_failures_before_terminal_completion(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            qualified_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/unvalidated-terminal.json",
+                {"admitted": "completion"},
+                canonical=False,
+            )
+            profile = supporting_profile("profile-materiality-assessor")
+            receipt = build_receipt_payload(
+                execution_id="EXEC-TERMINAL",
+                role="materiality-assessor",
+                reviewer_profile_id="profile-materiality-assessor",
+                protocol_bundle_sha256="0" * 64,
+                prompt={
+                    "path": "formal/reviews/prompts/gate-a-adjudication-v1.md",
+                    "sha256": "0" * 64,
+                },
+                packet=write_gate_a_review_packet(fixture_root),
+                provider=profile["provider"],
+                model=profile["request_model"],
+                attempts=[
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="technical-failure",
+                        raw_output=None,
+                        provider_model=None,
+                    ),
+                    attempt_payload(
+                        "ATTEMPT-2",
+                        outcome="technical-failure",
+                        raw_output=None,
+                        provider_model=None,
+                    ),
+                    attempt_payload("ATTEMPT-3", raw_output=qualified_reference),
+                ],
+            )
+            errors, _qualifying = checker._validate_execution_receipt(
+                fixture_root,
+                receipt,
+                "test",
+                {profile["profile_id"]: profile},
+                receipt["protocol_bundle_sha256"],
+                {},
+            )
+            self.assertEqual([], errors)
+
+    def test_unvalidated_role_terminal_completion_must_be_final(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            qualified_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/unvalidated-not-final.json",
+                {"admitted": "completion"},
+                canonical=False,
+            )
+            profile = supporting_profile("profile-materiality-assessor")
+            receipt = build_receipt_payload(
+                execution_id="EXEC-NOT-FINAL",
+                role="materiality-assessor",
+                reviewer_profile_id="profile-materiality-assessor",
+                protocol_bundle_sha256="0" * 64,
+                prompt={
+                    "path": "formal/reviews/prompts/gate-a-adjudication-v1.md",
+                    "sha256": "0" * 64,
+                },
+                packet=write_gate_a_review_packet(fixture_root),
+                provider=profile["provider"],
+                model=profile["request_model"],
+                attempts=[
+                    attempt_payload("ATTEMPT-1", raw_output=qualified_reference),
+                    attempt_payload(
+                        "ATTEMPT-2",
+                        outcome="technical-failure",
+                        raw_output=None,
+                        provider_model=None,
+                    ),
+                ],
+            )
+            errors, _qualifying = checker._validate_execution_receipt(
+                fixture_root,
+                receipt,
+                "test",
+                {profile["profile_id"]: profile},
+                receipt["protocol_bundle_sha256"],
+                {},
+            )
+            self.assertTrue(
+                any("qualified attempt must be final" in error for error in errors),
+                errors,
+            )
+
+    def test_receipt_v2_is_not_retroactively_subject_to_v3_unvalidated_role_rule(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/receipt-v2-invalid.json",
+                {"not": "a validated protocol output"},
+                canonical=False,
+            )
+            second_reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/raw/receipt-v2-qualified.json",
+                {"admitted": "completion"},
+                canonical=False,
+            )
+            profile = supporting_profile("profile-materiality-assessor")
+            receipt = build_receipt_payload(
+                execution_id="EXEC-V2-HISTORICAL",
+                role="materiality-assessor",
+                reviewer_profile_id="profile-materiality-assessor",
+                protocol_bundle_sha256="0" * 64,
+                prompt={
+                    "path": "formal/reviews/prompts/gate-a-adjudication-v1.md",
+                    "sha256": "0" * 64,
+                },
+                packet=write_gate_a_review_packet(fixture_root),
+                provider=profile["provider"],
+                model=profile["request_model"],
+                attempts=[
+                    attempt_payload(
+                        "ATTEMPT-1",
+                        outcome="protocol-invalid",
+                        raw_output=raw_reference,
+                        protocol_errors=["claimed-invalid"],
+                    ),
+                    attempt_payload("ATTEMPT-2", raw_output=second_reference),
+                ],
+                overrides={"receipt_schema_version": "2.0"},
+            )
+            v2_schema = json.loads(
+                (
+                    ROOT
+                    / "formal/reviews/schemas/execution-receipt-v2.schema.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                [], list(Draft202012Validator(v2_schema).iter_errors(receipt))
+            )
+            errors, _qualifying = checker._validate_execution_receipt(
+                fixture_root,
+                receipt,
+                "test",
+                {profile["profile_id"]: profile},
+                receipt["protocol_bundle_sha256"],
+                {},
+            )
+            self.assertFalse(
+                any(
+                    "protocol-invalid is forbidden for roles without a "
+                    "deterministic output validator" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_renderer_refuses_ready_projection_when_review_evidence_is_invalid(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            write_review(fixture_root, record)
+
+            execution = record["executions"][0]
+            receipt_reference = execution["execution_receipt"]
+            payload = json.loads(
+                (fixture_root / receipt_reference["path"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            packet_reference = record["protocol"]["review_packet"]
+            other_packet = write_bytes_artifact(
+                fixture_root,
+                "formal/reviews/packets/packet-other.json",
+                (fixture_root / packet_reference["path"]).read_bytes(),
+            )
+            self.assertNotEqual(packet_reference, other_packet)
+            payload["input"]["packet"] = other_packet
+            execution["execution_receipt"] = write_json_artifact(
+                fixture_root,
+                "formal/reviews/executions/receipt-exec-a-other-packet.json",
+                payload,
+            )
+            write_review(fixture_root, record)
+
+            manifest = load_manifest(fixture_root)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], subject_errors)
+            review_records, load_errors = checker.load_review_records(fixture_root)
+            self.assertEqual([], load_errors)
+            self.assertIs(
+                True,
+                checker.derive_gate_a(
+                    fixture_root, manifest, current_subject, review_records
+                )["ready"],
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(fixture_root / "scripts" / "render-formal-mapping.py"),
+                    "--stdout",
+                ],
+                cwd=fixture_root,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn(
+                "formal traceability validation failed", result.stderr
+            )
+            self.assertIn(
+                "receipt packet input must equal the record protocol packet",
+                result.stderr,
+            )
+            self.assertNotIn(
+                "Formal-Architecture-Ready: READY", result.stdout
+            )
 
 
 def _install_manifest_bundle(
