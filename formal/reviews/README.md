@@ -54,9 +54,9 @@ prompt artifacts, canonical schema artifacts, reviewer profiles, and protocol
 policies. A protocol change requires a new content identity `P`. A review made
 under a stale `P` does not satisfy current Gate A.
 
-The current bundle is `gate-a-campaign-protocol-v2`. It cryptographically links the immutable v1 bundle as its predecessor; predecessor bundles and their referenced prompts and schemas are recursively checked. Published versioned protocol bundles and referenced prompt/schema artifacts are append-only by path and bytes.
+The current bundle is `gate-a-campaign-protocol-v3`. It cryptographically links the immutable v2 bundle as its predecessor, and v2 links the immutable v1 bundle; predecessor bundles and their referenced prompts and schemas are recursively checked. Published versioned protocol bundles and referenced prompt/schema artifacts are append-only by path and bytes. The protocol history is `v3 -> v2 -> v1`; v1 and v2 are immutable historical bundles.
 
-The historical v1 bundle intentionally declares:
+The published v1, v2, and v3 bundles intentionally declare:
 
 ```json
 "reviewer_profiles": []
@@ -179,7 +179,30 @@ cause a fresh retry using the exact same semantic input. A valid semantic
 response is never retried merely because its content is inconvenient, and no
 model-shopping is permitted after a semantically valid result.
 
-Every completed protocol attempt is recorded in the execution receipt. Attempt validity is checker-derived from sealed output, not runner labels: `technical-failure` has no raw output; `protocol-invalid` must actually fail deterministic validation; and `qualified` must pass it. The first protocol-valid completion is terminal and is the final attempt.
+Every completed protocol attempt is recorded in the execution receipt. Attempt validity is checker-derived from sealed output, not runner labels.
+
+Protocol v3 recognizes exactly two execution-validation classes. The deterministically validated roles are exactly:
+
+```text
+initial-reviewer
+challenge
+```
+
+For these roles, `technical-failure` has no raw output; `protocol-invalid` must actually fail deterministic validation; and `qualified` must pass it. Deterministic `protocol-invalid` retry is permitted only for these roles.
+
+The seven roles without a deterministic output validator are exactly:
+
+```text
+materiality-assessor
+refutation-builder
+discovery-classifier
+derivation-builder
+decision-necessity-challenger
+repair-synthesizer
+decision-projection
+```
+
+For these roles, `protocol-invalid` is forbidden. Any number of `technical-failure` attempts may precede the one terminal completed response, which MUST be `qualified`, MUST be final, and admits no later attempt. `qualified` for an unvalidated role means only the unique admitted completed response of that execution, not semantic correctness. The first protocol-valid completion remains terminal and is the final attempt.
 
 ## Execution receipts
 
@@ -211,7 +234,7 @@ give it authority.
 
 ## One-to-one normalization
 
-For schema 4.0:
+For the current review-evidence contract (schema 5.0):
 
 ```text
 one raw finding -> exactly one normalized finding
@@ -273,8 +296,9 @@ challenge objections == []
 ```
 
 Any challenge objection means the refutation does not currently close the
-finding. Challenge output carries no approval/rejection boolean. Schema 4.0
-removes `surviving_material_argument` and `challenger_execution_id`. A challenge
+finding. Challenge output carries no approval/rejection boolean. The current
+review-evidence contract does not contain `surviving_material_argument` or
+`challenger_execution_id`. A challenge
 is falsification, not voting; the challenger receives only the canonical
 challenge prompt and packet, and no incidental findings are allowed in challenge
 output v1.

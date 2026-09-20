@@ -199,7 +199,7 @@ attempts, one-to-one normalization, conservative challenge closure, and the
 external campaign outcomes. A protocol change never erases a finding: every
 stale-protocol finding over the current subject requires current-protocol
 re-adjudication before it can cease affecting Gate A. The review-evidence schema
-is version 4.0.
+is version 5.0.
 
 The Gate A semantic subject remains owned by the existing authority dependency
 set.
@@ -253,10 +253,13 @@ repository evidence:
 
 `scripts/check-formal-traceability.py` validates cross-artifact consistency,
 review-evidence integrity, legacy migration totals, and generated-projection
-freshness. Machine-readable linkage validates traceability consistency; it does
+freshness. The renderer first runs a full traceability and review-evidence
+validation pass with `check_generated=False`; if that pass reports any error,
+rendering fails closed and no readiness state is projected from invalid
+evidence. Machine-readable linkage validates traceability consistency; it does
 not prove that a future TLA+ formula faithfully captures the prose meaning.
 Semantic correspondence remains a hostile-review obligation.
 
-## Hostile-review protocol v2
+## Hostile-review protocol v3
 
-The current hostile-review protocol identity `P` is `gate-a-campaign-protocol-v2`, and review evidence is schema `5.0`. Challenge evidence is bound to an exact canonical self-contained challenge packet embedding the exact reviewed Gate A packet and challenged candidate. Retry admissibility is checker-derived from sealed output and the first protocol-valid completion is terminal. Historical protocol bundles are preserved and recursively validated through the predecessor chain. This changes no TURNLOCK semantics and does not change the Gate A semantic subject.
+The current hostile-review protocol identity `P` is `gate-a-campaign-protocol-v3`, and review evidence is schema `5.0`. Challenge evidence is bound to an exact canonical self-contained challenge packet embedding the exact reviewed Gate A packet and challenged candidate. Retry admissibility is checker-derived from sealed output; `protocol-invalid` is permitted only for the deterministically validated roles `initial-reviewer` and `challenge`, and is forbidden for the seven cognitive roles without a deterministic output validator. For those unvalidated roles the first completed response is the terminal qualified completion, meaning only the unique admitted completion of that execution. Historical protocol bundles are preserved and recursively validated through the `v3 -> v2 -> v1` predecessor chain, where v1 and v2 are immutable. This changes no TURNLOCK semantics and does not change the Gate A semantic subject.
