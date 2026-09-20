@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.0"
+version: "6.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -65,6 +65,10 @@ It makes the durable dispatch-arm boundary self-contained across M2, M4, M7,
 and M8: an armed externally effectful Execution carries its exact WorkItem,
 dispatch intent/evidence, and recovery capability, and becomes immediately
 unresolved after Arm until an authoritative terminal disposition exists.
+
+Version `6.0.1` corrects the M1 multi-dispatch pseudocode so each external
+capture and uncertainty-recovery branch remains bound to the exact
+`ArmedExecutionDispatchRef` created for that loop iteration.
 
 ## 2. System objective
 
@@ -3141,59 +3145,59 @@ run(command):
                 mechanically dispatch through the owning executor using
                     armed_dispatch
 
-            durably capture one of:
-                captured result
-                known technical failure with no completed response
-                execution uncertainty enriching the already-durable unresolved
-                descriptor
+                durably capture exactly one outcome for armed_dispatch:
+                    captured result
+                    known technical failure with no completed response
+                    execution uncertainty enriching the already-durable unresolved
+                    descriptor
 
-            if the capture is execution uncertainty:
-                require capture.value.execution == armed_dispatch.execution
-                require capture.value.workItem == armed_dispatch.workItem
-                require capture.value.dispatchIntent == armed_dispatch.dispatchIntent
+                if the capture is execution uncertainty:
+                    require capture.value.execution == armed_dispatch.execution
+                    require capture.value.workItem == armed_dispatch.workItem
+                    require capture.value.dispatchIntent == armed_dispatch.dispatchIntent
 
-                commit the exact uncertainty enrichment through M2
+                    commit the exact uncertainty enrichment through M2
 
-                note:
-                    if the process crashes after Arm but before this capture,
-                    no uncertainty-enrichment mutation exists;
-                    on resume M2 still reconstructs this Execution in
-                    snapshot.unresolvedExecutions from the durable Arm authority
-                    alone
+                    note:
+                        if the process crashes after Arm but before this capture,
+                        no uncertainty-enrichment mutation exists;
+                        on resume M2 still reconstructs this Execution in
+                        snapshot.unresolvedExecutions from the durable Arm authority
+                        alone
 
-                recovery = recovery_operator.classify_unresolved_execution(
-                    exact descriptor
-                )
+                    recovery = recovery_operator.classify_unresolved_execution(
+                        exact descriptor
+                    )
 
-                if recovery.kind == "blocked":
-                    commit:
-                        recovery.blocker
-                        recovery.resolution if non-null
-                        recovery.lastPending if non-null
-                    through M2
+                    if recovery.kind == "blocked":
+                        commit:
+                            recovery.blocker
+                            recovery.resolution if non-null
+                            recovery.lastPending if non-null
+                        through M2
 
-                    return OPERATOR-ACTION-REQUIRED projection
+                        return OPERATOR-ACTION-REQUIRED projection
 
-                require recovery.kind == "resolved"
+                    require recovery.kind == "resolved"
 
-                if recovery.resolution.classification == PROVEN-COMPLETED:
-                    if recovery.resolution.recoveredOutcome.kind == "captured":
-                        treat recovery.resolution.recoveredOutcome.value
-                            as a newly captured result
+                    if recovery.resolution.classification == PROVEN-COMPLETED:
+                        if recovery.resolution.recoveredOutcome.kind == "captured":
+                            treat recovery.resolution.recoveredOutcome.value
+                                as a newly captured result
+                        else:
+                            treat recovery.resolution.recoveredOutcome.value
+                                as a newly known technical failure
+
                     else:
-                        treat recovery.resolution.recoveredOutcome.value
-                            as a newly known technical failure
+                        require recovery.resolution.classification == PROVEN-NOT-EXECUTED
 
-                else:
-                    require recovery.resolution.classification == PROVEN-NOT-EXECUTED
+                        authorize a fresh replacement Execution from the exact
+                        PROVEN-NOT-EXECUTED recovery resolution
 
-                    authorize a fresh replacement Execution from the exact
-                    PROVEN-NOT-EXECUTED recovery resolution
+                        do not consume a protocol retry authorization because
+                        the prior external execution was proven not to have occurred
 
-                    do not consume a protocol retry authorization because
-                    the prior external execution was proven not to have occurred
-
-                    continue
+                        continue
 
             for each newly captured cognitive result:
                 attempt_validation = mechanical_validation.validate_cognitive_attempt({
