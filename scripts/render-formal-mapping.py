@@ -58,6 +58,15 @@ def _count_records(directory: Path) -> int:
 def render_mapping(root: Path) -> str:
     root = root.resolve()
     checker = _load_checker()
+    validation_errors, validation_summary = checker.collect_errors(
+        root,
+        check_generated=False,
+    )
+    if validation_errors:
+        raise MappingRenderError(
+            "formal traceability validation failed:\n"
+            + "\n".join(validation_errors)
+        )
     data = yaml.safe_load((root / MANIFEST_RELATIVE).read_text(encoding="utf-8"))
     review_records, review_load_errors = checker.load_review_records(root)
     if review_load_errors:
@@ -65,7 +74,7 @@ def render_mapping(root: Path) -> str:
     current_subject, subject_errors = checker.build_gate_a_review_subject(root, data)
     if subject_errors:
         raise MappingRenderError("\n".join(subject_errors))
-    gate_a = checker.derive_gate_a(root, data, current_subject, review_records)
+    gate_a = validation_summary["gate_a"]
 
     claims = [claim for claim in data.get("claims", []) if isinstance(claim, dict)]
     coverage = [

@@ -116,6 +116,19 @@ REFUTATION_CHALLENGE_OBJECTIVES = (
 )
 INITIAL_REVIEWER_ROLE = "initial-reviewer"
 CHALLENGE_ROLE = "challenge"
+DETERMINISTIC_PROTOCOL_VALIDATION_ROLES = {
+    "initial-reviewer",
+    "challenge",
+}
+ROLES_WITHOUT_DETERMINISTIC_OUTPUT_VALIDATOR = {
+    "materiality-assessor",
+    "refutation-builder",
+    "discovery-classifier",
+    "derivation-builder",
+    "decision-necessity-challenger",
+    "repair-synthesizer",
+    "decision-projection",
+}
 MATERIALITY_AXES = (
     "authority_or_upstream_decision",
     "claim_structure",
@@ -823,7 +836,7 @@ def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
         errors.extend(artifact_errors)
     schemas = _mapping(bundle.get("schemas"))
     keys = ["raw-review-output", "execution-receipt", "challenge-output"]
-    if bundle.get("protocol_bundle_schema_version") == 2:
+    if bundle.get("protocol_bundle_schema_version") in (2, 3):
         keys.append("challenge-packet")
     for key in keys:
         data, artifact_errors = _read_review_artifact(root, _mapping(schemas.get(key)), f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
@@ -894,9 +907,9 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, va
     if isinstance(protocol_id, str): ids.add(protocol_id)
     version = bundle.get("protocol_bundle_schema_version")
     predecessor = bundle.get("predecessor")
-    if version == 2:
+    if version in (2, 3):
         if not isinstance(predecessor, dict):
-            errors.append(f"{label}: schema-version-2 bundle requires predecessor")
+            errors.append(f"{label}: schema-version-{version} bundle requires predecessor")
         else:
             _, predecessor_errors = _load_protocol_bundle_document(root, predecessor, f"{label}: predecessor", validator, cache, paths, ids)
             errors.extend(predecessor_errors)
@@ -917,6 +930,11 @@ def _current_protocol_bundle_errors(root: Path, manifest: dict, validator: Draft
         predecessor = _mapping(bundle.get("predecessor"))
         if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v1.json" or predecessor.get("sha256") != "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1":
             errors.append(f"{label}: current protocol v2 predecessor must be the exact published v1 bundle")
+    # v3 establishes the fixed v2 lineage.
+    if bundle is not None and bundle.get("protocol_bundle_schema_version") == 3:
+        predecessor = _mapping(bundle.get("predecessor"))
+        if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v2.json" or predecessor.get("sha256") != "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9":
+            errors.append(f"{label}: current protocol v3 predecessor must be the exact published v2 bundle")
     return reference, bundle, errors
 
 def _load_execution_receipt(
@@ -1065,6 +1083,12 @@ def _validate_execution_receipt(root: Path, receipt: dict, label: str, profile_m
             if raw is not None: errors.append(f"{alabel}: technical-failure must not have raw_output")
             if _sequence(attempt.get("protocol_errors")): errors.append(f"{alabel}: technical-failure must not have protocol_errors")
             continue
+        if (
+            receipt.get("receipt_schema_version") == "3.0"
+            and role in ROLES_WITHOUT_DETERMINISTIC_OUTPUT_VALIDATOR
+            and outcome == "protocol-invalid"
+        ):
+            errors.append(f"{alabel}: protocol-invalid is forbidden for roles without a deterministic output validator")
         if raw is None:
             errors.append(f"{alabel}: a completed {outcome} attempt must seal its raw output"); continue
         if outcome=="protocol-invalid" and not _sequence(attempt.get("protocol_errors")): errors.append(f"{alabel}: protocol-invalid attempt requires nonempty protocol_errors")
