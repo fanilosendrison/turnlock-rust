@@ -248,17 +248,32 @@ For these roles, `protocol-invalid` is forbidden. Any number of `technical-failu
 
 ## Execution receipts
 
-Every cognitive LLM call participating in the campaign has its own
-content-addressed execution receipt:
+Every logical cognitive protocol execution participating in the campaign has
+one content-addressed execution receipt:
 
 ```text
 formal/reviews/executions/*.json
 ```
 
-The receipt records its execution identity, role, reviewer profile, protocol
-bundle SHA-256, prompt and packet inputs, isolation declarations, runtime
-metadata, request provider/model, every attempt, the qualifying attempt, and the
-evidence-derived resolved identity. Required constants are:
+The receipt's top-level `execution_id` identifies that logical cognitive
+protocol execution.
+
+Its ordered `attempts[]` array preserves every protocol attempt belonging to
+that same logical execution. Each attempt has its own `attempt_id` and one
+`call_id` identifying the exact LLM call for that protocol attempt.
+Provider/transport retries internal to that call remain below the protocol
+attempt boundary and are represented by the attempt's transport evidence,
+including `transport_attempt_count`.
+
+An admissible retry after a checker-derived `technical-failure` or
+`protocol-invalid` outcome creates another protocol attempt in the same receipt;
+it does not create a second receipt for the same logical cognitive execution.
+The first `qualified` attempt remains terminal and final.
+
+The receipt also records the role, reviewer profile, protocol bundle SHA-256,
+prompt and packet inputs, isolation declarations, runtime metadata, request
+provider/model, the qualifying attempt, and the evidence-derived resolved
+identity. Required constants are:
 
 ```text
 isolated_context = true
@@ -267,8 +282,9 @@ tools_enabled = false
 ```
 
 Only `initial-reviewer` receipts count toward
-`minimum_independent_reviewers`. A challenge is a NEW LLM execution and never
-pretends that an earlier reviewer execution was the challenge execution.
+`minimum_independent_reviewers`. A challenge is a NEW logical cognitive
+execution with its own receipt and never becomes an additional attempt inside
+the receipt of the reviewer execution it challenges.
 
 The receipt is runtime-transport-neutral. It does not require `llm-runtime`; a
 future campaign runner may use `llm-runtime`, but the evidence contract does not
