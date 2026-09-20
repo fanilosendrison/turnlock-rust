@@ -293,6 +293,11 @@ The non-authoritative construction sequence for the Gate A hostile-review
 campaign runner is documented in
 [`gate-a-campaign-runner-construction-plan.md`](gate-a-campaign-runner-construction-plan.md).
 
+The campaign-runner System Brief is stored in
+[`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md).
+The brief's own NIB metadata is the sole source for its construction lifecycle
+status.
+
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native
 relationships, and Turnlock-Rust Engineering own live implementation work

@@ -71,6 +71,11 @@ EVOLUTION
 
 Production implementation does not begin before the construction pack is sufficiently complete and hostile-reviewed.
 
+The System Brief selected for this construction is
+[`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md).
+Its own NIB metadata owns its construction lifecycle status; this plan does not
+duplicate that mutable state.
+
 ### Conception
 
 The System Brief establishes the complete system frame: objective, pipeline, module boundaries, exact cross-module types, global invariants, cross-cutting policies, output contract, orchestration, physical implementation boundary, persistence boundary, execution-resource boundaries, and selected dependency boundaries.
