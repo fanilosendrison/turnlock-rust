@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "1.0.1"
+version: "2.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -168,23 +168,29 @@ A genuine `DECISION-REQUIRED` terminates semantic progression of that run. After
 
 A `ReviewCampaign` is the exact protocol-defined hostile-review campaign.
 
-Its identity is bound immutably to:
+Its production provenance is bound immutably to:
 
 ```text
-one CandidateRevision
+the exact CandidateRevision, when the runner produced it
++
+the exact repository authority where it was produced
 +
 one exact semantic subject S
 +
 one exact review protocol P
 ```
 
-A campaign is current for Gate A only according to the current accepted `(S, P)` rules.
+Campaign currentness is a separate relation determined only by the accepted exact pair `(S, P)`.
 
-A ReviewCampaign must never be retargeted to another candidate, subject, or protocol.
+The candidate or repository authority recorded as campaign provenance does not participate in currentness. If the active candidate changes from `C0` to `C1` while `S` and `P` remain unchanged, every structurally valid campaign over that exact `(S, P)` remains current. The runner must not require a new campaign merely because CandidateRevision or repository commit identity changed.
 
-If an approved repair changes `S`, the previous ReviewCampaign becomes historical and a full new ReviewCampaign over the successor candidate and new `S` is required.
+More than one ReviewCampaign may be current for the same exact `(S, P)`. All current assurance-decomposition review records selected by the existing repository authority participate in surviving-finding evaluation, regardless of the candidate or repository state where each was produced.
 
-A protocol change changes `P` without changing `S`. A ReviewCampaign bound to the previous `P` then becomes stale historical and cannot satisfy current Gate A. The `GateARun` must create a full new ReviewCampaign over the same exact CandidateRevision and the same exact `S`, bound to the new current `P`.
+A ReviewCampaign must never be retargeted to another candidate, repository authority, subject, or protocol. Current applicability to a later candidate with the same exact `(S, P)` does not rewrite provenance.
+
+If an approved repair changes `S`, the previous ReviewCampaign set becomes historical for the successor subject and a full new ReviewCampaign over the successor candidate and new `S` is required.
+
+A protocol change changes `P` without changing `S`. ReviewCampaigns bound to the previous `P` then become stale historical and cannot satisfy current Gate A. After reviewer/profile prerequisites have been established, the `GateARun` must create one full new ReviewCampaign over the active CandidateRevision and the same exact `S`, bound to the new current `P`.
 
 That new ReviewCampaign must execute every protocol-required current-`P` campaign obligation. In addition, every finding from stale-protocol campaigns over the same `S` must be re-adjudicated under the new current `P` exactly as required by accepted hostile-review authority.
 
@@ -238,7 +244,17 @@ If:
 S(n+1) != S(n)
 ```
 
-then the ReviewCampaign for `Cn / S(n) / P` is historical and a full new campaign for `Cn+1 / S(n+1) / current P` is required.
+then the ReviewCampaign set for `S(n) / P` is historical for the successor subject and a full new campaign for `Cn+1 / S(n+1) / current P` is required.
+
+If:
+
+```text
+S(n+1) == S(n)
+AND
+P(n+1) == P(n)
+```
+
+then CandidateRevision change alone does not make a campaign stale and does not require a new campaign. Campaign provenance remains bound to the exact candidate and repository authority where it was produced, while currentness remains derived from exact `(S, P)`.
 
 The runner must never treat a repaired candidate that changes `S` as continuation of the old current campaign.
 
@@ -272,7 +288,7 @@ phase
 enabled work
 outstanding blockers
 current candidate
-current campaign
+current campaign set
 external outcome
 ```
 
@@ -370,9 +386,8 @@ CLI invocation
     ↓
 RunnerSession creation
     ↓
-create/load GateARun
-    ↓
-acquire fenced write ownership
+start: atomically create GateARun + acquire initial fenced ownership in M2
+resume: load GateARun + acquire successor fenced ownership in M2
     ↓
 new-run preflight OR resume recovery barrier
     ↓
@@ -384,16 +399,27 @@ derive exact semantic subject S
     ↓
 load/validate exact current protocol P
     ↓
-if an existing current ReviewCampaign is bound to stale P
-while CandidateRevision and S are unchanged:
-    mark the old ReviewCampaign stale historical
-    create full new ReviewCampaign(candidate, same S, current P)
-    schedule all current-P campaign work
-    schedule required current-P re-adjudication of stale-protocol findings
+enumerate the complete repository-selected campaign sets:
+    current campaigns = every structurally valid campaign over exact (S, P)
+    stale-protocol campaigns = every campaign over exact S and non-current P
+    candidate/repository provenance does not filter either set
     ↓
-verify protocol-owned reviewer/profile prerequisites
+determine whether accepted authority requires a new campaign:
+    initial S with no current campaign
+    OR subject changed
+    OR protocol changed
+    candidate-only change with unchanged (S, P) never requires one
     ↓
-construct exact ReviewCampaign(candidate, S, P)
+if a new campaign is required:
+    verify all protocol-owned reviewer/profile prerequisites first
+    if prerequisites are unavailable:
+        create no ReviewCampaign
+        materialize exact operational blocker
+        OPERATOR-ACTION-REQUIRED
+    otherwise:
+        create exactly one full ReviewCampaign(candidate, S, P)
+        schedule all current-P campaign work
+        schedule required current-P re-adjudication of stale-protocol findings
     ↓
 derive protocol-required WorkItems
     ↓
@@ -423,9 +449,10 @@ if uniquely derived repair is authorized:
     recompute S
     ↓
     if S changed:
-        old ReviewCampaign becomes historical
-        full new ReviewCampaign is required
-        return to review execution
+        prior ReviewCampaign set becomes historical for the successor subject
+        return to prerequisite verification before creating the required campaign
+    else:
+        retain the complete current campaign set for unchanged (S, P)
     ↓
 if genuine semantic decision is required:
     DECISION-REQUIRED
@@ -438,17 +465,19 @@ if safe automatic progression is operationally impossible:
 when current protocol evidence is complete:
     execute authoritative Python repository/Gate A validation
     ↓
-admit exact GateAQualification for exact CandidateRevision
+admit exact GateAQualification for exact CandidateRevision and the complete
+current/contributing campaign sets selected by repository authority
     ↓
-construct PublicationIntent
+construct PublicationIntent with exact publication target and authorized
+fast-forward predecessor-to-successor transition
     ↓
 revalidate effective publication permission
     ↓
-conditionally publish against exact expected repository predecessor
+conditionally mutate the exact target ref against the exact predecessor
     ↓
 reconcile/confirm exact publication
     ↓
-verify published materialization identity
+verify target, transition, and published materialization identity
     ↓
 post-publication repository validation
     ↓
@@ -496,6 +525,7 @@ It may not invent WorkItems or semantic transitions.
 Owns:
 
 * durable `GateARun` authoritative history;
+* atomic new-run creation plus initial fenced write-ownership acquisition;
 * immutable artifact references;
 * authoritative state revision;
 * fenced single-writer ownership;
@@ -518,7 +548,7 @@ Owns:
 * exact current protocol bundle identity/currentness;
 * protocol-owned reviewer/profile admissibility prerequisites;
 * detection of subject/protocol staleness;
-* construction of exact `ReviewContext`.
+* construction of exact per-campaign `ReviewContext` and complete `GateAEvaluationContext`.
 
 It does not redefine any protocol rule.
 
@@ -552,7 +582,8 @@ Owns:
 * stale-protocol finding re-adjudication state;
 * derivation, decision-necessity, repair, and decision-request qualification state;
 * authority-preserving RepairIntent qualification;
-* determination that a candidate is ready to be submitted to mechanical Gate A validation.
+* explicit finding, evidence, adjudication, re-adjudication, obligation-disposition, RepairIntent, and Decision Request products for M2 admission;
+* determination that a candidate and its complete current/contributing campaign sets are ready to be submitted to mechanical Gate A validation.
 
 It does not perform LLM calls.
 
@@ -599,7 +630,8 @@ It does not merge/rebase repository divergence unless a future accepted contract
 
 Owns:
 
-* recovery-barrier construction;
+* recovery-barrier construction from complete unresolved-execution recovery descriptors;
+* invocation of the exact executor-owned recovery capability through the common recovery port;
 * unresolved external-effect reconciliation;
 * operational blocker materialization;
 * operator-resolution ingestion;
@@ -624,8 +656,11 @@ type WorkItemId = string;
 type ExecutionId = string;
 type FindingId = string;
 type EvidenceId = string;
-type QualificationId = string;
 type RepairIntentId = string;
+type AdjudicationId = string;
+type ReAdjudicationId = string;
+type DecisionRequestId = string;
+type ReviewReadinessId = string;
 type GateAQualificationId = string;
 type PublicationIntentId = string;
 type PublicationConfirmationId = string;
@@ -640,6 +675,17 @@ type WorkExecutor =
   | "mechanical-validation"
   | "repository-control"
   | "recovery-operator";
+
+type CognitiveExecutionRole =
+  | "initial-reviewer"
+  | "materiality-assessor"
+  | "refutation-builder"
+  | "challenge"
+  | "discovery-classifier"
+  | "derivation-builder"
+  | "decision-necessity-challenger"
+  | "repair-synthesizer"
+  | "decision-projection";
 
 interface ObligationRef {
   readonly obligationId: ObligationId;
@@ -695,8 +741,11 @@ interface ProtocolBundleRef {
 
 interface GateARunRef {
   readonly runId: GateARunId;
-  readonly initialRepositoryAuthority: RepositoryAuthorityRef;
+  readonly initialRepositoryAuthority: RepositoryAuthorityRef | null;
+  readonly publicationTarget: RepositoryPublicationTargetRef | null;
 }
+
+`initialRepositoryAuthority` and `publicationTarget` are `null` only in the atomic bootstrap snapshot before preflight has established the exact baseline and credential-free publication target. Their first non-null values are committed together through M2 and are thereafter immutable.
 
 interface CandidateRevisionRef {
   readonly candidateId: CandidateRevisionId;
@@ -708,36 +757,66 @@ interface CandidateRevisionRef {
   readonly producedByRepairIntentId: RepairIntentId | null;
 }
 
+interface ReviewCampaignProvenanceRef {
+  readonly originatingRunId: GateARunId | null;
+  readonly candidateId: CandidateRevisionId | null;
+  readonly repositoryAuthority: RepositoryAuthorityRef;
+}
+
 interface ReviewCampaignRef {
   readonly reviewCampaignId: ReviewCampaignId;
-  readonly candidateId: CandidateRevisionId;
+  readonly provenance: ReviewCampaignProvenanceRef;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+}
+
+interface ReviewCampaignCurrentnessRef {
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
+  readonly staleProtocolReviewCampaignIds: readonly ReviewCampaignId[];
 }
 
 interface GateAQualificationRef {
   readonly qualificationId: GateAQualificationId;
   readonly candidateId: CandidateRevisionId;
-  readonly currentReviewCampaignId: ReviewCampaignId;
+  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
   readonly contributingReviewCampaignIds: readonly ReviewCampaignId[];
   readonly validatorEvidence: readonly ArtifactRef[];
 }
 ```
 
-`currentReviewCampaignId` identifies the one ReviewCampaign bound to the exact candidate, exact current `S`, and exact current `P` at qualification time.
+`ReviewCampaignProvenanceRef` records the exact candidate/run identity when the runner produced the campaign and always records the exact repository authority where it was produced. Imported repository evidence may have null runner-local identities; it never has missing repository authority.
 
-`contributingReviewCampaignIds` is an ordered, duplicate-free list. It contains `currentReviewCampaignId` exactly once and also contains every historical ReviewCampaign whose findings, evidence, or current-protocol re-adjudication contribute to the mechanical Gate A qualification basis.
+`currentReviewCampaignIds` is the complete ordered, duplicate-free set of structurally valid assurance-decomposition campaigns whose exact subject and protocol equal current `(S, P)`. Candidate, run, and repository provenance do not filter this set.
 
-A campaign that contributes nothing to the qualification basis must not be included merely because it belongs to the same `GateARun`.
+Malformed or referentially invalid review evidence is never silently filtered to obtain that set. Existing repository authority must first classify it as an integrity blocker, which prevents qualification.
+
+`contributingReviewCampaignIds` is an ordered, duplicate-free superset of `currentReviewCampaignIds`. It also contains every stale-protocol campaign over the same `S` whose findings or current-protocol re-adjudications enter the mechanical Gate A qualification basis.
+
+A stale-protocol campaign over the same `S` that has no finding or re-adjudication effect on the qualification basis is not included merely because it exists. A current campaign may never be omitted merely because another current campaign independently satisfies the minimum reviewer count.
 
 ```ts
+interface RepositoryPublicationTargetRef {
+  readonly repositoryIdentity: string;
+  readonly remoteEndpoint: string;
+  readonly refName: string;
+}
+
+interface AuthorizedGitTransitionRef {
+  readonly target: RepositoryPublicationTargetRef;
+  readonly predecessor: RepositoryAuthorityRef;
+  readonly successor: RepositoryAuthorityRef;
+  readonly relationship: "fast-forward";
+  readonly ancestryEvidence: readonly ArtifactRef[];
+}
+
 interface PublicationIntentRef {
   readonly publicationIntentId: PublicationIntentId;
   readonly runId: GateARunId;
   readonly candidateId: CandidateRevisionId;
   readonly qualificationId: GateAQualificationId;
-  readonly expectedPredecessor: RepositoryAuthorityRef;
-  readonly intendedSuccessor: RepositoryAuthorityRef;
+  readonly transition: AuthorizedGitTransitionRef;
   readonly preparationEvidence: readonly ArtifactRef[];
 }
 
@@ -745,28 +824,28 @@ interface PreparedPublication {
   readonly runId: GateARunId;
   readonly candidateId: CandidateRevisionId;
   readonly qualificationId: GateAQualificationId;
-  readonly expectedPredecessor: RepositoryAuthorityRef;
-  readonly intendedSuccessor: RepositoryAuthorityRef;
+  readonly transition: AuthorizedGitTransitionRef;
   readonly materialIdentityEvidence: readonly ArtifactRef[];
 }
 
 interface PublicationConfirmationRef {
   readonly publicationConfirmationId: PublicationConfirmationId;
   readonly publicationIntentId: PublicationIntentId;
-  readonly predecessor: RepositoryAuthorityRef;
-  readonly successor: RepositoryAuthorityRef;
+  readonly transition: AuthorizedGitTransitionRef;
   readonly candidateId: CandidateRevisionId;
   readonly materialIdentityEvidence: readonly ArtifactRef[];
 }
 ```
 
+`RepositoryPublicationTargetRef` is the exact durable remote mutation target. `repositoryIdentity` identifies the repository independently of a local checkout, `remoteEndpoint` is the normalized credential-free publication endpoint, and `refName` is the fully qualified Git ref name. Credentials and credential-bearing URLs are invalid target identities.
+
 A publication successor is an exact repository-authority identity, not merely a Git tree identity.
 
-Before any remote publication mutation, M7 must prepare the exact immutable successor repository object locally and expose both its exact commit identity and exact tree identity through `RepositoryAuthorityRef`.
+Before any remote publication mutation, M7 must prepare the exact immutable successor repository object locally, expose both its exact commit identity and exact tree identity through `RepositoryAuthorityRef`, and mechanically prove that the predecessor commit is an ancestor of the successor commit for the exact target. The initial runner authorizes only the `fast-forward` relationship.
 
-A `PublicationIntentRef` that contains only a tree SHA is invalid because one Git tree may be referenced by more than one distinct commit.
+A `PublicationIntentRef` that lacks the exact target, contains only a tree SHA, or lacks valid ancestry evidence is invalid. A compare-and-swap from `A` to an unrelated `C` is prohibited even when the target still equals `A`.
 
-A repository path is never sufficient as immutable historical identity by itself.
+A repository path or local remote name is never sufficient as durable publication-target or immutable historical identity by itself.
 
 ## 14. Blocker types
 
@@ -776,6 +855,7 @@ interface SemanticBlocker {
   readonly blockerId: BlockerId;
   readonly obligationId: ObligationId;
   readonly findingId: FindingId | null;
+  readonly decisionRequestId: DecisionRequestId;
   readonly decisionRequest: ArtifactRef;
 }
 
@@ -824,28 +904,98 @@ interface ExecutionRef {
   readonly attemptOrdinal: number;
 }
 
-type RecoveryClassification =
-  | "PROVEN-NOT-EXECUTED"
-  | "PROVEN-COMPLETED"
-  | "RECONCILABLE"
-  | "UNRESOLVABLE";
-
 interface CapturedExecutionResult {
   readonly execution: ExecutionRef;
   readonly rawResult: ArtifactRef;
   readonly runtimeEvidence: readonly ArtifactRef[];
 }
 
-interface ExecutionUncertainty {
+interface TechnicalExecutionFailure {
   readonly execution: ExecutionRef;
-  readonly recoveryClassification: RecoveryClassification;
-  readonly evidence: readonly ArtifactRef[];
+  readonly completedResponse: false;
+  readonly failureEvidence: readonly ArtifactRef[];
 }
+
+type DurableDispatchState =
+  | "AUTHORIZED-NOT-DISPATCHED"
+  | "POSSIBLY-DISPATCHED"
+  | "OBSERVED-RESULT";
+
+interface RecoveryCapabilityRef {
+  readonly executor: WorkExecutor;
+  readonly reconciliationOperation: ArtifactRef;
+}
+
+interface UnresolvedExecutionRecoveryRef {
+  readonly execution: ExecutionRef;
+  readonly workItem: WorkItemRef;
+  readonly dispatchState: DurableDispatchState;
+  readonly dispatchIntent: ArtifactRef;
+  readonly dispatchEvidence: readonly ArtifactRef[];
+  readonly capturedResult: CapturedExecutionResult | TechnicalExecutionFailure | null;
+  readonly recoveryCapability: RecoveryCapabilityRef | null;
+}
+
+type ExecutionRecoveryObservation =
+  | {
+      readonly kind: "not-executed";
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly kind: "completed";
+      readonly result: CapturedExecutionResult;
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly kind: "pending";
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly kind: "unknown";
+      readonly evidence: readonly ArtifactRef[];
+    };
+
+interface ExecutionRecoveryPort {
+  reconcile(
+    unresolved: UnresolvedExecutionRecoveryRef
+  ): Promise<ExecutionRecoveryObservation>;
+}
+
+type ExecutionRecoveryResolution =
+  | {
+      readonly executionId: ExecutionId;
+      readonly classification: "PROVEN-NOT-EXECUTED";
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly executionId: ExecutionId;
+      readonly classification: "PROVEN-COMPLETED";
+      readonly recoveredResult: CapturedExecutionResult;
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly executionId: ExecutionId;
+      readonly classification: "RECONCILABLE";
+      readonly recoveryCapability: RecoveryCapabilityRef;
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly executionId: ExecutionId;
+      readonly classification: "UNRESOLVABLE";
+      readonly blocker: OperationalBlocker;
+      readonly evidence: readonly ArtifactRef[];
+    };
 ```
 
 A captured result is durable material.
 
 It is not automatically an authority-bearing semantic result.
+
+`TechnicalExecutionFailure` means that no completed semantic response exists. It is distinct from an uncertain capture: a known no-response technical failure is not an unknown external-effect outcome, and it carries no `rawResult`.
+
+An uncertain capture carries the complete `UnresolvedExecutionRecoveryRef` produced by the owning executor, so durable recovery never depends on an executor-specific query invented later. The executor reports the WorkItem, durable dispatch state, dispatch intent and evidence, any captured result, and its exact recovery capability. It does not assign a recovery classification. M8 derives that classification from the descriptor and the executor's `ExecutionRecoveryPort` observation.
+
+A technical failure never satisfies the WorkItem. M5 may derive a replacement Execution only where the exact role-specific protocol retry rule permits another attempt.
 
 ## 16. Module boundary request/result types
 
@@ -855,7 +1005,7 @@ M0 is a pure contracts/schema module.
 
 It consumes no runtime request and performs no I/O.
 
-It exports the cross-module types in this System Brief plus runtime validators for runner-owned serialized forms.
+It exports the cross-module types in this System Brief, runtime validators for runner-owned serialized forms, and the immutable root preflight-obligation definition used only by M2 bootstrap.
 
 Protocol-owned artifacts remain validated by their existing authoritative schemas/mechanical validators rather than by an invented M0 replacement.
 
@@ -890,6 +1040,25 @@ An implementation/process/integrity failure that prevents production of a valid 
 ### M2
 
 ```ts
+interface CreateGateARunAndAcquireInitialOwnershipRequest {
+  readonly repositoryPath: string;
+  readonly sessionId: RunnerSessionId;
+  readonly preflightObligationDefinition: ArtifactRef;
+}
+
+type CreateGateARunAndAcquireInitialOwnershipResult =
+  | {
+      readonly kind: "created";
+      readonly run: GateARunRef;
+      readonly authority: WriteAuthorityRef;
+      readonly preflightObligation: ObligationRef;
+      readonly snapshot: GateARunSnapshot;
+    }
+  | {
+      readonly kind: "rejected";
+      readonly reason: "INTEGRITY_FAILURE";
+    };
+
 interface AcquireWriteOwnershipRequest {
   readonly runId: GateARunId;
   readonly sessionId: RunnerSessionId;
@@ -919,10 +1088,22 @@ interface GateARunSnapshot {
   readonly run: GateARunRef;
   readonly stateRevision: StateRevision;
   readonly currentCandidate: CandidateRevisionRef | null;
-  readonly currentReviewCampaign: ReviewCampaignRef | null;
+  readonly reviewCampaigns: readonly ReviewCampaignRef[];
+  readonly campaignCurrentness: ReviewCampaignCurrentnessRef | null;
   readonly obligations: readonly ObligationRef[];
+  readonly obligationDispositions: readonly ObligationDispositionRef[];
   readonly workItems: readonly WorkItemRef[];
-  readonly unresolvedExecutions: readonly ExecutionRef[];
+  readonly executions: readonly ExecutionRef[];
+  readonly capturedExecutionResults: readonly CapturedExecutionResult[];
+  readonly technicalExecutionFailures: readonly TechnicalExecutionFailure[];
+  readonly unresolvedExecutions: readonly UnresolvedExecutionRecoveryRef[];
+  readonly evidence: readonly EvidenceRef[];
+  readonly findings: readonly FindingRef[];
+  readonly adjudications: readonly AdjudicationRef[];
+  readonly reAdjudications: readonly ReAdjudicationRef[];
+  readonly repairIntents: readonly RepairIntentRef[];
+  readonly decisionRequests: readonly DecisionRequestRef[];
+  readonly candidateReviewReadiness: CandidateReviewReadinessRef | null;
   readonly blockers: readonly CampaignBlocker[];
   readonly gateQualification: GateAQualificationRef | null;
   readonly publicationIntent: PublicationIntentRef | null;
@@ -954,11 +1135,15 @@ type CommitAuthoritativeMutationResult =
     };
 ```
 
-`AcquireWriteOwnershipResult.kind = "acquired"` is the only result that grants mutation authority.
+`CreateGateARunAndAcquireInitialOwnershipResult.kind = "created"` atomically persists the first `GateARun` revision, its initial fenced owner, and the root obligation to establish exact baseline authority, publication target, and current protocol or record exact preflight blockers. No separately visible run-without-owner or run-without-root-obligation state exists.
+
+The request must use M0's exact immutable preflight-obligation definition. M2 assigns its run-local identity and registers it; M2 does not invent another obligation meaning.
+
+`AcquireWriteOwnershipResult.kind = "acquired"` is the only result that grants successor-session mutation authority.
 
 `LoadGateARunSnapshotRequest` is read-only.
 
-`CommitAuthoritativeMutationRequest` is the only M2 cross-module write boundary.
+`CreateGateARunAndAcquireInitialOwnershipRequest` is the only M2 bootstrap write boundary. After bootstrap, `CommitAuthoritativeMutationRequest` is the only M2 cross-module state-mutation boundary; ownership acquisition issues a `WriteAuthorityRef` under M2's fence but is not a campaign-state mutation path.
 
 The exact mutation payload union carried by `AuthoritativeMutationRef.artifact` belongs to the M2 NIB-M, but it must implement only the authoritative facts and transitions already selected by this NIB-S. NIB-M may not introduce another writer or another write path.
 
@@ -978,6 +1163,7 @@ type PreflightResolution =
   | {
       readonly kind: "established";
       readonly baselineAuthority: RepositoryAuthorityRef;
+      readonly publicationTarget: RepositoryPublicationTargetRef;
       readonly protocolBundle: ProtocolBundleRef;
     }
   | {
@@ -991,17 +1177,44 @@ interface ReviewContext {
   readonly campaign: ReviewCampaignRef;
 }
 
+interface GateAEvaluationContext {
+  readonly runId: GateARunId;
+  readonly qualificationCandidate: CandidateRevisionRef;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly currentCampaigns: readonly ReviewCampaignRef[];
+  readonly staleProtocolCampaigns: readonly ReviewCampaignRef[];
+}
+
+interface ReviewerPrerequisiteRequest {
+  readonly candidate: CandidateRevisionRef;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+}
+
+type ReviewerPrerequisiteResolution =
+  | {
+      readonly kind: "established";
+      readonly qualifyingReviewerProfileIds: readonly string[];
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly kind: "blocked";
+      readonly blockers: readonly OperationalBlocker[];
+    };
+
 type ReviewCurrentnessResolution =
   | {
       readonly kind: "current";
-      readonly context: ReviewContext;
+      readonly context: GateAEvaluationContext;
     }
   | {
-      readonly kind: "protocol-changed";
+      readonly kind: "campaign-required";
+      readonly reason: "INITIAL" | "SUBJECT-CHANGED" | "PROTOCOL-CHANGED";
       readonly candidate: CandidateRevisionRef;
       readonly semanticSubject: SemanticSubjectRef;
-      readonly previousReviewCampaignId: ReviewCampaignId;
       readonly currentProtocolBundle: ProtocolBundleRef;
+      readonly staleProtocolCampaigns: readonly ReviewCampaignRef[];
     }
   | {
       readonly kind: "blocked";
@@ -1009,11 +1222,17 @@ type ReviewCurrentnessResolution =
     };
 ```
 
-`protocol-changed` is emitted only when the exact candidate and exact `S` remain unchanged while current protocol identity `P` differs from the current ReviewCampaign.
+M3 selects current campaigns solely by exact `(S, P)` through existing repository authority. Candidate, run, and repository provenance never filter `currentCampaigns`. Invalid evidence yields `blocked`; M3 must not omit it and continue with a convenient subset.
 
-It requires the orchestrator to make the previous ReviewCampaign historical and create a full new ReviewCampaign for the same candidate and `S` under `currentProtocolBundle`.
+A `ReviewContext` used for new execution must use the exact production candidate recorded by its runner-owned campaign provenance. Reusing a current campaign to qualify a later same-`(S, P)` candidate does not create new executions under rewritten provenance.
 
-It is not permission to mutate the old ReviewCampaign.
+`campaign-required` is never emitted for CandidateRevision change alone when exact `(S, P)` is unchanged and at least one current campaign exists.
+
+For every `campaign-required` result, M1 must obtain `ReviewerPrerequisiteResolution.kind = "established"` before committing a new ReviewCampaign. A blocked prerequisite creates no campaign and projects `OPERATOR-ACTION-REQUIRED` after the blockers are committed.
+
+`established` is valid only when the exact protocol bundle registers a non-empty set of `frontier_eligible == true` reviewer profiles that satisfies every protocol-declared reviewer-qualification prerequisite for the required review class, and `qualifyingReviewerProfileIds` is the exact duplicate-free subser of those registered profile IDs. An empty or insufficient registered set MUST be `blocked` with exact operational blockers. M1 and M3 never establish a resolution from runner configuration, environment, or a model alias absent from the protocol bundle.
+
+`PROTOCOL-CHANGED` requires one full new current-`P` campaign plus accepted stale-protocol re-adjudication. It is not permission to mutate any old ReviewCampaign.
 
 ### M4
 
@@ -1021,7 +1240,7 @@ It is not permission to mutate the old ReviewCampaign.
 interface CognitiveExecutionRequest {
   readonly execution: ExecutionRef;
   readonly reviewContext: ReviewContext;
-  readonly role: string;
+  readonly role: CognitiveExecutionRole;
   readonly reviewerProfileId: string;
   readonly prompt: ArtifactRef;
   readonly packet: ArtifactRef;
@@ -1033,37 +1252,147 @@ type CognitiveExecutionCapture =
       readonly value: CapturedExecutionResult;
     }
   | {
+      readonly kind: "technical-failure";
+      readonly value: TechnicalExecutionFailure;
+    }
+  | {
       readonly kind: "uncertain";
-      readonly value: ExecutionUncertainty;
+      readonly value: UnresolvedExecutionRecoveryRef;
     };
 ```
 
 ### M5
 
 ```ts
+interface EvidenceRef {
+  readonly evidenceId: EvidenceId;
+  readonly runId: GateARunId;
+  readonly candidateId: CandidateRevisionId | null;
+  readonly reviewCampaignId: ReviewCampaignId | null;
+  readonly sourceExecutionIds: readonly ExecutionId[];
+  readonly artifact: ArtifactRef;
+}
+
+interface FindingRef {
+  readonly findingId: FindingId;
+  readonly runId: GateARunId;
+  readonly candidateId: CandidateRevisionId | null;
+  readonly reviewCampaignId: ReviewCampaignId;
+  readonly sourceExecutionId: ExecutionId;
+  readonly rawFindingId: string;
+  readonly normalizedFinding: ArtifactRef;
+  readonly evidenceIds: readonly EvidenceId[];
+}
+
+type AdjudicationKind =
+  | "materiality"
+  | "refutation"
+  | "hostile-challenge"
+  | "derivation"
+  | "decision-necessity"
+  | "repair-challenge"
+  | "decision-projection";
+
+interface AdjudicationRef {
+  readonly adjudicationId: AdjudicationId;
+  readonly kind: AdjudicationKind;
+  readonly findingId: FindingId;
+  readonly reviewCampaignId: ReviewCampaignId;
+  readonly sourceExecutionIds: readonly ExecutionId[];
+  readonly artifact: ArtifactRef;
+  readonly evidenceIds: readonly EvidenceId[];
+}
+
+interface ReAdjudicationRef {
+  readonly reAdjudicationId: ReAdjudicationId;
+  readonly sourceReviewCampaignId: ReviewCampaignId;
+  readonly sourceFindingId: FindingId;
+  readonly currentProtocolBundle: ProtocolBundleRef;
+  readonly sourceFindingSha256: Sha256;
+  readonly artifact: ArtifactRef;
+  readonly evidenceIds: readonly EvidenceId[];
+}
+
+type ObligationDispositionRef =
+  | {
+      readonly kind: "satisfied";
+      readonly obligationId: ObligationId;
+      readonly basisEvidenceIds: readonly EvidenceId[];
+      readonly basisArtifacts: readonly ArtifactRef[];
+    }
+  | {
+      readonly kind: "superseded";
+      readonly obligationId: ObligationId;
+      readonly replacementObligationIds: readonly ObligationId[];
+      readonly basisEvidenceIds: readonly EvidenceId[];
+      readonly basisArtifacts: readonly ArtifactRef[];
+    };
+
+interface RepairIntentRef {
+  readonly repairIntentId: RepairIntentId;
+  readonly runId: GateARunId;
+  readonly candidateId: CandidateRevisionId;
+  readonly findingId: FindingId;
+  readonly approvedPatch: ArtifactRef;
+  readonly qualificationEvidenceIds: readonly EvidenceId[];
+  readonly qualificationArtifacts: readonly ArtifactRef[];
+}
+
+interface DecisionRequestRef {
+  readonly decisionRequestId: DecisionRequestId;
+  readonly runId: GateARunId;
+  readonly findingId: FindingId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly request: ArtifactRef;
+  readonly qualificationEvidenceIds: readonly EvidenceId[];
+}
+
+interface CandidateReviewReadinessRef {
+  readonly reviewReadinessId: ReviewReadinessId;
+  readonly candidateId: CandidateRevisionId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
+  readonly contributingReviewCampaignIds: readonly ReviewCampaignId[];
+  readonly basisArtifacts: readonly ArtifactRef[];
+}
+
 interface AssuranceDerivationRequest {
-  readonly reviewContext: ReviewContext;
-  readonly stateRevision: StateRevision;
+  readonly evaluationContext: GateAEvaluationContext;
+  readonly snapshot: GateARunSnapshot;
+  readonly newlyCapturedResults: readonly CapturedExecutionResult[];
+  readonly newlyKnownTechnicalFailures: readonly TechnicalExecutionFailure[];
   readonly admittedArtifacts: readonly ArtifactRef[];
 }
 
-interface DerivedWorkPlan {
+interface AssuranceLedgerDelta {
   readonly expectedStateRevision: StateRevision;
+  readonly evidenceToEstablish: readonly EvidenceRef[];
+  readonly findingsToEstablish: readonly FindingRef[];
+  readonly adjudicationsToEstablish: readonly AdjudicationRef[];
+  readonly reAdjudicationsToEstablish: readonly ReAdjudicationRef[];
+  readonly obligationDispositions: readonly ObligationDispositionRef[];
+  readonly repairIntentsToQualify: readonly RepairIntentRef[];
+  readonly decisionRequestsToEstablish: readonly DecisionRequestRef[];
   readonly obligationsToAdd: readonly ObligationRef[];
   readonly workItemsToAdd: readonly WorkItemRef[];
   readonly blockersToAdd: readonly CampaignBlocker[];
+  readonly candidateReviewReadiness: CandidateReviewReadinessRef | null;
 }
 ```
+
+M5 must return every cross-module ledger product it establishes. It may not hide a finding, evidence admission, adjudication, re-adjudication, obligation satisfaction/supersession, qualified RepairIntent, qualified Decision Request, or candidate-review-readiness determination behind only a new WorkItem or blocker.
+
+M2 returns those admitted products in `GateARunSnapshot`; M5 receives the complete prior ledger plus exact newly captured results and technical failures. No module may reconstruct the ledger by rescanning mutable workspaces.
 
 M5 must return complete cross-module `ObligationRef` values, not bare newly invented IDs.
 
 `ObligationRef.definition` points to the immutable runtime-validated obligation definition that M2 registers in authoritative history.
 
-The internal obligation-definition schema belongs to M5 NIB-M. The coding implementation must not invent that schema during GREEN.
+The internal serialized schemas and algorithms for these exact product categories belong to M5 NIB-M. NIB-M may refine their internal artifact payloads but may not remove, merge, or invent another cross-module category.
 
-The exact internal fact/obligation union belongs to NIB-M.
-
-The cross-module rule is fixed: M5 returns a plan. It never commits state directly.
+The cross-module rule is fixed: M5 returns one `AssuranceLedgerDelta`. It never commits state directly.
 
 ### M6
 
@@ -1080,8 +1409,7 @@ type MechanicalValidationRequest =
       readonly runId: GateARunId;
       readonly candidate: CandidateRevisionRef;
       readonly repositoryPath: string;
-      readonly currentReviewCampaignId: ReviewCampaignId;
-      readonly contributingReviewCampaignIds: readonly ReviewCampaignId[];
+      readonly reviewReadiness: CandidateReviewReadinessRef;
     }
   | {
       readonly kind: "post-publication-integrity";
@@ -1094,15 +1422,15 @@ interface MechanicalValidationResult {
   readonly requestKind: MechanicalValidationRequest["kind"];
   readonly candidateId: CandidateRevisionId;
   readonly passed: boolean;
-  readonly currentReviewCampaignId: ReviewCampaignId | null;
+  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
   readonly contributingReviewCampaignIds: readonly ReviewCampaignId[];
   readonly evidence: readonly ArtifactRef[];
 }
 ```
 
-For `gate-a-qualification`, `currentReviewCampaignId` is non-null and `contributingReviewCampaignIds` obeys the same ordered, duplicate-free completeness rule as `GateAQualificationRef`.
+For `gate-a-qualification`, `reviewReadiness` must name the same candidate as the request, and both campaign-ID lists in the result must equal the complete ordered lists in `reviewReadiness` and obey `GateAQualificationRef` completeness rules.
 
-For the other two validation kinds, `currentReviewCampaignId` is null and `contributingReviewCampaignIds` is empty.
+For the other two validation kinds, both campaign-ID lists are empty.
 
 ### M7
 
@@ -1123,6 +1451,7 @@ interface PublicationPreparationRequest {
   readonly runId: GateARunId;
   readonly candidate: CandidateRevisionRef;
   readonly qualification: GateAQualificationRef;
+  readonly target: RepositoryPublicationTargetRef;
   readonly expectedPredecessor: RepositoryAuthorityRef;
 }
 
@@ -1160,9 +1489,9 @@ Publication preparation is a local repository operation.
 
 It constructs the exact immutable successor repository object without mutating the remote publication target.
 
-The resulting exact successor commit SHA and tree SHA are known before `PublicationIntentRef` is committed.
+The resulting exact target, successor commit SHA, successor tree SHA, and fast-forward ancestry proof are known before `PublicationIntentRef` is committed.
 
-Only after that exact intent is durable may M7 attempt the conditional remote ref mutation.
+Only after that exact intent is durable may M7 attempt the conditional mutation of the exact target ref.
 
 ### M8
 
@@ -1171,13 +1500,21 @@ interface RecoveryRequest {
   readonly runId: GateARunId;
   readonly stateRevision: StateRevision;
   readonly newOwnershipGeneration: OwnershipGeneration;
+  readonly unresolvedExecutions: readonly UnresolvedExecutionRecoveryRef[];
 }
 
 interface RecoveryPlan {
   readonly expectedStateRevision: StateRevision;
-  readonly reconciledExecutionIds: readonly ExecutionId[];
+  readonly resolutions: readonly ExecutionRecoveryResolution[];
   readonly remainingBlockers: readonly OperationalBlocker[];
 }
+
+interface ClassifyUnresolvedExecutionRequest {
+  readonly runId: GateARunId;
+  readonly unresolvedExecution: UnresolvedExecutionRecoveryRef;
+}
+
+type ClassifyUnresolvedExecutionResult = ExecutionRecoveryResolution;
 
 interface OperatorResolutionEnvelope {
   readonly schema: "gate-a-operator-resolution.v1";
@@ -1185,6 +1522,27 @@ interface OperatorResolutionEnvelope {
   readonly blockerId: BlockerId;
   readonly resolution: ArtifactRef;
 }
+```
+
+For every unresolved execution, M8 must use the descriptor's exact dispatch evidence, captured result, and recovery capability. It calls the common `ExecutionRecoveryPort` implemented by the owning executor and returns exactly one `ExecutionRecoveryResolution`. It must not invent an executor-specific M2 query or infer non-execution from missing result material.
+
+The same classification path serves the restart barrier (`RecoveryRequest`) and in-session uncertainty (`ClassifyUnresolvedExecutionRequest`). M8 never returns more than one resolution per descriptor and never converts a missing observation into `PROVEN-NOT-EXECUTED`.
+
+The mapping is exact:
+
+```text
+not-executed observation with proof
+→ PROVEN-NOT-EXECUTED
+
+completed observation with captured result
+→ PROVEN-COMPLETED
+
+pending observation with retained recovery capability
+→ RECONCILABLE
+
+unknown observation, missing required proof, or no usable capability for a
+possibly-dispatched execution
+→ UNRESOLVABLE + exact OperationalBlocker
 ```
 
 `resolution` is one immutable runtime-validated operator-resolution artifact.
@@ -1243,10 +1601,22 @@ Write ownership may move between RunnerSessions.
 
 Former owners must be fenced from later authoritative writes.
 
-Every authoritative mutation is conditional on:
+The first authoritative mutation is the M2 atomic bootstrap:
 
 ```text
-current write authority
+create GateARun
++
+commit initial StateRevision
++
+acquire initial fenced WriteAuthorityRef
+```
+
+No `WriteAuthorityRef` can pre-exist that atomic operation, and no separately visible unowned `GateARun` may be created.
+
+Every later authoritative mutation is conditional on:
+
+```text
+current WriteAuthorityRef
 +
 exact expected StateRevision
 ```
@@ -1299,23 +1669,31 @@ UNRESOLVABLE
 
 A possibly executed unresolved cognitive execution may not be blindly retried.
 
-If its outcome cannot be established, automatic progression stops with `OPERATOR-ACTION-REQUIRED`.
+M4, M6, and M7 each implement `ExecutionRecoveryPort` for the external effects they dispatch. M8 is the sole recovery-barrier consumer of those ports. An executor may report evidence through its port; it may not commit a recovery classification or authoritative state directly.
+
+If an outcome cannot be established, automatic progression stops with `OPERATOR-ACTION-REQUIRED`.
 
 ## 20. Recovery barrier
 
 A session taking ownership of an existing `GateARun` must cross a recovery barrier before it normally dispatches new campaign effects.
 
+The barrier consumes each complete `UnresolvedExecutionRecoveryRef`, including its WorkItem, durable dispatch state, dispatch intent/evidence, any captured result, and exact executor-owned recovery capability.
+
 The barrier must:
 
 ```text
 load verifiable durable authority
-→ enumerate unresolved prior executions
-→ reconcile every reconcilable execution
-→ classify remaining uncertainty
+→ enumerate complete unresolved-execution recovery descriptors
+→ invoke each available exact executor recovery capability
+→ classify every unresolved execution exactly once
+→ preserve recovered completed results for ordinary admission
+→ materialize blockers for unresolvable executions
 → reconstruct obligations
 → derive enabled WorkItems
 → only then permit normal dispatch
 ```
+
+M8 may not invent an additional M2 lookup API, reconstruct dispatch identity from an `ExecutionRef`, or classify an execution from absence of a result alone.
 
 Ownership transfer never resets a possibly executed operation to not executed.
 
@@ -1382,9 +1760,9 @@ It does not invent reviewer profiles.
 
 ## 23. Finding and evidence boundary
 
-Findings and evidence remain bound to the exact ReviewCampaign and CandidateRevision against which they were produced.
+Findings and evidence remain bound to the exact ReviewCampaign provenance against which they were produced, including its production candidate when runner-owned and its exact repository authority.
 
-A finding is never silently retargeted to a repaired candidate.
+Current applicability is separately derived from exact `(S, P)`. A finding is never retargeted to a repaired candidate, but a campaign over unchanged exact `(S, P)` remains current even when the active CandidateRevision or repository commit differs from its provenance.
 
 A repair that changes `S` creates a new candidate and requires a new full campaign over the changed subject.
 
@@ -1505,9 +1883,9 @@ for that exact candidate state
 
 The resulting runner fact is a `GateAQualificationRef`.
 
-That qualification binds one exact current ReviewCampaign and the complete ordered set of ReviewCampaigns whose current or stale-protocol-re-adjudicated evidence actually contributes to the mechanical Gate A result.
+That qualification binds the complete ordered set of all current ReviewCampaigns over exact `(S, P)` and the complete ordered set of ReviewCampaigns whose current evidence or stale-protocol re-adjudication actually contributes to the mechanical Gate A result.
 
-The runner must not collapse that provenance to one campaign merely because only one campaign is current under the latest `P`.
+The runner must not collapse currentness or provenance to one campaign merely because one current campaign independently satisfies the minimum reviewer count.
 
 It is a provenance-bearing admission of mechanical authority for that exact candidate.
 
@@ -1529,6 +1907,8 @@ Evidence from an earlier semantic subject may not be silently inherited across a
 
 A full new ReviewCampaign is required after such a change.
 
+Candidate or repository revision change with unchanged exact `(S, P)` is not subject change. In that case the accepted repository currentness rule, rather than candidate provenance, determines campaign applicability.
+
 ## 29. Repository and publication boundary
 
 Publication is separate from qualification.
@@ -1542,28 +1922,45 @@ one GateAQualificationRef
 +
 the exact qualified CandidateRevision
 +
+one exact credential-free RepositoryPublicationTargetRef
++
 one exact expected repository predecessor
 ```
 
 ```text
 Before `PublicationIntentRef` is committed, M7 prepares the exact immutable Git successor object locally from the authorized publication projection.
 
-That preparation yields one exact `RepositoryAuthorityRef` containing both successor commit SHA and successor tree SHA.
+That preparation yields one exact `AuthorizedGitTransitionRef` containing:
+
+exact repository identity
++
+exact credential-free remote publication endpoint
++
+exact fully qualified ref name
++
+exact predecessor commit and tree
++
+exact successor commit and tree
++
+mechanical proof that predecessor is an ancestor of successor
++
+relationship = fast-forward
+```
 
 The preparation itself does not mutate the remote publication target.
 
 The committed PublicationIntent therefore binds:
 
-exact expected predecessor repository authority
+exact publication target
 +
-exact intended successor repository authority
+exact authorized predecessor-to-successor transition
 +
 exact qualified CandidateRevision
 +
 exact GateAQualificationRef
 ```
 
-The publication effect must be conditional on the repository still having that expected predecessor.
+The publication effect must be conditional on the exact target ref still having that expected predecessor. CAS success alone is insufficient unless the committed fast-forward transition proof remains valid.
 
 A conflict does not grant permission to:
 
@@ -1583,30 +1980,32 @@ Before dispatch, PublicationIntent is durable.
 The runner must be able to distinguish:
 
 ```text
+exact publication target
 expected predecessor
 intended successor
-observed external repository state
+observed authority of that exact target ref
 ```
 
 After uncertainty:
 
 ```text
-observed commit == intendedSuccessor.commitSha
+observed exact target ref commit == transition.successor.commitSha
 AND
-observed tree == intendedSuccessor.treeSha
-→ publication may be mechanically confirmed after material-identity verification
+observed exact target ref tree == transition.successor.treeSha
+→ publication may be mechanically confirmed after target, ancestry,
+  and material-identity verification
 
-observed commit == expectedPredecessor.commitSha
+observed exact target ref commit == transition.predecessor.commitSha
 AND
-observed tree == expectedPredecessor.treeSha
+observed exact target ref tree == transition.predecessor.treeSha
 → the exact same conditional publication may be issued/reissued
 
-observed repository authority differs from both exact identities
+observed exact target ref authority differs from both exact identities
 → do not improvise
 → OPERATOR-ACTION-REQUIRED unless an accepted repository contract proves another exact result
 ```
 
-Every publication attempt must be a compare-and-swap-style mutation against the exact predecessor commit identity.
+Every publication attempt must be a compare-and-swap-style mutation of the exact target ref against the exact predecessor commit identity and must preserve the committed fast-forward ancestry relation.
 
 Therefore a stale concurrent attempt using that same predecessor cannot overwrite a successor after another attempt has already won the transition: its predecessor condition must fail.
 
@@ -1622,10 +2021,11 @@ The Repository Dependency Contract/NIB-M must use a conditional mutation boundar
 
 ```text
 exact PublicationIntent
-exact predecessor authority
-exact intended successor authority, including commit SHA and tree SHA
+exact publication target
+exact authorized fast-forward predecessor-to-successor transition
+exact predecessor and successor authority, including commit SHA and tree SHA
 exact qualified CandidateRevision
-mechanical material-identity evidence
+mechanical target, ancestry, and material-identity evidence
 ```
 
 After publication confirmation, the runner executes the required post-publication repository validation on the published representation.
@@ -1850,44 +2250,67 @@ run(command):
     session = begin_runner_session(command)
 
     if command.mode == "start":
-        run = create_gate_a_run(command.repository)
+        bootstrap = campaign_state.create_run_and_acquire_initial_ownership(
+            command.repositoryPath,
+            session.sessionId,
+            contracts.preflightObligationDefinition
+        )
 
-        ownership = acquire_write_ownership(run)
+        if bootstrap is rejected:
+            fail invocation as implementation/integrity failure
 
-        preflight = campaign_authority.preflight(run, command.repository)
+        run = bootstrap.run
+        ownership = bootstrap.authority
+        snapshot = bootstrap.snapshot
+
+        preflight = campaign_authority.preflight(run, command.repositoryPath)
 
         if preflight is blocked:
-            commit blockers
+            require every blocker references bootstrap.preflightObligation
+            commit exact blockers through M2 using ownership + snapshot.stateRevision
             return project_runner_result()
+
+        commit exact baseline authority + publication target + satisfied root
+            preflight obligation through M2
 
         candidate = repository_control.seal_initial_candidate(
             run,
-            preflight.baseline_authority
+            preflight.baselineAuthority
         )
 
-        subject = campaign_authority.derive_subject(candidate)
-        protocol = campaign_authority.load_current_protocol(candidate)
-
-        campaign = create_review_campaign(candidate, subject, protocol)
+        commit exact candidate through M2
 
     else:
-        run = load_exact_run(command.run_id)
+        run = load_exact_run(command.runId)
 
-        ownership = acquire_write_ownership(run)
+        ownership = campaign_state.acquire_write_ownership(
+            run,
+            session.sessionId,
+            exact loaded StateRevision
+        )
 
-        recovery_plan = recovery_operator.reconcile_prior_sessions(run)
+        snapshot = ownership.snapshot
 
-        commit(recovery_plan)
+        if command.operatorResolutionPath exists:
+            resolution = recovery_operator.validate_and_admit_resolution(
+                exact blocker from snapshot,
+                command.operatorResolutionPath
+            )
+            commit resolution through M2
+            snapshot = committed snapshot
+
+        recovery_plan = recovery_operator.reconcile_prior_sessions({
+            runId: run.runId,
+            stateRevision: snapshot.stateRevision,
+            newOwnershipGeneration: ownership.authority.generation,
+            unresolvedExecutions: snapshot.unresolvedExecutions
+        })
+
+        require exactly one recovery resolution per unresolved execution
+        commit recovery_plan through M2
 
         if recovery_plan leaves blocking operational uncertainty:
             return project_runner_result()
-
-        if command.operator_resolution exists:
-            resolution = recovery_operator.validate_and_admit_resolution(
-                exact blocker,
-                command.operator_resolution
-            )
-            commit(resolution)
 
     loop:
         snapshot = load_authoritative_snapshot(run)
@@ -1897,27 +2320,44 @@ run(command):
 
         currentness = revalidate_current_authority_and_currentness(snapshot)
 
-        if currentness.kind == "protocol-changed":
-            mark previous ReviewCampaign stale historical
+        if currentness.kind == "campaign-required":
+            prerequisites = campaign_authority.verify_reviewer_prerequisites({
+                candidate: currentness.candidate,
+                semanticSubject: currentness.semanticSubject,
+                protocolBundle: currentness.currentProtocolBundle
+            })
 
-            create full new ReviewCampaign(
-                exact current candidate,
-                same exact S,
-                currentness.currentProtocolBundle
+            if prerequisites.kind == "blocked":
+                commit exact operational blockers through M2
+                return OPERATOR-ACTION-REQUIRED projection
+
+            campaign = construct exactly one full ReviewCampaign(
+                exact current candidate provenance,
+                exact current repository authority,
+                currentness.semanticSubject,
+                currentness.currentProtocolBundle,
+                prerequisites.qualifyingReviewerProfileIds,
+                prerequisites.evidence
             )
 
             derive:
-                all protocol-required current-P campaign WorkItems
-                all required current-P re-adjudication WorkItems for stale-protocol
-                findings over the same S
+                all protocol-required current-P campaign obligations and WorkItems
+                all required current-P re-adjudication obligations and WorkItems
+                for stale-protocol findings over the same S
 
-            commit through M2
+            commit campaign + complete derived ledger products through M2
 
             continue
 
         if currentness.kind == "blocked":
             commit exact operational blockers through M2
             return project_runner_result()
+
+        evaluation_context = currentness.context
+
+        require evaluation_context.currentCampaigns
+            == complete repository-selected campaign set for exact (S, P)
+            without candidate/repository provenance filtering
 
         if operational blocker exists:
             return OPERATOR-ACTION-REQUIRED projection
@@ -1936,12 +2376,13 @@ run(command):
 
             successor_subject = campaign_authority.derive_subject(successor)
 
-            commit successor
+            commit successor through M2
 
             if successor_subject != source subject:
-                mark old ReviewCampaign historical
-                protocol = campaign_authority.load_current_protocol(successor)
-                create full new ReviewCampaign(successor, successor_subject, protocol)
+                prior campaigns become non-current for the successor subject by derivation
+            else:
+                retain the complete current campaign set for unchanged exact (S, P)
+                do not create a campaign because CandidateRevision changed
 
             continue
 
@@ -1957,24 +2398,63 @@ run(command):
 
             dispatch through the owning module
 
-            durably capture results
+            durably capture one of:
+                captured result
+                known technical failure with no completed response
+                execution uncertainty with its complete
+                UnresolvedExecutionRecoveryRef
 
-            qualify/admit results through authoritative transition
+            if the capture is execution uncertainty:
+                commit the exact descriptor through M2
+                classification = recovery_operator.classify_unresolved_execution(
+                    exact descriptor
+                )
+                commit classification through M2
+                if classification.classification == PROVEN-COMPLETED:
+                    treat classification.recoveredResult as a newly captured result
+                else if classification.classification == PROVEN-NOT-EXECUTED:
+                    require the exact protocol retry rule before any replacement
+                        Execution is derived
+                else:
+                    commit exact operational blocker through M2
+                    return OPERATOR-ACTION-REQUIRED projection
+
+            delta = assurance_ledger.derive_complete_delta(
+                evaluation_context,
+                current authoritative snapshot,
+                newly captured results,
+                newly known technical failures,
+                newly admitted artifacts
+            )
+
+            commit every explicit delta product through M2
 
             continue
 
-        if current candidate is eligible for mechanical Gate A evaluation:
-            validation = mechanical_validation.qualify_exact_candidate(snapshot.candidate)
+        if exact CandidateReviewReadiness exists:
+            require readiness.currentReviewCampaignIds
+                == every repository-selected current campaign over exact (S, P)
+            require readiness.contributingReviewCampaignIds
+                == complete current + stale-protocol contribution basis
 
-            commit validation evidence
+            validation = mechanical_validation.qualify_exact_candidate(
+                exact candidate,
+                exact CandidateReviewReadiness
+            )
+
+            commit validation evidence through M2
 
             if validation does not establish Gate A readiness:
-                derive resulting obligations/blockers
+                derive complete resulting AssuranceLedgerDelta
                 continue
 
-            qualification = admit GateAQualification(validation)
+            qualification = admit GateAQualification(
+                validation,
+                exact complete current campaign IDs,
+                exact complete contributing campaign IDs
+            )
 
-            commit qualification
+            commit qualification through M2
 
             continue
 
@@ -1982,6 +2462,7 @@ run(command):
             preparation = repository_control.prepare_publication(
                 exact qualification,
                 exact candidate,
+                exact snapshot.run.publicationTarget,
                 exact expected repository predecessor
             )
 
@@ -1989,12 +2470,16 @@ run(command):
                 commit exact operational blocker through M2
                 continue
 
+            require preparation.transition.relationship == "fast-forward"
+            require valid mechanical evidence that:
+                transition.predecessor is ancestor of transition.successor
+                transition.target is exact repository + endpoint + ref
+
             intent = construct PublicationIntent(
                 exact qualification,
                 exact candidate,
-                preparation.publication.expectedPredecessor,
-                preparation.publication.intendedSuccessor,
-                preparation.publication.materialIdentityEvidence
+                preparation.transition,
+                preparation.materialIdentityEvidence
             )
 
             commit intent through M2
@@ -2003,26 +2488,28 @@ run(command):
                 revalidate:
                     qualification still effective
                     no new blocker exists
-                    expected predecessor still current
-                    intended successor still equals the prepared immutable repository object
+                    exact target ref still equals transition.predecessor
+                    transition.successor still equals prepared immutable repository object
+                    fast-forward ancestry proof still valid
                     ownership generation still current
 
             result = repository_control.publish_conditionally(intent)
 
-            reconcile result if needed
+            reconcile result against the exact target ref if needed
 
             if publication cannot be established safely:
                 commit exact operational blocker through M2
                 continue
 
-            require confirmed successor authority
-                == intent.intendedSuccessor
+            require confirmation.transition == intent.transition
+            require observed target successor authority
+                == intent.transition.successor
                 by both commit SHA and tree SHA
 
             commit PublicationConfirmed through M2
 
             post_validation = mechanical_validation.post_publication(
-                exact published representation
+                exact published target representation
             )
 
             if post_validation fails:
@@ -2041,7 +2528,7 @@ run(command):
             else:
                 materialize Operator Action Request
 
-            commit blocker
+            commit blocker through M2
 
             continue
 ```
@@ -2115,9 +2602,12 @@ The implementation must preserve all of the following.
 
 ```text
 GI-01  RunnerSession != GateARun != ReviewCampaign.
-GI-02  ReviewCampaign is permanently bound to one CandidateRevision + S + P.
+GI-02  ReviewCampaign provenance is permanently bound to its exact production
+       candidate/run identity when runner-owned, exact repository authority,
+       exact S, and exact P; currentness is independently derived from (S, P).
 GI-03  CandidateRevision identity is immutable after seal.
-GI-04  A repair that changes S requires a full new ReviewCampaign.
+GI-04  A repair that changes S requires a full new ReviewCampaign; a
+       CandidateRevision-only change with unchanged (S, P) does not.
 GI-05  A protocol change never rewrites historical campaign evidence.
 GI-06  Product-semantic authority is never invented by the runner.
 GI-07  Judging authority cannot self-amend to accept the candidate it judges.
@@ -2147,7 +2637,8 @@ GI-19  Scheduler selects enabled work; it never invents work.
 GI-20  One GateARun has at most one authoritative writer at a time.
 GI-21  Stale writers cannot commit authoritative transitions.
 GI-22  Ownership transfer does not erase external uncertainty.
-GI-23  Recovery re-derives safe work from durable authority.
+GI-23  Recovery re-derives safe work from durable authority and complete
+       unresolved-execution recovery descriptors.
 ```
 
 ### Persistence and provenance
@@ -2177,7 +2668,8 @@ GI-33  A material subject-changing repair never patches old campaign evidence
 GI-34  TypeScript runner logic does not replace Python Gate A authority.
 GI-35  Validation for Cn never qualifies Cn+1.
 GI-36  Qualification != publication.
-GI-37  Publication is conditional on the exact expected repository predecessor.
+GI-37  Publication conditionally mutates one exact repository/endpoint/ref
+       target against the exact expected repository predecessor.
 GI-38  Publication cannot silently merge, rebase, force-push, or rewrite a
        qualified candidate.
 GI-39  Published representation must be mechanically identical to the authorized
@@ -2197,21 +2689,42 @@ GI-44  If any operational blocker exists, top-level projection is
        OPERATOR-ACTION-REQUIRED and all blockers remain visible.
 GI-45  A normal result is derived from authoritative state, not from an exception.
 
-GI-46  If current P changes while CandidateRevision and S remain unchanged,
-       the old ReviewCampaign becomes stale historical and a full new
-       ReviewCampaign under current P is required.
+GI-46  If current P changes while S remains unchanged, stale-P campaigns become
+       historical for currentness and one full new ReviewCampaign under current
+       P is required after reviewer prerequisites are established.
 
-GI-47  GateAQualification records the exact current ReviewCampaign and every
-       ReviewCampaign whose evidence or stale-protocol re-adjudication
-       contributes to its mechanical qualification basis.
+GI-47  GateAQualification records every current ReviewCampaign over exact (S, P)
+       and every ReviewCampaign whose evidence or stale-protocol re-adjudication
+       contributes to its mechanical qualification basis, without candidate-
+       provenance filtering.
 
-GI-48  PublicationIntent binds an exact intended successor
-       RepositoryAuthorityRef, including both commit SHA and tree SHA, before
-       any remote publication mutation is dispatched.
+GI-48  PublicationIntent binds the exact credential-free publication target and
+       exact authorized fast-forward transition, including predecessor and
+       successor commit/tree identities, before remote mutation is dispatched.
 
-GI-49  Every authoritative cross-module write flows through M2 with exact
-       WriteAuthorityRef and expected StateRevision; no other module has an
-       implicit state-write path.
+GI-49  The first authoritative write atomically creates GateARun and initial
+       WriteAuthorityRef in M2. Every later authoritative cross-module write
+       flows through M2 with exact WriteAuthorityRef and expected StateRevision;
+       no other module has an implicit state-write path.
+
+GI-50  A known technical failure with no completed response is neither a
+       captured raw result nor execution uncertainty.
+
+GI-51  M5 exposes every established finding, evidence item, adjudication,
+       re-adjudication, obligation disposition, qualified RepairIntent,
+       qualified Decision Request, and candidate-review-readiness result to M2.
+
+GI-52  PublicationIntent proves the predecessor is an ancestor of the intended
+       successor; CAS alone never authorizes an unrelated successor.
+
+GI-53  A ReviewCampaign is created only after current protocol reviewer/profile
+       prerequisites are established; a blocked prerequisite creates no
+       executable campaign.
+
+GI-54  In-session execution uncertainty is classified through M8 and the
+       owning executor's recovery port before any continuation; an
+       unestablished outcome returns OPERATOR-ACTION-REQUIRED rather than
+       resuming or blind-retrying the WorkItem.
 ```
 
 ## 40. Cross-cutting policies
@@ -2232,7 +2745,7 @@ Every external cognitive/mechanical execution is bound to exact immutable campai
 
 Historical authorization is insufficient.
 
-Immediately before every external side effect, current effective permission, expected predecessor, and current write authority are revalidated.
+Immediately before every external side effect, current effective permission and current write authority are revalidated. Before publication, the exact target ref, expected predecessor, intended successor, and authorized fast-forward ancestry relation are all revalidated.
 
 ### CP-5 — No silent inheritance across subject changes
 
@@ -2258,11 +2771,17 @@ Every human/operator boundary is represented by an explicit durable request/outc
 
 ### CP-9 — Protocol-currentness creates a new exact campaign
 
-If current `P` differs from the protocol identity of the current ReviewCampaign while the exact candidate and `S` remain unchanged, the previous campaign becomes stale historical.
+If current `P` differs from the protocol identity of campaigns over the same exact `S`, every stale-`P` campaign is historical for currentness.
 
-A full new ReviewCampaign under current `P` is required, together with every stale-protocol finding re-adjudication required by accepted authority.
+After current-`P` reviewer/profile prerequisites are established, one full new ReviewCampaign under current `P` is required, together with every stale-protocol finding re-adjudication required by accepted authority.
 
-No stale protocol campaign is mutated into currentness.
+No stale protocol campaign is mutated into currentness. Candidate or repository provenance does not determine currentness.
+
+### CP-10 — Prerequisites precede campaign creation
+
+Before any required ReviewCampaign is committed, M3 must establish the exact protocol-owned reviewer/profile prerequisites.
+
+If it cannot, M1 commits the resulting operational blockers and returns `OPERATOR-ACTION-REQUIRED`. It must not create an empty, duplicate, or nominally executable ReviewCampaign.
 
 ## 41. NIB-M decomposition required by this System Brief
 
@@ -2334,10 +2853,12 @@ which modules exist
 what each module owns
 which identities cross module boundaries
 what is durable versus authoritative versus mutable
-how S and P bind an exact campaign
-what happens after a subject-changing repair
+how campaign provenance remains exact while campaign currentness depends only on (S, P)
+how complete plural current/contributing campaign sets qualify one candidate
+what happens after subject-changing and candidate-only repairs
+how M2 atomically bootstraps the run and initial writer
 who may write state
-what happens after crash/ownership transfer
+what exact recovery descriptors and ports exist after crash/ownership transfer
 how WorkItems and Executions differ
 where llm-runtime is allowed
 where Python authority remains authoritative
@@ -2345,7 +2866,9 @@ how repair may proceed
 when a Decision Request is legitimate
 when Operator Action is required
 what mechanically qualifies a candidate
-what publication may and may not do
+which explicit M5 ledger products cross the module boundary
+how M4 distinguishes no-response technical failure from uncertainty
+what exact publication target and fast-forward Git transition may be mutated
 what the CLI returns
 why GATE-A-READY is justified
 ```
