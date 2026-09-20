@@ -65,6 +65,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | Bind challenge executions to exact inputs and derive retry admissibility | accepted | 2026-09-20 | complete | Challenge execution binding to exact canonical challenge packets<br>Checker-derived protocol-attempt outcome admissibility<br>Termination after the first protocol-valid completed response<br>Append-only hostile-review protocol artifact evolution<br>Protocol-bundle predecessor-chain validation |
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | Make unvalidated cognitive completions terminal and validate readiness projections | accepted | 2026-09-20 | complete | Retry admissibility for cognitive roles without deterministic output validators<br>Protocol v3 role-aware completion policy<br>Published protocol-v2 artifact immutability<br>Formal readiness projection validation |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | Content-address hostile-review meta-schemas | accepted | 2026-09-20 | complete | Hostile-review protocol-bundle meta-schema identity<br>Hostile-review evidence meta-schema identity<br>Protocol v4 meta-schema binding<br>Historical meta-schema interpretation<br>Append-only hostile-review meta-schema evolution |
+| [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | Clarify hostile-review execution receipt attempt mapping | accepted | 2026-09-20 | complete | Hostile-review execution receipt identity<br>Protocol-attempt aggregation in execution receipts<br>Protocol retry to receipt-attempt mapping<br>LLM call and transport-attempt separation |
 
 ## Recorded outgoing relations
 
@@ -179,6 +180,10 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | amends | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | amends | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | confirms | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
+| [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | amends | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
+| [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | amends | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
+| [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | amends | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
+| [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | confirms | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 
 ## Derived incoming relations
 
@@ -289,7 +294,11 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) | amended by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | confirmed by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
+| [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
+| [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
+| [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | confirmed by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
