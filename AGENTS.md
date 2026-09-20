@@ -399,6 +399,18 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   they reference are append-only and must not be edited or deleted; protocol
   evolution creates a new bundle/path and links the previous bundle through
   `predecessor`.
+- deterministic protocol-invalid retry is permitted only for roles with a
+  declared deterministic output validator;
+- in protocol v3, the deterministically validated roles are exactly
+  initial-reviewer and challenge;
+- for the seven other cognitive roles, protocol-invalid is forbidden and the
+  first completed response is the terminal qualified completion;
+- qualified for an unvalidated role means admitted completion, not semantic
+  correctness;
+- generated formal readiness projections must be produced only from a full
+  successful traceability/evidence validation pass;
+- published protocol v2 artifacts are immutable just like published v1
+  artifacts.
 - A completed response's protocol validity is derived by the checker, not trusted
   from the runner's outcome label. The first protocol-valid completed response is
   terminal and must be the final attempt; technical-failure means no completed
