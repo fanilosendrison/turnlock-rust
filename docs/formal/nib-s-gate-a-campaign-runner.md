@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "2.0.0"
+version: "3.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -605,6 +605,16 @@ Owns:
 
 It must invoke existing authorities rather than reimplementing them in TypeScript.
 
+M6 validation invocations are read-only with respect to authoritative external systems.
+
+They execute only against exact sealed candidate inputs or an exact `PublishedRepositoryViewRef`.
+
+A validator subprocess interruption does not create an ambiguous external authoritative side effect.
+
+The same exact validation request is therefore replay-safe.
+
+M6 does not implement `ExecutionRecoveryPort`.
+
 ### M7 — `repository-control`
 
 Owns:
@@ -835,6 +845,15 @@ interface PublicationConfirmationRef {
   readonly candidateId: CandidateRevisionId;
   readonly materialIdentityEvidence: readonly ArtifactRef[];
 }
+
+interface PublishedRepositoryViewRef {
+  readonly publicationConfirmationId: PublicationConfirmationId;
+  readonly candidateId: CandidateRevisionId;
+  readonly target: RepositoryPublicationTargetRef;
+  readonly authority: RepositoryAuthorityRef;
+  readonly repositoryPath: string;
+  readonly materializationEvidence: readonly ArtifactRef[];
+}
 ```
 
 `RepositoryPublicationTargetRef` is the exact durable remote mutation target. `repositoryIdentity` identifies the repository independently of a local checkout, `remoteEndpoint` is the normalized credential-free publication endpoint, and `refName` is the fully qualified Git ref name. Credentials and credential-bearing URLs are invalid target identities.
@@ -846,6 +865,14 @@ Before any remote publication mutation, M7 must prepare the exact immutable succ
 A `PublicationIntentRef` that lacks the exact target, contains only a tree SHA, or lacks valid ancestry evidence is invalid. A compare-and-swap from `A` to an unrelated `C` is prohibited even when the target still equals `A`.
 
 A repository path or local remote name is never sufficient as durable publication-target or immutable historical identity by itself.
+
+`PublishedRepositoryViewRef` is an isolated local materialization of the exact confirmed publication successor.
+
+Its `target` must equal the target in the referenced `PublicationConfirmationRef`.
+
+Its `authority` must equal that confirmation's exact transition successor by both commit SHA and tree SHA.
+
+Its `repositoryPath` is an operational location only. The path never substitutes for the bound target, authority, candidate, confirmation, or materialization evidence.
 
 ## 14. Blocker types
 
@@ -916,6 +943,16 @@ interface TechnicalExecutionFailure {
   readonly failureEvidence: readonly ArtifactRef[];
 }
 
+type RecoveredExecutionOutcome =
+  | {
+      readonly kind: "captured";
+      readonly value: CapturedExecutionResult;
+    }
+  | {
+      readonly kind: "technical-failure";
+      readonly value: TechnicalExecutionFailure;
+    };
+
 type DurableDispatchState =
   | "AUTHORIZED-NOT-DISPATCHED"
   | "POSSIBLY-DISPATCHED"
@@ -932,7 +969,7 @@ interface UnresolvedExecutionRecoveryRef {
   readonly dispatchState: DurableDispatchState;
   readonly dispatchIntent: ArtifactRef;
   readonly dispatchEvidence: readonly ArtifactRef[];
-  readonly capturedResult: CapturedExecutionResult | TechnicalExecutionFailure | null;
+  readonly terminalOutcome: RecoveredExecutionOutcome | null;
   readonly recoveryCapability: RecoveryCapabilityRef | null;
 }
 
@@ -942,8 +979,8 @@ type ExecutionRecoveryObservation =
       readonly evidence: readonly ArtifactRef[];
     }
   | {
-      readonly kind: "completed";
-      readonly result: CapturedExecutionResult;
+      readonly kind: "terminal";
+      readonly outcome: RecoveredExecutionOutcome;
       readonly evidence: readonly ArtifactRef[];
     }
   | {
@@ -961,7 +998,7 @@ interface ExecutionRecoveryPort {
   ): Promise<ExecutionRecoveryObservation>;
 }
 
-type ExecutionRecoveryResolution =
+type ProvenExecutionRecoveryResolution =
   | {
       readonly executionId: ExecutionId;
       readonly classification: "PROVEN-NOT-EXECUTED";
@@ -970,20 +1007,35 @@ type ExecutionRecoveryResolution =
   | {
       readonly executionId: ExecutionId;
       readonly classification: "PROVEN-COMPLETED";
-      readonly recoveredResult: CapturedExecutionResult;
+      readonly recoveredOutcome: RecoveredExecutionOutcome;
       readonly evidence: readonly ArtifactRef[];
+    };
+
+interface UnresolvableExecutionRecoveryResolution {
+  readonly executionId: ExecutionId;
+  readonly classification: "UNRESOLVABLE";
+  readonly blocker: OperationalBlocker;
+  readonly evidence: readonly ArtifactRef[];
+}
+
+type ExecutionRecoveryResolution =
+  | ProvenExecutionRecoveryResolution
+  | UnresolvableExecutionRecoveryResolution;
+
+interface ReconciliationPendingRef {
+  readonly unresolvedExecution: UnresolvedExecutionRecoveryRef;
+  readonly recoveryCapability: RecoveryCapabilityRef;
+  readonly evidence: readonly ArtifactRef[];
+}
+
+type ExecutionRecoveryStep =
+  | {
+      readonly kind: "terminal";
+      readonly resolution: ExecutionRecoveryResolution;
     }
   | {
-      readonly executionId: ExecutionId;
-      readonly classification: "RECONCILABLE";
-      readonly recoveryCapability: RecoveryCapabilityRef;
-      readonly evidence: readonly ArtifactRef[];
-    }
-  | {
-      readonly executionId: ExecutionId;
-      readonly classification: "UNRESOLVABLE";
-      readonly blocker: OperationalBlocker;
-      readonly evidence: readonly ArtifactRef[];
+      readonly kind: "reconcilable";
+      readonly pending: ReconciliationPendingRef;
     };
 ```
 
@@ -991,9 +1043,19 @@ A captured result is durable material.
 
 It is not automatically an authority-bearing semantic result.
 
-`TechnicalExecutionFailure` means that no completed semantic response exists. It is distinct from an uncertain capture: a known no-response technical failure is not an unknown external-effect outcome, and it carries no `rawResult`.
+`TechnicalExecutionFailure` means that no completed semantic response exists. It is distinct from execution uncertainty and distinct from a captured semantic response.
 
-An uncertain capture carries the complete `UnresolvedExecutionRecoveryRef` produced by the owning executor, so durable recovery never depends on an executor-specific query invented later. The executor reports the WorkItem, durable dispatch state, dispatch intent and evidence, any captured result, and its exact recovery capability. It does not assign a recovery classification. M8 derives that classification from the descriptor and the executor's `ExecutionRecoveryPort` observation.
+`PROVEN-COMPLETED` means that the exact Execution has a proven terminal outcome. It does not mean that a completed semantic response exists. Its `recoveredOutcome` preserves the distinction between a captured response and a known terminal technical failure.
+
+An uncertain executor result carries the complete `UnresolvedExecutionRecoveryRef`. The owning executor reports durable dispatch identity/evidence, any already known terminal outcome, and its exact recovery capability. The owning executor does not assign a recovery classification.
+
+`RECONCILABLE` is represented only by `ExecutionRecoveryStep.kind = "reconcilable"`. It is an intermediate recovery state, not a terminal recovery resolution and not permission to resume campaign external dispatch.
+
+While an execution is reconcilable, the recovery barrier remains closed.
+
+M8 may automatically perform further reconciliation observations under a finite bounded algorithm specified in M8 NIB-M.
+
+If that finite automatic reconciliation policy ends while the execution is still pending, M8 must materialize an exact `OperationalBlocker` and return `OPERATOR-ACTION-REQUIRED`.
 
 A technical failure never satisfies the WorkItem. M5 may derive a replacement Execution only where the exact role-specific protocol retry rule permits another attempt.
 
@@ -1259,6 +1321,12 @@ type CognitiveExecutionCapture =
       readonly kind: "uncertain";
       readonly value: UnresolvedExecutionRecoveryRef;
     };
+
+For `kind = "uncertain"`, `value.terminalOutcome` may be non-null only when a terminal outcome has already been durably captured but the exact authoritative execution disposition still requires recovery reconciliation.
+
+M4 never converts `TechnicalExecutionFailure` into `CapturedExecutionResult`.
+
+M4 recovery observations use `RecoveredExecutionOutcome.kind = "technical-failure"` when reconciliation proves that the execution terminated as a known no-completed-response technical failure.
 ```
 
 ### M5
@@ -1414,23 +1482,47 @@ type MechanicalValidationRequest =
   | {
       readonly kind: "post-publication-integrity";
       readonly runId: GateARunId;
-      readonly candidate: CandidateRevisionRef;
-      readonly repositoryPath: string;
+      readonly publishedView: PublishedRepositoryViewRef;
     };
 
-interface MechanicalValidationResult {
-  readonly requestKind: MechanicalValidationRequest["kind"];
-  readonly candidateId: CandidateRevisionId;
-  readonly passed: boolean;
-  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
-  readonly contributingReviewCampaignIds: readonly ReviewCampaignId[];
-  readonly evidence: readonly ArtifactRef[];
-}
+type MechanicalValidationResult =
+  | {
+      readonly requestKind: "repository-integrity";
+      readonly candidateId: CandidateRevisionId;
+      readonly passed: boolean;
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly requestKind: "gate-a-qualification";
+      readonly candidateId: CandidateRevisionId;
+      readonly passed: boolean;
+      readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
+      readonly contributingReviewCampaignIds: readonly ReviewCampaignId[];
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly requestKind: "post-publication-integrity";
+      readonly candidateId: CandidateRevisionId;
+      readonly publicationConfirmationId: PublicationConfirmationId;
+      readonly target: RepositoryPublicationTargetRef;
+      readonly validatedAuthority: RepositoryAuthorityRef;
+      readonly passed: boolean;
+      readonly evidence: readonly ArtifactRef[];
+    };
 ```
 
-For `gate-a-qualification`, `reviewReadiness` must name the same candidate as the request, and both campaign-ID lists in the result must equal the complete ordered lists in `reviewReadiness` and obey `GateAQualificationRef` completeness rules.
+For `gate-a-qualification`, `reviewReadiness` must name the same candidate as the request. The result campaign-ID lists must equal the complete ordered lists in `reviewReadiness` and obey `GateAQualificationRef` completeness rules.
 
-For the other two validation kinds, both campaign-ID lists are empty.
+For `repository-integrity`, no review-campaign list exists in the result.
+
+For `post-publication-integrity`:
+
+- `candidateId` must equal `publishedView.candidateId`;
+- `publicationConfirmationId` must equal `publishedView.publicationConfirmationId`;
+- `target` must equal `publishedView.target`;
+- `validatedAuthority` must equal `publishedView.authority` by both commit SHA and tree SHA.
+
+M6 must validate the exact repository bytes materialized by `PublishedRepositoryViewRef`. A mutable path alone can never establish post-publication identity.
 
 ### M7
 
@@ -1465,22 +1557,36 @@ type PublicationPreparationResult =
       readonly blocker: OperationalBlocker;
     };
 
-interface PublicationRequest {
+interface PublicationExecutionRequest {
+  readonly execution: ExecutionRef;
   readonly intent: PublicationIntentRef;
   readonly candidate: CandidateRevisionRef;
 }
 
-type PublicationEffectResult =
+type PublicationExecutionCapture =
+  | {
+      readonly kind: "captured";
+      readonly value: CapturedExecutionResult;
+    }
+  | {
+      readonly kind: "uncertain";
+      readonly value: UnresolvedExecutionRecoveryRef;
+    };
+
+interface PublicationObservationQualificationRequest {
+  readonly intent: PublicationIntentRef;
+  readonly candidate: CandidateRevisionRef;
+  readonly executionResult: CapturedExecutionResult;
+}
+
+type PublicationObservationQualificationResult =
   | {
       readonly kind: "confirmed";
       readonly confirmation: PublicationConfirmationRef;
+      readonly publishedView: PublishedRepositoryViewRef;
     }
   | {
-      readonly kind: "reconcilable";
-      readonly evidence: readonly ArtifactRef[];
-    }
-  | {
-      readonly kind: "unresolvable";
+      readonly kind: "blocked";
       readonly blocker: OperationalBlocker;
     };
 ```
@@ -1493,6 +1599,26 @@ The resulting exact target, successor commit SHA, successor tree SHA, and fast-f
 
 Only after that exact intent is durable may M7 attempt the conditional mutation of the exact target ref.
 
+Publication itself executes as a normal campaign WorkItem/Execution owned by M7.
+
+`PublicationExecutionCapture.kind = "captured"` means M7 obtained one exact durable publication-attempt observation artifact. It does not by itself mean publication is confirmed.
+
+`PublicationExecutionCapture.kind = "uncertain"` carries the complete `UnresolvedExecutionRecoveryRef`.
+
+M7 never returns `RECONCILABLE` or `UNRESOLVABLE`.
+
+All publication execution uncertainty is committed and classified through M8.
+
+M7 implements `ExecutionRecoveryPort` for publication executions. A terminal publication recovery observation must return `RecoveredExecutionOutcome.kind = "captured"` containing the exact recovered publication observation.
+
+After either immediate or recovered capture, M1 calls the same `PublicationObservationQualificationRequest`.
+
+Only `PublicationObservationQualificationResult.kind = "confirmed"` may create `PublicationConfirmationRef`.
+
+That confirmation result also returns the exact `PublishedRepositoryViewRef` consumed by post-publication M6 validation.
+
+M7 may return `blocked` when the captured publication observation proves a publication conflict/divergence or otherwise cannot satisfy the committed `PublicationIntent`. That is a domain result from known evidence, not an uncertainty classification.
+
 ### M8
 
 ```ts
@@ -1503,18 +1629,35 @@ interface RecoveryRequest {
   readonly unresolvedExecutions: readonly UnresolvedExecutionRecoveryRef[];
 }
 
-interface RecoveryPlan {
-  readonly expectedStateRevision: StateRevision;
-  readonly resolutions: readonly ExecutionRecoveryResolution[];
-  readonly remainingBlockers: readonly OperationalBlocker[];
-}
+type RecoveryPlan =
+  | {
+      readonly kind: "cleared";
+      readonly expectedStateRevision: StateRevision;
+      readonly resolutions: readonly ExecutionRecoveryResolution[];
+    }
+  | {
+      readonly kind: "blocked";
+      readonly expectedStateRevision: StateRevision;
+      readonly resolutions: readonly ExecutionRecoveryResolution[];
+      readonly blockers: readonly OperationalBlocker[];
+    };
 
 interface ClassifyUnresolvedExecutionRequest {
   readonly runId: GateARunId;
   readonly unresolvedExecution: UnresolvedExecutionRecoveryRef;
 }
 
-type ClassifyUnresolvedExecutionResult = ExecutionRecoveryResolution;
+type ClassifyUnresolvedExecutionResult =
+  | {
+      readonly kind: "resolved";
+      readonly resolution: ProvenExecutionRecoveryResolution;
+    }
+  | {
+      readonly kind: "blocked";
+      readonly blocker: OperationalBlocker;
+      readonly resolution: UnresolvableExecutionRecoveryResolution | null;
+      readonly lastPending: ReconciliationPendingRef | null;
+    };
 
 interface OperatorResolutionEnvelope {
   readonly schema: "gate-a-operator-resolution.v1";
@@ -1524,26 +1667,63 @@ interface OperatorResolutionEnvelope {
 }
 ```
 
-For every unresolved execution, M8 must use the descriptor's exact dispatch evidence, captured result, and recovery capability. It calls the common `ExecutionRecoveryPort` implemented by the owning executor and returns exactly one `ExecutionRecoveryResolution`. It must not invent an executor-specific M2 query or infer non-execution from missing result material.
+For every unresolved execution, M8 consumes the complete `UnresolvedExecutionRecoveryRef` and invokes the exact `ExecutionRecoveryPort` implemented by the owning executor when reconciliation is required.
 
-The same classification path serves the restart barrier (`RecoveryRequest`) and in-session uncertainty (`ClassifyUnresolvedExecutionRequest`). M8 never returns more than one resolution per descriptor and never converts a missing observation into `PROVEN-NOT-EXECUTED`.
+The same M8 classification machinery serves:
 
-The mapping is exact:
+- restart recovery barriers;
+- in-session execution uncertainty.
+
+The owning executor provides observations only.
+
+M8 alone derives authoritative recovery disposition.
+
+The exact observation mapping is:
 
 ```text
 not-executed observation with proof
 → PROVEN-NOT-EXECUTED
 
-completed observation with captured result
+terminal observation with captured response
 → PROVEN-COMPLETED
+→ recoveredOutcome.kind = captured
 
-pending observation with retained recovery capability
-→ RECONCILABLE
+terminal observation with known technical failure
+→ PROVEN-COMPLETED
+→ recoveredOutcome.kind = technical-failure
 
-unknown observation, missing required proof, or no usable capability for a
-possibly-dispatched execution
-→ UNRESOLVABLE + exact OperationalBlocker
+pending observation with valid recovery capability
+→ RECONCILABLE intermediate step
+→ keep recovery barrier closed
+→ automatically re-observe under the finite M8 NIB-M reconciliation policy
+
+unknown observation
+or missing proof
+or no usable capability for a possibly-dispatched execution
+→ UNRESOLVABLE
+→ exact OperationalBlocker
+
+automatic reconciliation policy exhausted while still pending
+→ no fabricated terminal classification
+→ exact OperationalBlocker
+→ OPERATOR-ACTION-REQUIRED
 ```
+
+`RecoveryPlan.kind = "cleared"` is valid only when every supplied unresolved execution has a terminal `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` resolution and no recovery blocker remains.
+
+`RecoveryPlan.kind = "blocked"` is required when any execution is `UNRESOLVABLE` or when the finite automatic reconciliation policy ends while a reconcilable execution is still pending.
+
+`ClassifyUnresolvedExecutionResult.kind = "resolved"` returns only a proven non-execution or proven completed terminal outcome.
+
+`ClassifyUnresolvedExecutionResult.kind = "blocked"` is the only in-session result for unresolved uncertainty that cannot be closed automatically in the current invocation.
+
+For `blocked`:
+
+* `resolution` is non-null only for an `UNRESOLVABLE` terminal classification;
+* `lastPending` is non-null only when the automatic reconciliation policy ended while the execution remained reconcilable;
+* exactly one of `resolution` and `lastPending` is non-null.
+
+M8 must not convert pending into `PROVEN-NOT-EXECUTED`, `PROVEN-COMPLETED`, or `UNRESOLVABLE` merely because time passed.
 
 `resolution` is one immutable runtime-validated operator-resolution artifact.
 
@@ -1658,18 +1838,23 @@ cancellation != rollback
 new owner != proof old effect stopped
 ```
 
-The recovery classifications are exactly:
+Terminal recovery resolutions are exactly:
 
 ```text
 PROVEN-NOT-EXECUTED
 PROVEN-COMPLETED
-RECONCILABLE
 UNRESOLVABLE
+
+RECONCILABLE is an intermediate recovery step only.
 ```
 
 A possibly executed unresolved cognitive execution may not be blindly retried.
 
-M4, M6, and M7 each implement `ExecutionRecoveryPort` for the external effects they dispatch. M8 is the sole recovery-barrier consumer of those ports. An executor may report evidence through its port; it may not commit a recovery classification or authoritative state directly.
+M4 and M7 implement `ExecutionRecoveryPort` for externally effectful executions that can become epistemically ambiguous.
+
+M6 does not implement `ExecutionRecoveryPort`: its Python validation subprocesses are required to be read-only with respect to authoritative external systems and replay-safe against the same exact immutable validation input.
+
+M8 is the sole execution-uncertainty classifier and recovery-barrier consumer of those ports. An executor may report evidence through its port; it may not commit a recovery classification or authoritative state directly.
 
 If an outcome cannot be established, automatic progression stops with `OPERATOR-ACTION-REQUIRED`.
 
@@ -1684,14 +1869,27 @@ The barrier must:
 ```text
 load verifiable durable authority
 → enumerate complete unresolved-execution recovery descriptors
-→ invoke each available exact executor recovery capability
-→ classify every unresolved execution exactly once
-→ preserve recovered completed results for ordinary admission
-→ materialize blockers for unresolvable executions
-→ reconstruct obligations
+→ for each descriptor invoke M8 classification
+→ if observation is pending:
+     remain inside recovery barrier
+     automatically re-observe under finite M8 NIB-M reconciliation policy
+→ preserve every proven completed recovered outcome
+→ preserve every proven non-execution
+→ materialize exact blockers for UNRESOLVABLE executions
+→ materialize exact blockers when the finite reconciliation policy ends
+  with an execution still pending
+→ if any blocker exists:
+     OPERATOR-ACTION-REQUIRED
+→ otherwise reconstruct obligations
 → derive enabled WorkItems
-→ only then permit normal dispatch
+→ only then permit normal campaign dispatch
 ```
+
+A `RECONCILABLE` intermediate step is never sufficient to exit the barrier.
+
+Recovery of `TechnicalExecutionFailure` is an ordinary `PROVEN-COMPLETED` execution recovery with `recoveredOutcome.kind = "technical-failure"`.
+
+Recovery of a captured semantic result is an ordinary `PROVEN-COMPLETED` execution recovery with `recoveredOutcome.kind = "captured"`.
 
 M8 may not invent an additional M2 lookup API, reconstruct dispatch identity from an `ExecutionRef`, or classify an execution from absence of a result alone.
 
@@ -1973,6 +2171,16 @@ A conflict does not grant permission to:
 
 Any material change creates a different candidate and requires the appropriate review/qualification again.
 
+The remote publication mutation itself is a `repository-control` WorkItem/Execution.
+
+M7 captures the immediate publication effect but does not classify uncertainty.
+
+If publication effect identity is uncertain, M7 returns an `UnresolvedExecutionRecoveryRef`, M1 commits it, and M8 performs the same execution-recovery classification used elsewhere in the runner.
+
+A recovered completed publication produces a recovered `CapturedExecutionResult`, which is passed to the same M7 publication-observation qualification boundary as an immediately captured publication result.
+
+There is no second publication-specific uncertainty-classification system.
+
 ## 30. Publication reconciliation
 
 Before dispatch, PublicationIntent is durable.
@@ -2015,6 +2223,28 @@ A read followed by an unconditional write is insufficient when it leaves an insp
 
 The Repository Dependency Contract/NIB-M must use a conditional mutation boundary capable of enforcing the expected predecessor.
 
+This section defines the evidence interpreted by M7's publication `ExecutionRecoveryPort`; it does not grant M7 authority to classify the execution as `RECONCILABLE` or `UNRESOLVABLE`.
+
+For an uncertain publication execution:
+
+```text
+exact target proves predecessor still present
+AND no publication effect occurred
+→ M7 recovery observation = not-executed
+
+exact target proves intended successor present
+AND exact transition/material identity is established
+→ M7 recovery observation = terminal captured publication observation
+
+target state is temporarily pending but remains mechanically queryable
+→ M7 recovery observation = pending
+
+target state cannot establish a safe outcome
+→ M7 recovery observation = unknown
+```
+
+M8 alone converts those observations into the authoritative recovery disposition.
+
 ## 31. Publication confirmation and post-publication validation
 
 `PublicationConfirmed` binds:
@@ -2029,6 +2259,12 @@ mechanical target, ancestry, and material-identity evidence
 ```
 
 After publication confirmation, the runner executes the required post-publication repository validation on the published representation.
+
+M7 first materializes `PublishedRepositoryViewRef` bound to that exact `PublicationConfirmationRef`.
+
+M6 post-publication validation consumes that ref, not an unbound repository path.
+
+The post-publication validation result must repeat the exact publication confirmation ID, target, candidate ID, and successor repository authority it validated.
 
 `GATE-A-READY` is not emitted until both hold:
 
@@ -2306,11 +2542,27 @@ run(command):
             unresolvedExecutions: snapshot.unresolvedExecutions
         })
 
-        require exactly one recovery resolution per unresolved execution
-        commit recovery_plan through M2
+        if recovery_plan.kind == "blocked":
+            commit:
+                every terminal recovery resolution
+                every exact recovery blocker
+            through M2
 
-        if recovery_plan leaves blocking operational uncertainty:
-            return project_runner_result()
+            return OPERATOR-ACTION-REQUIRED projection
+
+        require recovery_plan.kind == "cleared"
+
+        for each resolution in recovery_plan.resolutions:
+            if resolution.classification == PROVEN-COMPLETED:
+                if resolution.recoveredOutcome.kind == "captured":
+                    preserve recoveredOutcome.value as a newly captured result
+                else:
+                    preserve recoveredOutcome.value as a newly known technical failure
+
+            else:
+                require resolution.classification == PROVEN-NOT-EXECUTED
+
+        commit every recovery resolution and recovered terminal outcome through M2
 
     loop:
         snapshot = load_authoritative_snapshot(run)
@@ -2405,19 +2657,38 @@ run(command):
                 UnresolvedExecutionRecoveryRef
 
             if the capture is execution uncertainty:
-                commit the exact descriptor through M2
-                classification = recovery_operator.classify_unresolved_execution(
+                commit the exact UnresolvedExecutionRecoveryRef through M2
+
+                recovery = recovery_operator.classify_unresolved_execution(
                     exact descriptor
                 )
-                commit classification through M2
-                if classification.classification == PROVEN-COMPLETED:
-                    treat classification.recoveredResult as a newly captured result
-                else if classification.classification == PROVEN-NOT-EXECUTED:
-                    require the exact protocol retry rule before any replacement
-                        Execution is derived
-                else:
-                    commit exact operational blocker through M2
+
+                if recovery.kind == "blocked":
+                    commit:
+                        recovery.blocker
+                        recovery.resolution if non-null
+                        recovery.lastPending if non-null
+                    through M2
+
                     return OPERATOR-ACTION-REQUIRED projection
+
+                require recovery.kind == "resolved"
+
+                if recovery.resolution.classification == PROVEN-COMPLETED:
+                    if recovery.resolution.recoveredOutcome.kind == "captured":
+                        treat recovery.resolution.recoveredOutcome.value
+                            as a newly captured result
+                    else:
+                        treat recovery.resolution.recoveredOutcome.value
+                            as a newly known technical failure
+
+                else:
+                    require recovery.resolution.classification == PROVEN-NOT-EXECUTED
+
+                    derive a replacement Execution only if the exact governing retry rule
+                    authorizes another attempt
+
+                    continue
 
             delta = assurance_ledger.derive_complete_delta(
                 evaluation_context,
@@ -2493,28 +2764,92 @@ run(command):
                     fast-forward ancestry proof still valid
                     ownership generation still current
 
-            result = repository_control.publish_conditionally(intent)
+            publication_execution = authorize exact repository-control Execution
+            for the exact PublicationIntent WorkItem
 
-            reconcile result against the exact target ref if needed
+            capture = repository_control.publish_conditionally({
+                execution: publication_execution,
+                intent: intent,
+                candidate: exact candidate
+            })
 
-            if publication cannot be established safely:
-                commit exact operational blocker through M2
-                continue
+            if capture.kind == "uncertain":
+                commit capture.value through M2
 
-            require confirmation.transition == intent.transition
-            require observed target successor authority
+                recovery = recovery_operator.classify_unresolved_execution(
+                    capture.value
+                )
+
+                if recovery.kind == "blocked":
+                    commit:
+                        recovery.blocker
+                        recovery.resolution if non-null
+                        recovery.lastPending if non-null
+                    through M2
+
+                    return OPERATOR-ACTION-REQUIRED projection
+
+                require recovery.kind == "resolved"
+
+                if recovery.resolution.classification == PROVEN-NOT-EXECUTED:
+                    commit recovery.resolution through M2
+
+                    retain the same PublicationIntent
+
+                    continue
+
+                require recovery.resolution.classification == PROVEN-COMPLETED
+                require recovery.resolution.recoveredOutcome.kind == "captured"
+
+                publication_observation =
+                    recovery.resolution.recoveredOutcome.value
+
+            else:
+                publication_observation = capture.value
+
+            qualification =
+                repository_control.qualify_publication_observation({
+                    intent: exact PublicationIntent,
+                    candidate: exact candidate,
+                    executionResult: publication_observation
+                })
+
+            if qualification.kind == "blocked":
+                commit qualification.blocker through M2
+                return OPERATOR-ACTION-REQUIRED projection
+
+            require qualification.kind == "confirmed"
+            require qualification.confirmation.transition == intent.transition
+            require qualification.publishedView.publicationConfirmationId
+                == qualification.confirmation.publicationConfirmationId
+            require qualification.publishedView.target
+                == intent.transition.target
+            require qualification.publishedView.authority
                 == intent.transition.successor
                 by both commit SHA and tree SHA
 
-            commit PublicationConfirmed through M2
+            commit:
+                qualification.confirmation
+                qualification.publishedView
+            through M2
 
-            post_validation = mechanical_validation.post_publication(
-                exact published target representation
-            )
+            post_validation = mechanical_validation.post_publication({
+                runId: run.runId,
+                publishedView: qualification.publishedView
+            })
 
-            if post_validation fails:
-                commit operational/integrity blocker through M2
-                continue
+            require post_validation.requestKind == "post-publication-integrity"
+            require post_validation.publicationConfirmationId
+                == qualification.confirmation.publicationConfirmationId
+            require post_validation.target
+                == qualification.publishedView.target
+            require post_validation.validatedAuthority
+                == qualification.publishedView.authority
+                by both commit SHA and tree SHA
+
+            if post_validation.passed is false:
+                commit exact operational/integrity blocker through M2
+                return OPERATOR-ACTION-REQUIRED projection
 
             commit terminal Gate A ready fact through M2
 
@@ -2725,6 +3060,31 @@ GI-54  In-session execution uncertainty is classified through M8 and the
        owning executor's recovery port before any continuation; an
        unestablished outcome returns OPERATOR-ACTION-REQUIRED rather than
        resuming or blind-retrying the WorkItem.
+
+GI-55  Recovery may establish either a captured semantic result or a known
+       terminal technical failure. Both are PROVEN-COMPLETED execution
+       outcomes and remain explicitly distinct.
+
+GI-56  RECONCILABLE is an intermediate recovery state only. No campaign
+       external work may resume while any required recovery remains
+       reconcilable.
+
+GI-57  M8 is the sole authoritative classifier of execution uncertainty.
+       M4 and M7 provide recovery observations; neither assigns
+       RECONCILABLE or UNRESOLVABLE.
+
+GI-58  Publication execution uncertainty uses the same
+       UnresolvedExecutionRecoveryRef → M8 recovery path as other ambiguous
+       external executions. No publication-specific recovery classifier
+       exists.
+
+GI-59  Post-publication validation is bound to one exact
+       PublishedRepositoryViewRef and therefore to one exact publication
+       confirmation, target, candidate, and successor repository authority.
+
+GI-60  M6 validation subprocesses are read-only with respect to authoritative
+       external systems and replay-safe against the same exact immutable
+       validation input; M6 does not implement ExecutionRecoveryPort.
 ```
 
 ## 40. Cross-cutting policies
@@ -2782,6 +3142,27 @@ No stale protocol campaign is mutated into currentness. Candidate or repository 
 Before any required ReviewCampaign is committed, M3 must establish the exact protocol-owned reviewer/profile prerequisites.
 
 If it cannot, M1 commits the resulting operational blockers and returns `OPERATOR-ACTION-REQUIRED`. It must not create an empty, duplicate, or nominally executable ReviewCampaign.
+
+### CP-11 — One uncertainty-classification path
+
+An executor may report exact external observations.
+
+Only M8 classifies unresolved execution uncertainty.
+
+`RECONCILABLE` keeps the recovery barrier closed.
+
+If the finite automatic reconciliation policy cannot close a pending execution
+during the current invocation, the runner emits an exact operational blocker
+and `OPERATOR-ACTION-REQUIRED`; it never guesses a terminal outcome.
+
+### CP-12 — Published-state validation is identity-bound
+
+Post-publication validation never consumes a bare mutable repository path as
+proof of publication identity.
+
+It consumes one `PublishedRepositoryViewRef` mechanically bound to the exact
+`PublicationConfirmationRef`, target, candidate, and successor repository
+authority.
 
 ## 41. NIB-M decomposition required by this System Brief
 
