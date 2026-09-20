@@ -17,7 +17,8 @@
     "protocol_bundle_schema_version": {
       "enum": [
         1,
-        2
+        2,
+        3
       ]
     },
     "protocol_id": {
@@ -96,7 +97,7 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"protocol_bundle_schema_version": {"const": 2}}, "required": ["protocol_bundle_schema_version"]},
+      "if": {"properties": {"protocol_bundle_schema_version": {"enum": [2, 3]}}, "required": ["protocol_bundle_schema_version"]},
       "then": {
         "required": ["predecessor"],
         "properties": {
@@ -108,6 +109,53 @@
               "retry": {"required": ["outcome_classification", "first_protocol_valid_completion_is_terminal"]},
               "challenge": {"required": ["exact_input_packet_binding_required"]},
               "artifact_lifecycle": {"const": {"predecessor_chain_required": true, "referenced_artifacts_immutable_by_path": true, "protocol_changes_require_new_artifact_paths": true}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"protocol_bundle_schema_version": {"enum": [1, 2]}}, "required": ["protocol_bundle_schema_version"]},
+      "then": {
+        "properties": {
+          "policies": {
+            "properties": {
+              "retry": {
+                "properties": {"outcome_classification": {"const": "checker-derived"}},
+                "not": {"anyOf": [
+                  {"required": ["deterministically_validated_roles"]},
+                  {"required": ["roles_without_deterministic_output_validator"]},
+                  {"required": ["roles_without_deterministic_output_validator_protocol_invalid_allowed"]},
+                  {"required": ["roles_without_deterministic_output_validator_first_completed_response_terminal"]}
+                ]}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"protocol_bundle_schema_version": {"const": 3}}, "required": ["protocol_bundle_schema_version"]},
+      "then": {
+        "properties": {
+          "policies": {
+            "properties": {
+              "retry": {
+                "required": [
+                  "outcome_classification",
+                  "deterministically_validated_roles",
+                  "roles_without_deterministic_output_validator",
+                  "roles_without_deterministic_output_validator_protocol_invalid_allowed",
+                  "roles_without_deterministic_output_validator_first_completed_response_terminal"
+                ],
+                "properties": {
+                  "outcome_classification": {"const": "role-aware-conservative"},
+                  "deterministically_validated_roles": {"const": ["initial-reviewer", "challenge"]},
+                  "roles_without_deterministic_output_validator": {"const": ["materiality-assessor", "refutation-builder", "discovery-classifier", "derivation-builder", "decision-necessity-challenger", "repair-synthesizer", "decision-projection"]},
+                  "roles_without_deterministic_output_validator_protocol_invalid_allowed": {"const": false},
+                  "roles_without_deterministic_output_validator_first_completed_response_terminal": {"const": true}
+                }
+              }
             }
           }
         }
@@ -234,10 +282,33 @@
               "const": true
             },
             "outcome_classification": {
-              "const": "checker-derived"
+              "type": "string",
+              "minLength": 1
             },
             "first_protocol_valid_completion_is_terminal": {
               "const": true
+            },
+            "deterministically_validated_roles": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "roles_without_deterministic_output_validator": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "roles_without_deterministic_output_validator_protocol_invalid_allowed": {
+              "type": "boolean"
+            },
+            "roles_without_deterministic_output_validator_first_completed_response_terminal": {
+              "type": "boolean"
             }
           }
         },
