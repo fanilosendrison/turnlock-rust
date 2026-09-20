@@ -17,8 +17,15 @@ Review evidence never constitutes mathematical proof of natural-language/formal
 equivalence; the strongest valid conclusion is bounded reviewed semantic
 correspondence under the executed review protocol.
 
-The evidence contract is `review-evidence.schema.json` schema version `5.0`.
-Version 5.0 is a breaking contract; no compatibility branch for schema 4.0 exists. No real campaign evidence exists, so no campaign evidence migration is required.
+The evidence contract is the immutable
+`formal/reviews/meta-schemas/review-evidence-v5.schema.json` meta-schema,
+schema version `5.0`. Version 5.0 is a breaking contract; no compatibility
+branch for schema 4.0 exists. No real campaign evidence exists, so no campaign
+evidence migration is required.
+
+The unversioned `review-evidence.schema.json` and
+`review-protocol-bundle.schema.json` files remain byte-for-byte frozen legacy
+aliases for historical links. They are not active mutable validation authority.
 
 ## Dual currentness: semantic subject and review protocol
 
@@ -54,9 +61,9 @@ prompt artifacts, canonical schema artifacts, reviewer profiles, and protocol
 policies. A protocol change requires a new content identity `P`. A review made
 under a stale `P` does not satisfy current Gate A.
 
-The current bundle is `gate-a-campaign-protocol-v3`. It cryptographically links the immutable v2 bundle as its predecessor, and v2 links the immutable v1 bundle; predecessor bundles and their referenced prompts and schemas are recursively checked. Published versioned protocol bundles and referenced prompt/schema artifacts are append-only by path and bytes. The protocol history is `v3 -> v2 -> v1`; v1 and v2 are immutable historical bundles.
+The current bundle is `gate-a-campaign-protocol-v4`. It cryptographically links the immutable v3 bundle as its predecessor, v3 links the immutable v2 bundle, and v2 links the immutable v1 bundle; predecessor bundles and their referenced prompts and schemas are recursively checked. Published versioned protocol bundles and referenced prompt/schema artifacts are append-only by path and bytes. The protocol history is `v4 -> v3 -> v2 -> v1`; v1, v2, and v3 are immutable historical bundles.
 
-The published v1, v2, and v3 bundles intentionally declare:
+The published v1, v2, v3, and v4 bundles intentionally declare:
 
 ```json
 "reviewer_profiles": []
@@ -65,6 +72,41 @@ The published v1, v2, and v3 bundles intentionally declare:
 The empty registry is intentional. No real Gate A campaign can qualify until a
 later protocol snapshot explicitly adds eligible profiles, and that profile
 change necessarily changes `P`.
+
+## Immutable meta-schemas
+
+Hostile-review protocol bundles and review evidence are interpreted through
+immutable content-addressed meta-schemas:
+
+```text
+formal/reviews/meta-schemas/review-evidence-v5.schema.json
+formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json
+formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json
+```
+
+`review-evidence-v5.schema.json` is the immutable initial review-evidence
+meta-schema. `review-protocol-bundle-v1-v3.schema.json` preserves the historical
+bundle validation semantics for bundle schema versions 1, 2, and 3.
+`review-protocol-bundle-v4.schema.json` defines bundle schema version 4.
+
+Protocol v4 binds both exact meta-schema artifact references into protocol
+identity `P`:
+
+```text
+meta_schemas.protocol-bundle = exact review-protocol-bundle-v4.schema.json
+meta_schemas.review-evidence = exact review-evidence-v5.schema.json
+```
+
+Protocol bundles v1-v3 are interpreted with the immutable v1-v3 bundle
+meta-schema snapshot, and their review records use the immutable schema-5
+evidence snapshot as compatibility support. No real pre-v4 campaign evidence
+exists.
+
+The Python traceability checker is the finite mechanical schema-selection root:
+it selects the meta-schema appropriate to a protocol-bundle schema version. No
+schema registry, registry schema, meta-meta-schema, or recursive
+schema-of-schema chain exists. Published meta-schemas are append-only; a future
+schema change creates a new artifact path and a new protocol identity.
 
 ## Campaign artifacts
 
@@ -504,6 +546,7 @@ formal/reviews/challenge-packets/*.json
 formal/reviews/prompts/*.md
 formal/reviews/protocols/*.json
 formal/reviews/schemas/*.json
+formal/reviews/meta-schemas/*.json
 formal/reviews/executions/*.json
 formal/reviews/raw/*.json
 formal/reviews/adjudications/*.json

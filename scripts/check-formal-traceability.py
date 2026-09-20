@@ -21,7 +21,10 @@ MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audi
 MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
 MODEL_RELATIVE = Path("formal/Turnlock.tla")
 REVIEW_DIRECTORY_RELATIVE = Path("formal/reviews")
-REVIEW_SCHEMA_RELATIVE = Path("formal/reviews/review-evidence.schema.json")
+LEGACY_REVIEW_EVIDENCE_ALIAS_RELATIVE = Path("formal/reviews/review-evidence.schema.json")
+LEGACY_PROTOCOL_BUNDLE_ALIAS_RELATIVE = Path(
+    "formal/reviews/review-protocol-bundle.schema.json"
+)
 RESULTS_DIRECTORY_RELATIVE = Path("formal/results")
 TLC_SCHEMA_RELATIVE = Path("formal/tlc-result.schema.json")
 SPEC_RELATIVE = Path("docs/specification/turnlock-spec.md")
@@ -79,6 +82,8 @@ REVIEW_CHALLENGE_PACKET_SUFFIX = ".json"
 REVIEW_PROTOCOLS_PREFIX = "formal/reviews/protocols/"
 REVIEW_PROTOCOL_BUNDLE_SUFFIX = ".json"
 REVIEW_SCHEMAS_PREFIX = "formal/reviews/schemas/"
+REVIEW_META_SCHEMAS_PREFIX = "formal/reviews/meta-schemas/"
+REVIEW_META_SCHEMA_SUFFIX = ".json"
 REVIEW_EXECUTIONS_PREFIX = "formal/reviews/executions/"
 REVIEW_EXECUTION_SUFFIX = ".json"
 REVIEW_ADJUDICATIONS_PREFIX = "formal/reviews/adjudications/"
@@ -91,14 +96,26 @@ REVIEW_ARTIFACT_PREFIXES = (
     REVIEW_CHALLENGE_PACKET_PREFIX,
     REVIEW_PROTOCOLS_PREFIX,
     REVIEW_SCHEMAS_PREFIX,
+    REVIEW_META_SCHEMAS_PREFIX,
     REVIEW_EXECUTIONS_PREFIX,
     REVIEW_ADJUDICATIONS_PREFIX,
 )
 REVIEW_ARTIFACT_EXCLUDED_FILE_NAMES = (
-    REVIEW_SCHEMA_RELATIVE.name,
-    "review-protocol-bundle.schema.json",
+    LEGACY_REVIEW_EVIDENCE_ALIAS_RELATIVE.name,
+    LEGACY_PROTOCOL_BUNDLE_ALIAS_RELATIVE.name,
 )
-PROTOCOL_BUNDLE_SCHEMA_RELATIVE = Path("formal/reviews/review-protocol-bundle.schema.json")
+LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-evidence-v5.schema.json",
+    "sha256": "0f66a468c5afc0909389bf3bece221cc083e05a52f9e19be8b41c7e24d3e01bc",
+}
+LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json",
+    "sha256": "a599aab44b160773f35aec693bd63d604f7ddd51b8243e1f4fb12fcf2af2d1f0",
+}
+PROTOCOL_V4_META_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json",
+    "sha256": "4604ad8aa1868c0f13bad5a173af5c7df1cb4343a9cd7b3b48d3000e2fb6cb43",
+}
 REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
 REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
 MATERIALITY_CHALLENGE_SELECTOR = "hostile-materiality-challenge-v1"
@@ -804,16 +821,26 @@ def _load_json_object_artifact(
     return parsed, errors
 
 
-def _load_schema_validator(
-    root: Path, relative: Path
+def _load_meta_schema_validator(
+    root: Path, reference: object, label: str
 ) -> tuple[Draft202012Validator | None, list[str]]:
-    schema, errors = _load_json(root, relative)
-    if errors:
+    """Load an immutable content-addressed meta-schema artifact."""
+    data, errors = _read_review_artifact(
+        root, reference, label, REVIEW_META_SCHEMAS_PREFIX, REVIEW_META_SCHEMA_SUFFIX
+    )
+    if data is None:
         return None, errors
+    try:
+        schema = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        return None, errors + [
+            f"{label}: meta-schema must be valid JSON "
+            f"({_concise_parser_error(error)})"
+        ]
     validator, validator_errors = _validator(schema)
     if validator is None:
-        return None, [f"{relative.as_posix()}: {error}" for error in validator_errors]
-    return validator, []
+        return None, errors + [f"{label}: {error}" for error in validator_errors]
+    return validator, errors
 
 
 def _protocol_profile_map(bundle: object) -> dict[str, dict]:
@@ -836,7 +863,7 @@ def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
         errors.extend(artifact_errors)
     schemas = _mapping(bundle.get("schemas"))
     keys = ["raw-review-output", "execution-receipt", "challenge-output"]
-    if bundle.get("protocol_bundle_schema_version") in (2, 3):
+    if bundle.get("protocol_bundle_schema_version") in (2, 3, 4):
         keys.append("challenge-packet")
     for key in keys:
         data, artifact_errors = _read_review_artifact(root, _mapping(schemas.get(key)), f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
@@ -881,7 +908,16 @@ def _bundle_selected_validators(root: Path, bundle: dict | None, label: str) -> 
     return validators, errors
 
 
-def _load_protocol_bundle_document(root: Path, reference: object, label: str, validator: Draft202012Validator | None, cache: dict[str, tuple[dict | None, list[str]]], chain_paths: set[str] | None = None, chain_ids: set[str] | None = None) -> tuple[dict | None, list[str]]:
+def _protocol_bundle_meta_schema_reference(version: object) -> dict | None:
+    """Select the immutable meta-schema for one protocol-bundle schema version."""
+    if version in (1, 2, 3):
+        return dict(LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE)
+    if version == 4:
+        return dict(PROTOCOL_V4_META_SCHEMA_REFERENCE)
+    return None
+
+
+def _load_protocol_bundle_document(root: Path, reference: object, label: str, cache: dict[str, tuple[dict | None, list[str]]], chain_paths: set[str] | None = None, chain_ids: set[str] | None = None) -> tuple[dict | None, list[str]]:
     bundle_reference = _mapping(reference)
     cache_key = bundle_reference.get("sha256")
     # Cache only fully checked acyclic chains.
@@ -890,8 +926,26 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, va
     bundle, errors = _load_json_object_artifact(root, bundle_reference, label, REVIEW_PROTOCOLS_PREFIX, REVIEW_PROTOCOL_BUNDLE_SUFFIX, require_canonical=True)
     if bundle is None:
         return None, errors
+    version = bundle.get("protocol_bundle_schema_version")
+    meta_reference = _protocol_bundle_meta_schema_reference(version)
+    if meta_reference is None:
+        errors.append(f"{label}: unsupported hostile-review protocol bundle schema version {version!r}")
+        return bundle, errors
+    validator, meta_errors = _load_meta_schema_validator(root, meta_reference, f"{label}: protocol-bundle meta-schema")
+    errors.extend(meta_errors)
     if validator is not None:
         errors.extend(_schema_violations(validator, bundle, label))
+    if version == 4:
+        meta_schemas = _mapping(bundle.get("meta_schemas"))
+        declared_protocol_bundle = _mapping(meta_schemas.get("protocol-bundle"))
+        if declared_protocol_bundle != PROTOCOL_V4_META_SCHEMA_REFERENCE:
+            errors.append(f"{label}: protocol v4 must bind the exact published protocol-bundle meta-schema")
+        declared_review_evidence = _mapping(meta_schemas.get("review-evidence"))
+        if declared_review_evidence != LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE:
+            errors.append(f"{label}: protocol v4 must bind the exact published review-evidence meta-schema")
+        for key in ("protocol-bundle", "review-evidence"):
+            _, binding_errors = _load_meta_schema_validator(root, _mapping(meta_schemas.get(key)), f"{label}: meta_schemas.{key}")
+            errors.extend(binding_errors)
     errors.extend(_protocol_bundle_errors(root, bundle, label))
     path = _mapping(reference).get("path")
     protocol_id = bundle.get("protocol_id")
@@ -905,13 +959,12 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, va
         return bundle, errors
     if isinstance(path, str): paths.add(path)
     if isinstance(protocol_id, str): ids.add(protocol_id)
-    version = bundle.get("protocol_bundle_schema_version")
     predecessor = bundle.get("predecessor")
-    if version in (2, 3):
+    if version in (2, 3, 4):
         if not isinstance(predecessor, dict):
             errors.append(f"{label}: schema-version-{version} bundle requires predecessor")
         else:
-            _, predecessor_errors = _load_protocol_bundle_document(root, predecessor, f"{label}: predecessor", validator, cache, paths, ids)
+            _, predecessor_errors = _load_protocol_bundle_document(root, predecessor, f"{label}: predecessor", cache, paths, ids)
             errors.extend(predecessor_errors)
     elif predecessor is not None:
         errors.append(f"{label}: schema-version-1 bundle must not declare predecessor")
@@ -920,11 +973,11 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, va
     return bundle, errors
 
 
-def _current_protocol_bundle_errors(root: Path, manifest: dict, validator: Draft202012Validator | None, cache: dict[str, tuple[dict | None, list[str]]]) -> tuple[object, dict | None, list[str]]:
+def _current_protocol_bundle_errors(root: Path, manifest: dict, cache: dict[str, tuple[dict | None, list[str]]]) -> tuple[object, dict | None, list[str]]:
     hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
     reference = _mapping(hostile_review.get("current_protocol_bundle"))
     label = "policy.hostile_review.current_protocol_bundle"
-    bundle, errors = _load_protocol_bundle_document(root, reference, label, validator, cache)
+    bundle, errors = _load_protocol_bundle_document(root, reference, label, cache)
     # v2 establishes the fixed v1 lineage root.
     if bundle is not None and bundle.get("protocol_bundle_schema_version") == 2:
         predecessor = _mapping(bundle.get("predecessor"))
@@ -935,6 +988,14 @@ def _current_protocol_bundle_errors(root: Path, manifest: dict, validator: Draft
         predecessor = _mapping(bundle.get("predecessor"))
         if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v2.json" or predecessor.get("sha256") != "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9":
             errors.append(f"{label}: current protocol v3 predecessor must be the exact published v2 bundle")
+    # v4 establishes the fixed v3 lineage and binds its interpretation contract.
+    if bundle is not None and bundle.get("protocol_bundle_schema_version") == 4:
+        predecessor = _mapping(bundle.get("predecessor"))
+        if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v3.json" or predecessor.get("sha256") != "cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6":
+            errors.append(f"{label}: current protocol v4 predecessor must be the exact published v3 bundle")
+        evidence_binding = _mapping(_mapping(bundle.get("meta_schemas")).get("review-evidence"))
+        if hostile_review.get("evidence_schema") != evidence_binding.get("path"):
+            errors.append(f"{label}: current hostile-review evidence_schema path must equal the current protocol-bound review-evidence meta-schema path")
     return reference, bundle, errors
 
 def _load_execution_receipt(
@@ -1669,31 +1730,46 @@ def _review_evidence_errors(
     root: Path, manifest: dict, records: list[tuple[Path, dict]]
 ) -> list[str]:
     errors: list[str] = []
-    schema, errors_load = _load_json(root, REVIEW_SCHEMA_RELATIVE)
-    if errors_load:
-        return errors_load
-    validator, validator_errors = _validator(schema)
-    if validator is None:
-        return [
-            f"{REVIEW_SCHEMA_RELATIVE.as_posix()}: {error}"
-            for error in validator_errors
-        ]
-
-    bundle_validator, bundle_schema_errors = _load_schema_validator(
-        root, PROTOCOL_BUNDLE_SCHEMA_RELATIVE
-    )
-    errors.extend(bundle_schema_errors)
-
     bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
     _current_reference, _current_bundle, current_errors = (
-        _current_protocol_bundle_errors(root, manifest, bundle_validator, bundle_cache)
+        _current_protocol_bundle_errors(root, manifest, bundle_cache)
     )
     errors.extend(current_errors)
 
     record_index: dict[str, dict] = {}
     for path, record in records:
         label = path.relative_to(root).as_posix()
-        errors.extend(_schema_violations(validator, record, label))
+        protocol = _mapping(record.get("protocol"))
+        bundle_reference = _mapping(protocol.get("protocol_bundle"))
+        bundle, bundle_errors = _load_protocol_bundle_document(
+            root,
+            bundle_reference,
+            f"{label}: protocol.protocol_bundle",
+            bundle_cache,
+        )
+        errors.extend(bundle_errors)
+        evidence_reference: dict = {}
+        if bundle is not None:
+            version = bundle.get("protocol_bundle_schema_version")
+            if version == 4:
+                evidence_reference = _mapping(
+                    _mapping(bundle.get("meta_schemas")).get("review-evidence")
+                )
+            elif version in (1, 2, 3):
+                evidence_reference = dict(LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE)
+        evidence_validator: Draft202012Validator | None = None
+        if not evidence_reference:
+            errors.append(
+                f"{label}: review record protocol bundle does not select a "
+                "review-evidence meta-schema"
+            )
+        else:
+            evidence_validator, evidence_errors = _load_meta_schema_validator(
+                root, evidence_reference, f"{label}: review-evidence meta-schema"
+            )
+            errors.extend(evidence_errors)
+        if evidence_validator is not None:
+            errors.extend(_schema_violations(evidence_validator, record, label))
         review_id = record.get("review_id")
         if isinstance(review_id, str):
             if review_id in record_index:
@@ -1735,7 +1811,6 @@ def _review_evidence_errors(
             root,
             bundle_reference,
             f"{label}: protocol.protocol_bundle",
-            bundle_validator,
             bundle_cache,
         )
         errors.extend(bundle_errors)

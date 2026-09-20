@@ -4184,12 +4184,8 @@ class GateAProtocolV4Tests(unittest.TestCase):
 
     def test_canonical_current_protocol_bundle_validates(self) -> None:
         manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
-        bundle_validator, schema_errors = checker._load_schema_validator(
-            ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
-        )
-        self.assertEqual([], schema_errors)
         _reference, bundle, errors = checker._current_protocol_bundle_errors(
-            ROOT, manifest, bundle_validator, {}
+            ROOT, manifest, {}
         )
         self.assertEqual([], errors)
         self.assertIsNotNone(bundle)
@@ -6127,17 +6123,12 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             reference = current_protocol_bundle_reference(fixture_root)
-            validator, errors = checker._load_schema_validator(
-                ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
-            )
-            self.assertEqual([], errors)
             # A hash-valid self-referential cycle is unsatisfiable by content
             # addressing, so the guard is exercised with seeded chain state.
             _, cycle_errors = checker._load_protocol_bundle_document(
                 fixture_root,
                 reference,
                 "cycle",
-                validator,
                 {},
                 {reference["path"]},
                 set(),
@@ -6189,9 +6180,12 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
     def test_protocol_v1_still_validates_unchanged_under_bundle_schema(
         self,
     ) -> None:
-        validator, errors = checker._load_schema_validator(
-            ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+        schema = json.loads(
+            (
+                ROOT / "formal/reviews/review-protocol-bundle.schema.json"
+            ).read_text(encoding="utf-8")
         )
+        validator, errors = checker._validator(schema)
         self.assertEqual([], errors)
         bundle = json.loads(
             (
@@ -6203,13 +6197,11 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         )
 
     def test_current_protocol_is_v3_and_predecessor_is_exact_v2(self) -> None:
-        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
-        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
-        self.assertEqual(
-            "formal/reviews/protocols/gate-a-campaign-protocol-v3.json",
-            reference["path"],
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v3.json"
+            ).read_text(encoding="utf-8")
         )
-        bundle = json.loads((ROOT / reference["path"]).read_text(encoding="utf-8"))
         self.assertEqual("gate-a-campaign-protocol-v3", bundle["protocol_id"])
         self.assertEqual(3, bundle["protocol_bundle_schema_version"])
         self.assertEqual(
@@ -6271,8 +6263,11 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
 
     def test_protocol_v3_change_does_not_change_gate_a_subject(self) -> None:
         manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
-        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
-        bundle = json.loads((ROOT / reference["path"]).read_text(encoding="utf-8"))
+        bundle = json.loads(
+            (
+                ROOT / "formal/reviews/protocols/gate-a-campaign-protocol-v3.json"
+            ).read_text(encoding="utf-8")
+        )
         self.assertEqual(3, bundle["protocol_bundle_schema_version"])
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
@@ -6282,9 +6277,12 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         )
 
     def test_protocol_v2_still_validates_unchanged_under_bundle_schema(self) -> None:
-        validator, errors = checker._load_schema_validator(
-            ROOT, checker.PROTOCOL_BUNDLE_SCHEMA_RELATIVE
+        schema = json.loads(
+            (
+                ROOT / "formal/reviews/review-protocol-bundle.schema.json"
+            ).read_text(encoding="utf-8")
         )
+        validator, errors = checker._validator(schema)
         self.assertEqual([], errors)
         bundle = json.loads(
             (
@@ -6315,7 +6313,12 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
     def test_protocol_v3_wrong_predecessor_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            payload = bundle_document(fixture_root)
+            payload = json.loads(
+                (
+                    ROOT
+                    / "formal/reviews/protocols/gate-a-campaign-protocol-v3.json"
+                ).read_text(encoding="utf-8")
+            )
             payload["predecessor"] = {
                 "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
                 "sha256": "0" * 64,
@@ -6672,6 +6675,537 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
             self.assertNotIn(
                 "Formal-Architecture-Ready: READY", result.stdout
             )
+
+
+class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
+    LEGACY_REVIEW_EVIDENCE_SHA = (
+        "0f66a468c5afc0909389bf3bece221cc083e05a52f9e19be8b41c7e24d3e01bc"
+    )
+    LEGACY_PROTOCOL_BUNDLE_SHA = (
+        "a599aab44b160773f35aec693bd63d604f7ddd51b8243e1f4fb12fcf2af2d1f0"
+    )
+    META_PROTOCOL_V4_SHA = (
+        "4604ad8aa1868c0f13bad5a173af5c7df1cb4343a9cd7b3b48d3000e2fb6cb43"
+    )
+    PROTOCOL_V4_SHA = (
+        "f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac"
+    )
+    PROTOCOL_V3_SHA = (
+        "cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6"
+    )
+    EXECUTION_RECEIPT_V3_SHA = (
+        "7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72"
+    )
+    GATE_A_SUBJECT_SHA = (
+        "2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b"
+    )
+    LEGACY_EVIDENCE_ALIAS = "formal/reviews/review-evidence.schema.json"
+    LEGACY_BUNDLE_ALIAS = "formal/reviews/review-protocol-bundle.schema.json"
+    META_EVIDENCE_V5 = (
+        "formal/reviews/meta-schemas/review-evidence-v5.schema.json"
+    )
+    META_BUNDLE_V1_V3 = (
+        "formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json"
+    )
+    META_BUNDLE_V4 = (
+        "formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json"
+    )
+    PROTOCOL_V3 = "formal/reviews/protocols/gate-a-campaign-protocol-v3.json"
+    PROTOCOL_V4 = "formal/reviews/protocols/gate-a-campaign-protocol-v4.json"
+
+    def _load_protocol(self, relative: str) -> dict:
+        return json.loads((ROOT / relative).read_text(encoding="utf-8"))
+
+    def _baseline_valid_fixture(
+        self, fixture_root: Path
+    ) -> tuple[list, dict]:
+        record = make_review(fixture_root)
+        write_review(fixture_root, record)
+        errors, summary = checker.collect_errors(
+            fixture_root, check_generated=False
+        )
+        self.assertEqual([], errors)
+        return errors, summary
+
+    def test_published_unversioned_meta_schema_aliases_remain_byte_identical(
+        self,
+    ) -> None:
+        expected = {
+            self.LEGACY_EVIDENCE_ALIAS: self.LEGACY_REVIEW_EVIDENCE_SHA,
+            self.LEGACY_BUNDLE_ALIAS: self.LEGACY_PROTOCOL_BUNDLE_SHA,
+        }
+        for relative, expected_hash in expected.items():
+            self.assertEqual(
+                expected_hash,
+                checker.sha256_hex((ROOT / relative).read_bytes()),
+                relative,
+            )
+
+    def test_versioned_legacy_meta_schema_snapshots_are_byte_identical(
+        self,
+    ) -> None:
+        pairs = (
+            (
+                self.LEGACY_EVIDENCE_ALIAS,
+                self.META_EVIDENCE_V5,
+                self.LEGACY_REVIEW_EVIDENCE_SHA,
+            ),
+            (
+                self.LEGACY_BUNDLE_ALIAS,
+                self.META_BUNDLE_V1_V3,
+                self.LEGACY_PROTOCOL_BUNDLE_SHA,
+            ),
+        )
+        for alias, snapshot, expected_hash in pairs:
+            alias_bytes = (ROOT / alias).read_bytes()
+            snapshot_bytes = (ROOT / snapshot).read_bytes()
+            self.assertEqual(alias_bytes, snapshot_bytes, snapshot)
+            self.assertEqual(
+                expected_hash, checker.sha256_hex(snapshot_bytes), snapshot
+            )
+
+    def test_published_protocol_v3_artifacts_remain_byte_identical(self) -> None:
+        expected = {
+            self.PROTOCOL_V3: self.PROTOCOL_V3_SHA,
+            "formal/reviews/schemas/execution-receipt-v3.schema.json": (
+                self.EXECUTION_RECEIPT_V3_SHA
+            ),
+        }
+        for relative, expected_hash in expected.items():
+            self.assertEqual(
+                expected_hash,
+                checker.sha256_hex((ROOT / relative).read_bytes()),
+                relative,
+            )
+
+    def test_current_protocol_is_v4_and_predecessor_is_exact_v3(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+        self.assertEqual(self.PROTOCOL_V4, reference["path"])
+        self.assertEqual(self.PROTOCOL_V4_SHA, reference["sha256"])
+        self.assertEqual(
+            self.PROTOCOL_V4_SHA,
+            checker.sha256_hex((ROOT / reference["path"]).read_bytes()),
+        )
+        bundle = self._load_protocol(reference["path"])
+        self.assertEqual("gate-a-campaign-protocol-v4", bundle["protocol_id"])
+        self.assertEqual(4, bundle["protocol_bundle_schema_version"])
+        self.assertEqual(
+            {"path": self.PROTOCOL_V3, "sha256": self.PROTOCOL_V3_SHA},
+            bundle["predecessor"],
+        )
+
+    def test_protocol_v4_binds_exact_published_meta_schemas(self) -> None:
+        bundle = self._load_protocol(self.PROTOCOL_V4)
+        meta_schemas = bundle["meta_schemas"]
+        self.assertEqual(
+            {"path": self.META_BUNDLE_V4, "sha256": self.META_PROTOCOL_V4_SHA},
+            meta_schemas["protocol-bundle"],
+        )
+        self.assertEqual(
+            {
+                "path": self.META_EVIDENCE_V5,
+                "sha256": self.LEGACY_REVIEW_EVIDENCE_SHA,
+            },
+            meta_schemas["review-evidence"],
+        )
+        for reference in meta_schemas.values():
+            self.assertEqual(
+                reference["sha256"],
+                checker.sha256_hex((ROOT / reference["path"]).read_bytes()),
+                reference["path"],
+            )
+
+    def test_protocol_v4_uses_execution_receipt_v3(self) -> None:
+        bundle = self._load_protocol(self.PROTOCOL_V4)
+        reference = bundle["schemas"]["execution-receipt"]
+        self.assertEqual(
+            "formal/reviews/schemas/execution-receipt-v3.schema.json",
+            reference["path"],
+        )
+        self.assertEqual(self.EXECUTION_RECEIPT_V3_SHA, reference["sha256"])
+        self.assertEqual(
+            reference["sha256"],
+            checker.sha256_hex((ROOT / reference["path"]).read_bytes()),
+        )
+
+    def test_protocol_v4_preserves_v3_retry_policy(self) -> None:
+        v3 = self._load_protocol(self.PROTOCOL_V3)
+        v4 = self._load_protocol(self.PROTOCOL_V4)
+        self.assertEqual(v3["policies"], v4["policies"])
+        self.assertEqual(v3["prompts"], v4["prompts"])
+        self.assertEqual(v3["schemas"], v4["schemas"])
+        self.assertEqual("role-aware-conservative", v4["policies"]["retry"]["outcome_classification"])
+        self.assertEqual([], v4["reviewer_profiles"])
+
+    def test_protocol_v4_change_does_not_change_gate_a_subject(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        bundle = self._load_protocol(self.PROTOCOL_V4)
+        self.assertEqual(4, bundle["protocol_bundle_schema_version"])
+        subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
+        self.assertEqual([], errors)
+        self.assertEqual(self.GATE_A_SUBJECT_SHA, subject["sha256"])
+
+    def test_protocol_v4_missing_meta_schemas_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload.pop("meta_schemas", None)
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v4-missing-meta-schemas.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "protocol v4 must bind the exact published protocol-bundle "
+                    "meta-schema" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertTrue(
+                any(
+                    "protocol v4 must bind the exact published review-evidence "
+                    "meta-schema" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_protocol_v4_wrong_protocol_bundle_meta_schema_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload["meta_schemas"]["protocol-bundle"] = {
+                "path": self.META_BUNDLE_V1_V3,
+                "sha256": self.LEGACY_PROTOCOL_BUNDLE_SHA,
+            }
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v4-wrong-protocol-bundle-meta-schema.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "protocol v4 must bind the exact published protocol-bundle "
+                    "meta-schema" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_protocol_v4_wrong_review_evidence_meta_schema_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload["meta_schemas"]["review-evidence"] = {
+                "path": self.META_BUNDLE_V1_V3,
+                "sha256": self.LEGACY_PROTOCOL_BUNDLE_SHA,
+            }
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v4-wrong-review-evidence-meta-schema.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "protocol v4 must bind the exact published review-evidence "
+                    "meta-schema" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_protocol_v4_wrong_predecessor_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = bundle_document(fixture_root)
+            payload["predecessor"] = {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
+                "sha256": (
+                    "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9"
+                ),
+            }
+            _install_manifest_bundle(
+                fixture_root,
+                payload,
+                "formal/reviews/protocols/v4-wrong-predecessor.json",
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "current protocol v4 predecessor must be the exact published "
+                    "v3 bundle" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_mutating_unversioned_bundle_schema_does_not_change_v4_validation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            baseline_errors, baseline_summary = self._baseline_valid_fixture(
+                fixture_root
+            )
+            write_bytes_artifact(
+                fixture_root,
+                self.LEGACY_BUNDLE_ALIAS,
+                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                b'"type": "object"}',
+            )
+            mutated_errors, mutated_summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual(baseline_errors, mutated_errors)
+            self.assertEqual(baseline_summary, mutated_summary)
+            self.assertFalse(
+                any(
+                    "review-protocol-bundle.schema.json" in error
+                    for error in mutated_errors
+                ),
+                mutated_errors,
+            )
+
+    def test_mutating_unversioned_review_evidence_schema_does_not_change_v4_record_validation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            baseline_errors, baseline_summary = self._baseline_valid_fixture(
+                fixture_root
+            )
+            write_bytes_artifact(
+                fixture_root,
+                self.LEGACY_EVIDENCE_ALIAS,
+                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                b'"type": "object", '
+                b'"required": ["record_rejected_by_alias"]}',
+            )
+            mutated_errors, mutated_summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual(baseline_errors, mutated_errors)
+            self.assertEqual(baseline_summary, mutated_summary)
+            self.assertFalse(
+                any(
+                    "record_rejected_by_alias" in error for error in mutated_errors
+                ),
+                mutated_errors,
+            )
+
+    def test_mutating_versioned_bundle_meta_schema_is_detected_by_hash(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            path = fixture_root / self.META_BUNDLE_V4
+            self.assertEqual(
+                self.META_PROTOCOL_V4_SHA, checker.sha256_hex(path.read_bytes())
+            )
+            path.write_bytes(
+                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                b'"type": "object"}'
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "artifact sha256 does not match" in error
+                    and "review-protocol-bundle-v4.schema.json" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_mutating_versioned_review_evidence_meta_schema_is_detected_by_hash(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self._baseline_valid_fixture(fixture_root)
+            path = fixture_root / self.META_EVIDENCE_V5
+            self.assertEqual(
+                self.LEGACY_REVIEW_EVIDENCE_SHA,
+                checker.sha256_hex(path.read_bytes()),
+            )
+            path.write_bytes(
+                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                b'"type": "object"}'
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any(
+                    "artifact sha256 does not match" in error
+                    and "review-evidence-v5.schema.json" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_v3_predecessor_is_validated_with_legacy_snapshot_not_v4_schema(
+        self,
+    ) -> None:
+        v4_schema = json.loads(
+            (ROOT / self.META_BUNDLE_V4).read_text(encoding="utf-8")
+        )
+        legacy_schema = json.loads(
+            (ROOT / self.META_BUNDLE_V1_V3).read_text(encoding="utf-8")
+        )
+        v3_bundle = self._load_protocol(self.PROTOCOL_V3)
+        v4_bundle = self._load_protocol(self.PROTOCOL_V4)
+        self.assertNotIn("meta_schemas", v3_bundle)
+        self.assertEqual(
+            [],
+            checker._schema_violations(
+                Draft202012Validator(legacy_schema), v3_bundle, "protocol-v3"
+            ),
+        )
+        self.assertEqual(
+            [],
+            checker._schema_violations(
+                Draft202012Validator(v4_schema), v4_bundle, "protocol-v4"
+            ),
+        )
+        self.assertTrue(
+            checker._schema_violations(
+                Draft202012Validator(v4_schema), v3_bundle, "protocol-v3-as-v4"
+            )
+        )
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        _reference, bundle, errors = checker._current_protocol_bundle_errors(
+            ROOT, manifest, {}
+        )
+        self.assertEqual([], errors)
+        self.assertIsNotNone(bundle)
+        self.assertEqual(
+            {"path": self.META_BUNDLE_V1_V3, "sha256": self.LEGACY_PROTOCOL_BUNDLE_SHA},
+            checker._protocol_bundle_meta_schema_reference(3),
+        )
+        self.assertEqual(
+            {"path": self.META_BUNDLE_V4, "sha256": self.META_PROTOCOL_V4_SHA},
+            checker._protocol_bundle_meta_schema_reference(4),
+        )
+
+    def test_review_record_is_validated_with_protocol_bound_evidence_meta_schema(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            reference = record["protocol"]["protocol_bundle"]
+            bundle = json.loads(
+                (fixture_root / reference["path"]).read_text(encoding="utf-8")
+            )
+            mutated_reference = write_json_artifact(
+                fixture_root,
+                self.META_EVIDENCE_V5,
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "type": "object",
+                    "required": ["bound_meta_schema_marker"],
+                },
+            )
+            bundle["meta_schemas"]["review-evidence"] = mutated_reference
+            new_reference = write_json_artifact(
+                fixture_root, reference["path"], bundle
+            )
+            self.assertNotEqual(reference["sha256"], new_reference["sha256"])
+            record["protocol"]["protocol_bundle"] = new_reference
+            for item in record["executions"]:
+                receipt_reference = item["execution_receipt"]
+                receipt_payload = json.loads(
+                    (fixture_root / receipt_reference["path"]).read_text(
+                        encoding="utf-8"
+                    )
+                )
+                receipt_payload["protocol_bundle_sha256"] = new_reference[
+                    "sha256"
+                ]
+                item["execution_receipt"] = write_json_artifact(
+                    fixture_root, receipt_reference["path"], receipt_payload
+                )
+            manifest = load_manifest(fixture_root)
+            manifest["policy"]["hostile_review"]["current_protocol_bundle"] = (
+                new_reference
+            )
+            save_manifest(fixture_root, manifest)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("bound_meta_schema_marker" in error for error in errors), errors
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_protocol_v4_meta_schema_paths_and_hashes_are_exact(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        hostile_review = manifest["policy"]["hostile_review"]
+        self.assertEqual(self.META_EVIDENCE_V5, hostile_review["evidence_schema"])
+        expected = {
+            self.META_EVIDENCE_V5: self.LEGACY_REVIEW_EVIDENCE_SHA,
+            self.META_BUNDLE_V1_V3: self.LEGACY_PROTOCOL_BUNDLE_SHA,
+            self.META_BUNDLE_V4: self.META_PROTOCOL_V4_SHA,
+        }
+        for relative, expected_hash in expected.items():
+            self.assertEqual(
+                expected_hash,
+                checker.sha256_hex((ROOT / relative).read_bytes()),
+                relative,
+            )
+        self.assertEqual(
+            {"path": self.META_BUNDLE_V4, "sha256": self.META_PROTOCOL_V4_SHA},
+            checker.PROTOCOL_V4_META_SCHEMA_REFERENCE,
+        )
+        self.assertEqual(
+            {
+                "path": self.META_EVIDENCE_V5,
+                "sha256": self.LEGACY_REVIEW_EVIDENCE_SHA,
+            },
+            checker.LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE,
+        )
+        self.assertEqual(
+            {
+                "path": self.META_BUNDLE_V1_V3,
+                "sha256": self.LEGACY_PROTOCOL_BUNDLE_SHA,
+            },
+            checker.LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE,
+        )
+
+    def test_manifest_evidence_schema_path_matches_protocol_v4_binding(
+        self,
+    ) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        hostile_review = manifest["policy"]["hostile_review"]
+        reference = hostile_review["current_protocol_bundle"]
+        bundle = self._load_protocol(reference["path"])
+        self.assertEqual(4, bundle["protocol_bundle_schema_version"])
+        self.assertEqual(
+            hostile_review["evidence_schema"],
+            bundle["meta_schemas"]["review-evidence"]["path"],
+        )
+        errors, summary = checker.collect_errors(ROOT, check_generated=False)
+        self.assertEqual([], errors)
+        self.assertFalse(summary["gate_a"]["ready"])
 
 
 def _install_manifest_bundle(

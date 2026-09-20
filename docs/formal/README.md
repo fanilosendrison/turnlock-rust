@@ -260,6 +260,29 @@ evidence. Machine-readable linkage validates traceability consistency; it does
 not prove that a future TLA+ formula faithfully captures the prose meaning.
 Semantic correspondence remains a hostile-review obligation.
 
-## Hostile-review protocol v3
+## Hostile-review protocol v4 and immutable meta-schemas
 
-The current hostile-review protocol identity `P` is `gate-a-campaign-protocol-v3`, and review evidence is schema `5.0`. Challenge evidence is bound to an exact canonical self-contained challenge packet embedding the exact reviewed Gate A packet and challenged candidate. Retry admissibility is checker-derived from sealed output; `protocol-invalid` is permitted only for the deterministically validated roles `initial-reviewer` and `challenge`, and is forbidden for the seven cognitive roles without a deterministic output validator. For those unvalidated roles the first completed response is the terminal qualified completion, meaning only the unique admitted completion of that execution. Historical protocol bundles are preserved and recursively validated through the `v3 -> v2 -> v1` predecessor chain, where v1 and v2 are immutable. This changes no TURNLOCK semantics and does not change the Gate A semantic subject.
+The current hostile-review protocol identity `P` is
+`gate-a-campaign-protocol-v4`, and review evidence remains schema `5.0`.
+Protocol v4 binds the exact content-addressed protocol-bundle meta-schema
+`formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json` and the
+exact content-addressed review-evidence meta-schema
+`formal/reviews/meta-schemas/review-evidence-v5.schema.json` into `P`. Protocol
+bundles v1-v3 are interpreted with the immutable
+`formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json` snapshot.
+The previously mutable unversioned `review-evidence.schema.json` and
+`review-protocol-bundle.schema.json` files are byte-identical frozen legacy
+aliases and are no longer active validation authority. The Python traceability
+checker remains the finite mechanical schema-selection root; no schema registry,
+registry schema, or meta-meta-schema exists. Challenge evidence is bound to an
+exact canonical self-contained challenge packet embedding the exact reviewed
+Gate A packet and challenged candidate. Retry admissibility is checker-derived
+from sealed output; `protocol-invalid` is permitted only for the
+deterministically validated roles `initial-reviewer` and `challenge`, and is
+forbidden for the seven cognitive roles without a deterministic output
+validator. For those unvalidated roles the first completed response is the
+terminal qualified completion, meaning only the unique admitted completion of
+that execution. Historical protocol bundles are preserved and recursively
+validated through the `v4 -> v3 -> v2 -> v1` predecessor chain, where v1, v2,
+and v3 are immutable. This changes no TURNLOCK semantics and does not change the
+Gate A semantic subject.

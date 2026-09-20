@@ -24,8 +24,9 @@ formal/
 ├── verification.schema.json                # schema for that graph
 ├── reviews/                                # hostile semantic-review evidence and campaign artifacts
 │   ├── README.md
-│   ├── review-evidence.schema.json         # hostile-review evidence contract, schema 5.0
-│   ├── review-protocol-bundle.schema.json  # hostile-review protocol-bundle schema
+│   ├── review-evidence.schema.json         # frozen legacy alias for the schema-5.0 evidence contract
+│   ├── review-protocol-bundle.schema.json  # frozen legacy alias for the v1-v3 bundle schema
+│   ├── meta-schemas/                       # immutable content-addressed interpretation meta-schemas
 │   ├── packets/                            # future canonical review packets (JSON)
 │   ├── prompts/                            # future canonical review prompts (Markdown)
 │   ├── protocols/                          # future versioned review protocol bundles (JSON)
@@ -48,6 +49,14 @@ formal/
 reviewed artifacts, including content-addressed campaign artifacts once a real
 hostile-review campaign is executed. No campaign artifact exists yet because no
 real campaign has been executed.
+
+`formal/reviews/meta-schemas/` holds the immutable content-addressed
+meta-schemas used to interpret hostile-review protocol bundles and review
+evidence. The checker selects the meta-schema mechanically by protocol-bundle
+schema version. The unversioned `formal/reviews/review-evidence.schema.json` and
+`formal/reviews/review-protocol-bundle.schema.json` files remain byte-identical
+frozen historical aliases for historical links and are not the active
+validation authority.
 
 `formal/results/` holds mechanical checker evidence, governed by
 `formal/tlc-result.schema.json`.
@@ -168,6 +177,24 @@ prevent Gate A subject derivation.
 state. Focused configurations may restrict the integrated semantics; they must
 never become independent mini-semantics.
 
-## Hostile-review protocol v3
+## Hostile-review protocol v4
 
-The current hostile-review protocol identity `P` is `gate-a-campaign-protocol-v3`, and review evidence is schema `5.0`. The protocol history is `v3 -> v2 -> v1`; v1 and v2 are immutable historical bundles. Challenge evidence is bound to an exact canonical self-contained challenge packet embedding the reviewed Gate A packet and challenged candidate. Retry admissibility is checker-derived from sealed output; `protocol-invalid` is permitted only for the deterministically validated roles `initial-reviewer` and `challenge`. For the seven cognitive roles without a deterministic output validator, `protocol-invalid` is forbidden and the first completed response is the terminal `qualified` completion, meaning only the unique admitted completion of that execution. Generated readiness projections are produced only from a full successful traceability and evidence validation pass, so malformed review evidence cannot be projected as `Formal-Architecture-Ready: READY`. These assurance changes do not change TURNLOCK semantics or the Gate A semantic subject.
+The current hostile-review protocol identity `P` is
+`gate-a-campaign-protocol-v4`, and review evidence is schema `5.0`. The protocol
+history is `v4 -> v3 -> v2 -> v1`; v1, v2, and v3 are immutable historical
+bundles. Protocol v4 binds the exact content-addressed protocol-bundle
+meta-schema and the exact content-addressed review-evidence meta-schema into
+`P`, and protocol bundles v1-v3 are interpreted with the immutable v1-v3 bundle
+meta-schema snapshot. The unversioned schema files are frozen legacy aliases and
+are never edited. Challenge evidence is bound to an exact canonical
+self-contained challenge packet embedding the reviewed Gate A packet and
+challenged candidate. Retry admissibility is checker-derived from sealed output;
+`protocol-invalid` is permitted only for the deterministically validated roles
+`initial-reviewer` and `challenge`. For the seven cognitive roles without a
+deterministic output validator, `protocol-invalid` is forbidden and the first
+completed response is the terminal `qualified` completion, meaning only the
+unique admitted completion of that execution. Generated readiness projections
+are produced only from a full successful traceability and evidence validation
+pass, so malformed review evidence cannot be projected as
+`Formal-Architecture-Ready: READY`. These assurance changes do not change
+TURNLOCK semantics or the Gate A semantic subject.

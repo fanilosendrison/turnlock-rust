@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-protocol-bundle:1",
+  "title": "TURNLOCK hostile-review protocol bundle (schema versions 1 and 2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_bundle_schema_version",
+    "protocol_id",
+    "review_class",
+    "prompts",
+    "schemas",
+    "reviewer_profiles",
+    "policies"
+  ],
+  "properties": {
+    "protocol_bundle_schema_version": {
+      "enum": [
+        1,
+        2,
+        3
+      ]
+    },
+    "protocol_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "predecessor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/artifactReference"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "review_class": {
+      "const": "assurance-decomposition"
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initial-reviewer",
+        "adjudication",
+        "challenge",
+        "repair"
+      ],
+      "properties": {
+        "initial-reviewer": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "adjudication": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "repair": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw-review-output",
+        "execution-receipt",
+        "challenge-output"
+      ],
+      "properties": {
+        "raw-review-output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "execution-receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge-output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge-packet": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "reviewer_profiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reviewerProfile"
+      }
+    },
+    "policies": {
+      "$ref": "#/$defs/policies"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"protocol_bundle_schema_version": {"enum": [2, 3]}}, "required": ["protocol_bundle_schema_version"]},
+      "then": {
+        "required": ["predecessor"],
+        "properties": {
+          "predecessor": {"$ref": "#/$defs/artifactReference"},
+          "schemas": {"required": ["challenge-packet"]},
+          "policies": {
+            "required": ["artifact_lifecycle"],
+            "properties": {
+              "retry": {"required": ["outcome_classification", "first_protocol_valid_completion_is_terminal"]},
+              "challenge": {"required": ["exact_input_packet_binding_required"]},
+              "artifact_lifecycle": {"const": {"predecessor_chain_required": true, "referenced_artifacts_immutable_by_path": true, "protocol_changes_require_new_artifact_paths": true}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"protocol_bundle_schema_version": {"enum": [1, 2]}}, "required": ["protocol_bundle_schema_version"]},
+      "then": {
+        "properties": {
+          "policies": {
+            "properties": {
+              "retry": {
+                "properties": {"outcome_classification": {"const": "checker-derived"}},
+                "not": {"anyOf": [
+                  {"required": ["deterministically_validated_roles"]},
+                  {"required": ["roles_without_deterministic_output_validator"]},
+                  {"required": ["roles_without_deterministic_output_validator_protocol_invalid_allowed"]},
+                  {"required": ["roles_without_deterministic_output_validator_first_completed_response_terminal"]}
+                ]}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"protocol_bundle_schema_version": {"const": 3}}, "required": ["protocol_bundle_schema_version"]},
+      "then": {
+        "properties": {
+          "policies": {
+            "properties": {
+              "retry": {
+                "required": [
+                  "outcome_classification",
+                  "deterministically_validated_roles",
+                  "roles_without_deterministic_output_validator",
+                  "roles_without_deterministic_output_validator_protocol_invalid_allowed",
+                  "roles_without_deterministic_output_validator_first_completed_response_terminal"
+                ],
+                "properties": {
+                  "outcome_classification": {"const": "role-aware-conservative"},
+                  "deterministically_validated_roles": {"const": ["initial-reviewer", "challenge"]},
+                  "roles_without_deterministic_output_validator": {"const": ["materiality-assessor", "refutation-builder", "discovery-classifier", "derivation-builder", "decision-necessity-challenger", "repair-synthesizer", "decision-projection"]},
+                  "roles_without_deterministic_output_validator_protocol_invalid_allowed": {"const": false},
+                  "roles_without_deterministic_output_validator_first_completed_response_terminal": {"const": true}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "reviewerProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "provider",
+        "request_model",
+        "frontier_eligible",
+        "identity_resolution"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frontier_eligible": {
+          "type": "boolean"
+        },
+        "identity_resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "provider-reported",
+                "pinned-request-model"
+              ]
+            },
+            "request_model_is_immutable_version": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalization",
+        "retry",
+        "challenge",
+        "model_identity",
+        "decision_request",
+        "external_outcomes"
+      ],
+      "properties": {
+        "normalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "semantic_merge_allowed",
+            "semantic_deduplication_allowed"
+          ],
+          "properties": {
+            "mode": {
+              "const": "one-to-one"
+            },
+            "semantic_merge_allowed": {
+              "const": false
+            },
+            "semantic_deduplication_allowed": {
+              "const": false
+            }
+          }
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "technical_retry_allowed",
+            "schema_invalid_completion_retry_allowed",
+            "semantic_result_retry_allowed",
+            "all_completed_attempts_must_be_sealed"
+          ],
+          "properties": {
+            "technical_retry_allowed": {
+              "const": true
+            },
+            "schema_invalid_completion_retry_allowed": {
+              "const": true
+            },
+            "semantic_result_retry_allowed": {
+              "const": false
+            },
+            "all_completed_attempts_must_be_sealed": {
+              "const": true
+            },
+            "outcome_classification": {
+              "type": "string",
+              "minLength": 1
+            },
+            "first_protocol_valid_completion_is_terminal": {
+              "const": true
+            },
+            "deterministically_validated_roles": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "roles_without_deterministic_output_validator": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "roles_without_deterministic_output_validator_protocol_invalid_allowed": {
+              "type": "boolean"
+            },
+            "roles_without_deterministic_output_validator_first_completed_response_terminal": {
+              "type": "boolean"
+            }
+          }
+        },
+        "challenge": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_closure_revisions",
+            "semantic_result_model_shopping_allowed",
+            "incidental_findings_allowed"
+          ],
+          "properties": {
+            "max_closure_revisions": {
+              "const": 1
+            },
+            "semantic_result_model_shopping_allowed": {
+              "const": false
+            },
+            "incidental_findings_allowed": {
+              "const": false
+            },
+            "exact_input_packet_binding_required": {
+              "const": true
+            }
+          }
+        },
+        "artifact_lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "predecessor_chain_required",
+            "referenced_artifacts_immutable_by_path",
+            "protocol_changes_require_new_artifact_paths"
+          ],
+          "properties": {
+            "predecessor_chain_required": {"type": "boolean"},
+            "referenced_artifacts_immutable_by_path": {"type": "boolean"},
+            "protocol_changes_require_new_artifact_paths": {"type": "boolean"}
+          }
+        },
+        "model_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identity_fields",
+            "effective_duplicate_fields"
+          ],
+          "properties": {
+            "identity_fields": {
+              "const": [
+                "provider",
+                "model",
+                "model_version"
+              ]
+            },
+            "effective_duplicate_fields": {
+              "const": [
+                "provider",
+                "model_version"
+              ]
+            }
+          }
+        },
+        "decision_request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope"
+          ],
+          "properties": {
+            "scope": {
+              "const": "full-current-subject-plus-current-protocol-plus-finding"
+            }
+          }
+        },
+        "external_outcomes": {
+          "const": [
+            "GATE-A-READY",
+            "DECISION-REQUIRED",
+            "OPERATOR-ACTION-REQUIRED"
+          ]
+        }
+      }
+    }
+  }
+}

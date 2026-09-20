@@ -258,7 +258,7 @@ Once formal realizations exist, this section also renders `formal realization id
 
 ## Evidence classes
 
-- **Hostile semantic-review evidence** — `formal/reviews/`, schema `formal/reviews/review-evidence.schema.json`; 0 record(s) present.
+- **Hostile semantic-review evidence** — `formal/reviews/`, schema `formal/reviews/meta-schemas/review-evidence-v5.schema.json`; 0 record(s) present.
 - **Mechanical TLC evidence** — `formal/results/`, schema `formal/tlc-result.schema.json`; 0 record(s) present.
 - **Future conformance evidence** — not yet represented by a repository evidence contract.
 

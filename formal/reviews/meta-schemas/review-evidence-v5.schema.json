@@ -1,0 +1,760 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:5",
+  "title": "TURNLOCK hostile semantic-review evidence (schema version 5.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_id",
+    "review_class",
+    "repository_commit",
+    "subjects",
+    "protocol",
+    "executions",
+    "supporting_executions",
+    "findings",
+    "re_adjudications",
+    "supersedes_review_ids",
+    "started_at",
+    "completed_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "5.0"
+    },
+    "review_id": {
+      "type": "string",
+      "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+    },
+    "review_class": {
+      "enum": [
+        "assurance-decomposition",
+        "normative-to-formal-semantics",
+        "claim-property-correspondence",
+        "formal-semantic-projection",
+        "verification-profile-adequacy",
+        "evidence-interpretation"
+      ]
+    },
+    "repository_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/artifactSubject"
+          },
+          {
+            "$ref": "#/$defs/derivedSubject"
+          }
+        ]
+      }
+    },
+    "protocol": {
+      "$ref": "#/$defs/protocol"
+    },
+    "executions": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/execution"
+      }
+    },
+    "supporting_executions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/artifactReference"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "re_adjudications": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reAdjudication"
+      }
+    },
+    "supersedes_review_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "completed_at": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "artifactSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_type",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "subject_type": {
+          "const": "artifact"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "derivedSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_type",
+        "selector",
+        "sha256"
+      ],
+      "properties": {
+        "subject_type": {
+          "const": "derived"
+        },
+        "selector": {
+          "const": "gate-a-assurance-decomposition-v1"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_packet",
+        "prompt",
+        "protocol_bundle"
+      ],
+      "properties": {
+        "review_packet": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "prompt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "protocol_bundle": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "attackObjective": {
+      "enum": [
+        "semantic-strengthening",
+        "semantic-weakening",
+        "omitted-valid-behavior",
+        "invented-behavior",
+        "collapsed-normative-distinction",
+        "invented-formal-distinction",
+        "hidden-assumption",
+        "wrong-quantification",
+        "wrong-occurrence-scope",
+        "modality-mismatch",
+        "vacuity",
+        "coverage-gap",
+        "alternative-compatible-interpretation",
+        "cross-feature-interaction-failure",
+        "incorrect-evidence-lifting"
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_id",
+        "reviewer_type",
+        "reviewer_profile_id",
+        "provider",
+        "model",
+        "model_version",
+        "review_packet_sha256",
+        "prompt_sha256",
+        "isolated_context",
+        "cross_reviewer_visibility_before_seal",
+        "attack_objectives",
+        "raw_output",
+        "raw_finding_ids",
+        "execution_receipt"
+      ],
+      "properties": {
+        "execution_id": {
+          "type": "string",
+          "pattern": "^EXEC-[A-Z0-9][A-Z0-9-]*$"
+        },
+        "reviewer_type": {
+          "const": "frontier-llm"
+        },
+        "reviewer_profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_packet_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "isolated_context": {
+          "const": true
+        },
+        "cross_reviewer_visibility_before_seal": {
+          "const": false
+        },
+        "attack_objectives": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/attackObjective"
+          }
+        },
+        "raw_output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "raw_finding_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "findingSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_id",
+        "raw_finding_id"
+      ],
+      "properties": {
+        "execution_id": {
+          "type": "string",
+          "pattern": "^EXEC-[A-Z0-9][A-Z0-9-]*$"
+        },
+        "raw_finding_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "materialityChallenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenged_materiality_sha256",
+        "packet",
+        "execution_receipt",
+        "output",
+        "rationale"
+      ],
+      "properties": {
+        "challenged_materiality_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "packet": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "materiality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_or_upstream_decision",
+        "claim_structure",
+        "normative_provenance",
+        "modality_or_assurance_domain",
+        "coverage_or_residual_assurance",
+        "interaction_scope",
+        "candidate_model_authorization",
+        "rationale",
+        "assessment_execution_receipt",
+        "challenge"
+      ],
+      "properties": {
+        "authority_or_upstream_decision": {
+          "type": "boolean"
+        },
+        "claim_structure": {
+          "type": "boolean"
+        },
+        "normative_provenance": {
+          "type": "boolean"
+        },
+        "modality_or_assurance_domain": {
+          "type": "boolean"
+        },
+        "coverage_or_residual_assurance": {
+          "type": "boolean"
+        },
+        "interaction_scope": {
+          "type": "boolean"
+        },
+        "candidate_model_authorization": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assessment_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/materialityChallenge"
+            }
+          ]
+        }
+      }
+    },
+    "counterexampleDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "rationale"
+      ],
+      "properties": {
+        "outcome": {
+          "enum": [
+            "impossible",
+            "outside-scope",
+            "non-concluding"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "refutationChallenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenged_refutation_sha256",
+        "packet",
+        "execution_receipt",
+        "output",
+        "rationale"
+      ],
+      "properties": {
+        "challenged_refutation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "packet": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "routedDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "classification",
+        "reference",
+        "rationale",
+        "adjudication_execution_receipt"
+      ],
+      "properties": {
+        "kind": {
+          "const": "routed"
+        },
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adjudication_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "resolvedDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "resolution_commit",
+        "rationale",
+        "adjudication_execution_receipt"
+      ],
+      "properties": {
+        "kind": {
+          "const": "resolved"
+        },
+        "resolution_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adjudication_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "refutedDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ground",
+        "attacked_premise_or_inference",
+        "evidence_references",
+        "argument",
+        "counterexample_disposition",
+        "challenge",
+        "adjudication_execution_receipt"
+      ],
+      "properties": {
+        "kind": {
+          "const": "refuted"
+        },
+        "ground": {
+          "enum": [
+            "premise-false",
+            "target-misidentified",
+            "counterexample-outside-authority",
+            "consequence-does-not-follow",
+            "already-accounted-for"
+          ]
+        },
+        "attacked_premise_or_inference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterexample_disposition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/counterexampleDisposition"
+            }
+          ]
+        },
+        "challenge": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/refutationChallenge"
+            }
+          ]
+        },
+        "adjudication_execution_receipt": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "statusDisposition": {
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "open"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "disposition": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "routed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "disposition": {
+                "$ref": "#/$defs/routedDisposition"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "resolved"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "disposition": {
+                "$ref": "#/$defs/resolvedDisposition"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "refuted"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "disposition": {
+                "$ref": "#/$defs/refutedDisposition"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "sources",
+        "statement",
+        "argument",
+        "counterexample",
+        "materiality",
+        "status",
+        "disposition"
+      ],
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/findingSource"
+          }
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterexample": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "materiality": {
+          "$ref": "#/$defs/materiality"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "routed",
+            "resolved",
+            "refuted"
+          ]
+        },
+        "disposition": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/statusDisposition"
+        }
+      ]
+    },
+    "reAdjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_review_id",
+        "source_finding_id",
+        "source_finding_sha256",
+        "materiality",
+        "status",
+        "disposition"
+      ],
+      "properties": {
+        "source_review_id": {
+          "type": "string",
+          "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+        },
+        "source_finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_finding_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "materiality": {
+          "$ref": "#/$defs/materiality"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "routed",
+            "resolved",
+            "refuted"
+          ]
+        },
+        "disposition": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/statusDisposition"
+        }
+      ]
+    }
+  }
+}

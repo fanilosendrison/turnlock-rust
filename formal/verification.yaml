@@ -26,10 +26,10 @@ policy:
     - semantic-quality
   hostile_review:
     evidence_directory: formal/reviews
-    evidence_schema: formal/reviews/review-evidence.schema.json
+    evidence_schema: formal/reviews/meta-schemas/review-evidence-v5.schema.json
     current_protocol_bundle:
-      path: formal/reviews/protocols/gate-a-campaign-protocol-v3.json
-      sha256: cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6
+      path: formal/reviews/protocols/gate-a-campaign-protocol-v4.json
+      sha256: f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac
     minimum_independent_reviewers: 2
     majority_vote_sufficient: false
     required_attack_objectives:

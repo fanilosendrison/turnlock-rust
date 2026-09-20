@@ -411,6 +411,16 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   successful traceability/evidence validation pass;
 - published protocol v2 artifacts are immutable just like published v1
   artifacts.
+- hostile-review meta-schemas are immutable content-addressed assurance
+  artifacts once published;
+- the unversioned review-evidence and protocol-bundle schema files are frozen
+  legacy aliases and are not active mutable validation authority;
+- protocol v4 binds the exact protocol-bundle meta-schema and exact
+  review-evidence meta-schema into P;
+- protocol bundles v1-v3 are interpreted with the immutable v1-v3 bundle
+  meta-schema snapshot;
+- future meta-schema changes require new artifact paths and a new protocol
+  identity; never edit a published meta-schema in place.
 - A completed response's protocol validity is derived by the checker, not trusted
   from the runner's outcome label. The first protocol-valid completed response is
   terminal and must be the final attempt; technical-failure means no completed
