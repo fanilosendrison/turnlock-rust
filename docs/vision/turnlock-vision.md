@@ -358,6 +358,83 @@ teams, and organizations may encode different processes. TURNLOCK's role is to
 make those processes programmable while leaving their policy and domain meaning
 above the runtime.
 
+## 9.1 Accepting the end of exhaustive low-level human supervision
+
+TURNLOCK adopts a stronger scaling premise for increasingly agentic software
+production: systems should stop being designed as though a human will
+indefinitely remain able to follow, understand, and validate agent activity at
+the same low level of detail at which that activity is produced.
+
+For the environment TURNLOCK targets, that threshold should be treated as
+already crossed. Increasingly capable coding agents can produce, inspect,
+modify, and coordinate software artifacts at a volume and level of detail for
+which exhaustive human supervision is no longer a credible foundational control
+mechanism.
+
+The architectural response is not to recreate the previous regime by requiring
+ever more human observation:
+
+```text
+increasing agent capability and production
+                ↓
+human low-level supervision no longer scales
+                ↓
+exhaustive observation cannot remain
+the foundational control mechanism
+                ↓
+control moves into explicit,
+executable, machine-consumable structure
+```
+
+TURNLOCK is intended as infrastructure for that regime.
+
+Its purpose is not to make every low-level agent action something a human must
+continuously follow. It is to make large amounts of agentic work governable
+without depending on such supervision.
+
+Humans can remain responsible for the intentions, policies, constraints,
+exceptions, and genuinely human decisions that matter, while stable process
+obligations are externalized into executable workflow structure, explicit
+authority boundaries, inspectable execution semantics, and mechanically
+checkable conditions where applicable.
+
+This also changes who must consume TURNLOCK's complete semantic complexity.
+Humans need not be the only, or even the primary, consumers of the full semantic
+model. Coding agents, tooling, and higher-level systems can reason over deeper
+TURNLOCK semantics when authoring, modifying, inspecting, validating, or
+operating workflows.
+
+The human-facing workflow surface can therefore remain comparatively small and
+intuitive even when the semantics beneath those primitives are substantially
+more precise:
+
+```text
+human
+  → intent
+  → simple workflow primitives
+
+coding agents / higher-level systems
+  → complete workflow semantics
+  → composition and validity reasoning
+
+TURNLOCK
+  → exact execution semantics
+```
+
+A simple human-facing surface does not require shallow internal semantics.
+On the contrary, explicit machine-consumable semantics are part of what allows
+the human to operate at a higher level without becoming the exhaustive
+low-level supervisor of agent activity.
+
+The architectural objective is therefore not to design for humans to keep up
+with every low-level action. It is to preserve meaningful human control after
+keeping up at that level is no longer a realistic foundation for software
+production.
+
+This is a non-normative design premise and motivation. It introduces no new
+TURNLOCK workflow primitive, invariant, product-semantic obligation, assurance
+claim, implementation requirement, or formal-verification property.
+
 ## 10. Agent-authored workflows do not imply agent-owned execution
 
 A workflow may be authored directly by a developer or generated and modified by
