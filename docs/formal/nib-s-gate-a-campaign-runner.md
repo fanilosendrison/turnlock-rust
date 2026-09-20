@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "3.0.0"
+version: "4.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -24,7 +24,7 @@ It is implementation-construction authority only. It does not define TURNLOCK pr
 Its controlling technical inputs are:
 
 - `docs/specification/turnlock-spec.md`;
-- accepted ADR-041 through ADR-048;
+- accepted ADR-041 through ADR-049;
 - `formal/verification.yaml`;
 - the content-addressed hostile-review protocol and evidence contracts under `formal/reviews/`;
 - the repository authority and validation rules in `AGENTS.md`.
@@ -332,13 +332,47 @@ The same logical derivation must be stably identifiable so restart cannot silent
 
 An Execution is one historically unique concrete attempt to perform one WorkItem.
 
-Retries create new Executions.
+A runner-level retry or replacement of a WorkItem creates a new Execution.
 
-A failed or unresolved Execution is not rewritten into a later successful attempt.
+Provider/transport retries internal to one external call do not create a new
+runner Execution.
 
-At most one non-terminal Execution exists for one WorkItem at one time in the initial runner.
+For a cognitive WorkItem, construction identity is bound to the accepted
+hostile-review receipt hierarchy from ADR-049:
+
+```text
+cognitive WorkItem
+→ one logical hostile-review execution receipt
+→ zero or more runner Executions that reach the cognitive call boundary
+→ one receipt protocol attempt per such executed runner Execution
+→ one llm-runtime call per protocol attempt
+→ provider/transport attempts internal to that call
+```
+
+For a cognitive WorkItem:
+
+```text
+receipt.execution_id == WorkItemId
+receipt.attempts[*].attempt_id == the corresponding runner ExecutionId
+receipt.attempts[*].call_id == the exact llm-runtime call identity
+```
+
+The ordered receipt-attempt sequence follows the order of the corresponding
+executed runner Executions.
+
+A runner Execution proven `PROVEN-NOT-EXECUTED` remains historical but creates
+no hostile-review receipt attempt because no cognitive call was established.
+
+A failed or unresolved Execution is not rewritten into a later successful
+attempt.
+
+At most one non-terminal Execution exists for one WorkItem at one time in the
+initial runner.
 
 Independent parallelism is expressed as independent WorkItems.
+
+A hostile challenge is a different cognitive WorkItem and therefore has a
+different logical execution-receipt identity from the execution it challenges.
 
 ### 8.5 WorkItem satisfaction
 
@@ -560,7 +594,7 @@ Owns:
 
 * the `CognitiveExecutionPort`;
 * the sole direct import/use of `llm-runtime`;
-* mapping from campaign Execution identity to `llm-runtime` call identity and provider-attempt evidence;
+* mapping from cognitive WorkItem/Execution identity to ADR-049 receipt execution/attempt identity, `llm-runtime` call identity, and provider-attempt evidence;
 * dispatch/cancellation integration;
 * raw result capture;
 * exact runtime metadata needed by execution receipts;
@@ -575,6 +609,7 @@ It does not retry outside the exact behavior authorized by the protocol and the 
 Owns:
 
 * protocol-derived obligations and WorkItems;
+* checker-derived cognitive protocol-attempt admissibility and exact retry-authorization products;
 * review-campaign artifact relationships;
 * exact one-to-one finding normalization;
 * finding/evidence provenance;
@@ -664,6 +699,7 @@ type ReviewCampaignId = string;
 type ObligationId = string;
 type WorkItemId = string;
 type ExecutionId = string;
+type ExecutionRetryAuthorizationId = string;
 type FindingId = string;
 type EvidenceId = string;
 type RepairIntentId = string;
@@ -767,6 +803,14 @@ interface CandidateRevisionRef {
   readonly producedByRepairIntentId: RepairIntentId | null;
 }
 
+interface SealedCandidateMaterializationRef {
+  readonly runId: GateARunId;
+  readonly parentCandidateId: CandidateRevisionId | null;
+  readonly producedByRepairIntentId: RepairIntentId | null;
+  readonly materialization: ArtifactRef;
+  readonly materializationEvidence: readonly ArtifactRef[];
+}
+
 interface ReviewCampaignProvenanceRef {
   readonly originatingRunId: GateARunId | null;
   readonly candidateId: CandidateRevisionId | null;
@@ -778,13 +822,6 @@ interface ReviewCampaignRef {
   readonly provenance: ReviewCampaignProvenanceRef;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
-}
-
-interface ReviewCampaignCurrentnessRef {
-  readonly semanticSubject: SemanticSubjectRef;
-  readonly protocolBundle: ProtocolBundleRef;
-  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
-  readonly staleProtocolReviewCampaignIds: readonly ReviewCampaignId[];
 }
 
 interface GateAQualificationRef {
@@ -931,6 +968,20 @@ interface ExecutionRef {
   readonly attemptOrdinal: number;
 }
 
+type ExecutionRetryReason =
+  | "technical-failure"
+  | "protocol-invalid";
+
+interface ExecutionRetryAuthorizationRef {
+  readonly retryAuthorizationId: ExecutionRetryAuthorizationId;
+  readonly runId: GateARunId;
+  readonly workItemId: WorkItemId;
+  readonly priorExecutionId: ExecutionId;
+  readonly reason: ExecutionRetryReason;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
+}
+
 interface CapturedExecutionResult {
   readonly execution: ExecutionRef;
   readonly rawResult: ArtifactRef;
@@ -1057,7 +1108,37 @@ M8 may automatically perform further reconciliation observations under a finite 
 
 If that finite automatic reconciliation policy ends while the execution is still pending, M8 must materialize an exact `OperationalBlocker` and return `OPERATOR-ACTION-REQUIRED`.
 
-A technical failure never satisfies the WorkItem. M5 may derive a replacement Execution only where the exact role-specific protocol retry rule permits another attempt.
+A technical failure never satisfies the WorkItem.
+
+For a cognitive WorkItem, M5 may establish an
+`ExecutionRetryAuthorizationRef` only when the accepted protocol attempt rules
+and the runner retry policy both authorize another runner Execution for the
+same exact WorkItem.
+
+For `reason = "technical-failure"`, the referenced prior Execution must have an
+exact admitted `TechnicalExecutionFailure`.
+
+For `reason = "protocol-invalid"`, the referenced prior Execution must have an
+exact completed captured response that the accepted deterministic protocol
+validation classifies as `protocol-invalid`; this reason is permitted only for
+the deterministically validated roles `initial-reviewer` and `challenge`.
+
+A completed response for a role without a deterministic output validator is
+terminal and may never produce a `protocol-invalid` retry authorization.
+
+A `qualified` protocol attempt may never produce a retry authorization.
+
+One retry authorization names one exact prior Execution and authorizes at most
+one replacement runner Execution. It is consumed atomically when that
+replacement Execution is authoritatively created and may never be reused.
+
+M1 never invents retry permission.
+
+M2 validates and consumes admitted retry authorization but never invents it.
+
+Provider/transport retries internal to one `llm-runtime` call are governed by
+the `llm-runtime` Dependency Contract and do not use
+`ExecutionRetryAuthorizationRef`.
 
 ## 16. Module boundary request/result types
 
@@ -1124,7 +1205,7 @@ type CreateGateARunAndAcquireInitialOwnershipResult =
 interface AcquireWriteOwnershipRequest {
   readonly runId: GateARunId;
   readonly sessionId: RunnerSessionId;
-  readonly expectedStateRevision: StateRevision | null;
+  readonly expectedStateRevision: StateRevision;
 }
 
 type AcquireWriteOwnershipResult =
@@ -1135,11 +1216,16 @@ type AcquireWriteOwnershipResult =
     }
   | {
       readonly kind: "rejected";
-      readonly reason:
-        | "STALE_STATE"
-        | "ACTIVE_OWNER_CONFLICT"
-        | "INTEGRITY_FAILURE";
+      readonly reason: "STALE_STATE";
       readonly currentStateRevision: StateRevision;
+    }
+  | {
+      readonly kind: "rejected";
+      readonly reason: "ACTIVE_OWNER_CONFLICT";
+    }
+  | {
+      readonly kind: "rejected";
+      readonly reason: "INTEGRITY_FAILURE";
     };
 
 interface LoadGateARunSnapshotRequest {
@@ -1151,11 +1237,11 @@ interface GateARunSnapshot {
   readonly stateRevision: StateRevision;
   readonly currentCandidate: CandidateRevisionRef | null;
   readonly reviewCampaigns: readonly ReviewCampaignRef[];
-  readonly campaignCurrentness: ReviewCampaignCurrentnessRef | null;
   readonly obligations: readonly ObligationRef[];
   readonly obligationDispositions: readonly ObligationDispositionRef[];
   readonly workItems: readonly WorkItemRef[];
   readonly executions: readonly ExecutionRef[];
+  readonly executionRetryAuthorizations: readonly ExecutionRetryAuthorizationRef[];
   readonly capturedExecutionResults: readonly CapturedExecutionResult[];
   readonly technicalExecutionFailures: readonly TechnicalExecutionFailure[];
   readonly unresolvedExecutions: readonly UnresolvedExecutionRecoveryRef[];
@@ -1203,6 +1289,23 @@ The request must use M0's exact immutable preflight-obligation definition. M2 as
 
 `AcquireWriteOwnershipResult.kind = "acquired"` is the only result that grants successor-session mutation authority.
 
+`AcquireWriteOwnershipRequest.expectedStateRevision` is mandatory for every
+resume acquisition. `null` has no meaning and is not accepted.
+
+`STALE_STATE` means the exact revision supplied by the caller is not current.
+It reports the current exact `StateRevision` and grants no ownership.
+
+`ACTIVE_OWNER_CONFLICT` means another RunnerSession currently retains the
+exclusive ownership primitive for that `GateARun`. It grants no ownership and
+does not report a supposedly stable campaign revision because the active owner
+may continue to advance it.
+
+`INTEGRITY_FAILURE` means M2 cannot establish a trustworthy ownership/state
+result. It grants no ownership and must not fabricate a `StateRevision`.
+
+No rejected ownership acquisition creates a CampaignBlocker or mutates the
+`GateARun`.
+
 `LoadGateARunSnapshotRequest` is read-only.
 
 `CreateGateARunAndAcquireInitialOwnershipRequest` is the only M2 bootstrap write boundary. After bootstrap, `CommitAuthoritativeMutationRequest` is the only M2 cross-module state-mutation boundary; ownership acquisition issues a `WriteAuthorityRef` under M2's fence but is not a campaign-state mutation path.
@@ -1232,6 +1335,14 @@ type PreflightResolution =
       readonly kind: "blocked";
       readonly blockers: readonly OperationalBlocker[];
     };
+
+interface CandidateSubjectDerivationRequest {
+  readonly sealedCandidate: SealedCandidateMaterializationRef;
+}
+
+interface CandidateSubjectDerivationResult {
+  readonly semanticSubject: SemanticSubjectRef;
+}
 
 interface ReviewContext {
   readonly runId: GateARunId;
@@ -1284,6 +1395,13 @@ type ReviewCurrentnessResolution =
     };
 ```
 
+M3 derives `SemanticSubjectRef` only from the exact sealed candidate
+materialization. M7 does not derive `S`.
+
+A complete `CandidateRevisionRef` is constructed only after M7 has returned the
+sealed materialization and M3 has returned the exact derived semantic subject.
+M2 then validates and registers that complete candidate identity.
+
 M3 selects current campaigns solely by exact `(S, P)` through existing repository authority. Candidate, run, and repository provenance never filter `currentCampaigns`. Invalid evidence yields `blocked`; M3 must not omit it and continue with a convenient subset.
 
 A `ReviewContext` used for new execution must use the exact production candidate recorded by its runner-owned campaign provenance. Reusing a current campaign to qualify a later same-`(S, P)` candidate does not create new executions under rewritten provenance.
@@ -1327,6 +1445,25 @@ For `kind = "uncertain"`, `value.terminalOutcome` may be non-null only when a te
 M4 never converts `TechnicalExecutionFailure` into `CapturedExecutionResult`.
 
 M4 recovery observations use `RecoveredExecutionOutcome.kind = "technical-failure"` when reconciliation proves that the execution terminated as a known no-completed-response technical failure.
+
+For cognitive WorkItems, one runner `Execution` represents one protocol attempt
+for the logical execution receipt identified by the WorkItem.
+
+M4 performs exactly the external call for that runner Execution and seals the
+result/evidence. It does not decide that an inconvenient completed semantic
+result should be retried.
+
+A completed captured response may later be classified by accepted protocol
+validation as either `qualified` or, only for the deterministically validated
+roles, `protocol-invalid`.
+
+M5 owns the cross-module retry-authorization product derived from that accepted
+attempt classification.
+
+M4 may perform only dependency-internal provider/transport retries inside the
+same `llm-runtime` call when the Dependency Contract authorizes them. Those
+transport retries do not create runner Executions or hostile-review protocol
+attempts.
 ```
 
 ### M5
@@ -1445,12 +1582,17 @@ interface AssuranceLedgerDelta {
   readonly decisionRequestsToEstablish: readonly DecisionRequestRef[];
   readonly obligationsToAdd: readonly ObligationRef[];
   readonly workItemsToAdd: readonly WorkItemRef[];
+  readonly executionRetryAuthorizationsToEstablish: readonly ExecutionRetryAuthorizationRef[];
   readonly blockersToAdd: readonly CampaignBlocker[];
   readonly candidateReviewReadiness: CandidateReviewReadinessRef | null;
 }
 ```
 
-M5 must return every cross-module ledger product it establishes. It may not hide a finding, evidence admission, adjudication, re-adjudication, obligation satisfaction/supersession, qualified RepairIntent, qualified Decision Request, or candidate-review-readiness determination behind only a new WorkItem or blocker.
+M5 must return every cross-module ledger product it establishes. It may not hide
+a finding, evidence admission, adjudication, re-adjudication, obligation
+satisfaction/supersession, qualified RepairIntent, qualified Decision Request,
+execution-retry authorization, or candidate-review-readiness determination
+behind only a new WorkItem or blocker.
 
 M2 returns those admitted products in `GateARunSnapshot`; M5 receives the complete prior ledger plus exact newly captured results and technical failures. No module may reconstruct the ledger by rescanning mutable workspaces.
 
@@ -1535,8 +1677,7 @@ interface CandidateConstructionRequest {
 }
 
 interface CandidateSealResult {
-  readonly candidate: CandidateRevisionRef;
-  readonly materializationEvidence: readonly ArtifactRef[];
+  readonly sealedCandidate: SealedCandidateMaterializationRef;
 }
 
 interface PublicationPreparationRequest {
@@ -1906,11 +2047,24 @@ All other modules depend on M0 contracts and the M4 port.
 The future `llm-runtime` Dependency Contract must close at least:
 
 ```text
-Campaign WorkItem
-→ Campaign Execution
+cognitive WorkItem / hostile-review receipt execution identity
+→ runner Execution / hostile-review receipt attempt identity
 → llm-runtime call
-→ provider attempt(s)
+→ provider transport attempt(s)
 ```
+
+For cognitive WorkItems, the construction binding is exact:
+
+```text
+receipt.execution_id = WorkItemId
+receipt.attempt_id = ExecutionId
+receipt.attempt.call_id = exact llm-runtime call identity
+```
+
+A runner-level protocol retry therefore creates a new `Execution` and a new
+receipt attempt for the same WorkItem/receipt identity.
+
+A dependency-internal transport retry does not.
 
 and must define:
 
@@ -2266,12 +2420,18 @@ M6 post-publication validation consumes that ref, not an unbound repository path
 
 The post-publication validation result must repeat the exact publication confirmation ID, target, candidate ID, and successor repository authority it validated.
 
-`GATE-A-READY` is not emitted until both hold:
+A passing post-publication validation bound to that exact
+`PublishedRepositoryViewRef` must be durably admitted before M2 may commit the
+terminal Gate A ready fact.
+
+`GATE-A-READY` is not emitted until all three hold:
 
 ```text
 exact candidate mechanically qualified
 AND
 exact qualified representation published and confirmed
+AND
+exact post-publication validation passed for the bound PublishedRepositoryViewRef
 ```
 
 A successor repository authority may be used as authority by a future run.
@@ -2415,7 +2575,10 @@ type RunnerResult =
 Projection precedence is exact:
 
 ```text
-if Gate A qualification + publication confirmation exist
+if the terminal Gate A ready fact exists
+and its basis is the exact Gate A qualification,
+publication confirmation, and passed post-publication validation
+for the same bound PublishedRepositoryViewRef
 and no blocker remains
 → GATE-A-READY
 
@@ -2509,9 +2672,22 @@ run(command):
         commit exact baseline authority + publication target + satisfied root
             preflight obligation through M2
 
-        candidate = repository_control.seal_initial_candidate(
+        sealed_candidate = repository_control.seal_initial_candidate(
             run,
             preflight.baselineAuthority
+        )
+
+        candidate_subject = campaign_authority.derive_subject({
+            sealedCandidate: sealed_candidate.sealedCandidate
+        })
+
+        candidate = construct complete CandidateRevision(
+            runId = run.runId,
+            ordinal = 0,
+            parentCandidateId = null,
+            materialization = sealed_candidate.sealedCandidate.materialization,
+            semanticSubject = candidate_subject.semanticSubject,
+            producedByRepairIntentId = null
         )
 
         commit exact candidate through M2
@@ -2519,13 +2695,26 @@ run(command):
     else:
         run = load_exact_run(command.runId)
 
-        ownership = campaign_state.acquire_write_ownership(
+        ownership_result = campaign_state.acquire_write_ownership(
             run,
             session.sessionId,
             exact loaded StateRevision
         )
 
-        snapshot = ownership.snapshot
+        if ownership_result is rejected:
+            require no GateARun mutation occurred
+
+            if ownership_result.reason == INTEGRITY_FAILURE:
+                fail invocation as implementation/integrity failure
+
+            if ownership_result.reason == STALE_STATE:
+                fail invocation non-zero as stale resume acquisition
+
+            require ownership_result.reason == ACTIVE_OWNER_CONFLICT
+            fail invocation non-zero as concurrent active-owner conflict
+
+        ownership = ownership_result.authority
+        snapshot = ownership_result.snapshot
 
         if command.operatorResolutionPath exists:
             resolution = recovery_operator.validate_and_admit_resolution(
@@ -2620,17 +2809,28 @@ run(command):
         work = derive_enabled_work(snapshot)
 
         if qualified exact repair is enabled:
-            successor = repository_control.apply_exact_patch_and_seal(
+            sealed_successor = repository_control.apply_exact_patch_and_seal(
                 exact source candidate,
                 exact approved patch,
                 exact RepairIntent
             )
 
-            successor_subject = campaign_authority.derive_subject(successor)
+            successor_subject = campaign_authority.derive_subject({
+                sealedCandidate: sealed_successor.sealedCandidate
+            })
+
+            successor = construct complete CandidateRevision(
+                runId = run.runId,
+                ordinal = source candidate ordinal + 1,
+                parentCandidateId = source candidate ID,
+                materialization = sealed_successor.sealedCandidate.materialization,
+                semanticSubject = successor_subject.semanticSubject,
+                producedByRepairIntentId = exact RepairIntent ID
+            )
 
             commit successor through M2
 
-            if successor_subject != source subject:
+            if successor.semanticSubject != source candidate subject:
                 prior campaigns become non-current for the successor subject by derivation
             else:
                 retain the complete current campaign set for unchanged exact (S, P)
@@ -2640,6 +2840,19 @@ run(command):
 
         if one or more ordinary WorkItems are enabled:
             select only already-authorized WorkItems
+
+            before creating a replacement runner Execution for cognitive work:
+                require one exact admitted, unconsumed ExecutionRetryAuthorizationRef
+                naming:
+                    this WorkItem
+                    the exact prior Execution
+                    the exact accepted retry reason
+                    the exact protocol bundle
+
+                atomically consume that authorization when M2 creates
+                the replacement Execution
+
+            M1 never invents retry permission
 
             immediately before each external dispatch:
                 revalidate:
@@ -2685,8 +2898,11 @@ run(command):
                 else:
                     require recovery.resolution.classification == PROVEN-NOT-EXECUTED
 
-                    derive a replacement Execution only if the exact governing retry rule
-                    authorizes another attempt
+                    authorize a fresh replacement Execution from the exact
+                    PROVEN-NOT-EXECUTED recovery resolution
+
+                    do not consume a protocol retry authorization because
+                    the prior external execution was proven not to have occurred
 
                     continue
 
@@ -2963,7 +3179,9 @@ GI-12  Existing protocol validation and challenge semantics are not reimplemente
 
 ```text
 GI-13  Obligation != WorkItem != Execution.
-GI-14  Retry creates a new Execution.
+GI-14  A runner-level retry or replacement of a WorkItem creates a new
+       Execution. Provider/transport retries internal to one external call do
+       not.
 GI-15  UNKNOWN != FAILURE.
 GI-16  POSSIBLY-EXECUTED != NOT-EXECUTED.
 GI-17  Cancellation != rollback.
@@ -3009,8 +3227,9 @@ GI-38  Publication cannot silently merge, rebase, force-push, or rewrite a
        qualified candidate.
 GI-39  Published representation must be mechanically identical to the authorized
        publication projection of the qualified candidate.
-GI-40  GATE-A-READY requires both exact mechanical qualification and exact
-       confirmed publication.
+GI-40  GATE-A-READY requires exact mechanical qualification, exact confirmed
+       publication, and passed post-publication validation bound to the same
+       exact PublishedRepositoryViewRef.
 ```
 
 ### Outcomes
@@ -3047,7 +3266,8 @@ GI-50  A known technical failure with no completed response is neither a
 
 GI-51  M5 exposes every established finding, evidence item, adjudication,
        re-adjudication, obligation disposition, qualified RepairIntent,
-       qualified Decision Request, and candidate-review-readiness result to M2.
+       qualified Decision Request, execution-retry authorization, and
+       candidate-review-readiness result to M2.
 
 GI-52  PublicationIntent proves the predecessor is an ancestor of the intended
        successor; CAS alone never authorizes an unrelated successor.
@@ -3085,6 +3305,17 @@ GI-59  Post-publication validation is bound to one exact
 GI-60  M6 validation subprocesses are read-only with respect to authoritative
        external systems and replay-safe against the same exact immutable
        validation input; M6 does not implement ExecutionRecoveryPort.
+
+GI-61  For cognitive WorkItems, hostile-review receipt execution_id is the
+       WorkItemId, each executed runner Execution contributes one receipt
+       attempt whose attempt_id is that ExecutionId, and the attempt call_id
+       binds the exact llm-runtime call. Provider/transport retries remain
+       below this identity boundary.
+
+GI-62  M1 never invents cognitive protocol retry permission. M5 alone exposes
+       an exact retry authorization from accepted attempt admissibility, and
+       M2 consumes that authorization at most once when creating the
+       replacement Execution.
 ```
 
 ## 40. Cross-cutting policies
@@ -3118,6 +3349,10 @@ The accepted protocol determines any explicitly permitted stale-protocol re-adju
 Currentness for Gate A is determined from the accepted repository/protocol machinery.
 
 The runner does not maintain a second independent currentness truth.
+
+`GateARunSnapshot` therefore does not persist or expose a second
+`campaignCurrentness` value. M3 derives currentness from exact current authority
+and the authoritative campaign history.
 
 ### CP-7 — Secrets are capability input, not evidence
 
@@ -3163,6 +3398,10 @@ proof of publication identity.
 It consumes one `PublishedRepositoryViewRef` mechanically bound to the exact
 `PublicationConfirmationRef`, target, candidate, and successor repository
 authority.
+
+A `PublicationConfirmationRef` alone is insufficient for `GATE-A-READY`.
+The exact bound post-publication validation must pass before the terminal ready
+fact may be committed.
 
 ## 41. NIB-M decomposition required by this System Brief
 
@@ -3241,6 +3480,7 @@ how M2 atomically bootstraps the run and initial writer
 who may write state
 what exact recovery descriptors and ports exist after crash/ownership transfer
 how WorkItems and Executions differ
+how cognitive WorkItem, runner Execution, hostile-review receipt, receipt attempt, llm-runtime call, and provider transport attempt identities map without collapse
 where llm-runtime is allowed
 where Python authority remains authoritative
 how repair may proceed
@@ -3248,6 +3488,7 @@ when a Decision Request is legitimate
 when Operator Action is required
 what mechanically qualifies a candidate
 which explicit M5 ledger products cross the module boundary
+how exact cognitive retry authorization crosses from M5 to M2 and is consumed once
 how M4 distinguishes no-response technical failure from uncertainty
 what exact publication target and fast-forward Git transition may be mutated
 what the CLI returns
