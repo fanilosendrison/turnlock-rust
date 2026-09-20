@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "1.0.0"
+version: "1.0.1"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -527,9 +527,25 @@ Algorithm:
 
 2. If this process already holds the exact run lock:
       if held sessionId == request.sessionId:
-          load current snapshot
-          require expectedStateRevision == snapshot.stateRevision
-          return the existing authority + snapshot
+          load trustworthy current snapshot using snapshot/integrity M2
+          validation
+
+          if trustworthy current snapshot cannot be established:
+              return:
+                  kind = rejected
+                  reason = INTEGRITY_FAILURE
+
+          if request.expectedStateRevision != snapshot.stateRevision:
+              return:
+                  kind = rejected
+                  reason = STALE_STATE
+                  currentStateRevision = snapshot.stateRevision
+              without releasing the already-held ownership handle
+
+          return:
+              kind = acquired
+              authority = existing authority
+              snapshot = current snapshot
       otherwise:
           return ACTIVE_OWNER_CONFLICT
 
@@ -547,6 +563,13 @@ Algorithm:
 
 7. Establish trustworthy current run state using snapshot/integrity M2
    validation.
+
+   If trustworthy current run state cannot be established:
+      ROLLBACK authoritative DB
+      ROLLBACK/close ownership DB
+      return:
+          kind = rejected
+          reason = INTEGRITY_FAILURE
 
 8. If request.expectedStateRevision != exact current StateRevision:
       ROLLBACK authoritative DB
