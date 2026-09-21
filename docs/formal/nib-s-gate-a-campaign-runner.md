@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.3"
+version: "6.0.4"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -82,6 +82,14 @@ blocker set for the recovery snapshot, returns the exact blocker dispositions
 selected for each unresolved Execution, and M1 transports those dispositions
 and any pending-policy-exhaustion fact to M2 without choosing recovery
 semantics.
+
+Version `6.0.4` closes the non-execution-proof construction boundary without
+changing TURNLOCK product semantics: executor-owned recovery observations must
+carry an exact cross-module `NonExecutionProofRef` before M8 may derive
+`PROVEN-NOT-EXECUTED`; M4 and M7 remain responsible for establishing
+executor-domain non-execution facts, M8 validates only their common bindings
+and owns recovery classification, and M2 remains the sole authority that admits
+the resulting recovery fact.
 
 ## 2. System objective
 
@@ -1063,6 +1071,17 @@ interface RecoveryCapabilityRef {
   readonly reconciliationOperation: ArtifactRef;
 }
 
+interface NonExecutionProofRef {
+  readonly schema: "gate-a-non-execution-proof.v1";
+  readonly execution: ExecutionRef;
+  readonly workItemId: WorkItemId;
+  readonly executor: "cognitive-execution" | "repository-control";
+  readonly dispatchIntent: ArtifactRef;
+  readonly recoveryCapability: RecoveryCapabilityRef;
+  readonly proof: ArtifactRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
+}
+
 interface ArmedExecutionDispatchRef {
   readonly execution: ExecutionRef;
   readonly workItem: WorkItemRef;
@@ -1113,7 +1132,7 @@ dispatch intent.
 type ExecutionRecoveryObservation =
   | {
       readonly kind: "not-executed";
-      readonly evidence: readonly ArtifactRef[];
+      readonly nonExecutionProof: NonExecutionProofRef;
     }
   | {
       readonly kind: "terminal";
@@ -1134,6 +1153,126 @@ interface ExecutionRecoveryPort {
     unresolved: UnresolvedExecutionRecoveryRef
   ): Promise<ExecutionRecoveryObservation>;
 }
+
+`NonExecutionProofRef` is the common cross-module envelope for one positive
+executor-owned proof that the exact external effect represented by one
+Execution did not cross that executor's effect boundary.
+
+It is not itself an authoritative recovery classification.
+
+The common envelope binds the proof to:
+
+```text
+exact Execution
++
+exact WorkItem identity
++
+exact effect-owning executor
++
+exact dispatch intent
++
+exact recovery capability used to perform reconciliation
++
+one exact executor-owned proof artifact
++
+its exact supporting basis artifacts
+```
+
+`basisArtifacts` must be duplicate-free.
+
+`proof` must not also occur in `basisArtifacts`.
+
+Every referenced artifact must exist in the immutable artifact store and pass
+ordinary artifact-integrity verification.
+
+The executor-owned `proof` artifact's internal schema, domain interpretation,
+and construction algorithm belong to the owning executor NIB-M and any required
+Dependency Contract.
+
+M0 validates the common cross-module envelope shape.
+
+The owning executor must runtime-validate its own proof according to its exact
+module/domain contract before returning `kind = "not-executed"`.
+
+M8 must not reinterpret provider, transport, Git, repository, or other
+executor-domain evidence in order to decide whether the external effect
+occurred.
+
+For an unresolved descriptor `U` and a returned non-execution proof `P`, M8
+accepts the observation for classification only when all of these common
+bindings hold:
+
+```text
+P.execution == U.execution
+
+P.workItemId == U.workItem.workItemId
+
+P.executor == U.workItem.executor
+
+U.recoveryCapability != null
+
+P.executor == U.recoveryCapability.executor
+
+P.recoveryCapability == U.recoveryCapability
+
+P.dispatchIntent == U.dispatchIntent
+```
+
+`P.executor` can therefore only be:
+
+```text
+cognitive-execution
+repository-control
+```
+
+because only M4 and M7 own externally effectful recovery ports in this System
+Brief.
+
+M8 additionally requires successful immutable-artifact verification for:
+
+```text
+P.proof
+every P.basisArtifacts entry
+P.dispatchIntent
+P.recoveryCapability.reconciliationOperation
+```
+
+A failed common binding, malformed proof envelope, missing artifact, corrupt
+artifact, wrong executor, wrong Execution, wrong WorkItem, wrong dispatch
+intent, or wrong recovery capability is an implementation/process/integrity
+failure.
+
+M8 must not downgrade such a contract violation to `pending`, `unknown`, or
+`UNRESOLVABLE`.
+
+If the executor cannot legitimately establish a valid non-execution proof, the
+executor must not return `kind = "not-executed"`.
+
+It must instead return the valid `pending`, `unknown`, or terminal observation
+selected by its exact executor-domain contract.
+
+For one accepted `not-executed` observation, M8 constructs the recovery
+resolution evidence as the ordered duplicate-free sequence:
+
+```text
+[
+    P.proof,
+    ...P.basisArtifacts
+]
+```
+
+where the first occurrence of an exact `ArtifactRef` is retained.
+
+The later M8 NIB-M may append its own immutable reconciliation-trace artifact
+to the final resolution evidence, but it may not remove, replace, or reinterpret
+the executor-owned proof or basis artifacts.
+
+The presence of a valid proof artifact in the artifact store does not by itself
+make non-execution authoritative.
+
+`PROVEN-NOT-EXECUTED` becomes authoritative only after M8 has produced the
+bound recovery classification and M2 has admitted that recovery through the
+ordinary authoritative mutation boundary.
 
 type ProvenExecutionRecoveryResolution =
   | {
@@ -1184,7 +1323,47 @@ It is not automatically an authority-bearing semantic result.
 
 `PROVEN-COMPLETED` means that the exact Execution has a proven terminal outcome. It does not mean that a completed semantic response exists. Its `recoveredOutcome` preserves the distinction between a captured response and a known terminal technical failure.
 
+`PROVEN-NOT-EXECUTED` means positive mechanically validated evidence establishes
+that the exact external effect represented by that Execution did not cross the
+effect boundary owned by its executor.
+
+It does not mean merely:
+
+```text
+no successful result was observed
+no completed result was observed
+no receipt exists
+a timeout elapsed
+a cancellation was requested or acknowledged
+the runner process crashed
+an external lookup returned no convenient result
+the currently observed external state happens to resemble the pre-dispatch state
+```
+
+Absence of evidence is never converted into proof of non-execution.
+
+A dependency-specific negative lookup may support `PROVEN-NOT-EXECUTED` only
+when the owning executor's accepted Dependency Contract establishes that the
+lookup is complete for the exact operation and that the returned negative fact
+positively proves that the exact effect boundary was never crossed.
+
 An uncertain executor result carries the complete `UnresolvedExecutionRecoveryRef`. The owning executor reports durable dispatch identity/evidence, any already known terminal outcome, and its exact recovery capability. The owning executor does not assign a recovery classification.
+
+A `not-executed` observation requires a non-null exact recovery capability
+because its `NonExecutionProofRef` is bound to the capability used to establish
+that proof.
+
+When an executor can mechanically prepare a trustworthy recovery capability
+before Arm, its later NIB-M should require that capability to be carried by the
+Arm rather than deliberately discarding recoverability.
+
+This System Brief does not make recovery capability universally mandatory:
+`null` remains valid when the selected executor/dependency boundary cannot
+provide a trustworthy capability.
+
+For a possibly-dispatched Execution with no terminal outcome and no usable
+recovery capability, M8 must follow the existing `UNRESOLVABLE` rule; it must
+not infer non-execution from the absence of a capability.
 
 `RECONCILABLE` is represented only by `ExecutionRecoveryStep.kind = "reconcilable"`. It is an intermediate recovery state, not a terminal recovery resolution and not permission to resume campaign external dispatch.
 
@@ -1574,6 +1753,28 @@ for the logical execution receipt identified by the WorkItem.
 M4 performs exactly the external call for that runner Execution and seals the
 result/evidence. It does not decide that an inconvenient completed semantic
 result should be retried.
+
+For M4 recovery, the relevant non-execution effect boundary is the exact
+cognitive-call boundary for the runner Execution.
+
+M4 may return `ExecutionRecoveryObservation.kind = "not-executed"` only when its
+runtime-validated executor-owned proof positively establishes that the exact
+runner Execution never crossed that cognitive-call boundary.
+
+A known terminal call with no completed semantic response is not
+`not-executed`; it is represented as a terminal recovery observation whose
+`RecoveredExecutionOutcome.kind = "technical-failure"`.
+
+No response, no receipt, timeout, cancellation, process interruption, missing
+provider material, or an otherwise negative lookup is sufficient by itself to
+prove cognitive non-execution.
+
+The exact M4 proof artifact schema, its mapping to the exact `llm-runtime` call
+identity, and the external facts sufficient to prove that the cognitive-call
+boundary was not crossed belong to the M4 NIB-M and the scoped `llm-runtime`
+Dependency Contract.
+
+M8 must not reimplement that M4/domain proof algorithm.
 
 A completed captured response must be submitted by M1 to M6. M6 invokes the
 existing Python hostile-review validation authority and returns the exact typed
@@ -2063,8 +2264,10 @@ M8 alone derives authoritative recovery disposition.
 The exact observation mapping is:
 
 ```text
-not-executed observation with proof
+not-executed observation carrying one valid exact NonExecutionProofRef
+whose common bindings and artifacts pass M8 validation
 → PROVEN-NOT-EXECUTED
+→ resolution evidence preserves the exact executor-owned proof basis
 
 terminal observation with captured response
 → PROVEN-COMPLETED
@@ -2762,7 +2965,8 @@ For an uncertain publication execution:
 
 ```text
 exact target proves predecessor still present
-AND no publication effect occurred
+AND exact executor-owned non-execution proof establishes that the exact
+conditional publication operation did not apply its publication effect
 → M7 recovery observation = not-executed
 
 exact target proves intended successor present
@@ -2775,6 +2979,30 @@ target state is temporarily pending but remains mechanically queryable
 target state cannot establish a safe outcome
 → M7 recovery observation = unknown
 ```
+
+For M7 recovery, the relevant non-execution effect boundary is the exact
+conditional mutation of the exact PublicationIntent target ref from its exact
+expected predecessor toward its exact intended successor.
+
+Observing only that the current target ref still equals the expected predecessor
+is insufficient to prove that the exact publication operation never took
+effect.
+
+Current-state equality alone cannot establish historical non-execution because
+the target may have changed after the attempted operation.
+
+Likewise, absence of the intended successor from the currently observed target
+is insufficient by itself.
+
+M7 may return `kind = "not-executed"` only when its runtime-validated
+executor-owned proof positively establishes non-application of the exact
+conditional publication operation.
+
+The exact M7 proof artifact schema, conditional-operation identity, repository
+evidence interpretation, and dependency mechanism sufficient to prove
+non-application belong to the M7 NIB-M and the Repository Dependency Contract.
+
+M8 must not reimplement that repository-domain proof algorithm.
 
 M8 alone converts those observations into the authoritative recovery disposition.
 
