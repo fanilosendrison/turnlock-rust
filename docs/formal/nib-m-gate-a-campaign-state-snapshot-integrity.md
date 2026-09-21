@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "1.0.5"
+version: "1.0.6"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.6`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.7`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -306,7 +306,40 @@ then executionId ascending
 
 Attempt ordinal uniqueness is verified before projection.
 
-### 5.9 `executionRetryAuthorizations`
+### 5.9 `executionProgressionSupersessions`
+
+Every admitted `ExecutionProgressionSupersessionRef`.
+
+Ordering:
+
+```text
+introducedRevision ascending
+then priorExecutionId ascending
+```
+
+For every projected supersession:
+
+```text
+prior Execution exists
+successor Execution exists
+prior.workItemId == supersession.workItemId
+successor.workItemId == supersession.workItemId
+
+successor.attemptOrdinal == prior.attemptOrdinal + 1
+
+successor is the exact next Execution in that WorkItem's linear chain
+
+the successor persisted creation basis is operator-replacement
+and exactly binds:
+    priorExecutionId
+    blockerId
+    operatorResolution
+to the projected supersession
+```
+
+One `priorExecutionId` occurs at most once in this projection.
+
+### 5.10 `executionRetryAuthorizations`
 
 Every historical admitted authorization, whether currently usable, consumed, or
 stale.
@@ -331,7 +364,7 @@ usable(R) =
     AND run progression still permits replacement
 ```
 
-### 5.10 `capturedExecutionResults`
+### 5.11 `capturedExecutionResults`
 
 Every direct or recovered authoritative captured result.
 
@@ -343,7 +376,7 @@ Ordering:
 Execution attempt order
 ```
 
-### 5.11 `technicalExecutionFailures`
+### 5.12 `technicalExecutionFailures`
 
 Every direct or recovered authoritative known technical failure.
 
@@ -357,7 +390,7 @@ Execution attempt order
 
 This is a critical M2 v1 algorithm.
 
-For every Execution `E`:
+For every Execution E:
 
 ```text
 if no Arm fact:
@@ -369,12 +402,21 @@ else if direct terminal outcome exists:
 else if terminal recovery resolution exists:
     E is not unresolved
 
+else if one ExecutionProgressionSupersessionRef exists
+        with priorExecutionId == E.executionId:
+    E is not unresolved
+
 else:
     E is unresolved
 ```
 
 This rule is independent of whether the executor ever returned an explicit
 `uncertain` capture.
+
+Progression supersession is not a terminal execution outcome and is not a
+terminal recovery resolution. It is a separate append-only fact that removes
+the prior Execution from future active recovery/progression while preserving
+its unresolved external truth as historical operational state.
 
 ### 6.1 Base descriptor from Arm
 
@@ -442,6 +484,44 @@ A pending-exhaustion operational blocker does not remove the execution from
 Therefore the execution no longer appears in `unresolvedExecutions`.
 
 Its exact operational blocker remains outstanding until lawfully disposed.
+
+### 6.5 Operator progression supersession
+
+An `ExecutionProgressionSupersessionRef` does not create:
+
+```text
+PROVEN-NOT-EXECUTED
+PROVEN-COMPLETED
+UNRESOLVABLE
+captured outcome
+technical failure
+```
+
+for its prior Execution.
+
+The prior Execution remains in:
+
+```text
+snapshot.executions
+```
+
+and the exact supersession remains in:
+
+```text
+snapshot.executionProgressionSupersessions
+```
+
+but the prior Execution appears zero times in:
+
+```text
+snapshot.unresolvedExecutions
+```
+
+The exact successor remains the WorkItem's current execution tail unless a later
+lawful successor is created.
+
+A late external result from the prior superseded Execution does not reverse the
+supersession and cannot make that prior Execution current again.
 
 ## 7. Assurance-ledger projections
 
@@ -721,8 +801,9 @@ I17  One Execution has at most one terminal recovery resolution.
 I18  Direct terminal outcome and terminal recovery resolution cannot represent
      incompatible outcomes.
 
-I19  Every armed non-terminal Execution appears exactly once in the unresolved
-     projection.
+I19  Every armed Execution with no direct terminal outcome, no terminal recovery
+     resolution, and no progression supersession appears exactly once in the
+     unresolved projection.
 
 I20  Every unarmed Execution appears zero times in the unresolved projection.
 
@@ -770,6 +851,24 @@ I38  Every authoritative ArtifactRef resolves to exact immutable CAS bytes.
 I39  Every N>0 StateRevision names exactly one valid mutation artifact.
 
 I40  Snapshot reconstruction uses no mutable-workspace state.
+
+I41  One prior Execution has at most one
+     ExecutionProgressionSupersessionRef.
+
+I42  Every ExecutionProgressionSupersessionRef binds two consecutive Executions
+     in the same WorkItem chain, and the successor has the exact matching
+     operator-replacement creation basis.
+
+I43  Every progression-superseded Execution appears zero times in
+     unresolvedExecutions, regardless of whether its external outcome is known.
+
+I44  Progression supersession never aliases or manufactures a direct terminal
+     outcome or terminal recovery resolution for the prior Execution.
+
+I45  No authoritative progression-bearing execution outcome, uncertainty,
+     recovery, cognitive-attempt classification, or publication qualification
+     is introduced for an Execution after the revision that progression-
+     superseded it.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -795,6 +894,7 @@ reconstructSnapshot(runId):
     verify obligation/disposition graph
     verify WorkItem source closure
     verify Execution chains and creation bases
+    verify Execution progression-supersession consistency
     verify Arm/outcome/recovery consistency
     verify cognitive validation consistency
     verify retry limits/one-shot consumption
@@ -806,6 +906,7 @@ reconstructSnapshot(runId):
         run
         currentCandidate
         historical arrays
+        executionProgressionSupersessions
         unresolvedExecutions
         latest applicable readiness designation
         outstanding blockers
