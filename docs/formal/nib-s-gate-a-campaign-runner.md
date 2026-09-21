@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.9"
+version: "6.0.10"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -147,6 +147,65 @@ Execution for a historical intent from crossing the external-effect boundary.
 An already-armed publication Execution remains governed exclusively by its
 existing outcome/recovery lifecycle and cannot be bypassed by publication-intent
 replacement.
+
+Version `6.0.10` closes the pre-M7 repository-baseline and publication-realization
+construction gaps without changing TURNLOCK product semantics.
+
+Repository baseline observation/capture now precedes authoritative preflight:
+M7 mechanically captures the exact immutable repository inspection, durable
+baseline Git basis, and sealed baseline candidate; M3 interprets that exact
+immutable inspection; M2 then admits the baseline/target/protocol and their
+provenance atomically.
+
+Publication preparation no longer accepts a caller-selected predecessor; M7
+observes the exact current target authority itself.
+
+Publication realization now distinguishes conditional-ref-update from
+already-current.
+
+Already-current publication uses no Execution and never crosses Arm.
+
+Confirmed publication atomically satisfies its exact publication obligation.
+
+A direct terminal publication attempt may establish an exact
+PublicationNonApplicationRef proving that the authorized target-ref mutation was
+not applied. This fact is distinct from PROVEN-NOT-EXECUTED and may permit safe
+future PublicationIntent replacement without fabricating retry authority.
+
+The construction discovery classifications preserved by this revision are:
+
+```text
+baseline material must precede baseline authority admission
+→ derived-from-existing-authority
+  from GI-24 / GI-26 / GI-27 / fail-closed restart
+
+old baseline-first-then-seal construction
+→ authority-conflict-or-uncertain
+```
+
+```text
+M7 observes publication predecessor itself
+→ derived-from-existing-authority
+
+already-current avoids Arm when no external mutation is required
+→ derived-from-existing-authority
+
+exact read-only already-current confirmation
+→ accepted construction decision in NIB-S 6.0.10
+```
+
+```text
+confirmed publication satisfies its publication obligation
+→ derived-from-existing-authority
+
+direct terminal ref non-application != PROVEN-NOT-EXECUTED
+→ derived-from-existing-authority
+
+PublicationNonApplicationRef representation
+→ no-normative-impact construction mechanism
+```
+
+No product ADR is created.
 
 ## 2. System objective
 
@@ -773,13 +832,13 @@ Owns:
 * exact approved patch application with no semantic latitude;
 * candidate sealing;
 * candidate materialization identity;
-* Git/repository inspection;
-* PublicationIntent realization;
+* Git/repository inspection, including initial baseline inspection/capture;
+* PublicationIntent realization and exact predecessor observation;
 * construction of the exact publication admission bundle:
   `PublicationIntentRef` + publication `ObligationRef` + repository-control
   `PublicationIntent WorkItemRef`;
-* conditional publication against the expected predecessor;
-* publication reconciliation;
+* conditional publication against the M7-observed exact predecessor;
+* already-current observation and publication reconciliation;
 * exact published-candidate materialization proof.
 
 M7 proposes that bundle. M2 alone admits it authoritatively.
@@ -919,7 +978,7 @@ interface GateARunRef {
   readonly publicationTarget: RepositoryPublicationTargetRef | null;
 }
 
-`initialRepositoryAuthority` and `publicationTarget` are `null` only in the atomic bootstrap snapshot before preflight has established the exact baseline and credential-free publication target. Their first non-null values are committed together through M2 and are thereafter immutable.
+`initialRepositoryAuthority` and `publicationTarget` are `null` only before preflight and immutable after establishment. Their first non-null admission is legal only when the same `EstablishPreflightV1` retains the exact `RepositoryInspectionRef` and provenance closure from which those identities were established. There is no authoritative `StateRevision` in which the baseline exists but its already-sealed reconstructible repository basis does not.
 
 interface CandidateRevisionRef {
   readonly candidateId: CandidateRevisionId;
@@ -937,6 +996,15 @@ interface SealedCandidateMaterializationRef {
   readonly producedByRepairIntentId: RepairIntentId | null;
   readonly materialization: ArtifactRef;
   readonly materializationEvidence: readonly ArtifactRef[];
+}
+
+interface RepositoryInspectionRef {
+  readonly runId: GateARunId;
+  readonly baselineAuthority: RepositoryAuthorityRef;
+  readonly publicationTarget: RepositoryPublicationTargetRef;
+  readonly baselineGitBasis: ArtifactRef;
+  readonly sealedBaselineCandidate: SealedCandidateMaterializationRef;
+  readonly evidence: readonly ArtifactRef[];
 }
 
 interface ReviewCampaignProvenanceRef {
@@ -960,6 +1028,43 @@ interface GateAQualificationRef {
   readonly validatorEvidence: readonly ArtifactRef[];
 }
 ```
+
+`RepositoryInspectionRef` is mechanical repository/Git observation material. It is not itself authoritative campaign state merely because M7 produced or persisted it.
+
+The following bindings are normative:
+
+```text
+repositoryInspection.runId == exact GateARun
+
+repositoryInspection.sealedBaselineCandidate.runId ==
+    repositoryInspection.runId
+
+repositoryInspection.sealedBaselineCandidate.parentCandidateId == null
+
+repositoryInspection.sealedBaselineCandidate.producedByRepairIntentId == null
+
+repositoryInspection.evidence is duplicate-free
+
+baselineGitBasis exists and is intact
+
+sealedBaselineCandidate.materialization exists and is intact
+
+every sealedBaselineCandidate.materializationEvidence ArtifactRef exists and
+is intact
+
+every repositoryInspection.evidence ArtifactRef exists and is intact
+```
+
+The future M7 NIB-M and Git Dependency Contract must close the exact
+`baselineGitBasis` representation and prove before M2 admission that restoring
+that basis independently reconstructs the exact baseline commit/tree and the
+material required for publication from that baseline.
+
+The exact `sealedBaselineCandidate` must be derived from the exact retained
+baseline tree, not mutable working-tree bytes.
+
+No mutable `repositoryPath`, worktree, index, remote-tracking ref, Git config,
+or temporary repository is part of retained baseline authority.
 
 `ReviewCampaignProvenanceRef` records the exact candidate/run identity when the runner produced the campaign and always records the exact repository authority where it was produced. Imported repository evidence may have null runner-local identities; it never has missing repository authority.
 
@@ -1000,6 +1105,9 @@ interface PreparedPublication {
   readonly candidateId: CandidateRevisionId;
   readonly qualificationId: GateAQualificationId;
   readonly transition: AuthorizedGitTransitionRef;
+  readonly realization:
+    | "conditional-ref-update"
+    | "already-current";
   readonly materialIdentityEvidence: readonly ArtifactRef[];
   readonly intent: PublicationIntentRef;
   readonly publicationObligation: ObligationRef;
@@ -1018,6 +1126,14 @@ PreparedPublication.intent.qualificationId ==
 PreparedPublication.qualificationId.
 
 PreparedPublication.intent.transition == PreparedPublication.transition.
+
+`realization == "conditional-ref-update"` iff
+`transition.predecessor != transition.successor`.
+
+`realization == "already-current"` iff
+`transition.predecessor == transition.successor`.
+
+M1 does not choose `realization`; M7 derives it mechanically.
 
 PreparedPublication.publicationObligation belongs to the same GateARun and
 candidate as the intent.
@@ -1060,13 +1176,33 @@ interface PublishedRepositoryViewRef {
   readonly repositoryPath: string;
   readonly materializationEvidence: readonly ArtifactRef[];
 }
+
+interface PublicationAlreadyCurrentObservationRef {
+  readonly publicationIntentId: PublicationIntentId;
+  readonly candidateId: CandidateRevisionId;
+  readonly target: RepositoryPublicationTargetRef;
+  readonly observedAuthority: RepositoryAuthorityRef;
+  readonly evidence: readonly ArtifactRef[];
+}
+
+interface PublicationNonApplicationRef {
+  readonly schema: "gate-a-publication-non-application.v1";
+  readonly publicationIntentId: PublicationIntentId;
+  readonly candidateId: CandidateRevisionId;
+  readonly executionId: ExecutionId;
+  readonly workItemId: WorkItemId;
+  readonly dispatchIntent: ArtifactRef;
+  readonly attemptResult: ArtifactRef;
+  readonly proof: ArtifactRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
+}
 ```
 
 `RepositoryPublicationTargetRef` is the exact durable remote mutation target. `repositoryIdentity` identifies the repository independently of a local checkout, `remoteEndpoint` is the normalized credential-free publication endpoint, and `refName` is the fully qualified Git ref name. Credentials and credential-bearing URLs are invalid target identities.
 
 A publication successor is an exact repository-authority identity, not merely a Git tree identity.
 
-Before any remote publication mutation, M7 must prepare the exact immutable successor repository object locally, expose both its exact commit identity and exact tree identity through `RepositoryAuthorityRef`, and mechanically prove that the predecessor commit is an ancestor of the successor commit for the exact target. The initial runner authorizes only the `fast-forward` relationship.
+Before any remote publication mutation, M7 must prepare the exact immutable successor repository object locally, expose both its exact commit identity and exact tree identity through `RepositoryAuthorityRef`, and mechanically prove that the predecessor commit is an ancestor-or-equal to the successor commit for the exact target. The initial runner authorizes only the `fast-forward` relationship. For Gate A publication construction, `"fast-forward"` requires predecessor to be ancestor-or-equal to successor: when `predecessor != successor`, the realization is `conditional-ref-update`; when `predecessor == successor`, the realization is `already-current`. CAS alone remains insufficient; ancestry/equality evidence remains required.
 
 A `PublicationIntentRef` that lacks the exact target, contains only a tree SHA, or lacks valid ancestry evidence is invalid. A compare-and-swap from `A` to an unrelated `C` is prohibited even when the target still equals `A`.
 
@@ -1079,6 +1215,37 @@ Its `target` must equal the target in the referenced `PublicationConfirmationRef
 Its `authority` must equal that confirmation's exact transition successor by both commit SHA and tree SHA.
 
 Its `repositoryPath` is an operational location only. The path never substitutes for the bound target, authority, candidate, confirmation, or materialization evidence.
+
+`PublicationAlreadyCurrentObservationRef.evidence` is duplicate-free and every
+referenced artifact is intact. The future M7 NIB-M defines the exact read-only
+observation artifact schema and Git dependency interpretation.
+
+`PublicationNonApplicationRef.basisArtifacts` is duplicate-free, its `proof` is
+not duplicated inside `basisArtifacts`, and all referenced artifacts are intact.
+Its normative meaning is exactly:
+
+```text
+The exact armed publication Execution terminated with direct captured material.
+
+M7, under its accepted repository/Git contract, positively established that the
+exact target-ref mutation represented by that Execution's dispatch intent was
+not applied.
+```
+
+This fact does not mean:
+
+```text
+the Execution never occurred
+the executor boundary was never crossed
+PROVEN-NOT-EXECUTED
+a retry is authorized
+the publication obligation is satisfied
+the target still equals the old predecessor
+a new PublicationIntent already exists
+```
+
+`PublicationNonApplicationRef` v1 is produced only from a direct terminal M7
+capture. It is not recovery-derived in this patch.
 
 ## 14. Blocker types
 
@@ -1826,6 +1993,7 @@ interface GateARunSnapshot {
   readonly executionRetryAuthorizations: readonly ExecutionRetryAuthorizationRef[];
   readonly capturedExecutionResults: readonly CapturedExecutionResult[];
   readonly technicalExecutionFailures: readonly TechnicalExecutionFailure[];
+  readonly publicationNonApplications: readonly PublicationNonApplicationRef[];
   readonly unresolvedExecutions: readonly UnresolvedExecutionRecoveryRef[];
   readonly evidence: readonly EvidenceRef[];
   readonly findings: readonly FindingRef[];
@@ -1903,7 +2071,7 @@ No other module writes authoritative campaign state directly.
 ```ts
 interface PreflightRequest {
   readonly runId: GateARunId;
-  readonly repositoryPath: string;
+  readonly repositoryInspection: RepositoryInspectionRef;
 }
 
 type PreflightResolution =
@@ -1912,6 +2080,7 @@ type PreflightResolution =
       readonly baselineAuthority: RepositoryAuthorityRef;
       readonly publicationTarget: RepositoryPublicationTargetRef;
       readonly protocolBundle: ProtocolBundleRef;
+      readonly evidence: readonly ArtifactRef[];
     }
   | {
       readonly kind: "blocked";
@@ -1976,6 +2145,33 @@ type ReviewCurrentnessResolution =
       readonly blockers: readonly OperationalBlocker[];
     };
 ```
+
+For `kind = established`:
+
+```text
+baselineAuthority ==
+    request.repositoryInspection.baselineAuthority
+
+publicationTarget ==
+    request.repositoryInspection.publicationTarget
+
+evidence is duplicate-free
+
+every evidence ArtifactRef exists and is intact
+```
+
+M7 observes and mechanically captures repository/Git facts.
+
+M3 interprets the exact immutable `RepositoryInspectionRef` under accepted
+campaign/repository authority.
+
+M3 does not establish baseline authority or publication target by rereading a
+mutable repository path.
+
+M3 resolves the exact current protocol against the immutable inspected/sealed
+baseline material and accepted repository authority.
+
+M2 alone makes the resulting preflight facts authoritative.
 
 M3 derives `SemanticSubjectRef` only from the exact sealed candidate
 materialization. M7 does not derive `S`.
@@ -2426,6 +2622,21 @@ M6 must validate the exact repository bytes materialized by `PublishedRepository
 ### M7
 
 ```ts
+interface RepositoryInspectionRequest {
+  readonly runId: GateARunId;
+  readonly repositoryPath: string;
+}
+
+type RepositoryInspectionResult =
+  | {
+      readonly kind: "observed";
+      readonly inspection: RepositoryInspectionRef;
+    }
+  | {
+      readonly kind: "blocked";
+      readonly blocker: OperationalBlocker;
+    };
+
 interface CandidateConstructionRequest {
   readonly runId: GateARunId;
   readonly sourceCandidate: CandidateRevisionRef;
@@ -2442,7 +2653,6 @@ interface PublicationPreparationRequest {
   readonly candidate: CandidateRevisionRef;
   readonly qualification: GateAQualificationRef;
   readonly target: RepositoryPublicationTargetRef;
-  readonly expectedPredecessor: RepositoryAuthorityRef;
 }
 
 type PublicationPreparationResult =
@@ -2471,11 +2681,19 @@ type PublicationExecutionCapture =
       readonly value: UnresolvedExecutionRecoveryRef;
     };
 
-interface PublicationObservationQualificationRequest {
-  readonly intent: PublicationIntentRef;
-  readonly candidate: CandidateRevisionRef;
-  readonly executionResult: CapturedExecutionResult;
-}
+type PublicationObservationQualificationRequest =
+  | {
+      readonly kind: "executed-publication";
+      readonly intent: PublicationIntentRef;
+      readonly candidate: CandidateRevisionRef;
+      readonly executionResult: CapturedExecutionResult;
+    }
+  | {
+      readonly kind: "already-current";
+      readonly intent: PublicationIntentRef;
+      readonly candidate: CandidateRevisionRef;
+      readonly observation: PublicationAlreadyCurrentObservationRef;
+    };
 
 type PublicationObservationQualificationResult =
   | {
@@ -2484,32 +2702,79 @@ type PublicationObservationQualificationResult =
       readonly publishedView: PublishedRepositoryViewRef;
     }
   | {
+      readonly kind: "not-applied";
+      readonly nonApplication: PublicationNonApplicationRef;
+    }
+  | {
       readonly kind: "blocked";
       readonly blocker: OperationalBlocker;
     };
 ```
 
-Publication preparation is a local repository operation.
+Repository inspection is the only M7 operation in the initial-run path that may
+read mutable `repositoryPath` to establish the initial mechanical repository
+observation.
 
-It constructs the exact immutable successor repository object without mutating the remote publication target.
+Before returning `kind = "observed"`, M7 must have already sealed all durable
+material required by `RepositoryInspectionRef`.
 
-The resulting exact target, successor commit SHA, successor tree SHA, and fast-forward ancestry proof are known before `PublicationIntentRef` is committed.
+No authoritative baseline may be committed and then preserved afterwards.
 
-Only after that exact intent is durable may M7 attempt the conditional mutation of the exact target ref.
+If M7 cannot establish a reconstructible baseline Git basis or exact sealed
+baseline candidate, it must not return `kind = "observed"`.
 
-Publication itself executes as a normal campaign WorkItem/Execution owned by M7.
+M7 observes the exact current predecessor from the exact publication target
+during publication preparation. The caller never selects, predicts, caches, or
+supplies the publication predecessor.
 
-M7 may perform the remote publication mutation only from an
-`ArmedExecutionDispatchRef` produced after successful M2 Arm admission.
+Publication preparation performs no remote mutation but may perform exact
+read-only target observation and acquire immutable Git objects/evidence needed
+to establish the predecessor and fast-forward relation. Remote observation is
+not the publication side effect. The future M7 NIB-M and Git Dependency
+Contract define the exact observation and Git-dependency representations.
 
-The armed dispatch must identify the exact repository-control WorkItem and
-Execution authorized for the exact `PublicationIntent`.
+It constructs the exact immutable successor repository object without mutating
+the remote publication target. The resulting exact target, successor commit
+SHA, successor tree SHA, and fast-forward ancestry/equality proof are known
+before `PublicationIntentRef` is committed.
 
-M7 must not reconstruct dispatch identity or recovery provenance from
-`ExecutionRef`, `PublicationIntentRef`, a repository path, or remote state
-alone.
+For Gate A publication construction, `"fast-forward"` is reflexive for
+realization selection: predecessor must be ancestor-or-equal to successor;
+predecessor unequal to successor selects `"conditional-ref-update"`, while
+predecessor equal to successor selects `"already-current"`. M1 does not choose
+that realization; M7 derives it mechanically. CAS alone remains insufficient;
+ancestry/equality evidence remains required.
 
-`PublicationExecutionCapture.kind = "captured"` means M7 obtained one exact durable publication-attempt observation artifact. It does not by itself mean publication is confirmed.
+Only after the exact intent is durable may M7 attempt the conditional mutation
+of the exact target ref. Publication itself executes as a normal campaign
+WorkItem/Execution owned by M7 only for the `"conditional-ref-update"`
+realization.
+
+For `"already-current"`, M1 creates no Execution, performs no
+`AuthorizeExecutionV1`, no `ArmExecutionDispatchV1`, and no publication
+push/mutation. M1 asks M7 for one fresh exact read-only observation of the exact
+target bound to the current `PublicationIntent`, candidate, target, and intended
+successor. If the fresh observation still proves target authority equals the
+successor, M1 submits a `PublicationObservationQualificationRequest` with
+`kind = "already-current"`. If the target no longer equals the successor, M1
+does not qualify or Arm; it reloads the authoritative snapshot and returns to
+ordinary publication preparation. Because no Arm occurred, this is not
+execution uncertainty and M8 recovery is not involved.
+
+For `"conditional-ref-update"`, M7 may perform the remote publication mutation
+only from an `ArmedExecutionDispatchRef` produced after successful M2 Arm
+admission. The armed dispatch must identify the exact repository-control
+WorkItem and Execution authorized for the exact `PublicationIntent`. M7 must
+not reconstruct dispatch identity or recovery provenance from `ExecutionRef`,
+`PublicationIntentRef`, a repository path, or remote state alone.
+
+`PublicationExecutionCapture.kind = "captured"` means M7 obtained one exact
+durable publication-attempt observation artifact. It does not by itself mean
+publication is confirmed. A direct terminal captured publication attempt may
+produce `PublicationNonApplicationRef` only when M7 positively establishes
+that the exact authorized target-ref mutation was not applied. This fact is
+distinct from `PROVEN-NOT-EXECUTED`, `TechnicalExecutionFailure`, and execution
+uncertainty; it does not authorize retry or satisfy the publication obligation.
 
 `PublicationExecutionCapture.kind = "uncertain"` carries the complete
 `UnresolvedExecutionRecoveryRef` for `request.dispatch`. Its `execution`,
@@ -2520,16 +2785,34 @@ evidence observed during this same publication attempt.
 M7 never returns `RECONCILABLE` or `UNRESOLVABLE`.
 
 All publication execution uncertainty is committed and classified through M8.
+A terminal observation that establishes the intended successor after Arm
+remains in the executed-publication outcome/recovery lifecycle; it never enters
+the already-current shortcut and must not bypass GI-65/GI-75.
 
-M7 implements `ExecutionRecoveryPort` for publication executions. A terminal publication recovery observation must return `RecoveredExecutionOutcome.kind = "captured"` containing the exact recovered publication observation.
+M7 implements `ExecutionRecoveryPort` for publication executions. A terminal
+publication recovery observation must return `RecoveredExecutionOutcome.kind =
+"captured"` containing the exact recovered publication observation.
 
-After either immediate or recovered capture, M1 calls the same `PublicationObservationQualificationRequest`.
+After one direct captured M7 result is admitted through
+`AdmitExecutionOutcomeV1`, or after a recovered captured result is admitted
+through `AdmitExecutionRecoveryV1`, M1 uses the executed-publication form of
+`PublicationObservationQualificationRequest`.
 
-Only `PublicationObservationQualificationResult.kind = "confirmed"` may create `PublicationConfirmationRef`.
+`PublicationObservationQualificationResult.kind = "not-applied"` is valid only
+for `request.kind = "executed-publication"`. The already-current request kind
+may produce `confirmed` but never `not-applied`. Only `confirmed` may create
+`PublicationConfirmationRef`; `not-applied` creates no confirmation and does
+not satisfy the publication obligation. `PublicationNonApplicationRef` v1 is
+produced only from direct terminal M7 capture, not from recovery-derived
+material.
 
-That confirmation result also returns the exact `PublishedRepositoryViewRef` consumed by post-publication M6 validation.
+That confirmation result also returns the exact `PublishedRepositoryViewRef`
+consumed by post-publication M6 validation.
 
-M7 may return `blocked` when the captured publication observation proves a publication conflict/divergence or otherwise cannot satisfy the committed `PublicationIntent`. That is a domain result from known evidence, not an uncertainty classification.
+M7 may return `blocked` when the captured publication observation proves a
+publication conflict/divergence or otherwise cannot satisfy the committed
+`PublicationIntent`. That is a domain result from known evidence, not an
+uncertainty classification.
 
 ### M8
 
@@ -3894,9 +4177,14 @@ one GateAQualificationRef
 the exact qualified CandidateRevision
 +
 one exact credential-free RepositoryPublicationTargetRef
-+
-one exact expected repository predecessor
 ```
+
+M7 observes the exact current predecessor from the exact publication target
+itself during publication preparation. The caller never selects, predicts,
+caches, or supplies that predecessor. Publication preparation performs no remote
+mutation but may perform exact read-only target observation and acquire
+immutable Git objects/evidence needed to establish the predecessor and the
+fast-forward relation. Remote observation is not the publication side effect.
 
 ```text
 Before `PublicationIntentRef` is committed, M7 prepares the exact immutable Git successor object locally from the authorized publication projection.
@@ -3913,12 +4201,16 @@ exact predecessor commit and tree
 +
 exact successor commit and tree
 +
-mechanical proof that predecessor is an ancestor of successor
+mechanical proof that predecessor is an ancestor-or-equal to successor
 +
 relationship = fast-forward
++
+predecessor != successor → realization = conditional-ref-update
+predecessor == successor → realization = already-current
 ```
 
-The preparation itself does not mutate the remote publication target.
+The preparation itself does not mutate the remote publication target. CAS alone
+is insufficient; ancestry/equality evidence remains required.
 
 The committed PublicationIntent therefore binds:
 
@@ -3931,7 +4223,11 @@ exact qualified CandidateRevision
 exact GateAQualificationRef
 ```
 
-The publication effect must be conditional on the exact target ref still having that expected predecessor. CAS success alone is insufficient unless the committed fast-forward transition proof remains valid.
+For `conditional-ref-update`, the publication effect must be conditional on
+the exact target ref still having the exact M7-observed predecessor. For
+`already-current`, no external publication mutation is required; M1 must obtain
+one fresh exact read-only observation before confirmation. CAS success alone is
+insufficient unless the committed fast-forward transition proof remains valid.
 
 A conflict does not grant permission to:
 
@@ -3962,7 +4258,7 @@ The runner must be able to distinguish:
 
 ```text
 exact publication target
-expected predecessor
+M7-observed predecessor
 intended successor
 observed authority of that exact target ref
 ```
@@ -3979,7 +4275,9 @@ observed exact target ref tree == transition.successor.treeSha
 observed exact target ref commit == transition.predecessor.commitSha
 AND
 observed exact target ref tree == transition.predecessor.treeSha
-→ the exact same conditional publication may be issued/reissued
+→ an uncertain execution may follow its existing recovery contract;
+  a known terminal PublicationNonApplicationRef does not by itself authorize
+  an automatic replacement Execution
 
 observed exact target ref authority differs from both exact identities
 → do not improvise
@@ -4057,6 +4355,40 @@ repository-domain evidence for the exact `RecoveryIndeterminacyRef`.
 M7 owns validation of repository-domain continuability and indeterminacy. M8
 must not reconstruct or reinterpret Git or repository semantics; it validates
 the common envelope bindings and artifacts and owns recovery classification.
+
+A direct terminal captured publication attempt may positively establish an exact
+`PublicationNonApplicationRef`. That fact is distinct from
+`PROVEN-NOT-EXECUTED`, `TechnicalExecutionFailure`, and execution uncertainty;
+it does not satisfy the publication obligation or automatically retry the same
+WorkItem. For prior `I1 = P → T`, `W1`, `E1` with this exact fact:
+
+```text
+fresh target == T
+→ a fresh ordinary preparation may produce I2 = T → T;
+  normal replacement rules apply and I2 follows the already-current path
+
+fresh target == X, X ancestor T, X != P
+→ a fresh ordinary preparation may produce I2 = X → T;
+  I2 is a new PublicationIntent and new WorkItem, not a retry of W1
+
+fresh target == P
+→ fresh preparation reproduces exact I1;
+  do not duplicate EstablishPublicationIntentV1 or auto-authorize E2;
+  M7/repository-control produces the normal non-recovery operational cause
+  for the still-required exact publication WorkItem
+```
+
+Under the existing M8-B boundary, that last operational cause may expose
+`request-operational-recheck` or
+`authorize-known-terminal-execution-replacement` where the producer-domain
+contract permits. It must not expose
+`authorize-uncertain-execution-replacement` merely for an exact known-terminal
+`PublicationNonApplicationRef`.
+
+Already-current confirmation is legal only before any Execution exists for the
+exact publication WorkItem. After publication Arm, observing the intended
+successor never enters the already-current shortcut; it belongs to the existing
+outcome/recovery lifecycle of the armed Execution and may not bypass GI-65/GI-75.
 
 M8 alone converts those observations into the authoritative recovery disposition.
 
@@ -4359,35 +4691,88 @@ run(command):
         ownership = bootstrap.authority
         snapshot = bootstrap.snapshot
 
-        preflight = campaign_authority.preflight(run, command.repositoryPath)
+        inspection_result = repository_control.inspect_repository({
+            runId: run.runId,
+            repositoryPath: command.repositoryPath
+        })
+
+        if inspection_result is blocked:
+            require inspection_result.blocker references bootstrap.preflightObligation
+            commit exact blocker through M2 using
+                ownership + snapshot.stateRevision
+            require snapshot.run.initialRepositoryAuthority == null
+            require snapshot.run.publicationTarget == null
+            require root preflight obligation remains outstanding
+            return project_runner_result()
+
+        require inspection_result.kind == observed
+        inspection = inspection_result.inspection
+
+        preflight = campaign_authority.preflight({
+            runId: run.runId,
+            repositoryInspection: inspection
+        })
 
         if preflight is blocked:
             require every blocker references bootstrap.preflightObligation
-            commit exact blockers through M2 using ownership + snapshot.stateRevision
+            commit exact blockers through M2 using
+                ownership + snapshot.stateRevision
+            require baseline/target remain null
+            require root preflight obligation remains outstanding
             return project_runner_result()
 
-        commit exact baseline authority + publication target + satisfied root
-            preflight obligation through M2
+        require preflight.kind == established
+        require preflight.baselineAuthority == inspection.baselineAuthority
+        require preflight.publicationTarget == inspection.publicationTarget
 
-        sealed_candidate = repository_control.seal_initial_candidate(
-            run,
-            preflight.baselineAuthority
-        )
+        preflight_basisArtifacts = ordered duplicate-free first-occurrence sequence:
+            [
+                inspection.baselineGitBasis,
+                inspection.sealedBaselineCandidate.materialization,
+                ...inspection.sealedBaselineCandidate.materializationEvidence,
+                ...inspection.evidence,
+                ...preflight.evidence
+            ]
+
+        root_preflight_disposition = exact satisfied disposition:
+            {
+                kind: "satisfied",
+                obligationId: bootstrap.preflightObligation.obligationId,
+                basisEvidenceIds: [],
+                basisArtifacts: preflight_basisArtifacts
+            }
+
+        commit through M2 one exact EstablishPreflightV1:
+            {
+                kind: "establish-preflight",
+                repositoryInspection: inspection,
+                baselineAuthority: preflight.baselineAuthority,
+                publicationTarget: preflight.publicationTarget,
+                protocolBundle: preflight.protocolBundle,
+                preflightEvidence: preflight.evidence,
+                rootObligationDisposition: root_preflight_disposition
+            }
+
+        snapshot = committed snapshot
 
         candidate_subject = campaign_authority.derive_subject({
-            sealedCandidate: sealed_candidate.sealedCandidate
+            sealedCandidate: inspection.sealedBaselineCandidate
         })
 
-        candidate = construct complete CandidateRevision(
+        candidate = construct complete CandidateRevision:
             runId = run.runId,
             ordinal = 0,
             parentCandidateId = null,
-            materialization = sealed_candidate.sealedCandidate.materialization,
+            materialization = inspection.sealedBaselineCandidate.materialization,
             semanticSubject = candidate_subject.semanticSubject,
             producedByRepairIntentId = null
-        )
 
-        commit exact candidate through M2
+        commit through M2 one exact AdmitCandidateV1:
+            {
+                kind: "admit-candidate",
+                sealedCandidate: inspection.sealedBaselineCandidate,
+                candidate
+            }
 
     else:
         run = load_exact_run(command.runId)
@@ -4448,42 +4833,87 @@ run(command):
             if any outstanding OperationalBlocker exists:
                 return project_runner_result(snapshot)
 
-            preflight = campaign_authority.preflight(
-                run,
-                command.repositoryPath
-            )
+            inspection_result = repository_control.inspect_repository({
+                runId: run.runId,
+                repositoryPath: command.repositoryPath
+            })
+
+            if inspection_result is blocked:
+                require inspection_result.blocker references root_preflight_obligation
+                commit exact blocker through M2 using
+                    ownership + snapshot.stateRevision
+                require snapshot.run.initialRepositoryAuthority == null
+                require snapshot.run.publicationTarget == null
+                require root_preflight_obligation remains outstanding
+                return project_runner_result()
+
+            require inspection_result.kind == observed
+            inspection = inspection_result.inspection
+
+            preflight = campaign_authority.preflight({
+                runId: run.runId,
+                repositoryInspection: inspection
+            })
 
             if preflight is blocked:
                 require every blocker references root_preflight_obligation
                 commit exact blockers through M2 using
                     ownership + snapshot.stateRevision
+                require baseline/target remain null
+                require root_preflight_obligation remains outstanding
                 return project_runner_result()
 
             require preflight.kind == established
+            require preflight.baselineAuthority == inspection.baselineAuthority
+            require preflight.publicationTarget == inspection.publicationTarget
 
-            commit exact baseline authority + publication target + satisfied
-                root_preflight_obligation through M2
+            preflight_basisArtifacts = ordered duplicate-free first-occurrence sequence:
+                [
+                    inspection.baselineGitBasis,
+                    inspection.sealedBaselineCandidate.materialization,
+                    ...inspection.sealedBaselineCandidate.materializationEvidence,
+                    ...inspection.evidence,
+                    ...preflight.evidence
+                ]
+
+            root_preflight_disposition = exact satisfied disposition:
+                {
+                    kind: "satisfied",
+                    obligationId: root_preflight_obligation.obligationId,
+                    basisEvidenceIds: [],
+                    basisArtifacts: preflight_basisArtifacts
+                }
+
+            commit through M2 one exact EstablishPreflightV1:
+                {
+                    kind: "establish-preflight",
+                    repositoryInspection: inspection,
+                    baselineAuthority: preflight.baselineAuthority,
+                    publicationTarget: preflight.publicationTarget,
+                    protocolBundle: preflight.protocolBundle,
+                    preflightEvidence: preflight.evidence,
+                    rootObligationDisposition: root_preflight_disposition
+                }
             snapshot = committed snapshot
 
-            sealed_candidate = repository_control.seal_initial_candidate(
-                run,
-                preflight.baselineAuthority
-            )
-
             candidate_subject = campaign_authority.derive_subject({
-                sealedCandidate: sealed_candidate.sealedCandidate
+                sealedCandidate: inspection.sealedBaselineCandidate
             })
 
-            candidate = construct complete CandidateRevision(
+            candidate = construct complete CandidateRevision:
                 runId = run.runId,
                 ordinal = 0,
                 parentCandidateId = null,
-                materialization = sealed_candidate.sealedCandidate.materialization,
+                materialization = inspection.sealedBaselineCandidate.materialization,
                 semanticSubject = candidate_subject.semanticSubject,
                 producedByRepairIntentId = null
-            )
 
-            commit exact candidate through M2
+            commit through M2 one exact AdmitCandidateV1:
+                {
+                    kind: "admit-candidate",
+                    sealedCandidate: inspection.sealedBaselineCandidate,
+                    candidate
+                }
             snapshot = committed snapshot
 
         recovery_plan = recovery_operator.reconcile_prior_sessions({
@@ -4801,12 +5231,12 @@ run(command):
             continue
 
         if exact qualified candidate exists and publication is enabled:
-            preparation = repository_control.prepare_publication(
-                exact qualification,
-                exact candidate,
-                exact snapshot.run.publicationTarget,
-                exact expected repository predecessor
-            )
+            preparation = repository_control.prepare_publication({
+                runId: run.runId,
+                candidate: exact candidate,
+                qualification: exact qualification,
+                target: exact snapshot.run.publicationTarget
+            })
 
             if preparation is blocked:
                 commit exact operational blocker through M2
@@ -4814,8 +5244,14 @@ run(command):
 
             require preparation.transition.relationship == "fast-forward"
             require valid mechanical evidence that:
-                transition.predecessor is ancestor of transition.successor
+                transition.predecessor is ancestor-or-equal to transition.successor
                 transition.target is exact repository + endpoint + ref
+            require preparation.publication.realization ==
+                "conditional-ref-update"
+                iff transition.predecessor != transition.successor
+            require preparation.publication.realization ==
+                "already-current"
+                iff transition.predecessor == transition.successor
 
             intent = preparation.publication.intent
             publication_obligation =
@@ -4845,150 +5281,229 @@ run(command):
                 exact publication_obligation
                 exact publication_work_item
 
-            publication_execution = authorize exact repository-control Execution
-            for preparation.publication.publicationWorkItem
+            snapshot = committed snapshot
 
-            immediately before publication Arm:
-                revalidate:
-                    qualification still effective
-                    no new blocker exists
-                    exact projected snapshot.publicationIntent still equals intent
-                    publication WorkItem still equals the exact publication
-                        WorkItem co-admitted with that intent
-                    publication obligation is still outstanding
-                    exact target ref still equals transition.predecessor
-                    transition.successor still equals prepared immutable repository object
-                    fast-forward ancestry proof still valid
-                    expected StateRevision still current
-                    ownership generation still current
+            if preparation.publication.realization == "already-current":
+                require intent.transition.predecessor == intent.transition.successor
+                require zero Execution exists for the exact publication WorkItem
 
-            if fresh target-ref revalidation establishes that the target no
-            longer equals intent.transition.predecessor:
-                M1 must not Arm the Execution
-
-                because no Arm occurred, this is not execution uncertainty
-                and does not enter M8 recovery
-
-                M1 returns to ordinary authoritative orchestration after
-                loading the latest M2 snapshot
-
-                a later mechanically prepared PublicationIntent may replace
-                the old intent only through the ordinary
-                EstablishPublicationIntentV1 admission rules
-
-                the historical intent, WorkItem, obligation, and any
-                authorized-but-unarmed Execution remain retained
-
-            seal the exact publication Arm mutation artifact containing:
-                publication_execution
-                exact PublicationIntent WorkItem
-                exact transition/input binding
-                exact current StateRevision
-                exact current OwnershipGeneration
-                exact fresh publication revalidation basis
-                exact dispatch evidence
-                exact M7 RecoveryCapabilityRef if one is available,
-                otherwise null
-
-            commit ArmExecutionDispatch through M2
-
-            require the Arm commit succeeds before remote mutation
-
-            publication_dispatch = construct ArmedExecutionDispatchRef from the
-                exact committed Arm authority
-
-            capture = repository_control.publish_conditionally({
-                dispatch: publication_dispatch,
-                intent: intent,
-                candidate: exact candidate
-            })
-
-            if capture.kind == "uncertain":
-                require capture.value.execution == publication_dispatch.execution
-                require capture.value.workItem == publication_dispatch.workItem
-                require capture.value.dispatchIntent == publication_dispatch.dispatchIntent
-
-                commit the exact publication uncertainty enrichment through M2
-
-                recovery = recovery_operator.classify_unresolved_execution({
+                observation = repository_control.observe_publication_target({
                     runId: run.runId,
-                    unresolvedExecution: capture.value,
-                    outstandingOperationalBlockers:
-                        exact committed snapshot.blockers
-                        filtered only by kind == operational
-                        preserving snapshot order
+                    intent: exact intent,
+                    candidate: exact candidate,
+                    target: intent.transition.target
                 })
 
-                if recovery.kind == "blocked":
-                    commit through M2:
-                        recovery.blocker
-                        recovery.resolution if non-null
-                        recovery.lastPending if non-null
-                        blockerIdsToDispose =
-                            exact recovery.blockerIdsToDispose
+                require observation is bound to:
+                    exact current PublicationIntent
+                    exact candidate
+                    exact target
+                    exact intended successor
 
+                if observation.observedAuthority != intent.transition.successor:
+                    do not confirm
+                    do not Arm
+                    snapshot = load_authoritative_snapshot(run)
+                    continue
+
+                publication_qualification =
+                    repository_control.qualify_publication_observation({
+                        kind: "already-current",
+                        intent: exact intent,
+                        candidate: exact candidate,
+                        observation
+                    })
+
+                if publication_qualification.kind == "blocked":
+                    commit publication_qualification.blocker through M2
                     return OPERATOR-ACTION-REQUIRED projection
 
-                require recovery.kind == "resolved"
+                require publication_qualification.kind == "confirmed"
+                publication_qualification_request = {
+                    kind: "already-current",
+                    intent: exact intent,
+                    candidate: exact candidate,
+                    observation
+                }
 
-                commit through M2:
-                    recovery.resolution
-                    its recovered terminal outcome when applicable
-                    blockerIdsToDispose =
-                        exact recovery.blockerIdsToDispose
+            else:
+                require preparation.publication.realization ==
+                    "conditional-ref-update"
 
-                if recovery.resolution.classification == PROVEN-NOT-EXECUTED:
-                    retain the same PublicationIntent
+                publication_execution = authorize exact repository-control Execution
+                for preparation.publication.publicationWorkItem
+
+                immediately before publication Arm:
+                    revalidate:
+                        qualification still effective
+                        no new blocker exists
+                        exact projected snapshot.publicationIntent still equals intent
+                        publication WorkItem still equals the exact publication
+                            WorkItem co-admitted with that intent
+                        publication obligation is still outstanding
+                        exact target ref still equals transition.predecessor
+                        transition.successor still equals prepared immutable repository object
+                        fast-forward ancestry/equality proof still valid
+                        expected StateRevision still current
+                        ownership generation still current
+
+                if fresh target-ref revalidation establishes that the target no
+                longer equals intent.transition.predecessor:
+                    M1 must not Arm the Execution
+
+                    because no Arm occurred, this is not execution uncertainty
+                    and does not enter M8 recovery
+
+                    M1 returns to ordinary authoritative orchestration after
+                    loading the latest M2 snapshot
+
+                    a later mechanically prepared PublicationIntent may replace
+                    the old intent only through the ordinary
+                    EstablishPublicationIntentV1 admission rules
+
+                    the historical intent, WorkItem, obligation, and any
+                    authorized-but-unarmed Execution remain retained
 
                     continue
 
-                require recovery.resolution.classification == PROVEN-COMPLETED
-                require recovery.resolution.recoveredOutcome.kind == "captured"
+                seal the exact publication Arm mutation artifact containing:
+                    publication_execution
+                    exact PublicationIntent WorkItem
+                    exact transition/input binding
+                    exact current StateRevision
+                    exact current OwnershipGeneration
+                    exact fresh publication revalidation basis
+                    exact dispatch evidence
+                    exact M7 RecoveryCapabilityRef if one is available,
+                    otherwise null
 
-                publication_observation =
-                    recovery.resolution.recoveredOutcome.value
+                commit ArmExecutionDispatch through M2
 
-            else:
-                publication_observation = capture.value
+                require the Arm commit succeeds before remote mutation
 
-            qualification =
-                repository_control.qualify_publication_observation({
-                    intent: exact PublicationIntent,
-                    candidate: exact candidate,
-                    executionResult: publication_observation
+                publication_dispatch = construct ArmedExecutionDispatchRef from the
+                    exact committed Arm authority
+
+                capture = repository_control.publish_conditionally({
+                    dispatch: publication_dispatch,
+                    intent: intent,
+                    candidate: exact candidate
                 })
 
-            if qualification.kind == "blocked":
-                commit qualification.blocker through M2
-                return OPERATOR-ACTION-REQUIRED projection
+                if capture.kind == "uncertain":
+                    require capture.value.execution == publication_dispatch.execution
+                    require capture.value.workItem == publication_dispatch.workItem
+                    require capture.value.dispatchIntent == publication_dispatch.dispatchIntent
 
-            require qualification.kind == "confirmed"
-            require qualification.confirmation.transition == intent.transition
-            require qualification.publishedView.publicationConfirmationId
-                == qualification.confirmation.publicationConfirmationId
-            require qualification.publishedView.target
+                    commit the exact publication uncertainty enrichment through M2
+
+                    recovery = recovery_operator.classify_unresolved_execution({
+                        runId: run.runId,
+                        unresolvedExecution: capture.value,
+                        outstandingOperationalBlockers:
+                            exact committed snapshot.blockers
+                            filtered only by kind == operational
+                            preserving snapshot order
+                    })
+
+                    if recovery.kind == "blocked":
+                        commit through M2:
+                            recovery.blocker
+                            recovery.resolution if non-null
+                            recovery.lastPending if non-null
+                            blockerIdsToDispose =
+                                exact recovery.blockerIdsToDispose
+
+                        return OPERATOR-ACTION-REQUIRED projection
+
+                    require recovery.kind == "resolved"
+
+                    commit through M2:
+                        recovery.resolution
+                        its recovered terminal outcome when applicable
+                        blockerIdsToDispose =
+                            exact recovery.blockerIdsToDispose
+
+                    if recovery.resolution.classification == PROVEN-NOT-EXECUTED:
+                        retain the same PublicationIntent
+                        authorize only the existing PNE-governed continuation
+                        continue
+
+                    require recovery.resolution.classification == PROVEN-COMPLETED
+                    require recovery.resolution.recoveredOutcome.kind == "captured"
+
+                    publication_observation =
+                        recovery.resolution.recoveredOutcome.value
+
+                else:
+                    publication_observation = capture.value
+                    commit through M2 the exact AdmitExecutionOutcomeV1:
+                        captured publication_observation
+
+                publication_qualification =
+                    repository_control.qualify_publication_observation({
+                        kind: "executed-publication",
+                        intent: exact intent,
+                        candidate: exact candidate,
+                        executionResult: publication_observation
+                    })
+
+                if publication_qualification.kind == "blocked":
+                    commit publication_qualification.blocker through M2
+                    return OPERATOR-ACTION-REQUIRED projection
+
+                publication_qualification_request = {
+                    kind: "executed-publication",
+                    intent: exact intent,
+                    candidate: exact candidate,
+                    executionResult: publication_observation
+                }
+
+            require publication_qualification.kind is one of:
+                "confirmed"
+                "not-applied"
+
+            if publication_qualification.kind == "not-applied":
+                require publication_qualification_request.kind ==
+                    "executed-publication"
+                commit through M2 the exact
+                    AdmitPublicationObservationQualificationV1 request/result
+                    basis and PublicationNonApplicationRef
+                snapshot = committed snapshot
+                reload authoritative snapshot
+                perform a fresh ordinary publication preparation
+                continue
+
+            require publication_qualification.kind == "confirmed"
+            require publication_qualification.confirmation.transition == intent.transition
+            require publication_qualification.publishedView.publicationConfirmationId
+                == publication_qualification.confirmation.publicationConfirmationId
+            require publication_qualification.publishedView.target
                 == intent.transition.target
-            require qualification.publishedView.authority
+            require publication_qualification.publishedView.authority
                 == intent.transition.successor
                 by both commit SHA and tree SHA
 
-            commit:
-                qualification.confirmation
-                qualification.publishedView
-            through M2
+            commit through M2 one atomic
+                AdmitPublicationObservationQualificationV1:
+                    exact publication_qualification_request
+                    exact publication_qualification
+                    exact confirmation
+                    exact publishedView
+                    exact satisfied disposition for publication_obligation
 
             post_validation = mechanical_validation.post_publication({
                 runId: run.runId,
-                publishedView: qualification.publishedView
+                publishedView: publication_qualification.publishedView
             })
 
             require post_validation.requestKind == "post-publication-integrity"
             require post_validation.publicationConfirmationId
-                == qualification.confirmation.publicationConfirmationId
+                == publication_qualification.confirmation.publicationConfirmationId
             require post_validation.target
-                == qualification.publishedView.target
+                == publication_qualification.publishedView.target
             require post_validation.validatedAuthority
-                == qualification.publishedView.authority
+                == publication_qualification.publishedView.authority
                 by both commit SHA and tree SHA
 
             if post_validation.passed is false:
@@ -5022,6 +5537,21 @@ publication-target, root-obligation, sealed-candidate, semantic-subject, and
 CandidateRevision ordinal-0 construction used by `start`. If preflight blocks
 again, the newly established exact blockers are committed and the run remains
 `OPERATOR-ACTION-REQUIRED`.
+
+The initial-run and incomplete-preflight order is therefore always:
+
+```text
+M7 repository inspection/capture
+→ M3 interpretation of the immutable RepositoryInspectionRef
+→ one M2 EstablishPreflightV1 admission
+→ semantic-subject derivation from the retained sealed baseline candidate
+→ C0 admission through M2 using that same sealed baseline candidate
+```
+
+There is no separate initial-candidate sealing operation after baseline
+authority becomes authoritative, and no authoritative StateRevision may expose
+baseline authority without its already-sealed reconstructible repository basis
+and exact C0 source material.
 
 The orchestrator never creates semantic authority.
 
@@ -5333,6 +5863,38 @@ GI-75  Publication-intent replacement never bypasses an already potentially-
        crossed Arm, its external-effect disposition must first be established
        through the existing outcome/recovery/progression rules before another
        publication intent may obtain side-effect authority.
+
+GI-76  Initial repository authority is never admitted before M7 has already
+       sealed the exact RepositoryInspectionRef, reconstructible baseline Git
+       basis, and exact sealed baseline candidate that support it.
+
+GI-77  M7 observes repository/Git facts, M3 interprets the immutable inspection
+       under accepted authority, and M2 alone admits the resulting
+       baseline/target/protocol. A mutable repository path is never retained
+       authority.
+
+GI-78  Publication predecessor is observed by M7 from the exact publication
+       target; no caller supplies or selects the predecessor used by
+       PublicationIntent.
+
+GI-79  If predecessor equals successor before Arm, publication realization is
+       already-current: no publication Execution exists, no Arm occurs, and
+       exact read-only observation is required for confirmation.
+
+GI-80  Every PublicationConfirmation atomically satisfies the exact
+       publication obligation co-admitted with its PublicationIntent.
+
+GI-81  PublicationNonApplicationRef positively establishes only that one exact
+       armed publication target-ref mutation was not applied. It is distinct
+       from PROVEN-NOT-EXECUTED and does not itself authorize retry.
+
+GI-82  A later PublicationIntent may supersede an armed prior publication
+       intent only after every relevant prior armed Execution has an exact safe
+       effect disposition: PROVEN-NOT-EXECUTED or PublicationNonApplicationRef.
+
+GI-83  After publication Arm, observing the intended successor never enters the
+       already-current shortcut; it belongs to the existing outcome/recovery
+       lifecycle of the armed Execution.
 ```
 
 ## 40. Cross-cutting policies
@@ -5353,7 +5915,7 @@ Every external cognitive/mechanical execution is bound to exact immutable campai
 
 Historical authorization is insufficient.
 
-Immediately before every external side effect, current effective permission and current write authority are revalidated. Before publication, the exact target ref, expected predecessor, intended successor, and authorized fast-forward ancestry relation are all revalidated.
+Immediately before every external side effect, current effective permission and current write authority are revalidated. Before publication, the exact target ref, M7-observed predecessor, intended successor, and authorized fast-forward ancestry/equality relation are all revalidated.
 
 ### CP-5 — No silent inheritance across subject changes
 

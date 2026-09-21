@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "1.0.8"
+version: "1.0.9"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.9`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.10`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -193,6 +193,8 @@ runs
 optional exact preflight_establishment
 ```
 
+Preflight establishment is absent or unique.
+
 Before preflight:
 
 ```ts
@@ -203,7 +205,28 @@ Before preflight:
 }
 ```
 
-After successful preflight both become non-null together and never change.
+When establishment is present, snapshot reconstruction requires:
+
+```text
+RepositoryInspectionRef exists in the exact EstablishPreflightV1 mutation
+
+inspection.runId == runId
+
+inspection.baselineAuthority == run.initialRepositoryAuthority
+
+inspection.publicationTarget == run.publicationTarget
+
+exact preflightEvidence ArtifactRefs are intact
+
+root disposition basisArtifacts equal the required ordered provenance closure
+
+sealed baseline candidate and every referenced artifact are intact
+```
+
+After successful preflight both authority values become non-null together and
+never change. The exact `RepositoryInspectionRef` provenance remains retained;
+there is no authoritative revision with baseline authority but without its
+already-sealed reconstructible repository basis.
 
 ### 5.2 `stateRevision`
 
@@ -385,6 +408,20 @@ Ordering:
 ```text
 Execution attempt order
 ```
+
+### 5.13 `publicationNonApplications`
+
+The projection contains every authoritative `PublicationNonApplicationRef`.
+
+Ordering:
+
+```text
+corresponding Execution workItemId ascending
+then attemptOrdinal ascending
+then executionId ascending
+```
+
+At most one `PublicationNonApplicationRef` exists per Execution.
 
 ## 6. Unresolved-execution reconstruction
 
@@ -635,6 +672,60 @@ The semantic terminal fact remains true forever for that run.
 
 ## 10. Qualification and publication projections
 
+### 10.0 Preflight and C0 integrity
+
+Snapshot reconstruction requires:
+
+```text
+preflight establishment absent or unique
+
+when present:
+    RepositoryInspectionRef exists in the exact EstablishPreflightV1 mutation
+
+    inspection.runId == runId
+
+    inspection.baselineAuthority ==
+        run.initialRepositoryAuthority
+
+    inspection.publicationTarget ==
+        run.publicationTarget
+
+    exact preflightEvidence intact
+
+    exact root disposition basisArtifacts equal exactly the ordered
+    duplicate-free first-occurrence sequence:
+        repositoryInspection.baselineGitBasis,
+        repositoryInspection.sealedBaselineCandidate.materialization,
+        ...repositoryInspection.sealedBaselineCandidate.materializationEvidence,
+        ...repositoryInspection.evidence,
+        ...preflightEvidence
+
+    sealed baseline candidate/artifacts intact
+```
+
+Before preflight:
+
+```text
+initialRepositoryAuthority == null
+publicationTarget == null
+```
+
+After preflight:
+
+```text
+both non-null
+and exact RepositoryInspectionRef provenance is retained
+```
+
+If C0 exists:
+
+```text
+C0's admitted sealedCandidate ==
+    exact preflight RepositoryInspectionRef.sealedBaselineCandidate
+```
+
+A C0 using another sealed materialization is integrity failure.
+
 ### 10.1 `gateQualification`
 
 Let:
@@ -726,63 +817,96 @@ their respective historical arrays.
 
 ### 10.3 `publicationConfirmation`
 
-Publication confirmations are projected only from admitted
-`PublicationObservationQualificationResult.kind = "confirmed"` facts.
-
-For every such admission, require the retained exact request/result basis.
-
-The request's:
+A `PublicationConfirmationRef` may originate from exactly one retained
+confirmed publication-observation qualification whose request kind is:
 
 ```text
-intent
-candidate
-executionResult
+executed-publication
+OR
+already-current
 ```
 
-must satisfy the M2-B publication-observation qualification admission rules.
+For every such admission, require the retained exact request/result basis and
+all M2-B publication-observation qualification bindings.
 
-In particular:
+For `executed-publication`:
 
 ```text
-executionResult is already-authoritative captured execution material
+request.executionResult is already-authoritative captured execution material
 
-executionResult.execution is the exact armed repository-control publication
-Execution for the request intent
+request.executionResult.execution is the exact armed repository-control
+publication Execution for the request intent
 
-request.intent == projected applicable PublicationIntent
+no progression supersession exists for that Execution
 
 the request Execution belongs to the exact publication WorkItem co-admitted
-with that projected intent
+with the projected applicable PublicationIntent
+```
 
+For `already-current`:
+
+```text
+request.intent.transition.predecessor ==
+    request.intent.transition.successor
+
+zero Execution exists for the exact publication WorkItem
+
+request.observation.publicationIntentId ==
+    request.intent.publicationIntentId
+
+request.observation.candidateId == request.candidate.candidateId
+
+request.observation.target == request.intent.transition.target
+
+request.observation.observedAuthority ==
+    request.intent.transition.successor
+    by exact commit SHA and tree SHA
+```
+
+For both request kinds:
+
+```text
+request.intent == projected applicable PublicationIntent
 request.candidate == currentCandidate
+request.candidate.candidateId == request.intent.candidateId
 ```
 
 A confirmation based on a historical non-projected intent is an integrity
-failure if such a contradictory admission is already retained.
+failure if such a contradictory admission is retained.
 
 The confirmed result must satisfy:
 
 ```text
-confirmation.publicationIntentId
-    == request.intent.publicationIntentId
+confirmation.publicationIntentId == request.intent.publicationIntentId
 
-confirmation.candidateId
-    == request.candidate.candidateId
+confirmation.candidateId == request.candidate.candidateId
 
-confirmation.transition
-    == request.intent.transition
+confirmation.transition == request.intent.transition
 
-publishedView.publicationConfirmationId
-    == confirmation.publicationConfirmationId
+publishedView.publicationConfirmationId ==
+    confirmation.publicationConfirmationId
 
-publishedView.candidateId
-    == request.candidate.candidateId
+publishedView.candidateId == request.candidate.candidateId
 
-publishedView.target
-    == request.intent.transition.target
+publishedView.target == request.intent.transition.target
 
-publishedView.authority
-    == request.intent.transition.successor
+publishedView.authority == request.intent.transition.successor
+    by exact commit SHA and tree SHA
+```
+
+For every confirmation:
+
+```text
+exact publication obligation has exactly one satisfied disposition
+
+that disposition was co-admitted in the exact confirmation StateRevision
+
+that disposition names the exact obligation co-admitted with the intent
+
+its basisArtifacts equal the exact ordered closure required by M2
+
+no authoritative revision has the confirmation while that obligation remains
+outstanding
 ```
 
 Return the exact confirmation from the structurally applicable confirmed
@@ -797,7 +921,40 @@ publication-observation qualification basis is `INTEGRITY_FAILURE`.
 Multiple incompatible confirmed admissions for one exact PublicationIntent are
 `INTEGRITY_FAILURE`.
 
-### 10.4 `gateAReady`
+### 10.4 `publicationNonApplications`
+
+For each retained `PublicationNonApplicationRef`, require:
+
+```text
+exact PublicationIntent exists
+
+exact candidate exists
+
+exact publication WorkItem exists
+
+exact Execution exists
+
+Execution belongs to WorkItem
+
+Execution has successful Arm
+
+exact captured result exists
+
+nonApplication.attemptResult == capturedResult.rawResult
+
+dispatchIntent matches Arm
+
+no PublicationConfirmation was created from that same qualification result
+
+publication obligation remains unsatisfied by the non-application fact
+```
+
+The fact must bind the exact publication intent, candidate, WorkItem, Execution,
+dispatch intent, attempt result, direct proof, and basis artifacts. At most one
+`PublicationNonApplicationRef` exists per Execution. It must never alias
+`PROVEN-NOT-EXECUTED` or manufacture an Execution outcome.
+
+### 10.5 `gateAReady`
 
 ```text
 true iff one terminal Gate A ready fact exists
@@ -939,15 +1096,53 @@ I49  An authorized-but-unarmed Execution for a historical PublicationIntent
 
 I50  A newer PublicationIntent may not be admitted while a prior intent has a
      potentially-effectful armed publication Execution. Automatic replacement
-     is allowed only when the prior WorkItem has never crossed Arm or every
-     armed Execution has exact PROVEN-NOT-EXECUTED terminal recovery.
+     is allowed only when every relevant prior armed Execution is
+     replacement-safe: it has exact terminal PROVEN-NOT-EXECUTED recovery or
+     exactly one authoritative PublicationNonApplicationRef, and none remains
+     unresolved, pending recovery, UNRESOLVABLE without a non-application fact,
+     PROVEN-COMPLETED publication application, a confirmed publication
+     producer, or a progression-superseded uncertain Execution lacking an exact
+     safe disposition.
 
 I51  Publication-intent replacement never deletes or rewrites prior intents,
      obligations, WorkItems, Executions, or preparation evidence.
 
 I52  Every PublicationConfirmation is bound to the exact currently projected
-     PublicationIntent and to the exact publication WorkItem/Execution for
-     that intent.
+     PublicationIntent and exact co-admitted publication WorkItem; an
+     executed-publication confirmation is additionally bound to its exact armed
+     Execution, while an already-current confirmation requires zero Executions
+     for that WorkItem.
+
+I53  Every established preflight retains exactly one bound RepositoryInspectionRef
+     whose baselineAuthority/publicationTarget equal the immutable GateARun values.
+
+I54  Preflight admission retains the exact intact repository-inspection/baseline
+     provenance closure before baseline authority becomes non-null.
+
+I55  C0 uses exactly the sealedBaselineCandidate retained by the established
+     RepositoryInspectionRef.
+
+I56  Every PublicationConfirmation has exactly one publication-obligation
+     satisfied disposition co-admitted in the same StateRevision.
+
+I57  No confirmed publication has its exact publication obligation outstanding.
+
+I58  An already-current confirmed publication has predecessor == successor and
+     zero Executions for its exact publication WorkItem.
+
+I59  An executed-publication confirmation remains bound to an exact armed
+     repository-control publication Execution.
+
+I60  Every PublicationNonApplicationRef binds one exact armed Execution, its
+     exact captured attempt result and exact dispatch intent, and does not
+     satisfy the publication obligation.
+
+I61  At most one PublicationNonApplicationRef exists for one Execution, and it
+     is never interpreted as PROVEN-NOT-EXECUTED.
+
+I62  Automatic later-PublicationIntent replacement after any prior Arm is
+     permitted only when every relevant prior armed Execution has exact
+     PROVEN-NOT-EXECUTED or exact PublicationNonApplicationRef disposition.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -969,6 +1164,9 @@ reconstructSnapshot(runId):
 
     verify referential closure
 
+    verify preflight establishment and RepositoryInspectionRef provenance
+    verify sealed baseline candidate integrity
+    verify C0 sealedCandidate binding
     verify candidate linearity
     verify obligation/disposition graph
     verify WorkItem source closure
@@ -979,6 +1177,8 @@ reconstructSnapshot(runId):
     verify retry limits/one-shot consumption
     verify blocker/disposition consistency
     verify publication-observation qualification request/result consistency
+    verify publication confirmation obligation closure
+    verify publication non-application integrity
     verify qualification/publication consistency
 
     derive:
@@ -993,6 +1193,7 @@ reconstructSnapshot(runId):
         structurally applicable qualification
         publication intent
         publication confirmation
+        publicationNonApplications
         gateAReady
 
     verify complete snapshot invariants
@@ -1211,6 +1412,25 @@ dispatch.
   the latest designation again.
 * CAS contains extra unreferenced blob: ignored by snapshot.
 * Artifact has correct path name but wrong bytes: integrity failure.
+* Baseline authority committed without exact RepositoryInspectionRef
+  provenance: integrity failure.
+* Preflight inspection sealed candidate differs from admitted C0 sealed
+  candidate: integrity failure.
+* Already-current intent with any Execution created for its WorkItem: invalid
+  construction / integrity failure if retained.
+* Confirmed publication whose publication obligation remains outstanding:
+  integrity failure.
+* PublicationNonApplicationRef for an unarmed Execution: integrity failure.
+* PublicationNonApplicationRef used as PROVEN-NOT-EXECUTED: integrity failure.
+* New PublicationIntent admitted after an armed prior Execution that is terminal
+  but has neither PROVEN-NOT-EXECUTED nor PublicationNonApplicationRef:
+  integrity failure.
+* Prior publication Execution has PublicationNonApplicationRef and fresh
+  predecessor changes compatibly: old history remains retained; later distinct
+  PublicationIntent may become current.
+* Prior publication Execution has PublicationNonApplicationRef and predecessor
+  is unchanged: same PublicationIntent is not duplicated; no automatic
+  replacement Execution is created merely from non-application.
 
 ## 18. Constraints
 

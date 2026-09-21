@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.9"
+version: "1.0.10"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.9`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.10`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -129,9 +129,11 @@ No `"generic"`, `"custom"`, `"patch"`, or `"other"` mutation kind exists.
 ```ts
 interface EstablishPreflightV1 {
   readonly kind: "establish-preflight";
+  readonly repositoryInspection: RepositoryInspectionRef;
   readonly baselineAuthority: RepositoryAuthorityRef;
   readonly publicationTarget: RepositoryPublicationTargetRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly preflightEvidence: readonly ArtifactRef[];
   readonly rootObligationDisposition: Extract<
     ObligationDispositionRef,
     { readonly kind: "satisfied" }
@@ -139,9 +141,42 @@ interface EstablishPreflightV1 {
 }
 ```
 
-The disposition must name the exact bootstrap root obligation.
-
 This mutation is accepted at most once per run.
+
+M2 validates:
+
+```text
+repositoryInspection.runId == exact run
+
+baselineAuthority ==
+    repositoryInspection.baselineAuthority
+
+publicationTarget ==
+    repositoryInspection.publicationTarget
+
+repositoryInspection sealed-baseline bindings pass NIB-S
+
+every RepositoryInspectionRef ArtifactRef exists and is intact
+
+preflightEvidence duplicate-free
+every preflightEvidence ArtifactRef intact
+
+rootObligationDisposition names exact bootstrap root obligation
+
+rootObligationDisposition.basisEvidenceIds == []
+
+rootObligationDisposition.basisArtifacts equals exactly the ordered
+
+duplicate-free first-occurrence sequence:
+
+[
+    repositoryInspection.baselineGitBasis,
+    repositoryInspection.sealedBaselineCandidate.materialization,
+    ...repositoryInspection.sealedBaselineCandidate.materializationEvidence,
+    ...repositoryInspection.evidence,
+    ...preflightEvidence
+]
+```
 
 ### 5.2 Candidate
 
@@ -186,6 +221,17 @@ deriveId(
 `materialization` and `semanticSubject` are payload bound to the logical slot.
 
 A second different payload for the same slot is `INVALID_MUTATION`.
+
+For `AdmitCandidateV1` when `ordinal = 0`:
+
+```text
+exact EstablishPreflightV1 exists
+
+sealedCandidate ==
+    EstablishPreflightV1.repositoryInspection.sealedBaselineCandidate
+```
+
+C0 may not substitute another materialization after baseline establishment.
 
 ### 5.3 Review campaign bundle
 
@@ -656,6 +702,9 @@ intent.transition.target ==
 
 intent.transition.relationship == "fast-forward"
 
+intent.transition.predecessor is ancestor-or-equal to
+    intent.transition.successor by accepted M7 evidence
+
 every intent.preparationEvidence ArtifactRef exists and is intact
 
 every intent.transition.ancestryEvidence ArtifactRef exists and is intact
@@ -715,22 +764,37 @@ The new intent may replace it automatically only when ALL of these are true:
 ```text
 no PublicationConfirmationRef exists for priorIntent
 
-no armed Execution belonging to priorPublicationWorkItem exists unless every
-such armed Execution has an exact terminal
-PROVEN-NOT-EXECUTED recovery resolution
+and every armed Execution in priorPublicationWorkItem is replacement-safe.
 
-no armed Execution belonging to priorPublicationWorkItem has:
-    direct CapturedExecutionResult
-    direct TechnicalExecutionFailure
-    PROVEN-COMPLETED recovery
-    UNRESOLVABLE recovery
-    pending recovery
-    unresolved POSSIBLY-DISPATCHED state
-    operator progression supersession without a prior exact
-        PROVEN-NOT-EXECUTED disposition
+Define `replacement-safe(E)` exactly as:
 
-no authoritative evidence permits an old possibly-effectful publication
-Execution to be ignored
+```text
+E has an exact terminal PROVEN-NOT-EXECUTED recovery resolution
+
+OR
+
+E has exactly one authoritative PublicationNonApplicationRef
+```
+
+Additionally, no prior WorkItem Execution is currently:
+
+```text
+unresolved POSSIBLY-DISPATCHED
+pending recovery
+UNRESOLVABLE without a non-application fact
+PROVEN-COMPLETED publication application
+confirmed publication producer
+progression-superseded uncertain Execution lacking prior exact safe disposition
+```
+
+A direct captured result alone is neither safe nor unsafe. Its authoritative
+M7 publication qualification decides.
+
+A `TechnicalExecutionFailure` after Arm is not replacement-safe merely because
+it is terminal.
+
+A `PublicationNonApplicationRef` does not itself authorize another Execution
+for the same WorkItem.
 ```
 
 If these conditions do not hold, M2 rejects as:
@@ -788,26 +852,75 @@ interface AdmitPublicationObservationQualificationV1 {
 This mutation is the only M2 admission boundary for an M7 publication
 observation qualification result.
 
-Let:
+For every request kind define:
 
 ```text
-Q = request
-E = Q.executionResult.execution
-W = exact authoritative WorkItem for E
-I = Q.intent
-C = Q.candidate
+I = request.intent
+C = request.candidate
+W = exact publication WorkItem co-admitted with I
+O = exact publication obligation co-admitted with I
 ```
 
-Before either result branch is admitted, M2 requires:
+M2 requires this common branch before either result branch is admitted:
+
+```text
+I exists
+I == exact currently projected publicationIntent
+
+C exists
+C == exact currentCandidate
+
+C.candidateId == I.candidateId
+
+I.qualificationId ==
+    exact currently projected gateQualification.qualificationId
+
+W exists
+W == exact publication WorkItem co-admitted with I
+
+W.executor == "repository-control"
+W.candidateId == C.candidateId
+
+O exists
+O is exact publication obligation co-admitted with I
+O is currently outstanding
+```
+
+The exact runtime-validated M7 publication operation/input representation and
+binding extractor belong to the future M7 NIB-M. The coding agent may not infer
+that binding from repository-control executor identity alone.
+
+#### Executed-publication branch
+
+For:
+
+```text
+request.kind == "executed-publication"
+```
+
+let:
+
+```text
+E = request.executionResult.execution
+```
+
+M2 retains all existing executed-publication requirements:
 
 ```text
 E exists
+E has a successful Arm
+no progression supersession
+request.executionResult already authoritative
+W is the exact owning WorkItem
+exact runtime M7 binding is established
+```
 
+More precisely:
+
+```text
 no ExecutionProgressionSupersessionRef exists for E
 
-E has a successful Arm fact
-
-Q.executionResult equals one exact already-authoritative
+request.executionResult equals one exact already-authoritative
 CapturedExecutionResult for E
 
 that captured result was admitted either:
@@ -816,35 +929,8 @@ that captured result was admitted either:
     as the captured recovered outcome of a PROVEN-COMPLETED
     AdmitExecutionRecoveryV1
 
-W exists
-
-W.executor == "repository-control"
-
-W.candidateId == C.candidateId
-
-I equals one exact admitted PublicationIntentRef
-
-C equals one exact authoritative CandidateRevisionRef
-
-C.candidateId == I.candidateId
-
-I.qualificationId equals the exact qualification governing publication
-
-I == exact currently projected publicationIntent
-
-W == exact publication WorkItem co-admitted with I
+W == the exact publication WorkItem owning E
 ```
-
-M2 must additionally verify that the repository-control WorkItem owning `E` is
-the exact PublicationIntent WorkItem for `I`.
-
-The exact runtime-validated M7 publication operation/input representation and
-binding extractor belong to the M7 NIB-M.
-
-The M7 NIB-M must close that representation before GREEN.
-
-The coding agent may not infer that binding from repository-control executor
-identity alone.
 
 For:
 
@@ -855,41 +941,70 @@ result.kind = "confirmed"
 M2 requires:
 
 ```text
-result.confirmation.publicationIntentId
-    == I.publicationIntentId
+result.confirmation.publicationIntentId ==
+    I.publicationIntentId
 
-result.confirmation.candidateId
-    == C.candidateId
+result.confirmation.candidateId ==
+    C.candidateId
 
-result.confirmation.transition
-    == I.transition
+result.confirmation.transition ==
+    I.transition
 
-result.publishedView.publicationConfirmationId
-    == result.confirmation.publicationConfirmationId
+result.publishedView.publicationConfirmationId ==
+    result.confirmation.publicationConfirmationId
 
-result.publishedView.candidateId
-    == C.candidateId
+result.publishedView.candidateId == C.candidateId
 
-result.publishedView.target
-    == I.transition.target
+result.publishedView.target == I.transition.target
 
-result.publishedView.authority
-    == I.transition.successor
+result.publishedView.authority == I.transition.successor
     by exact commit SHA and tree SHA
 ```
 
-M2 then atomically appends:
+For:
 
 ```text
-the exact PublicationObservationQualification request/result admission basis
-the exact PublicationConfirmationRef
-the exact PublishedRepositoryViewRef identity descriptor
+result.kind = "not-applied"
 ```
 
-in one StateRevision.
+M2 requires:
 
-A `PublicationConfirmationRef` may never become authoritative from a bare
-confirmation/view pair.
+```text
+result.nonApplication.publicationIntentId ==
+    I.publicationIntentId
+
+result.nonApplication.candidateId ==
+    C.candidateId
+
+result.nonApplication.executionId ==
+    E.executionId
+
+result.nonApplication.workItemId ==
+    W.workItemId
+
+result.nonApplication.dispatchIntent ==
+    exact Arm dispatchIntent for E
+
+result.nonApplication.attemptResult ==
+    request.executionResult.rawResult
+
+proof/basis ArtifactRefs intact
+
+future M7 pure validator accepts the exact non-application binding
+```
+
+M2 atomically appends the exact publication-observation qualification
+request/result basis and exact `PublicationNonApplicationRef` for this branch.
+It appends:
+
+```text
+NO PublicationConfirmationRef
+NO PublishedRepositoryViewRef
+NO publication obligation disposition
+```
+
+A `PublicationNonApplicationRef` does not satisfy `O` and does not manufacture
+an Execution outcome.
 
 For:
 
@@ -897,31 +1012,100 @@ For:
 result.kind = "blocked"
 ```
 
-M2 requires:
+M2 retains the current blocker ownership shape:
 
 ```text
 result.blocker.kind == "operational"
-
-result.blocker.executionId
-    == E.executionId
-
+result.blocker.executionId == E.executionId
 result.blocker references one exact applicable publication obligation
 ```
 
-M2 then atomically appends:
+M2 atomically appends the exact request/result basis and blocker, and appends
+no confirmation or published view.
+
+#### Already-current branch
+
+For:
 
 ```text
-the exact PublicationObservationQualification request/result admission basis
-the exact OperationalBlocker
+request.kind == "already-current"
 ```
 
-and appends no `PublicationConfirmationRef` or `PublishedRepositoryViewRef`.
+M2 requires exactly:
 
+```text
+I.transition.predecessor ==
+    I.transition.successor
+
+zero Execution exists for W
+
+request.observation.publicationIntentId ==
+    I.publicationIntentId
+
+request.observation.candidateId ==
+    C.candidateId
+
+request.observation.target ==
+    I.transition.target
+
+request.observation.observedAuthority ==
+    I.transition.successor
+    by exact commit SHA and tree SHA
+
+every observation evidence ArtifactRef intact
+
+future M7 pure validator accepts exact already-current observation
+```
+
+`result.kind = "not-applied"` is invalid for this request kind. The
+already-current request may produce `confirmed` but never `not-applied`.
+`result.kind = "blocked"` is not used merely because the target changed before
+qualification; orchestration declines to submit the stale request and
+re-enters preparation instead.
+
+For a confirmed result in either legal branch, M2 requires the exact
+confirmation and published-view bindings above and atomically appends in the
+same `StateRevision`:
+
+```text
+exact publication-observation qualification request/result basis
+exact PublicationConfirmationRef
+exact PublishedRepositoryViewRef identity descriptor
+one exact ObligationDispositionRef {
+    kind: "satisfied",
+    obligationId: O.obligationId,
+    basisEvidenceIds: [],
+    basisArtifacts: <exact sequence below>
+}
+```
+
+For `executed-publication`, `basisArtifacts` is the ordered duplicate-free
+first-occurrence sequence:
+
+```text
+[
+    request.executionResult.rawResult,
+    ...request.executionResult.runtimeEvidence,
+    ...result.confirmation.materialIdentityEvidence
+]
+```
+
+For `already-current`, `basisArtifacts` is the ordered duplicate-free
+first-occurrence sequence:
+
+```text
+[
+    ...request.observation.evidence,
+    ...result.confirmation.materialIdentityEvidence
+]
+```
+
+M2 requires `O` had no prior disposition. There must never be an authoritative
+revision with a new `PublicationConfirmationRef` while `O` remains outstanding.
+Only `result.kind = "confirmed"` creates a `PublicationConfirmationRef`.
 A captured publication result by itself never establishes publication
-confirmation.
-
-A blocked publication qualification is a known M7 domain result and is not an
-M8 execution-uncertainty classification.
+confirmation. A blocked publication qualification is a known M7 domain result
+and is not an M8 execution-uncertainty classification.
 
 ### 5.15 Operator resolution
 
@@ -1947,23 +2131,37 @@ It reloads or re-enters the appropriate orchestration/recovery path.
 For repository publication, the required admission order is:
 
 ```text
-Arm exact publication Execution
-↓
-obtain direct or recovered CapturedExecutionResult
-↓
-make that CapturedExecutionResult authoritative
-↓
-M7 qualify_publication_observation(request)
-↓
+conditional-ref-update:
+    Arm exact publication Execution
+    ↓
+    obtain direct or recovered CapturedExecutionResult
+    ↓
+    make that CapturedExecutionResult authoritative
+    ↓
+    M7 qualify_publication_observation({ kind: executed-publication, ... })
+    ↓
+already-current:
+    EstablishPublicationIntentV1
+    ↓
+    obtain one fresh exact read-only target observation
+    ↓
+    M7 qualify_publication_observation({ kind: already-current, ... })
+    ↓
 AdmitPublicationObservationQualificationV1(request, result)
 ↓
 if confirmed:
     PublicationConfirmationRef + PublishedRepositoryViewRef
+    + exact publication-obligation satisfied disposition in the same revision
+if not-applied:
+    PublicationNonApplicationRef only
+    + no confirmation/view/disposition
 if blocked:
     exact OperationalBlocker
 ```
 
-M1 may not commit a bare publication confirmation/view pair.
+A `not-applied` result is valid only for the executed-publication request kind.
+M1 may not commit a bare publication confirmation/view pair or a confirmation
+whose exact publication obligation remains outstanding.
 
 The snapshot/integrity M2 brief performs all resulting-state reconstruction and
 invariant validation before SQLite commit.
