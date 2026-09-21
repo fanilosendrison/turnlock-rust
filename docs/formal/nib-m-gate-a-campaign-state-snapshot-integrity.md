@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "1.0.9"
+version: "1.0.10"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.10`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.11`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -412,6 +412,11 @@ Execution attempt order
 ### 5.13 `publicationNonApplications`
 
 The projection contains every authoritative `PublicationNonApplicationRef`.
+
+Each retained fact must have been introduced from the exact captured result
+that was admitted directly through `AdmitExecutionOutcomeV1` for its Execution.
+A captured result introduced through `AdmitExecutionRecoveryV1` is never a valid
+source for this projection, even when the recovered outcome kind is `captured`.
 
 Ordering:
 
@@ -942,6 +947,11 @@ exact captured result exists
 
 nonApplication.attemptResult == capturedResult.rawResult
 
+capturedResult was introduced for E by one exact direct
+AdmitExecutionOutcomeV1 whose outcome.kind == "captured"
+
+no AdmitExecutionRecoveryV1 is the authoritative introduction of capturedResult
+
 dispatchIntent matches Arm
 
 no PublicationConfirmation was created from that same qualification result
@@ -1134,7 +1144,9 @@ I59  An executed-publication confirmation remains bound to an exact armed
      repository-control publication Execution.
 
 I60  Every PublicationNonApplicationRef binds one exact armed Execution, its
-     exact captured attempt result and exact dispatch intent, and does not
+     exact captured attempt result and exact dispatch intent; that captured
+     result was introduced directly by AdmitExecutionOutcomeV1 for the same
+     Execution, never by AdmitExecutionRecoveryV1; and the fact does not
      satisfy the publication obligation.
 
 I61  At most one PublicationNonApplicationRef exists for one Execution, and it
@@ -1421,6 +1433,8 @@ dispatch.
 * Confirmed publication whose publication obligation remains outstanding:
   integrity failure.
 * PublicationNonApplicationRef for an unarmed Execution: integrity failure.
+* PublicationNonApplicationRef whose captured attempt result was introduced by
+  AdmitExecutionRecoveryV1: integrity failure.
 * PublicationNonApplicationRef used as PROVEN-NOT-EXECUTED: integrity failure.
 * New PublicationIntent admitted after an armed prior Execution that is terminal
   but has neither PROVEN-NOT-EXECUTED nor PublicationNonApplicationRef:

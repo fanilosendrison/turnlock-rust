@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.10"
+version: "6.0.11"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -171,6 +171,19 @@ A direct terminal publication attempt may establish an exact
 PublicationNonApplicationRef proving that the authorized target-ref mutation was
 not applied. This fact is distinct from PROVEN-NOT-EXECUTED and may permit safe
 future PublicationIntent replacement without fabricating retry authority.
+
+Version `6.0.11` closes the direct-versus-recovered publication non-application
+provenance gap without changing TURNLOCK product semantics. A recovered
+`PROVEN-COMPLETED` captured outcome remains eligible for ordinary executed-
+publication qualification and confirmation, but it can never produce a
+`PublicationNonApplicationRef`. M1 rejects an attempted recovered
+`not-applied` qualification as an implementation/process/integrity failure
+without submitting a publication-qualification mutation to M2; M2 accepts
+`not-applied` only when the exact
+captured result was introduced directly by `AdmitExecutionOutcomeV1`; snapshot
+integrity enforces the same provenance condition. The required prior M2 recovery
+resolution remains durable; the guard prevents only publication-qualification
+mutation and PNA append.
 
 The construction discovery classifications preserved by this revision are:
 
@@ -1245,7 +1258,13 @@ a new PublicationIntent already exists
 ```
 
 `PublicationNonApplicationRef` v1 is produced only from a direct terminal M7
-capture. It is not recovery-derived in this patch.
+capture. For authoritative provenance, "direct terminal" means that the exact
+`CapturedExecutionResult` was introduced for the exact Execution by
+`AdmitExecutionOutcomeV1` with `outcome.kind = "captured"`. A captured payload
+introduced by `AdmitExecutionRecoveryV1` is recovery-derived even when its
+payload is otherwise identical. Recovery-derived captured material may support
+executed-publication qualification and confirmation, but it may never produce a
+`not-applied` result or a `PublicationNonApplicationRef`.
 
 ## 14. Blocker types
 
@@ -2797,6 +2816,11 @@ After one direct captured M7 result is admitted through
 `AdmitExecutionOutcomeV1`, or after a recovered captured result is admitted
 through `AdmitExecutionRecoveryV1`, M1 uses the executed-publication form of
 `PublicationObservationQualificationRequest`.
+
+A recovered captured result may qualify as `confirmed` or `blocked`, but it
+may not qualify as `not-applied`. If M7 returns `not-applied` for a recovered
+source, M1 fails the invocation as an implementation/process/integrity
+failure and submits no publication-qualification mutation to M2.
 
 `PublicationObservationQualificationResult.kind = "not-applied"` is valid only
 for `request.kind = "executed-publication"`. The already-current request kind
@@ -5434,9 +5458,11 @@ run(command):
 
                     publication_observation =
                         recovery.resolution.recoveredOutcome.value
+                    publication_observation_source = "recovered"
 
                 else:
                     publication_observation = capture.value
+                    publication_observation_source = "direct"
                     commit through M2 the exact AdmitExecutionOutcomeV1:
                         captured publication_observation
 
@@ -5451,6 +5477,13 @@ run(command):
                 if publication_qualification.kind == "blocked":
                     commit publication_qualification.blocker through M2
                     return OPERATOR-ACTION-REQUIRED projection
+
+                if publication_observation_source == "recovered" and
+                   publication_qualification.kind == "not-applied":
+                    fail invocation as implementation/process/integrity failure
+                    do not construct or submit the publication-qualification
+                        AdmitPublicationObservationQualificationV1 mutation
+                    do not append PublicationNonApplicationRef
 
                 publication_qualification_request = {
                     kind: "executed-publication",
@@ -5886,7 +5919,10 @@ GI-80  Every PublicationConfirmation atomically satisfies the exact
 
 GI-81  PublicationNonApplicationRef positively establishes only that one exact
        armed publication target-ref mutation was not applied. It is distinct
-       from PROVEN-NOT-EXECUTED and does not itself authorize retry.
+       from PROVEN-NOT-EXECUTED and does not itself authorize retry. It may be
+       produced only from a direct terminal M7 capture introduced by
+       AdmitExecutionOutcomeV1; a recovery-derived captured outcome can never
+       produce this fact.
 
 GI-82  A later PublicationIntent may supersede an armed prior publication
        intent only after every relevant prior armed Execution has an exact safe

@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.10"
+version: "1.0.11"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.10`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.11`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -929,8 +929,15 @@ that captured result was admitted either:
     as the captured recovered outcome of a PROVEN-COMPLETED
     AdmitExecutionRecoveryV1
 
+M2 retains which exact authoritative admission introduced the result; it never
+infers direct-versus-recovered provenance from the captured payload.
+
 W == the exact publication WorkItem owning E
 ```
+
+A recovered captured result remains eligible for ordinary executed-publication
+qualification, including confirmation, but it is never eligible to establish
+publication non-application.
 
 For:
 
@@ -988,10 +995,21 @@ result.nonApplication.dispatchIntent ==
 result.nonApplication.attemptResult ==
     request.executionResult.rawResult
 
+request.executionResult was introduced for E by one exact direct
+AdmitExecutionOutcomeV1 whose outcome.kind == "captured"
+
+no AdmitExecutionRecoveryV1 is the authoritative introduction of that captured
+result
+
 proof/basis ArtifactRefs intact
 
 future M7 pure validator accepts the exact non-application binding
 ```
+
+If the direct-outcome provenance conditions fail, M2 rejects the proposed
+`not-applied` mutation as `INVALID_MUTATION` and appends no
+`PublicationNonApplicationRef`. A captured result introduced by
+`AdmitExecutionRecoveryV1` may not be used for this branch.
 
 M2 atomically appends the exact publication-observation qualification
 request/result basis and exact `PublicationNonApplicationRef` for this branch.
@@ -1708,6 +1726,11 @@ When the recovered outcome belongs to repository publication and
 the authoritative `CapturedExecutionResult` that may be supplied in a
 `PublicationObservationQualificationRequest`.
 
+For publication qualification, a recovered captured result may produce
+`confirmed` or `blocked`, but it may never produce `not-applied`. M2 rejects a
+`not-applied` mutation whose result was introduced by `AdmitExecutionRecoveryV1`;
+M1 must fail the recovered `not-applied` path before submitting that mutation.
+
 No second direct-outcome admission is required or permitted for the same
 Execution.
 
@@ -2139,6 +2162,11 @@ conditional-ref-update:
     make that CapturedExecutionResult authoritative
     ↓
     M7 qualify_publication_observation({ kind: executed-publication, ... })
+    ↓
+    if result == not-applied:
+        require the exact result was introduced directly through
+            AdmitExecutionOutcomeV1
+        reject recovered-origin results as INVALID_MUTATION
     ↓
 already-current:
     EstablishPublicationIntentV1
