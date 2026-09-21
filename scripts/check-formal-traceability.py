@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import copy
 import hashlib
 import json
 import math
@@ -13,6 +14,9 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
+
+_ORIGINAL_YAML_SAFE_LOAD = yaml.safe_load
+_YAML_PARSE_CACHE: dict[str, object] = {}
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -198,7 +202,16 @@ def _sequence(value: object) -> list:
 def _load_yaml(root: Path, relative: Path) -> tuple[object, list[str]]:
     path = root / relative
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        current_safe_load = yaml.safe_load
+        if current_safe_load is not _ORIGINAL_YAML_SAFE_LOAD:
+            data = current_safe_load(text)
+        elif text in _YAML_PARSE_CACHE:
+            data = copy.deepcopy(_YAML_PARSE_CACHE[text])
+        else:
+            parsed = current_safe_load(text)
+            _YAML_PARSE_CACHE[text] = parsed
+            data = copy.deepcopy(parsed)
     except (OSError, UnicodeError, yaml.YAMLError) as error:
         return None, [f"cannot read {relative.as_posix()}: {error}"]
     return data, []
