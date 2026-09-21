@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.8"
+version: "1.0.9"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.8`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.9`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -527,6 +527,8 @@ qualification.
 interface EstablishPublicationIntentV1 {
   readonly kind: "establish-publication-intent";
   readonly intent: PublicationIntentRef;
+  readonly publicationObligation: ObligationRef;
+  readonly publicationWorkItem: WorkItemRef;
 }
 ```
 
@@ -534,6 +536,244 @@ At most one effective publication intent may exist for one exact
 candidate/qualification transition.
 
 Historical intents remain retained.
+
+### 5.13.1 Publication intent identity
+
+M2 recomputes `PublicationIntentRef.publicationIntentId` exactly as:
+
+```text
+deriveId(
+    "publication-intent.v1",
+    runId,
+    candidateId,
+    qualificationId,
+    transition.target.repositoryIdentity,
+    transition.target.remoteEndpoint,
+    transition.target.refName,
+    transition.predecessor.commitSha,
+    transition.predecessor.treeSha,
+    transition.successor.commitSha,
+    transition.successor.treeSha
+)
+```
+
+Publication intent identity excludes:
+
+```text
+StateRevision
+ownership generation
+timestamp
+preparationEvidence
+ancestryEvidence ArtifactRef identities
+WorkItemId
+ExecutionId
+```
+
+M2 must recompute and require exact equality.
+
+Replaying an identical preparation for the exact same transition therefore
+produces the same logical intent identity. A different predecessor or successor
+produces a different intent identity.
+
+### 5.13.2 Publication obligation and WorkItem identities
+
+M2 recomputes the co-admitted identities exactly as:
+
+```text
+publicationObligation.obligationId =
+deriveId(
+    "publication-obligation.v1",
+    intent.publicationIntentId
+)
+```
+
+```text
+publicationWorkItem.workItemId =
+deriveId(
+    "publication-work-item.v1",
+    intent.publicationIntentId
+)
+```
+
+M2 requires:
+
+```text
+publicationObligation.runId == intent.runId
+publicationObligation.candidateId == intent.candidateId
+publicationObligation.reviewCampaignId == null
+publicationObligation.definition ArtifactRef exists and is intact
+
+publicationWorkItem.runId == intent.runId
+publicationWorkItem.candidateId == intent.candidateId
+publicationWorkItem.reviewCampaignId == null
+publicationWorkItem.executor == "repository-control"
+
+publicationWorkItem.sourceObligationIds
+    == [publicationObligation.obligationId]
+
+publicationWorkItem.operation ArtifactRef exists and is intact
+
+every publicationWorkItem.inputRefs ArtifactRef exists and is intact
+publicationWorkItem.inputRefs is duplicate-free
+```
+
+The exact runtime schema of:
+
+```text
+publicationObligation.definition
+publicationWorkItem.operation
+```
+
+and the pure binding extractor proving the operation represents the exact
+`PublicationIntentRef` belong to the future M7 NIB-M.
+
+GREEN is blocked until that M7 contract exists.
+
+M2 must not infer publication binding merely from:
+
+```text
+executor == "repository-control"
+candidateId
+target
+repository path
+```
+
+### 5.13.3 Admission preconditions
+
+For `EstablishPublicationIntentV1`, M2 requires all of the following before
+admission:
+
+```text
+intent.runId == exact GateARun
+
+intent.candidateId == exact currentCandidate.candidateId
+
+intent.qualificationId ==
+    exact currently projected gateQualification.qualificationId
+
+intent.transition.target ==
+    exact immutable run.publicationTarget
+
+intent.transition.relationship == "fast-forward"
+
+every intent.preparationEvidence ArtifactRef exists and is intact
+
+every intent.transition.ancestryEvidence ArtifactRef exists and is intact
+
+publication obligation/work bindings pass section 5.13.2
+```
+
+M2 does not reinterpret Git ancestry evidence.
+
+It validates the construction/reference bindings fixed by NIB-S and future M7
+contracts.
+
+### 5.13.4 Initial versus replacement intent
+
+Before inserting the new intent bundle, M2 obtains the currently projected
+applicable publication intent for the current exact
+candidate/qualification:
+
+```text
+priorIntent
+```
+
+**Case A — no prior intent**
+
+M2 atomically appends in one StateRevision:
+
+```text
+intent
+publicationObligation
+publicationWorkItem
+```
+
+No obligation supersession is created.
+
+**Case B — the exact same intent identity already exists and is currently projected**
+
+M2 rejects the proposal as:
+
+```text
+INVALID_MUTATION
+```
+
+M2 does not create another StateRevision solely to duplicate the same effective
+intent.
+
+**Case C — a different prior intent exists for the same exact current candidate/qualification**
+
+M2 finds its exact co-admitted:
+
+```text
+priorPublicationObligation
+priorPublicationWorkItem
+```
+
+The new intent may replace it automatically only when ALL of these are true:
+
+```text
+no PublicationConfirmationRef exists for priorIntent
+
+no armed Execution belonging to priorPublicationWorkItem exists unless every
+such armed Execution has an exact terminal
+PROVEN-NOT-EXECUTED recovery resolution
+
+no armed Execution belonging to priorPublicationWorkItem has:
+    direct CapturedExecutionResult
+    direct TechnicalExecutionFailure
+    PROVEN-COMPLETED recovery
+    UNRESOLVABLE recovery
+    pending recovery
+    unresolved POSSIBLY-DISPATCHED state
+    operator progression supersession without a prior exact
+        PROVEN-NOT-EXECUTED disposition
+
+no authoritative evidence permits an old possibly-effectful publication
+Execution to be ignored
+```
+
+If these conditions do not hold, M2 rejects as:
+
+```text
+INVALID_MUTATION
+```
+
+M2 does not create a blocker inside M2.
+
+M2 does not invent an operator action from an invalid proposal.
+
+If replacement is safe, M2 atomically appends in the SAME StateRevision:
+
+```text
+new intent
+new publicationObligation
+new publicationWorkItem
+
+one exact ObligationDispositionRef {
+    kind: "superseded",
+    obligationId: priorPublicationObligation.obligationId,
+    replacementObligationIds: [
+        new publicationObligation.obligationId
+    ],
+    basisEvidenceIds: [],
+    basisArtifacts: intent.preparationEvidence
+}
+```
+
+M2 requires:
+
+```text
+priorPublicationObligation is currently outstanding
+```
+
+The supersession disposition is M2 lifecycle plumbing fixed by this brief.
+
+It does not assert repository truth beyond the already validated new
+`PublicationIntent` proposal.
+
+The prior intent, prior obligation, prior WorkItem, and prior Executions are
+never mutated or deleted.
 
 ### 5.14 Publication observation qualification
 
@@ -589,6 +829,10 @@ C equals one exact authoritative CandidateRevisionRef
 C.candidateId == I.candidateId
 
 I.qualificationId equals the exact qualification governing publication
+
+I == exact currently projected publicationIntent
+
+W == exact publication WorkItem co-admitted with I
 ```
 
 M2 must additionally verify that the repository-control WorkItem owning `E` is
@@ -1116,6 +1360,63 @@ require every dispatchEvidence ArtifactRef is intact
 require recoveryCapability artifact is intact when non-null
 ```
 
+For an `Execution E` whose `WorkItem W` is a repository-control publication
+WorkItem, M2 additionally requires:
+
+```text
+snapshot.publicationIntent != null
+
+let I = snapshot.publicationIntent
+
+W is the exact WorkItem co-admitted with I
+
+E.workItemId == W.workItemId
+
+W.candidateId == snapshot.currentCandidate.candidateId
+
+I.candidateId == snapshot.currentCandidate.candidateId
+
+I.qualificationId ==
+    snapshot.gateQualification.qualificationId
+
+the exact publication obligation co-admitted with I is outstanding
+
+W.operation passes the future M7 pure binding extractor for exact I
+
+the Arm revalidation basis contains the exact future-M7-validated publication
+revalidation binding required for I
+
+that binding names:
+    exact I
+    exact I.transition.target
+    exact I.transition.predecessor
+    exact I.transition.successor
+```
+
+M2 does not independently interpret remote Git state.
+
+M7 establishes repository-domain revalidation evidence.
+
+M2 validates that the exact accepted M7 binding is current, structurally bound
+to I, and supplied to the exact current-intent WorkItem/Execution.
+
+The future M7 NIB-M must close the exact revalidation artifact schema and pure
+binding-validation contract before GREEN.
+
+If `W` belongs to a historical PublicationIntent instead of the exact projected
+current one:
+
+```text
+ArmExecutionDispatchV1 is INVALID_MUTATION
+```
+
+No Arm fact is written.
+
+No uncertainty is created.
+
+No M8 recovery is invoked because the external-effect permission boundary was
+never crossed.
+
 On commit:
 
 ```text
@@ -1364,6 +1665,32 @@ A new Execution is forbidden when every source obligation has a disposition.
 
 An already-armed Execution remains subject to outcome/recovery closure even if
 all source obligations are later disposed.
+
+### Publication Intent WorkItems
+
+A PublicationIntent WorkItem is created only through
+`EstablishPublicationIntentV1`.
+
+It is never created through:
+
+```text
+EstablishReviewCampaignBundleV1
+AdmitAssuranceLedgerDeltaV1
+generic orchestration invention
+```
+
+Exactly one publication WorkItem exists per PublicationIntent.
+
+Exactly one publication obligation exists per PublicationIntent.
+
+Its `sourceObligationIds` contains only that exact publication obligation.
+
+When a later safe publication intent supersedes the prior publication
+obligation, any authorized-but-unarmed Execution of the old WorkItem remains
+historical and becomes non-dispatchable under the Arm current-intent check.
+
+Obligation supersession does not cancel or manufacture an outcome for an
+already-armed Execution.
 
 ## 16. Blockers
 

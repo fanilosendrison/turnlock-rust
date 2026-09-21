@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.8"
+version: "6.0.9"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -134,6 +134,19 @@ reconciliation episode or StateRevision. Operator resolution never creates
 domain truth: M8 validates the requested action and M2 independently validates
 its current authoritative admissibility before any atomic blocker disposition
 or Execution progression supersession.
+
+Version `6.0.9` closes the publication-intent work/admission and pre-Arm
+staleness construction gaps without changing TURNLOCK product semantics.
+Publication preparation now supplies the exact publication intent together with
+its exact publication obligation and repository-control WorkItem for atomic M2
+admission. Historical publication intents remain append-only, while a later
+safe pre-Arm intent mechanically supersedes the prior publication obligation.
+M2 Arm admission for repository publication now requires the exact currently
+projected PublicationIntent WorkItem, preventing an authorized but unarmed
+Execution for a historical intent from crossing the external-effect boundary.
+An already-armed publication Execution remains governed exclusively by its
+existing outcome/recovery lifecycle and cannot be bypassed by publication-intent
+replacement.
 
 ## 2. System objective
 
@@ -762,9 +775,23 @@ Owns:
 * candidate materialization identity;
 * Git/repository inspection;
 * PublicationIntent realization;
+* construction of the exact publication admission bundle:
+  `PublicationIntentRef` + publication `ObligationRef` + repository-control
+  `PublicationIntent WorkItemRef`;
 * conditional publication against the expected predecessor;
 * publication reconciliation;
 * exact published-candidate materialization proof.
+
+M7 proposes that bundle. M2 alone admits it authoritatively.
+
+The WorkItem ownership distinction is exact:
+
+```text
+M5 → protocol-derived assurance WorkItems
+
+M7 → repository-control publication WorkItem bound to one exact
+     PublicationIntent
+```
 
 It does not synthesize repairs.
 
@@ -974,7 +1001,48 @@ interface PreparedPublication {
   readonly qualificationId: GateAQualificationId;
   readonly transition: AuthorizedGitTransitionRef;
   readonly materialIdentityEvidence: readonly ArtifactRef[];
+  readonly intent: PublicationIntentRef;
+  readonly publicationObligation: ObligationRef;
+  readonly publicationWorkItem: WorkItemRef;
 }
+
+`PreparedPublication.intent` is the exact `PublicationIntentRef` proposed for
+the prepared transition. All of these bindings are required:
+
+```text
+PreparedPublication.intent.runId == PreparedPublication.runId.
+
+PreparedPublication.intent.candidateId == PreparedPublication.candidateId.
+
+PreparedPublication.intent.qualificationId ==
+PreparedPublication.qualificationId.
+
+PreparedPublication.intent.transition == PreparedPublication.transition.
+
+PreparedPublication.publicationObligation belongs to the same GateARun and
+candidate as the intent.
+
+PreparedPublication.publicationObligation.reviewCampaignId == null.
+
+PreparedPublication.publicationWorkItem belongs to the same GateARun and
+candidate as the intent.
+
+PreparedPublication.publicationWorkItem.reviewCampaignId == null.
+
+PreparedPublication.publicationWorkItem.executor == "repository-control".
+
+PreparedPublication.publicationWorkItem.sourceObligationIds contains exactly
+one item and that item equals
+PreparedPublication.publicationObligation.obligationId.
+```
+
+The publication WorkItem operation must bind the exact `PublicationIntent`.
+
+Its exact runner-owned operation schema and pure binding extractor belong to
+the future M7 NIB-M and must be closed before GREEN.
+
+M1 may coordinate this bundle but may not invent or reinterpret its WorkItem,
+obligation, transition, or repository-domain meaning.
 
 interface PublicationConfirmationRef {
   readonly publicationConfirmationId: PublicationConfirmationId;
@@ -4749,27 +4817,67 @@ run(command):
                 transition.predecessor is ancestor of transition.successor
                 transition.target is exact repository + endpoint + ref
 
-            intent = construct PublicationIntent(
-                exact qualification,
-                exact candidate,
-                preparation.transition,
-                preparation.materialIdentityEvidence
-            )
+            intent = preparation.publication.intent
+            publication_obligation =
+                preparation.publication.publicationObligation
+            publication_work_item =
+                preparation.publication.publicationWorkItem
 
-            commit intent through M2
+            require intent.runId == run.runId
+            require intent.candidateId == exact candidate.candidateId
+            require intent.qualificationId
+                == exact qualification.qualificationId
+            require intent.transition == preparation.publication.transition
+
+            require publication_obligation.runId == intent.runId
+            require publication_obligation.candidateId == intent.candidateId
+            require publication_obligation.reviewCampaignId == null
+
+            require publication_work_item.runId == intent.runId
+            require publication_work_item.candidateId == intent.candidateId
+            require publication_work_item.reviewCampaignId == null
+            require publication_work_item.executor == "repository-control"
+            require publication_work_item.sourceObligationIds
+                == [publication_obligation.obligationId]
+
+            commit through M2 in one atomic EstablishPublicationIntentV1:
+                exact intent
+                exact publication_obligation
+                exact publication_work_item
 
             publication_execution = authorize exact repository-control Execution
-            for the exact PublicationIntent WorkItem
+            for preparation.publication.publicationWorkItem
 
             immediately before publication Arm:
                 revalidate:
                     qualification still effective
                     no new blocker exists
+                    exact projected snapshot.publicationIntent still equals intent
+                    publication WorkItem still equals the exact publication
+                        WorkItem co-admitted with that intent
+                    publication obligation is still outstanding
                     exact target ref still equals transition.predecessor
                     transition.successor still equals prepared immutable repository object
                     fast-forward ancestry proof still valid
                     expected StateRevision still current
                     ownership generation still current
+
+            if fresh target-ref revalidation establishes that the target no
+            longer equals intent.transition.predecessor:
+                M1 must not Arm the Execution
+
+                because no Arm occurred, this is not execution uncertainty
+                and does not enter M8 recovery
+
+                M1 returns to ordinary authoritative orchestration after
+                loading the latest M2 snapshot
+
+                a later mechanically prepared PublicationIntent may replace
+                the old intent only through the ordinary
+                EstablishPublicationIntentV1 admission rules
+
+                the historical intent, WorkItem, obligation, and any
+                authorized-but-unarmed Execution remain retained
 
             seal the exact publication Arm mutation artifact containing:
                 publication_execution
@@ -5204,6 +5312,27 @@ GI-71  Once an Execution has an authoritative progression supersession, later
        create new authoritative progression-bearing outcome, recovery,
        cognitive-attempt qualification, publication qualification, or receipt
        truth for that superseded occurrence.
+
+GI-72  Every authoritative PublicationIntent is admitted atomically with exactly
+       one publication obligation and exactly one repository-control
+       PublicationIntent WorkItem bound to that exact intent.
+
+GI-73  When a later safe PublicationIntent becomes effective for the same exact
+       candidate/qualification transition, the prior publication obligation is
+       superseded append-only by the replacement publication obligation; the
+       prior intent, WorkItem, and Executions remain immutable historical
+       state.
+
+GI-74  M2 may Arm a repository-control publication Execution only when its
+       WorkItem is the exact WorkItem co-admitted with the currently projected
+       PublicationIntent and its exact publication obligation remains
+       outstanding.
+
+GI-75  Publication-intent replacement never bypasses an already potentially-
+       effectful publication Execution. Once a publication Execution has
+       crossed Arm, its external-effect disposition must first be established
+       through the existing outcome/recovery/progression rules before another
+       publication intent may obtain side-effect authority.
 ```
 
 ## 40. Cross-cutting policies

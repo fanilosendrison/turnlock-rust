@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "1.0.7"
+version: "1.0.8"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.8`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.9`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -679,6 +679,51 @@ intent.qualificationId == projected gateQualification.qualificationId
 
 Otherwise `null`.
 
+Reconstruction additionally verifies for every applicable PublicationIntent:
+
+```text
+exactly one publication obligation was co-admitted in the same StateRevision
+
+exactly one repository-control publication WorkItem was co-admitted in the same
+StateRevision
+
+their deterministic IDs recompute correctly
+
+their run/candidate/reviewCampaign/executor/source-obligation bindings are exact
+```
+
+For the projected latest intent:
+
+```text
+its publication obligation must be outstanding unless publication has already
+reached a later legitimate confirmed/terminal stage
+```
+
+For every earlier applicable historical publication intent replaced by a later
+one:
+
+```text
+its publication obligation has exactly one superseded disposition
+
+that disposition replacementObligationIds ==
+    [next publication intent's publication obligation ID]
+```
+
+The resulting chain must be linear in publication-intent admission order.
+
+Example:
+
+```text
+I1 → I2 → I3
+
+O1 superseded by O2
+O2 superseded by O3
+O3 outstanding
+```
+
+Historical intents, obligations, WorkItems, and Executions remain visible in
+their respective historical arrays.
+
 ### 10.3 `publicationConfirmation`
 
 Publication confirmations are projected only from admitted
@@ -706,8 +751,14 @@ Execution for the request intent
 
 request.intent == projected applicable PublicationIntent
 
+the request Execution belongs to the exact publication WorkItem co-admitted
+with that projected intent
+
 request.candidate == currentCandidate
 ```
+
+A confirmation based on a historical non-projected intent is an integrity
+failure if such a contradictory admission is already retained.
 
 The confirmed result must satisfy:
 
@@ -869,6 +920,34 @@ I45  No authoritative progression-bearing execution outcome, uncertainty,
      recovery, cognitive-attempt classification, or publication qualification
      is introduced for an Execution after the revision that progression-
      superseded it.
+
+I46  Every PublicationIntent has exactly one publication obligation and exactly
+     one repository-control publication WorkItem co-admitted in the same
+     StateRevision.
+
+I47  Publication intent, publication obligation, and publication WorkItem
+     deterministic identities and cross-bindings recompute exactly.
+
+I48  Applicable PublicationIntents for one exact candidate/qualification form
+     one append-only linear replacement sequence. Every non-latest intent's
+     publication obligation is superseded exactly once by the next intent's
+     publication obligation.
+
+I49  An authorized-but-unarmed Execution for a historical PublicationIntent
+     remains historical, is not unresolved, and may not receive an Arm fact
+     while that intent is not the currently projected PublicationIntent.
+
+I50  A newer PublicationIntent may not be admitted while a prior intent has a
+     potentially-effectful armed publication Execution. Automatic replacement
+     is allowed only when the prior WorkItem has never crossed Arm or every
+     armed Execution has exact PROVEN-NOT-EXECUTED terminal recovery.
+
+I51  Publication-intent replacement never deletes or rewrites prior intents,
+     obligations, WorkItems, Executions, or preparation evidence.
+
+I52  Every PublicationConfirmation is bound to the exact currently projected
+     PublicationIntent and to the exact publication WorkItem/Execution for
+     that intent.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -1100,6 +1179,25 @@ dispatch.
 * Authorized-not-dispatched Execution whose obligations became superseded:
   remains historical, is not unresolved, and is never armed unless it becomes
   lawfully dispatchable again.
+* Old publication intent with authorized-not-dispatched Execution after a newer
+  intent was admitted:
+  old intent/WorkItem/Execution remain historical;
+  old Execution is not unresolved;
+  old Execution is ineligible for Arm.
+* Old publication intent with POSSIBLY-DISPATCHED unresolved Execution:
+  newer publication intent cannot be admitted merely because remote state
+  changed;
+  existing Execution must first follow outcome/recovery authority.
+* Prior publication Execution with exact terminal PROVEN-NOT-EXECUTED:
+  a later mechanically prepared intent may be admitted if all other
+  publication-intent replacement preconditions hold.
+* Two co-admitted WorkItems for one PublicationIntent:
+  integrity failure.
+* PublicationIntent without its co-admitted publication obligation or WorkItem:
+  integrity failure.
+* Historical publication intent receives a confirmation after a later intent was
+  lawfully admitted:
+  integrity failure.
 * Armed Execution whose source obligation is later superseded: remains
   unresolved until outcome/recovery closure.
 * Pending recovery blocker exists and execution remains armed: execution remains
