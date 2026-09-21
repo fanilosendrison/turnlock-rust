@@ -162,6 +162,21 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Never use a Project status transition or Issue closure as a substitute for
   repository validation or formal evidence.
 
+## Worktree operating model
+
+- Read
+  `docs/repository-governance/turnlock-rust-worktree-management.md` before
+  creating, switching, removing, or repurposing a branch or worktree.
+- Resolve the primary worktree and the unique worktree checking out
+  `refs/heads/main` from `git worktree list --porcelain`; never identify either
+  role from a remembered or machine-specific path.
+- Reserve the main worktree for clean-main validation, integration, and
+  publication operations. Use the distinct primary worktree for temporary
+  branch work only after all policy safety gates pass.
+- Never remove the primary or main worktree during routine cleanup. Preserve
+  temporary worktree commits and branch refs until the policy's reachability,
+  ignored-content, authorization, and conditional-deletion gates pass.
+
 ## Architectural invariants
 
 ### Architectural center and product boundary
@@ -587,3 +602,5 @@ change.
   `docs/repository-governance/turnlock-rust-projection-integrity.md`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`
+- Worktree management policy:
+  `docs/repository-governance/turnlock-rust-worktree-management.md`
