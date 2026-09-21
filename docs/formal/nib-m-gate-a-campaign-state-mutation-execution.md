@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.7"
+version: "1.0.8"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.7`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.8`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -230,6 +230,23 @@ interface EstablishOperationalBlockersV1 {
 `blockers` must be non-empty.
 
 Every blocker must reference an exact admitted or co-admitted obligation.
+
+Every admitted `OperationalBlocker` must satisfy the accepted M8-B
+operational-boundary identity and Operator Action Request contract.
+
+M2 does not invent or normalize an operational blocker identity.
+
+For every blocker it verifies:
+
+```text
+operatorRequest ArtifactRef exists and is intact
+Operator Action Request runtime shape is valid
+OAR/blocker field bindings are exact
+BlockerId recomputes under the exact M8-B identity policy selected by OAR.source
+```
+
+`basisArtifacts` remain evidence/provenance for the producing condition. They
+are not implicitly part of `BlockerId`.
 
 ### 5.5 Execution authorization
 
@@ -666,16 +683,11 @@ M8 execution-uncertainty classification.
 
 M2 accepts only an M8-validated state effect.
 
-```ts
-type OperatorResolutionStateEffect =
-  | {
-      readonly kind: "resolve-blocker-only";
-    }
-  | {
-      readonly kind: "resolve-blocker-and-replace-execution";
-      readonly priorExecutionId: ExecutionId;
-    };
+M2 consumes the NIB-S `OperatorResolutionStateEffect` union unchanged.
 
+The public M2 mutation remains:
+
+```ts
 interface AdmitOperatorResolutionV1 {
   readonly kind: "admit-operator-resolution";
   readonly envelope: OperatorResolutionEnvelope;
@@ -689,6 +701,60 @@ artifact to one of these state effects belong to the M8 NIB-M.
 GREEN may not begin until that M8 contract is closed.
 
 M1 does not choose `effect`.
+
+For:
+
+```text
+effect.kind = resolve-blocker-only
+```
+
+let:
+
+```text
+B = exact OperationalBlocker named by envelope.blockerId
+R = envelope.resolution
+```
+
+M2 requires:
+
+```text
+envelope.runId == exact run
+
+B exists
+B is currently outstanding
+B.kind == operational
+
+R exists as an intact immutable ArtifactRef
+
+the exact OperatorResolutionEnvelope is M8-validated
+the exact state effect is M8-validated
+```
+
+M2 atomically appends in one StateRevision:
+
+```text
+the exact accepted OperatorResolutionEnvelope
+the exact target blocker disposition
+```
+
+and nothing else merely because that blocker was disposed.
+
+`resolve-blocker-only` does not:
+
+```text
+satisfy an obligation
+supersede an obligation
+create an Execution
+create an ExecutionProgressionSupersessionRef
+establish preflight
+establish reviewer prerequisites
+establish publication confirmation
+establish mechanical-validation success
+create semantic authority
+```
+
+The authoritative producer boundary must mechanically re-evaluate any
+underlying condition after blocker disposition.
 
 For:
 
@@ -1319,8 +1385,27 @@ There is no generic `ResolveBlockerV1`.
 
 Blocker disposition never satisfies its obligation automatically.
 
-Operational blocker identity represents an exact episode and includes the
-derivation base revision in its identity tuple.
+Operational-blocker identity is governed by the accepted M8-B
+operational-boundary contract.
+
+M2 recognizes exactly two policies:
+
+```text
+non-recovery producer blocker
+→ occurrence identity
+→ includes immutable producer causeDescriptor.sha256
+→ includes baseStateRevision
+
+M8 recovery blocker
+→ stable causal identity
+→ excludes StateRevision and reconciliation episode
+```
+
+M2 must not inject `StateRevision`, ownership generation, episode identity,
+timestamp, or another occurrence discriminator into a recovery blocker ID.
+
+M2 validates the exact supplied blocker identity; it does not create another
+identity policy.
 
 ## 17. Semantic terminality matrix
 
