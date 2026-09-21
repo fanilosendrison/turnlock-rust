@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.2"
+version: "6.0.3"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -75,6 +75,13 @@ changing TURNLOCK product semantics: blocked recovery plans retain the exact
 pending reconciliation references required for M2 admission, and resume
 orchestration can re-enter an incomplete bootstrap preflight after its exact
 operational blockers have been resolved.
+
+Version `6.0.3` closes recovery-blocker disposition plumbing without changing
+TURNLOCK product semantics: M8 receives the complete outstanding operational
+blocker set for the recovery snapshot, returns the exact blocker dispositions
+selected for each unresolved Execution, and M1 transports those dispositions
+and any pending-policy-exhaustion fact to M2 without choosing recovery
+semantics.
 
 ## 2. System objective
 
@@ -1990,6 +1997,12 @@ interface RecoveryRequest {
   readonly stateRevision: StateRevision;
   readonly newOwnershipGeneration: OwnershipGeneration;
   readonly unresolvedExecutions: readonly UnresolvedExecutionRecoveryRef[];
+  readonly outstandingOperationalBlockers: readonly OperationalBlocker[];
+}
+
+interface RecoveryBlockerDisposition {
+  readonly executionId: ExecutionId;
+  readonly blockerIdsToDispose: readonly BlockerId[];
 }
 
 type RecoveryPlan =
@@ -1997,6 +2010,7 @@ type RecoveryPlan =
       readonly kind: "cleared";
       readonly expectedStateRevision: StateRevision;
       readonly resolutions: readonly ExecutionRecoveryResolution[];
+      readonly blockerDispositions: readonly RecoveryBlockerDisposition[];
     }
   | {
       readonly kind: "blocked";
@@ -2004,23 +2018,27 @@ type RecoveryPlan =
       readonly resolutions: readonly ExecutionRecoveryResolution[];
       readonly pending: readonly ReconciliationPendingRef[];
       readonly blockers: readonly OperationalBlocker[];
+      readonly blockerDispositions: readonly RecoveryBlockerDisposition[];
     };
 
 interface ClassifyUnresolvedExecutionRequest {
   readonly runId: GateARunId;
   readonly unresolvedExecution: UnresolvedExecutionRecoveryRef;
+  readonly outstandingOperationalBlockers: readonly OperationalBlocker[];
 }
 
 type ClassifyUnresolvedExecutionResult =
   | {
       readonly kind: "resolved";
       readonly resolution: ProvenExecutionRecoveryResolution;
+      readonly blockerIdsToDispose: readonly BlockerId[];
     }
   | {
       readonly kind: "blocked";
       readonly blocker: OperationalBlocker;
       readonly resolution: UnresolvableExecutionRecoveryResolution | null;
       readonly lastPending: ReconciliationPendingRef | null;
+      readonly blockerIdsToDispose: readonly BlockerId[];
     };
 
 interface OperatorResolutionEnvelope {
@@ -2127,6 +2145,63 @@ For `blocked`:
 * exactly one of `resolution` and `lastPending` is non-null.
 
 M8 must not convert pending into `PROVEN-NOT-EXECUTED`, `PROVEN-COMPLETED`, or `UNRESOLVABLE` merely because time passed.
+
+`RecoveryRequest.outstandingOperationalBlockers` is the complete ordered set of
+currently outstanding `OperationalBlocker` values from the exact
+`stateRevision` supplied in the request.
+
+M1 performs only the structural `CampaignBlocker.kind == "operational"`
+projection needed to construct this field. M1 does not decide blocker
+applicability, causal supersession, or disposition.
+
+M8 alone determines `blockerIdsToDispose`.
+
+For one `ClassifyUnresolvedExecutionRequest`,
+`blockerIdsToDispose` contains exactly the duplicate-free set of currently
+outstanding operational blocker IDs whose exact causal condition is
+mechanically superseded by the recovery fact returned for that same Execution.
+
+M8 must not include:
+
+* a SemanticBlocker;
+* an OperationalBlocker belonging to another causal condition;
+* an OperationalBlocker whose condition remains true after the returned
+  recovery fact;
+* a blocker merely because it references the same obligation or Execution.
+
+A later `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` recovery may dispose an
+earlier recovery blocker for the same Execution only when that terminal fact
+mechanically supersedes the blocker cause.
+
+A later `UNRESOLVABLE` classification may dispose an earlier pending-recovery
+blocker for the same Execution when the new terminal classification
+mechanically supersedes the earlier pending condition. The newly materialized
+`UNRESOLVABLE` blocker is not disposed by that same classification.
+
+Pending-policy exhaustion does not by itself authorize disposal of a blocker
+whose exact causal condition remains pending.
+
+For every supplied `RecoveryRequest.unresolvedExecutions` entry,
+`RecoveryPlan.blockerDispositions` contains exactly one
+`RecoveryBlockerDisposition` with the same `executionId`.
+
+The disposition entries preserve
+`RecoveryRequest.unresolvedExecutions` order.
+
+Every `blockerIdsToDispose` value in the aggregate plan is copied exactly from
+the corresponding M8 classification result.
+
+The same `BlockerId` may not occur in more than one
+`RecoveryBlockerDisposition` in the same RecoveryPlan.
+
+An empty `blockerIdsToDispose` array is valid and means that the returned
+recovery fact mechanically supersedes no currently outstanding operational
+blocker.
+
+M1 may not add, remove, substitute, or infer a blocker disposition.
+
+M2 remains responsible for validating that every supplied disposition is
+structurally legal under `AdmitExecutionRecoveryV1`.
 
 `resolution` is one immutable runtime-validated operator-resolution artifact.
 
@@ -3088,14 +3163,33 @@ run(command):
             runId: run.runId,
             stateRevision: snapshot.stateRevision,
             newOwnershipGeneration: ownership.authority.generation,
-            unresolvedExecutions: snapshot.unresolvedExecutions
+            unresolvedExecutions: snapshot.unresolvedExecutions,
+            outstandingOperationalBlockers:
+                snapshot.blockers filtered only by kind == operational
+                preserving snapshot order
         })
 
         if recovery_plan.kind == "blocked":
-            commit:
-                every terminal recovery resolution
-                every exact recovery blocker
-            through M2
+            for each unresolved Execution position in recovery_plan:
+                select the exact M8 blockerDisposition for that Execution
+
+                if that position has a terminal recovery resolution:
+                    commit through M2:
+                        that exact recovery resolution
+                        its exact required recovery blocker when applicable
+                        blockerIdsToDispose =
+                            exact blockerDisposition.blockerIdsToDispose
+
+                else:
+                    require that position has an exact pending
+                        ReconciliationPendingRef
+
+                    commit through M2:
+                        resolution = null
+                        lastPending = that exact ReconciliationPendingRef
+                        its exact pending-policy-exhaustion blocker
+                        blockerIdsToDispose =
+                            exact blockerDisposition.blockerIdsToDispose
 
             return OPERATOR-ACTION-REQUIRED projection
 
@@ -3111,7 +3205,15 @@ run(command):
             else:
                 require resolution.classification == PROVEN-NOT-EXECUTED
 
-        commit every recovery resolution and recovered terminal outcome through M2
+        for each resolution in recovery_plan.resolutions:
+            select the exact M8 blockerDisposition where:
+                blockerDisposition.executionId == resolution.executionId
+
+            commit through M2:
+                that exact recovery resolution
+                its recovered terminal outcome when applicable
+                blockerIdsToDispose =
+                    exact blockerDisposition.blockerIdsToDispose
 
     loop:
         snapshot = load_authoritative_snapshot(run)
