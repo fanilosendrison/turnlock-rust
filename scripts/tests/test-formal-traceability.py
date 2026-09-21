@@ -5,6 +5,7 @@ import copy
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,251 @@ MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audi
 MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
 
 _TEST_YAML_PARSE_CACHE: dict[str, object] = {}
+_UNCACHEABLE_MANIFEST_DUMP_KEY = object()
+_TEST_MANIFEST_DUMP_CACHE: dict[object, str] = {}
+
+
+def _manifest_dump_cache_key(
+    value: object,
+    seen_containers: set[int] | None = None,
+) -> object:
+    if seen_containers is None:
+        seen_containers = set()
+
+    if value is None:
+        return ("null",)
+    if type(value) is bool:
+        return ("bool", value)
+    if type(value) is int:
+        return ("int", value)
+    if type(value) is str:
+        return ("str", value)
+    if type(value) is list:
+        identity = id(value)
+        if identity in seen_containers:
+            return _UNCACHEABLE_MANIFEST_DUMP_KEY
+        seen_containers.add(identity)
+        children = []
+        for child in value:
+            child_key = _manifest_dump_cache_key(child, seen_containers)
+            if child_key is _UNCACHEABLE_MANIFEST_DUMP_KEY:
+                return _UNCACHEABLE_MANIFEST_DUMP_KEY
+            children.append(child_key)
+        return ("list", tuple(children))
+    if type(value) is dict:
+        identity = id(value)
+        if identity in seen_containers:
+            return _UNCACHEABLE_MANIFEST_DUMP_KEY
+        seen_containers.add(identity)
+        entries = []
+        for key, child in value.items():
+            if type(key) is not str:
+                return _UNCACHEABLE_MANIFEST_DUMP_KEY
+            child_key = _manifest_dump_cache_key(child, seen_containers)
+            if child_key is _UNCACHEABLE_MANIFEST_DUMP_KEY:
+                return _UNCACHEABLE_MANIFEST_DUMP_KEY
+            entries.append((key, child_key))
+        return ("dict", tuple(entries))
+    return _UNCACHEABLE_MANIFEST_DUMP_KEY
+
+
+def _yaml_dumper_state_value(
+    value: object,
+    seen: set[int] | None = None,
+) -> object:
+    if seen is None:
+        seen = set()
+    if value is None:
+        return ("null",)
+    if type(value) is bool:
+        return ("bool", value)
+    if type(value) is int:
+        return ("int", value)
+    if type(value) is float:
+        return ("float", value.hex())
+    if type(value) is str:
+        return ("str", value)
+    if type(value) is bytes:
+        return ("bytes", value)
+    if isinstance(value, re.Pattern):
+        return ("regex", value.pattern, value.flags)
+    if type(value) in (list, tuple, dict, set, frozenset):
+        identity = id(value)
+        if identity in seen:
+            return ("recursive-identity", type(value), value)
+        seen.add(identity)
+        try:
+            if type(value) is list:
+                return (
+                    "list",
+                    tuple(
+                        _yaml_dumper_state_value(item, seen)
+                        for item in value
+                    ),
+                )
+            if type(value) is tuple:
+                return (
+                    "tuple",
+                    tuple(
+                        _yaml_dumper_state_value(item, seen)
+                        for item in value
+                    ),
+                )
+            if type(value) is dict:
+                return (
+                    "dict",
+                    tuple(
+                        (
+                            _yaml_dumper_state_value(key, seen),
+                            _yaml_dumper_state_value(item, seen),
+                        )
+                        for key, item in value.items()
+                    ),
+                )
+            return (
+                "set",
+                type(value),
+                tuple(
+                    _yaml_dumper_state_value(item, seen)
+                    for item in value
+                ),
+            )
+        finally:
+            seen.remove(identity)
+    return ("identity", type(value), value)
+
+
+def _yaml_dumper_state() -> object:
+    safe_dumper = yaml.SafeDumper
+    raw_state = (
+        yaml.safe_dump,
+        yaml.dump,
+        safe_dumper,
+        tuple(
+            (cls, dict(vars(cls)))
+            for cls in safe_dumper.__mro__
+        ),
+    )
+    return _yaml_dumper_state_value(raw_state)
+
+
+def _yaml_dumper_state_equal(
+    left: object,
+    right: object,
+) -> bool:
+    if type(left) is not tuple or type(right) is not tuple:
+        return False
+    if not left or not right:
+        return False
+    if type(left[0]) is not str or type(right[0]) is not str:
+        return False
+
+    left_tag = left[0]
+    right_tag = right[0]
+    if left_tag != right_tag:
+        return False
+    if left_tag == "null":
+        return len(left) == 1 and len(right) == 1
+
+    primitive_types = {
+        "bool": bool,
+        "int": int,
+        "float": str,
+        "str": str,
+        "bytes": bytes,
+    }
+    if left_tag in primitive_types:
+        if len(left) != 2 or len(right) != 2:
+            return False
+        expected_type = primitive_types[left_tag]
+        if type(left[1]) is not expected_type:
+            return False
+        if type(right[1]) is not expected_type:
+            return False
+        return left[1] == right[1]
+    if left_tag == "regex":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if type(left[1]) is not str or type(right[1]) is not str:
+            return False
+        if type(left[2]) is not int or type(right[2]) is not int:
+            return False
+        return left[1] == right[1] and left[2] == right[2]
+    if left_tag in ("identity", "recursive-identity"):
+        if len(left) != 3 or len(right) != 3:
+            return False
+        return left[1] is right[1] and left[2] is right[2]
+    if left_tag in ("list", "tuple"):
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_items = left[1]
+        right_items = right[1]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        return all(
+            _yaml_dumper_state_equal(left_item, right_item)
+            for left_item, right_item in zip(left_items, right_items)
+        )
+    if left_tag == "dict":
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_entries = left[1]
+        right_entries = right[1]
+        if type(left_entries) is not tuple or type(right_entries) is not tuple:
+            return False
+        if len(left_entries) != len(right_entries):
+            return False
+        for left_entry, right_entry in zip(left_entries, right_entries):
+            if type(left_entry) is not tuple or len(left_entry) != 2:
+                return False
+            if type(right_entry) is not tuple or len(right_entry) != 2:
+                return False
+            if not _yaml_dumper_state_equal(left_entry[0], right_entry[0]):
+                return False
+            if not _yaml_dumper_state_equal(left_entry[1], right_entry[1]):
+                return False
+        return True
+    if left_tag == "set":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if left[1] is not set and left[1] is not frozenset:
+            return False
+        if right[1] is not set and right[1] is not frozenset:
+            return False
+        if left[1] is not right[1]:
+            return False
+        left_items = left[2]
+        right_items = right[2]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        matched = [False] * len(right_items)
+        for left_item in left_items:
+            for index, right_item in enumerate(right_items):
+                if not matched[index] and _yaml_dumper_state_equal(
+                    left_item,
+                    right_item,
+                ):
+                    matched[index] = True
+                    break
+            else:
+                return False
+        return True
+    return False
+
+
+_ORIGINAL_YAML_DUMPER_STATE = _yaml_dumper_state()
+
+
+def _yaml_dump_cache_is_eligible() -> bool:
+    return _yaml_dumper_state_equal(
+        _yaml_dumper_state(),
+        _ORIGINAL_YAML_DUMPER_STATE,
+    )
+
 
 GATE_A_ATTACK_OBJECTIVES = [
     "semantic-strengthening",
@@ -79,9 +325,25 @@ def load_manifest(fixture_root: Path) -> dict:
 
 
 def save_manifest(fixture_root: Path, manifest: dict) -> None:
-    (fixture_root / MANIFEST_RELATIVE).write_text(
-        yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8"
+    key = _manifest_dump_cache_key(manifest)
+    cacheable = (
+        key is not _UNCACHEABLE_MANIFEST_DUMP_KEY
+        and _yaml_dump_cache_is_eligible()
     )
+    cache_hit = cacheable and key in _TEST_MANIFEST_DUMP_CACHE
+
+    if cache_hit:
+        text = _TEST_MANIFEST_DUMP_CACHE[key]
+    else:
+        text = yaml.safe_dump(manifest, sort_keys=False)
+
+    (fixture_root / MANIFEST_RELATIVE).write_text(
+        text,
+        encoding="utf-8",
+    )
+
+    if cacheable and not cache_hit:
+        _TEST_MANIFEST_DUMP_CACHE[key] = text
 
 
 def load_migration(fixture_root: Path) -> dict:
@@ -1904,8 +2166,362 @@ class FormalTraceabilityTests(unittest.TestCase):
                         encoding="utf-8",
                     )
                     checker._YAML_PARSE_CACHE.clear()
+
+                _TEST_MANIFEST_DUMP_CACHE.clear()
+                try:
+                    distinct_a = {
+                        "schema_version": 3,
+                        "nested": [1, {"value": "same"}],
+                    }
+                    distinct_b = copy.deepcopy(distinct_a)
+                    self.assertIsNot(distinct_a, distinct_b)
+                    self.assertIsNot(distinct_a["nested"], distinct_b["nested"])
+                    key_a = _manifest_dump_cache_key(distinct_a)
+                    key_b = _manifest_dump_cache_key(distinct_b)
+                    self.assertEqual(key_a, key_b)
+                    save_manifest(fixture_root, distinct_a)
+                    expected_a = manifest_path.read_text(encoding="utf-8")
+                    self.assertEqual(1, len(_TEST_MANIFEST_DUMP_CACHE))
+                    manifest_path.write_text(
+                        "TURNLOCK-CACHE-WRITE-SENTINEL",
+                        encoding="utf-8",
+                    )
+                    save_manifest(fixture_root, distinct_b)
+                    self.assertEqual(
+                        expected_a,
+                        manifest_path.read_text(encoding="utf-8"),
+                    )
+                    self.assertEqual(1, len(_TEST_MANIFEST_DUMP_CACHE))
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    mutable_manifest = {
+                        "schema_version": 3,
+                        "state": ["A"],
+                    }
+                    initial_key = _manifest_dump_cache_key(mutable_manifest)
+                    save_manifest(fixture_root, mutable_manifest)
+                    initial_text = manifest_path.read_text(encoding="utf-8")
+                    mutable_manifest["state"][0] = "B"
+                    mutated_key = _manifest_dump_cache_key(mutable_manifest)
+                    self.assertNotEqual(initial_key, mutated_key)
+                    save_manifest(fixture_root, mutable_manifest)
+                    mutated_text = manifest_path.read_text(encoding="utf-8")
+                    mutable_manifest["state"][0] = "A"
+                    restored_key = _manifest_dump_cache_key(mutable_manifest)
+                    self.assertEqual(initial_key, restored_key)
+                    save_manifest(fixture_root, mutable_manifest)
+                    restored_text = manifest_path.read_text(encoding="utf-8")
+                    self.assertEqual(initial_text, restored_text)
+                    self.assertNotEqual(initial_text, mutated_text)
+                    self.assertEqual(2, len(_TEST_MANIFEST_DUMP_CACHE))
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    ordered_a = {"x": 1, "y": 2}
+                    ordered_b = {"y": 2, "x": 1}
+                    self.assertNotEqual(
+                        _manifest_dump_cache_key(ordered_a),
+                        _manifest_dump_cache_key(ordered_b),
+                    )
+                    save_manifest(fixture_root, ordered_a)
+                    ordered_a_text = manifest_path.read_text(encoding="utf-8")
+                    save_manifest(fixture_root, ordered_b)
+                    ordered_b_text = manifest_path.read_text(encoding="utf-8")
+                    self.assertNotEqual(ordered_a_text, ordered_b_text)
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    shared = [1, 2]
+                    shared_manifest = {"a": shared, "b": shared}
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(shared_manifest),
+                    )
+                    save_manifest(fixture_root, shared_manifest)
+                    self.assertEqual({}, _TEST_MANIFEST_DUMP_CACHE)
+
+                    cycle = []
+                    cycle.append(cycle)
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(cycle),
+                    )
+                    self.assertEqual({}, _TEST_MANIFEST_DUMP_CACHE)
+
+                    class ManifestDictSubclass(dict):
+                        pass
+
+                    class ManifestListSubclass(list):
+                        pass
+
+                    class UnsupportedManifestObject:
+                        pass
+
+                    for unsupported in (
+                        ManifestDictSubclass(value=1),
+                        ManifestListSubclass([1]),
+                        1.5,
+                        b"bytes",
+                        (1,),
+                        {1},
+                        UnsupportedManifestObject(),
+                        {1: "non-string-key"},
+                    ):
+                        self.assertIs(
+                            _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                            _manifest_dump_cache_key(unsupported),
+                        )
+
+                    self.assertNotEqual(
+                        _manifest_dump_cache_key(True),
+                        _manifest_dump_cache_key(1),
+                    )
+                    self.assertNotEqual(
+                        _manifest_dump_cache_key(False),
+                        _manifest_dump_cache_key(0),
+                    )
+
+                    class EqualUnsupportedManifestObject:
+                        def __init__(self) -> None:
+                            self.equality_calls = 0
+
+                        def __eq__(self, other: object) -> bool:
+                            self.equality_calls += 1
+                            return True
+
+                    equal_unsupported = EqualUnsupportedManifestObject()
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(equal_unsupported),
+                    )
+                    self.assertEqual(0, equal_unsupported.equality_calls)
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    unsupported_manifest = {"unsupported": 1.5}
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(unsupported_manifest),
+                    )
+                    expected_unsupported = yaml.safe_dump(
+                        unsupported_manifest,
+                        sort_keys=False,
+                    )
+                    save_manifest(fixture_root, unsupported_manifest)
+                    self.assertEqual(
+                        expected_unsupported,
+                        manifest_path.read_text(encoding="utf-8"),
+                    )
+                    self.assertEqual({}, _TEST_MANIFEST_DUMP_CACHE)
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    guard_manifest = {"schema_version": 3}
+                    guard_key = _manifest_dump_cache_key(guard_manifest)
+                    save_manifest(fixture_root, guard_manifest)
+                    cached_guard_text = _TEST_MANIFEST_DUMP_CACHE[guard_key]
+                    original_safe_dump = yaml.safe_dump
+                    replacement_calls = []
+
+                    def replacement_safe_dump(*args, **kwargs):
+                        replacement_calls.append((args, kwargs))
+                        return "schema_version: TURNLOCK-REPLACED-DUMP\n"
+
+                    with mock.patch.object(
+                        yaml,
+                        "safe_dump",
+                        replacement_safe_dump,
+                    ):
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(1, len(replacement_calls))
+                        self.assertEqual(
+                            "schema_version: TURNLOCK-REPLACED-DUMP\n",
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            cached_guard_text,
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    save_manifest(fixture_root, guard_manifest)
+                    cached_guard_text = _TEST_MANIFEST_DUMP_CACHE[guard_key]
+
+                    class EqualSafeDumpReplacement:
+                        def __init__(self) -> None:
+                            self.calls = 0
+
+                        def __call__(self, *args, **kwargs):
+                            self.calls += 1
+                            return "schema_version: TURNLOCK-EQUAL-DUMP\n"
+
+                        def __eq__(self, other: object) -> bool:
+                            return True
+
+                    equal_safe_dump = EqualSafeDumpReplacement()
+                    with mock.patch.object(
+                        yaml,
+                        "safe_dump",
+                        equal_safe_dump,
+                    ):
+                        self.assertIsNot(equal_safe_dump, original_safe_dump)
+                        self.assertTrue(equal_safe_dump == original_safe_dump)
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(1, equal_safe_dump.calls)
+                        self.assertEqual(
+                            "schema_version: TURNLOCK-EQUAL-DUMP\n",
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            cached_guard_text,
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    expected_guard_text = yaml.safe_dump(
+                        guard_manifest,
+                        sort_keys=False,
+                    )
+                    original_dump = yaml.dump
+
+                    def replacement_dump(*args, **kwargs):
+                        return "TURNLOCK-REPLACED-YAML-DUMP"
+
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-DUMP-SENTINEL"
+                    )
+                    with mock.patch.object(yaml, "dump", replacement_dump):
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-DUMP-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertIs(yaml.dump, original_dump)
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    original_safe_dumper = yaml.SafeDumper
+
+                    class ReplacementSafeDumper(original_safe_dumper):
+                        pass
+
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-DUMPER-SENTINEL"
+                    )
+                    with mock.patch.object(
+                        yaml,
+                        "SafeDumper",
+                        ReplacementSafeDumper,
+                    ):
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-DUMPER-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertIs(yaml.SafeDumper, original_safe_dumper)
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    representers = yaml.SafeDumper.yaml_representers
+                    representer_key = str
+                    original_representer = representers[representer_key]
+
+                    def replacement_representer(dumper, data):
+                        return original_representer(dumper, data)
+
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-REPRESENTER-SENTINEL"
+                    )
+                    try:
+                        representers[representer_key] = replacement_representer
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-REPRESENTER-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    finally:
+                        representers[representer_key] = original_representer
+                    self.assertIs(
+                        representers[representer_key],
+                        original_representer,
+                    )
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    class EqualRepresenter:
+                        def __init__(self) -> None:
+                            self.calls = 0
+
+                        def __call__(self, dumper, data):
+                            self.calls += 1
+                            return original_representer(dumper, data)
+
+                        def __eq__(self, other: object) -> bool:
+                            return True
+
+                    equal_representer = EqualRepresenter()
+                    self.assertIsNot(equal_representer, original_representer)
+                    self.assertTrue(equal_representer == original_representer)
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-EQUAL-REPRESENTER-SENTINEL"
+                    )
+                    try:
+                        representers[representer_key] = equal_representer
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(1, equal_representer.calls)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-EQUAL-REPRESENTER-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    finally:
+                        representers[representer_key] = original_representer
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    failed_manifest = {
+                        "schema_version": 3,
+                        "write": "failure",
+                    }
+                    failed_key = _manifest_dump_cache_key(failed_manifest)
+                    self.assertNotIn(failed_key, _TEST_MANIFEST_DUMP_CACHE)
+                    with mock.patch.object(
+                        Path,
+                        "write_text",
+                        side_effect=OSError("TURNLOCK-WRITE-FAILURE"),
+                    ):
+                        with self.assertRaisesRegex(
+                            OSError,
+                            "TURNLOCK-WRITE-FAILURE",
+                        ):
+                            save_manifest(fixture_root, failed_manifest)
+                    self.assertNotIn(failed_key, _TEST_MANIFEST_DUMP_CACHE)
+                    save_manifest(fixture_root, failed_manifest)
+                    self.assertIn(failed_key, _TEST_MANIFEST_DUMP_CACHE)
+                finally:
+                    manifest_path.write_text(
+                        checker_manifest_text,
+                        encoding="utf-8",
+                    )
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
             finally:
                 _TEST_YAML_PARSE_CACHE.clear()
+                _TEST_MANIFEST_DUMP_CACHE.clear()
 
     def test_missing_invariant_coverage_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
