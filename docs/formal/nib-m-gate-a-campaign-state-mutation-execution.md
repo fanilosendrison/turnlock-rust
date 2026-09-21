@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.6"
+version: "1.0.7"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.6`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.7`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -283,6 +283,22 @@ proven-not-executed
 operator-replacement
 ```
 
+For `operator-replacement`, the persisted internal basis is exactly:
+
+```ts
+interface OperatorReplacementCreationBasisV1 {
+  readonly kind: "operator-replacement";
+  readonly priorExecutionId: ExecutionId;
+  readonly blockerId: BlockerId;
+  readonly operatorResolution: ArtifactRef;
+}
+```
+
+This basis is created only by the atomic
+`AdmitOperatorResolutionV1` replacement path.
+
+It is not accepted through `AuthorizeExecutionV1`.
+
 The presence of a successor Execution carrying a one-shot basis is itself the
 append-only proof that the basis was consumed.
 
@@ -530,6 +546,8 @@ Before either result branch is admitted, M2 requires:
 ```text
 E exists
 
+no ExecutionProgressionSupersessionRef exists for E
+
 E has a successful Arm fact
 
 Q.executionResult equals one exact already-authoritative
@@ -672,17 +690,157 @@ GREEN may not begin until that M8 contract is closed.
 
 M1 does not choose `effect`.
 
-For replacement, M2 atomically:
+For:
 
 ```text
-admits operator resolution
-disposes exact target blocker
-records prior Execution supersession
-creates exactly one successor Execution
-records creation basis = operator-replacement
+effect.kind = resolve-blocker-and-replace-execution
 ```
 
-in one StateRevision.
+let:
+
+```text
+E = exact prior Execution named by effect.priorExecutionId
+W = exact authoritative WorkItem for E
+B = exact OperationalBlocker named by envelope.blockerId
+R = envelope.resolution
+```
+
+M2 requires:
+
+```text
+envelope.runId == exact run
+
+B exists
+B is currently outstanding
+B.kind == operational
+B.executionId == E.executionId
+
+E exists
+E.workItemId == W.workItemId
+E is the current WorkItem execution tail
+
+no ExecutionProgressionSupersessionRef already names E as priorExecutionId
+no later Execution for W already exists
+
+at least one W.sourceObligationIds member remains outstanding
+
+run is not GATE-A-READY
+semantic progression does not prohibit replacement
+
+historical Execution count for W < 5
+
+R exists as an intact immutable ArtifactRef
+```
+
+M2 does not interpret `R` as execution truth.
+
+M8 owns validation of the exact operator-resolution artifact union and supplies
+the already validated `OperatorResolutionStateEffect`.
+
+M2 derives exactly one successor:
+
+```text
+successor.attemptOrdinal = E.attemptOrdinal + 1
+
+successor.executionId =
+    deriveId(
+        "execution.v1",
+        W.workItemId,
+        decimal successor.attemptOrdinal
+    )
+
+successor.workItemId = W.workItemId
+```
+
+M2 constructs exactly one:
+
+```ts
+ExecutionProgressionSupersessionRef {
+  runId: exact runId,
+  workItemId: W.workItemId,
+  priorExecutionId: E.executionId,
+  successorExecutionId: successor.executionId,
+  blockerId: B.blockerId,
+  operatorResolution: R,
+}
+```
+
+The successor's persisted creation basis is exactly:
+
+```ts
+{
+  kind: "operator-replacement",
+  priorExecutionId: E.executionId,
+  blockerId: B.blockerId,
+  operatorResolution: R,
+}
+```
+
+M2 atomically appends in one StateRevision:
+
+```text
+the exact accepted OperatorResolutionEnvelope
+the exact target blocker disposition
+the exact ExecutionProgressionSupersessionRef
+the exact successor Execution
+the exact successor operator-replacement creation basis
+```
+
+There is no authoritative intermediate state in which:
+
+```text
+the prior Execution is superseded but no successor exists
+
+or
+
+the successor exists without the exact supersession relation
+```
+
+Progression supersession does not append:
+
+```text
+CapturedExecutionResult
+TechnicalExecutionFailure
+ExecutionRecoveryResolution
+ReconciliationPendingRef
+NonExecutionProofRef
+RecoveryIndeterminacyRef
+```
+
+for the prior Execution merely because replacement was authorized.
+
+### 5.15.1 Execution progression supersession
+
+`ExecutionProgressionSupersessionRef` is append-only.
+
+One prior Execution may have at most one progression supersession.
+
+A supersession:
+
+```text
+revokes future campaign-progression authority for the prior Execution
+revokes future automatic-recovery eligibility for the prior Execution
+preserves the prior Execution in immutable historical state
+does not assert any external execution outcome
+```
+
+A later result or observation for the superseded prior Execution may remain
+available as audit material outside progression authority, but M2 must reject
+any new post-supersession mutation that would use it to create authoritative
+campaign progression.
+
+A progression supersession is irreversible within the GateARun.
+
+It is never removed when:
+
+```text
+the prior executor later returns
+the prior provider later reports a result
+the successor succeeds
+the successor fails
+ownership changes
+the run resumes
+```
 
 ### 5.16 Gate A ready
 
@@ -925,6 +1083,7 @@ Direct outcome requires:
 
 ```text
 Arm exists
+no ExecutionProgressionSupersessionRef exists for E
 no direct terminal outcome exists
 no terminal recovery resolution exists
 no explicit uncertainty enrichment has transferred disposition to M8
@@ -947,6 +1106,7 @@ Require:
 ```text
 Arm exists
 execution remains unresolved
+no ExecutionProgressionSupersessionRef exists for E
 no terminal recovery resolution exists
 
 unresolved.execution == armed execution
@@ -973,6 +1133,7 @@ Later M8 reconciliation facts use `AdmitExecutionRecoveryV1`.
 
 ```text
 require E armed and unresolved
+no ExecutionProgressionSupersessionRef exists for E
 require M8 resolution binds exact E
 append terminal recovery resolution
 E leaves unresolved projection
@@ -984,6 +1145,7 @@ It establishes one possible creation basis for one successor execution.
 
 ```text
 require E armed and unresolved
+no ExecutionProgressionSupersessionRef exists for E
 require recoveredOutcome.execution == E
 append terminal recovery resolution
 append recovered terminal outcome provenance
@@ -1004,6 +1166,7 @@ Captured and technical-failure recovered outcomes remain distinct.
 
 ```text
 require E armed and unresolved
+no ExecutionProgressionSupersessionRef exists for E
 require blocker.executionId == E
 append terminal UNRESOLVABLE resolution
 append blocker
@@ -1015,6 +1178,7 @@ blocker remains outstanding
 
 ```text
 require lastPending binds E
+no ExecutionProgressionSupersessionRef exists for E
 require lastPending recovery capability is exact
 append pending observation
 append exact operational blocker
@@ -1030,6 +1194,7 @@ For every supplied `CognitiveAttemptValidationResult`:
 
 ```text
 execution exists
+no ExecutionProgressionSupersessionRef exists for E
 execution is cognitive WorkItem execution
 captured result is already authoritative
 validation capturedResult equals exact authoritative capture
