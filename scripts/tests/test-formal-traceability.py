@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from jsonschema import Draft202012Validator
 import yaml
@@ -3506,31 +3507,46 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_review_artifact_final_symlink_is_integrity_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            record = make_review(fixture_root)
-            raw_path = fixture_root / record["executions"][0]["raw_output"]["path"]
-            target = raw_path.with_name("a-real.md")
-            target.write_bytes(raw_path.read_bytes())
-            raw_path.unlink()
+            checker._SCHEMA_CHECK_CACHE.clear()
             try:
-                raw_path.symlink_to(target.name)
-            except OSError as error:
-                self.skipTest(f"cannot create symlink: {error}")
-            write_review(fixture_root, record)
-            errors, summary = checker.collect_errors(
-                fixture_root, check_generated=False
-            )
-            self.assertTrue(
-                any(
-                    "artifact path must not traverse symlinks" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(summary["gate_a"]["ready"])
-            self.assertEqual(
-                "hostile review evidence integrity failure",
-                summary["gate_a"]["reason"],
-            )
+                schema = json.loads(
+                    (
+                        fixture_root
+                        / "formal/reviews/review-protocol-bundle.schema.json"
+                    ).read_text(encoding="utf-8")
+                )
+                validator, schema_errors = checker._validator(schema)
+                self.assertIsNotNone(validator)
+                self.assertEqual([], schema_errors)
+                self.assertTrue(checker._SCHEMA_CHECK_CACHE)
+
+                record = make_review(fixture_root)
+                raw_path = fixture_root / record["executions"][0]["raw_output"]["path"]
+                target = raw_path.with_name("a-real.md")
+                target.write_bytes(raw_path.read_bytes())
+                raw_path.unlink()
+                try:
+                    raw_path.symlink_to(target.name)
+                except OSError as error:
+                    self.skipTest(f"cannot create symlink: {error}")
+                write_review(fixture_root, record)
+                errors, summary = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "artifact path must not traverse symlinks" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                self.assertFalse(summary["gate_a"]["ready"])
+                self.assertEqual(
+                    "hostile review evidence integrity failure",
+                    summary["gate_a"]["reason"],
+                )
+            finally:
+                checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_review_artifact_parent_directory_symlink_is_integrity_failure(
         self,
@@ -6196,6 +6212,37 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
             [], checker._schema_violations(validator, bundle, "protocol-v1")
         )
 
+        checker._SCHEMA_CHECK_CACHE.clear()
+        try:
+            original_check_schema = checker.Draft202012Validator.check_schema
+            with mock.patch.object(
+                checker.Draft202012Validator,
+                "check_schema",
+                wraps=original_check_schema,
+            ) as check_schema:
+                validator_1, errors_1 = checker._validator(schema)
+                validator_2, errors_2 = checker._validator(schema)
+            self.assertEqual([], errors_1)
+            self.assertEqual([], errors_2)
+            self.assertIsNotNone(validator_1)
+            self.assertIsNotNone(validator_2)
+            self.assertIsNot(validator_1, validator_2)
+            self.assertEqual(1, check_schema.call_count)
+            self.assertEqual(
+                [],
+                checker._schema_violations(
+                    validator_1, bundle, "protocol-v1-first"
+                ),
+            )
+            self.assertEqual(
+                [],
+                checker._schema_violations(
+                    validator_2, bundle, "protocol-v1-second"
+                ),
+            )
+        finally:
+            checker._SCHEMA_CHECK_CACHE.clear()
+
     def test_current_protocol_is_v3_and_predecessor_is_exact_v2(self) -> None:
         bundle = json.loads(
             (
@@ -6292,6 +6339,36 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         self.assertEqual(
             [], checker._schema_violations(validator, bundle, "protocol-v2")
         )
+
+        checker._SCHEMA_CHECK_CACHE.clear()
+        try:
+            original_check_schema = checker.Draft202012Validator.check_schema
+            with mock.patch.object(
+                checker.Draft202012Validator,
+                "check_schema",
+                wraps=original_check_schema,
+            ) as check_schema:
+                valid_validator, valid_errors = checker._validator(schema)
+                self.assertIsNotNone(valid_validator)
+                self.assertEqual([], valid_errors)
+                self.assertEqual(1, check_schema.call_count)
+
+                schema["type"] = 123
+                invalid_validator, invalid_errors = checker._validator(schema)
+                self.assertIsNone(invalid_validator)
+                self.assertEqual(1, len(invalid_errors))
+                self.assertTrue(
+                    invalid_errors[0].startswith("schema is invalid:"),
+                    invalid_errors,
+                )
+                self.assertEqual(2, check_schema.call_count)
+
+                replayed_validator, replayed_errors = checker._validator(schema)
+                self.assertIsNone(replayed_validator)
+                self.assertEqual(invalid_errors, replayed_errors)
+                self.assertEqual(2, check_schema.call_count)
+        finally:
+            checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_protocol_v3_missing_predecessor_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -7013,25 +7090,34 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             path = fixture_root / self.META_BUNDLE_V4
-            self.assertEqual(
-                self.META_PROTOCOL_V4_SHA, checker.sha256_hex(path.read_bytes())
-            )
-            path.write_bytes(
-                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
-                b'"type": "object"}'
-            )
-            errors, summary = checker.collect_errors(
-                fixture_root, check_generated=False
-            )
-            self.assertTrue(
-                any(
-                    "artifact sha256 does not match" in error
-                    and "review-protocol-bundle-v4.schema.json" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(summary["gate_a"]["ready"])
+            checker._SCHEMA_CHECK_CACHE.clear()
+            try:
+                self.assertEqual(
+                    self.META_PROTOCOL_V4_SHA, checker.sha256_hex(path.read_bytes())
+                )
+                original_schema = json.loads(path.read_text(encoding="utf-8"))
+                validator, schema_errors = checker._validator(original_schema)
+                self.assertIsNotNone(validator)
+                self.assertEqual([], schema_errors)
+                self.assertTrue(checker._SCHEMA_CHECK_CACHE)
+                path.write_bytes(
+                    b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                    b'"type": "object"}'
+                )
+                errors, summary = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "artifact sha256 does not match" in error
+                        and "review-protocol-bundle-v4.schema.json" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                self.assertFalse(summary["gate_a"]["ready"])
+            finally:
+                checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_mutating_versioned_review_evidence_meta_schema_is_detected_by_hash(
         self,
@@ -7040,26 +7126,35 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
             fixture_root = make_fixture(temporary)
             self._baseline_valid_fixture(fixture_root)
             path = fixture_root / self.META_EVIDENCE_V5
-            self.assertEqual(
-                self.LEGACY_REVIEW_EVIDENCE_SHA,
-                checker.sha256_hex(path.read_bytes()),
-            )
-            path.write_bytes(
-                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
-                b'"type": "object"}'
-            )
-            errors, summary = checker.collect_errors(
-                fixture_root, check_generated=False
-            )
-            self.assertTrue(
-                any(
-                    "artifact sha256 does not match" in error
-                    and "review-evidence-v5.schema.json" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(summary["gate_a"]["ready"])
+            checker._SCHEMA_CHECK_CACHE.clear()
+            try:
+                self.assertEqual(
+                    self.LEGACY_REVIEW_EVIDENCE_SHA,
+                    checker.sha256_hex(path.read_bytes()),
+                )
+                original_schema = json.loads(path.read_text(encoding="utf-8"))
+                validator, schema_errors = checker._validator(original_schema)
+                self.assertIsNotNone(validator)
+                self.assertEqual([], schema_errors)
+                self.assertTrue(checker._SCHEMA_CHECK_CACHE)
+                path.write_bytes(
+                    b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                    b'"type": "object"}'
+                )
+                errors, summary = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "artifact sha256 does not match" in error
+                        and "review-evidence-v5.schema.json" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                self.assertFalse(summary["gate_a"]["ready"])
+            finally:
+                checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_protocol_v3_predecessor_is_validated_with_legacy_snapshot_not_v4_schema(
         self,
