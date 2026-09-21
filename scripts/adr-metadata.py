@@ -100,23 +100,50 @@ def parse_adr(path: Path) -> tuple[dict[str, Any], bytes]:
     return metadata, body
 
 
-def schema_errors(
-    metadata: dict[str, Any],
+def _compile_schema_validators(
     base_schema: dict[str, Any],
     overlay_schema: dict[str, Any],
-) -> list[str]:
-    errors: list[str] = []
+) -> tuple[tuple[str, Any, str | None], ...]:
+    validators: list[tuple[str, Any, str | None]] = []
     checker = FormatChecker()
     for label, schema in (("base", base_schema), ("overlay", overlay_schema)):
         try:
             Draft202012Validator.check_schema(schema)
             validator = Draft202012Validator(schema, format_checker=checker)
         except SchemaError as error:
-            errors.append(f"{label} schema is invalid: {error.message}")
+            validators.append(
+                (label, None, f"{label} schema is invalid: {error.message}")
+            )
             continue
-        for error in sorted(validator.iter_errors(metadata), key=lambda item: item.json_path):
+        validators.append((label, validator, None))
+    return tuple(validators)
+
+
+def _schema_errors_with_validators(
+    metadata: dict[str, Any],
+    validators: tuple[tuple[str, Any, str | None], ...],
+) -> list[str]:
+    errors: list[str] = []
+    for label, validator, schema_error in validators:
+        if schema_error is not None:
+            errors.append(schema_error)
+            continue
+        assert validator is not None
+        for error in sorted(
+            validator.iter_errors(metadata),
+            key=lambda item: item.json_path,
+        ):
             errors.append(f"{label} schema {error.json_path}: {error.message}")
     return errors
+
+
+def schema_errors(
+    metadata: dict[str, Any],
+    base_schema: dict[str, Any],
+    overlay_schema: dict[str, Any],
+) -> list[str]:
+    validators = _compile_schema_validators(base_schema, overlay_schema)
+    return _schema_errors_with_validators(metadata, validators)
 
 
 def repository_path(root: Path, relative: Any) -> Path:
@@ -596,6 +623,7 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
         return [str(error)]
 
     base_schema, overlay_schema, schema_load_errors = _load_schemas(root, profile)
+    compiled_schema_validators = None
     errors.extend(schema_load_errors)
     repository = profile["repository"]
     try:
@@ -676,7 +704,15 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
             continue
         record["metadata"] = metadata
         record["body"] = parsed_body
-        for error in schema_errors(metadata, base_schema, overlay_schema):
+        if compiled_schema_validators is None:
+            compiled_schema_validators = _compile_schema_validators(
+                base_schema,
+                overlay_schema,
+            )
+        for error in _schema_errors_with_validators(
+            metadata,
+            compiled_schema_validators,
+        ):
             errors.append(f"{prefix}: {error}")
 
         metadata_id = metadata.get("id")
