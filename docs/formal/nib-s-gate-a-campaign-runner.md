@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.6"
+version: "6.0.7"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -109,6 +109,19 @@ The exact executor-owned or structurally derived base recovery evidence remains
 first and unchanged; the M8 trace is algorithmic provenance only and never
 establishes executor-domain execution truth. Recovery classifications, M2
 recovery-admission shapes, and all other M2 semantics remain unchanged.
+
+Version `6.0.7` closes the operator-replacement progression-supersession
+construction boundary without changing TURNLOCK product semantics. An explicit
+operator-authorized replacement may revoke one prior Execution's future
+campaign-progression and automatic-recovery authority without asserting that
+the prior external effect did or did not occur. M2 now retains that exact
+progression-supersession relation durably, excludes a superseded prior Execution
+from the active unresolved-recovery projection, and preserves the prior
+Execution as immutable operational history. A post-supersession result may
+remain auditable but may not silently re-enter authoritative progression.
+Cognitive Executions whose protocol outcome was never mechanically established
+remain GateARun operational history and are not fabricated into hostile-review
+receipt attempts.
 
 ## 2. System objective
 
@@ -1044,6 +1057,64 @@ interface ExecutionRef {
   readonly attemptOrdinal: number;
 }
 
+interface ExecutionProgressionSupersessionRef {
+  readonly runId: GateARunId;
+  readonly workItemId: WorkItemId;
+  readonly priorExecutionId: ExecutionId;
+  readonly successorExecutionId: ExecutionId;
+  readonly blockerId: BlockerId;
+  readonly operatorResolution: ArtifactRef;
+}
+```
+
+`ExecutionProgressionSupersessionRef` records an explicit operator-authorized
+progression cut between one prior Execution and the exactly one replacement
+Execution created by the same authoritative transition.
+
+It does not establish or imply that the prior Execution:
+
+```text
+did not execute
+failed
+completed
+was cancelled before effect
+was rolled back
+has a known external outcome
+```
+
+It establishes only that the prior Execution no longer has authority to control
+future campaign progression or automatic recovery.
+
+The prior Execution remains immutable historical operational state.
+
+For one supersession `S`:
+
+```text
+S.runId == exact GateARun
+S.workItemId == prior.workItemId == successor.workItemId
+
+prior.executionId == S.priorExecutionId
+successor.executionId == S.successorExecutionId
+
+successor.attemptOrdinal == prior.attemptOrdinal + 1
+
+S.blockerId == exact disposed OperationalBlocker
+S.operatorResolution == exact accepted operator-resolution ArtifactRef
+```
+
+One prior Execution may have at most one
+`ExecutionProgressionSupersessionRef`.
+
+Sequential replacement remains possible only as a linear Execution chain:
+
+```text
+E1 → E2 → E3
+```
+
+where each supersession names the then-current prior Execution and its exact
+single successor.
+
+```ts
 type ExecutionRetryReason =
   | "technical-failure"
   | "protocol-invalid";
@@ -1670,6 +1741,8 @@ interface GateARunSnapshot {
   readonly obligationDispositions: readonly ObligationDispositionRef[];
   readonly workItems: readonly WorkItemRef[];
   readonly executions: readonly ExecutionRef[];
+  readonly executionProgressionSupersessions:
+    readonly ExecutionProgressionSupersessionRef[];
   readonly executionRetryAuthorizations: readonly ExecutionRetryAuthorizationRef[];
   readonly capturedExecutionResults: readonly CapturedExecutionResult[];
   readonly technicalExecutionFailures: readonly TechnicalExecutionFailure[];
@@ -2122,11 +2195,19 @@ must not be written or admitted under `formal/reviews/executions/`.
 
 When M6 returns the first `qualified` classification for the logical cognitive
 execution, M5 mechanically assembles and seals one complete schema-v3 receipt.
-The receipt includes every runner Execution for that WorkItem that reached the
-cognitive call boundary, in attempt-ordinal order, together with its applicable
-exact M4 and M6 evidence. The qualified attempt is final. M5 returns the sealed receipt
-through the existing `EvidenceRef` category; it does not create another
+The receipt includes every preserved receipt-admissible protocol attempt for
+that WorkItem, in runner Execution attempt-ordinal order, together with its
+applicable exact M4 and M6 evidence. A receipt-admissible attempt has an exact
+mechanically established receipt outcome permitted by the accepted hostile-
+review receipt contract. The qualified attempt is final. M5 returns the sealed
+receipt through the existing `EvidenceRef` category; it does not create another
 cross-module ledger-product category.
+
+A runner Execution that reached an external cognitive effect boundary but was
+later progression-superseded while its protocol outcome remained mechanically
+unknown stays in durable GateARun operational history. It is not fabricated
+into a schema-v3 receipt attempt and is not relabeled as `technical-failure`,
+`protocol-invalid`, or `qualified`.
 
 If finite runner retry policy ends before any qualified attempt exists, M5
 returns an exact `OperationalBlocker`, the external projection is
@@ -2773,9 +2854,15 @@ If an outcome cannot be established, automatic progression stops with `OPERATOR-
 
 A session taking ownership of an existing `GateARun` must cross a recovery barrier before it normally dispatches new campaign effects.
 
-The complete unresolved set includes every Execution for which a durable Arm
-fact exists and no authoritative terminal execution disposition exists,
-regardless of whether M4 or M7 ever returned an explicit uncertain capture.
+The complete active unresolved set includes every Execution for which a durable
+Arm fact exists, no authoritative terminal execution disposition exists, and no
+explicit `ExecutionProgressionSupersessionRef` revokes that Execution's future
+progression/recovery authority, regardless of whether M4 or M7 ever returned an
+explicit uncertain capture.
+
+Progression supersession is not a terminal execution-outcome classification. A
+superseded prior Execution may remain epistemically unknown while being excluded
+from the active unresolved-recovery set.
 
 The barrier consumes each complete `UnresolvedExecutionRecoveryRef`, including
 its WorkItem, durable dispatch state, dispatch intent/evidence, any captured
@@ -2820,7 +2907,23 @@ M8 may not invent an additional M2 lookup API, reconstruct dispatch identity fro
 
 Ownership transfer never resets a possibly executed operation to not executed.
 
-If an operator explicitly supersedes an unresolved Execution and authorizes a replacement Execution, a later result from the superseded execution may remain auditable but may not silently re-enter authoritative progression.
+If an operator explicitly supersedes an unresolved Execution and authorizes a
+replacement Execution, M2 records one exact
+`ExecutionProgressionSupersessionRef` in the same atomic authoritative
+transition that disposes the target operational blocker and creates exactly one
+successor Execution.
+
+That supersession revokes only the prior Execution's future
+campaign-progression and automatic-recovery authority. It does not manufacture
+`PROVEN-NOT-EXECUTED`, `PROVEN-COMPLETED`, `UNRESOLVABLE`, a direct execution
+outcome, or any other assertion about whether the prior external effect
+occurred.
+
+A later result from the superseded Execution may remain auditable, but no new
+post-supersession outcome, uncertainty, recovery, cognitive-attempt
+qualification, publication qualification, or other progression-bearing
+admission for that prior Execution may silently re-enter authoritative campaign
+progression.
 
 ## 21. `llm-runtime` boundary
 
@@ -4335,10 +4438,14 @@ GI-60  M6 validation subprocesses are read-only with respect to authoritative
        validation input; M6 does not implement ExecutionRecoveryPort.
 
 GI-61  For cognitive WorkItems, hostile-review receipt execution_id is the
-       WorkItemId. If a qualified attempt is reached, each executed runner
-       Execution contributes one receipt attempt whose attempt_id is that
-       ExecutionId, and the attempt call_id binds the exact llm-runtime call.
-       Provider/transport retries remain below this identity boundary.
+       WorkItemId. If a qualified attempt is reached, every preserved
+       receipt-admissible protocol attempt contributes one receipt attempt whose
+       attempt_id is the corresponding runner ExecutionId, and the attempt
+       call_id binds the exact llm-runtime call. A progression-superseded
+       Execution whose protocol outcome was never mechanically established
+       remains GateARun operational history and contributes no fabricated
+       receipt attempt. Provider/transport retries remain below this identity
+       boundary.
 
 GI-62  M1 never invents cognitive protocol retry permission. M5 alone exposes
        an exact retry authorization from accepted attempt admissibility, and
@@ -4356,10 +4463,12 @@ GI-64  No schema-v3 hostile-review execution receipt is admitted before one
        not an incomplete receipt.
 
 GI-65  A successful durable Arm transition is the external-effect permission
-       linearization point. From that commit until authoritative terminal
-       execution disposition, the armed Execution is conservatively
-       POSSIBLY-DISPATCHED and belongs to the unresolved recovery set, even if
-       the owning executor never returned.
+       linearization point. From that commit until either an authoritative
+       terminal execution disposition or an explicit operator progression
+       supersession exists, the armed Execution is conservatively
+       POSSIBLY-DISPATCHED and belongs to the active unresolved recovery set,
+       even if the owning executor never returned. Progression supersession does
+       not assert an external outcome.
 
 GI-66  M4 and M7 execute only from an exact ArmedExecutionDispatchRef produced
        after successful M2 Arm admission. Neither executor reconstructs its
@@ -4380,6 +4489,19 @@ GI-69  Every accepted unknown recovery observation carries one exact validated
        RecoveryIndeterminacyRef proving executor-domain recovery exhaustion.
        No-capability direct UNRESOLVABLE and M8 automatic-policy exhaustion
        remain distinct paths and create neither envelope for the other.
+
+GI-70  Operator-authorized Execution replacement atomically disposes the exact
+       target operational blocker, records one exact
+       ExecutionProgressionSupersessionRef, and creates exactly one successor
+       Execution for the same WorkItem. The supersession revokes future
+       progression/recovery authority only; it never manufactures execution
+       truth for the prior Execution.
+
+GI-71  Once an Execution has an authoritative progression supersession, later
+       observations of that prior Execution may remain auditable but cannot
+       create new authoritative progression-bearing outcome, recovery,
+       cognitive-attempt qualification, publication qualification, or receipt
+       truth for that superseded occurrence.
 ```
 
 ## 40. Cross-cutting policies
