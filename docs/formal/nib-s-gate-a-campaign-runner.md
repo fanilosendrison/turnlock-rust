@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.5"
+version: "6.0.6"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -99,6 +99,16 @@ safe re-observability, executor-owned unknown observations must carry an exact
 indeterminacy, and M8 automatic-policy exhaustion remains distinct from
 executor-domain recovery exhaustion. The no-capability direct `UNRESOLVABLE`
 path, M2 recovery-admission shapes, and all other M2 semantics remain unchanged.
+
+Version `6.0.6` closes a construction-authority mismatch introduced by M8
+reconciliation-trace materialization without changing TURNLOCK product
+semantics. The later M8 NIB-M may append exactly one immutable
+reconciliation-trace artifact to final M8 recovery evidence, including the
+`ReconciliationPendingRef.evidence` retained after automatic-policy exhaustion.
+The exact executor-owned or structurally derived base recovery evidence remains
+first and unchanged; the M8 trace is algorithmic provenance only and never
+establishes executor-domain execution truth. Recovery classifications, M2
+recovery-admission shapes, and all other M2 semantics remain unchanged.
 
 ## 2. System objective
 
@@ -1294,9 +1304,14 @@ resolution evidence as the ordered duplicate-free sequence:
 
 where the first occurrence of an exact `ArtifactRef` is retained.
 
-The later M8 NIB-M may append its own immutable reconciliation-trace artifact
-to the final resolution evidence, but it may not remove, replace, or reinterpret
-the executor-owned proof or basis artifacts.
+The later M8 NIB-M may append exactly one immutable reconciliation-trace
+artifact to final M8 recovery evidence after the exact base evidence required
+by this System Brief. This permission applies both to
+`ExecutionRecoveryResolution.evidence` and to the
+`ReconciliationPendingRef.evidence` retained after automatic-policy exhaustion.
+The trace may not remove, replace, reorder, or reinterpret executor-owned or
+structurally derived base evidence. The trace is M8 algorithmic provenance only;
+it does not establish executor-domain execution truth.
 
 The presence of a valid proof artifact in the artifact store does not by itself
 make non-execution authoritative.
@@ -1376,7 +1391,7 @@ recovery capability is an implementation/process/integrity failure. M8 must not
 downgrade it to `pending`, `unknown`, or `UNRESOLVABLE`.
 
 For one accepted pending envelope `C`, M8 constructs the existing
-`ReconciliationPendingRef` as:
+`ReconciliationPendingRef` with this exact base evidence:
 
 ```text
 unresolvedExecution = U
@@ -1386,6 +1401,14 @@ evidence            = ordered duplicate-free [
     ...C.basisArtifacts
 ]
 ```
+
+When this pending fact is the final retained pending fact after M8
+automatic-policy exhaustion, the later M8 NIB-M may append exactly one
+immutable reconciliation-trace artifact after that base evidence under the
+general trace-provenance rule above. The append does not change the
+`ReconciliationPendingRef` shape, does not alter the executor-owned
+continuability fact, and does not convert pending into executor-domain
+indeterminacy.
 
 For one accepted unknown envelope `I`, M8 constructs the `UNRESOLVABLE`
 resolution evidence as the ordered duplicate-free sequence:
