@@ -2283,8 +2283,7 @@ pending observation with valid recovery capability
 → automatically re-observe under the finite M8 NIB-M reconciliation policy
 
 unknown observation
-or missing proof
-or no usable capability for a possibly-dispatched execution
+or no usable recovery capability for a possibly-dispatched execution
 → UNRESOLVABLE
 → exact OperationalBlocker
 
@@ -2293,6 +2292,15 @@ automatic reconciliation policy exhausted while still pending
 → exact OperationalBlocker
 → OPERATOR-ACTION-REQUIRED
 ```
+
+Inability to establish non-execution proof is not an independent M8
+classification input; the owning executor must represent that condition through
+its valid pending, unknown, or terminal observation according to its exact
+domain contract.
+
+A returned not-executed observation whose required `NonExecutionProofRef` is
+missing or invalid is an implementation/process/integrity failure, not
+`UNRESOLVABLE`.
 
 `RecoveryPlan.kind = "cleared"` is valid only when every supplied unresolved execution has a terminal `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` resolution and no recovery blocker remains.
 
