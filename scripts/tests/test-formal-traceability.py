@@ -1456,6 +1456,7 @@ class FormalTraceabilityTests(unittest.TestCase):
                 )
 
                 manifest_path = fixture_root / MANIFEST_RELATIVE
+                checker_manifest_text = manifest_path.read_text(encoding="utf-8")
                 manifest_path.write_text("[")
                 original_safe_load = yaml.safe_load
                 with mock.patch.object(
@@ -1468,6 +1469,172 @@ class FormalTraceabilityTests(unittest.TestCase):
                     with self.assertRaises(yaml.YAMLError):
                         load_manifest(fixture_root)
                     self.assertEqual(2, safe_load_mock.call_count)
+
+                manifest_path.write_text(
+                    checker_manifest_text,
+                    encoding="utf-8",
+                )
+                checker._YAML_PARSE_CACHE.clear()
+                try:
+                    cold_errors, cold_summary = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertTrue(
+                        any(
+                            "must use schema_version 3" in error
+                            for error in cold_errors
+                        ),
+                        cold_errors,
+                    )
+                    self.assertTrue(checker._YAML_PARSE_CACHE)
+                    cache_after_cold = copy.deepcopy(checker._YAML_PARSE_CACHE)
+
+                    hot_errors, hot_summary = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertEqual(cold_errors, hot_errors)
+                    self.assertEqual(cold_summary, hot_summary)
+                    self.assertEqual(
+                        cache_after_cold,
+                        checker._YAML_PARSE_CACHE,
+                    )
+
+                    first, first_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    second, second_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], first_errors)
+                    self.assertEqual([], second_errors)
+                    self.assertEqual(first, second)
+                    self.assertIsNot(first, second)
+
+                    on_disk_schema_version = second["schema_version"]
+                    first["schema_version"] = 999
+                    third, third_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], third_errors)
+                    self.assertEqual(
+                        on_disk_schema_version,
+                        third["schema_version"],
+                    )
+                    self.assertNotEqual(999, third["schema_version"])
+
+                    text_a = manifest_path.read_text(encoding="utf-8")
+                    manifest_b = load_manifest(fixture_root)
+                    manifest_b["schema_version"] = 999
+                    save_manifest(fixture_root, manifest_b)
+                    text_b = manifest_path.read_text(encoding="utf-8")
+                    self.assertNotEqual(text_a, text_b)
+
+                    errors_b, summary_b = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertTrue(
+                        any(
+                            "must use schema_version 3" in error
+                            for error in errors_b
+                        ),
+                        errors_b,
+                    )
+                    observed_b, observed_b_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], observed_b_errors)
+                    self.assertEqual(999, observed_b["schema_version"])
+                    self.assertIsInstance(summary_b, dict)
+
+                    manifest_path.write_text(
+                        text_a,
+                        encoding="utf-8",
+                    )
+                    errors_a2, summary_a2 = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertEqual(cold_errors, errors_a2)
+                    self.assertEqual(cold_summary, summary_a2)
+
+                    warmed_a, warmed_a_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], warmed_a_errors)
+                    self.assertEqual(
+                        on_disk_schema_version,
+                        warmed_a["schema_version"],
+                    )
+                    manifest_path.write_text(
+                        "[",
+                        encoding="utf-8",
+                    )
+                    invalid_errors_1, invalid_summary_1 = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    invalid_errors_2, invalid_summary_2 = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertEqual(invalid_errors_1, invalid_errors_2)
+                    self.assertEqual(invalid_summary_1, invalid_summary_2)
+                    self.assertTrue(
+                        any(
+                            error.startswith(
+                                "cannot read formal/verification.yaml:"
+                            )
+                            for error in invalid_errors_1
+                        ),
+                        invalid_errors_1,
+                    )
+                    self.assertNotIn("[", checker._YAML_PARSE_CACHE)
+
+                    manifest_path.write_text(
+                        text_a,
+                        encoding="utf-8",
+                    )
+                    warmed_a, warmed_a_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], warmed_a_errors)
+                    self.assertEqual(
+                        on_disk_schema_version,
+                        warmed_a["schema_version"],
+                    )
+                    original_safe_load = checker.yaml.safe_load
+                    with mock.patch.object(
+                        checker.yaml,
+                        "safe_load",
+                        wraps=original_safe_load,
+                    ) as safe_load_mock:
+                        patched_first, patched_first_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        patched_second, patched_second_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        self.assertEqual([], patched_first_errors)
+                        self.assertEqual([], patched_second_errors)
+                        self.assertEqual(patched_first, patched_second)
+                        self.assertEqual(2, safe_load_mock.call_count)
+                finally:
+                    manifest_path.write_text(
+                        checker_manifest_text,
+                        encoding="utf-8",
+                    )
+                    checker._YAML_PARSE_CACHE.clear()
             finally:
                 _TEST_YAML_PARSE_CACHE.clear()
 
@@ -1675,6 +1842,8 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_legacy_migration_count_mismatch_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            migration_path = fixture_root / MIGRATION_RELATIVE
+            migration_text_a = migration_path.read_text(encoding="utf-8")
             _TEST_YAML_PARSE_CACHE.clear()
             try:
                 original_safe_load = yaml.safe_load
@@ -1704,6 +1873,73 @@ class FormalTraceabilityTests(unittest.TestCase):
                         len(reloaded["entries"]),
                     )
 
+                migration_path.write_text(
+                    migration_text_a,
+                    encoding="utf-8",
+                )
+                checker._YAML_PARSE_CACHE.clear()
+                try:
+                    checker_first, checker_first_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    checker_second, checker_second_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_first_errors)
+                    self.assertEqual([], checker_second_errors)
+                    self.assertEqual(checker_first, checker_second)
+                    self.assertIsNot(checker_first, checker_second)
+
+                    checker_original_count = len(checker_second["entries"])
+                    checker_first["entries"].pop()
+                    checker_third, checker_third_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_third_errors)
+                    self.assertEqual(
+                        checker_original_count,
+                        len(checker_third["entries"]),
+                    )
+
+                    migration_b = copy.deepcopy(checker_third)
+                    migration_b["entries"] = migration_b["entries"][:-1]
+                    save_migration(fixture_root, migration_b)
+                    checker_b, checker_b_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_b_errors)
+                    self.assertEqual(
+                        checker_original_count - 1,
+                        len(checker_b["entries"]),
+                    )
+
+                    migration_path.write_text(
+                        migration_text_a,
+                        encoding="utf-8",
+                    )
+                    checker_a2, checker_a2_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_a2_errors)
+                    self.assertEqual(
+                        checker_original_count,
+                        len(checker_a2["entries"]),
+                    )
+                finally:
+                    migration_path.write_text(
+                        migration_text_a,
+                        encoding="utf-8",
+                    )
+                    checker._YAML_PARSE_CACHE.clear()
+
+                final_migration = load_migration(fixture_root)
+                final_migration["entries"] = final_migration["entries"][:-1]
+                save_migration(fixture_root, final_migration)
                 errors, _ = checker.collect_errors(
                     fixture_root, check_generated=False
                 )
