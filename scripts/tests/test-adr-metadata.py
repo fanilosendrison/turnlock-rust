@@ -52,7 +52,14 @@ def write_history(fixture_root: Path, text: str) -> None:
 
 class AdrMetadataTests(unittest.TestCase):
     def test_repository_passes_full_profile(self) -> None:
-        self.assertEqual([], adr_metadata.collect_errors(ROOT))
+        original_check_schema = adr_metadata.Draft202012Validator.check_schema
+        with mock.patch.object(
+            adr_metadata.Draft202012Validator,
+            "check_schema",
+            wraps=original_check_schema,
+        ) as check_schema:
+            self.assertEqual([], adr_metadata.collect_errors(ROOT))
+        self.assertEqual(2, check_schema.call_count)
 
     def test_calendar_aware_schema_validation_rejects_invalid_dates(self) -> None:
         adr_path = next((ROOT / "docs" / "adr").glob("adr-017-*.md"))
@@ -71,6 +78,24 @@ class AdrMetadataTests(unittest.TestCase):
         candidate = copy.deepcopy(metadata)
         candidate["date"] = "2024-02-29"
         self.assertEqual([], adr_metadata.schema_errors(candidate, base, overlay))
+
+        invalid_base = copy.deepcopy(base)
+        invalid_base["type"] = 123
+        compiled = adr_metadata._compile_schema_validators(invalid_base, overlay)
+        first_errors = adr_metadata._schema_errors_with_validators(metadata, compiled)
+        second_errors = adr_metadata._schema_errors_with_validators(metadata, compiled)
+        self.assertEqual(first_errors, second_errors)
+        self.assertEqual(
+            1,
+            sum(
+                error.startswith("base schema is invalid:")
+                for error in first_errors
+            ),
+        )
+        self.assertEqual(
+            first_errors,
+            adr_metadata.schema_errors(metadata, invalid_base, overlay),
+        )
 
     def test_body_digest_uses_exact_context_suffix(self) -> None:
         payload = b"# ADR-999: Example\n\n## Context\n\nExact body.\n"

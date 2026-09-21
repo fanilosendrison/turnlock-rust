@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from jsonschema import Draft202012Validator
 import yaml
@@ -25,6 +28,253 @@ spec.loader.exec_module(checker)
 MANIFEST_RELATIVE = Path("formal/verification.yaml")
 MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
 MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
+
+_TEST_YAML_PARSE_CACHE: dict[str, object] = {}
+_UNCACHEABLE_MANIFEST_DUMP_KEY = object()
+_TEST_MANIFEST_DUMP_CACHE: dict[object, str] = {}
+
+
+def _manifest_dump_cache_key(
+    value: object,
+    seen_containers: set[int] | None = None,
+) -> object:
+    if seen_containers is None:
+        seen_containers = set()
+
+    if value is None:
+        return ("null",)
+    if type(value) is bool:
+        return ("bool", value)
+    if type(value) is int:
+        return ("int", value)
+    if type(value) is str:
+        return ("str", value)
+    if type(value) is list:
+        identity = id(value)
+        if identity in seen_containers:
+            return _UNCACHEABLE_MANIFEST_DUMP_KEY
+        seen_containers.add(identity)
+        children = []
+        for child in value:
+            child_key = _manifest_dump_cache_key(child, seen_containers)
+            if child_key is _UNCACHEABLE_MANIFEST_DUMP_KEY:
+                return _UNCACHEABLE_MANIFEST_DUMP_KEY
+            children.append(child_key)
+        return ("list", tuple(children))
+    if type(value) is dict:
+        identity = id(value)
+        if identity in seen_containers:
+            return _UNCACHEABLE_MANIFEST_DUMP_KEY
+        seen_containers.add(identity)
+        entries = []
+        for key, child in value.items():
+            if type(key) is not str:
+                return _UNCACHEABLE_MANIFEST_DUMP_KEY
+            child_key = _manifest_dump_cache_key(child, seen_containers)
+            if child_key is _UNCACHEABLE_MANIFEST_DUMP_KEY:
+                return _UNCACHEABLE_MANIFEST_DUMP_KEY
+            entries.append((key, child_key))
+        return ("dict", tuple(entries))
+    return _UNCACHEABLE_MANIFEST_DUMP_KEY
+
+
+def _yaml_dumper_state_value(
+    value: object,
+    seen: set[int] | None = None,
+) -> object:
+    if seen is None:
+        seen = set()
+    if value is None:
+        return ("null",)
+    if type(value) is bool:
+        return ("bool", value)
+    if type(value) is int:
+        return ("int", value)
+    if type(value) is float:
+        return ("float", value.hex())
+    if type(value) is str:
+        return ("str", value)
+    if type(value) is bytes:
+        return ("bytes", value)
+    if isinstance(value, re.Pattern):
+        return ("regex", value.pattern, value.flags)
+    if type(value) in (list, tuple, dict, set, frozenset):
+        identity = id(value)
+        if identity in seen:
+            return ("recursive-identity", type(value), value)
+        seen.add(identity)
+        try:
+            if type(value) is list:
+                return (
+                    "list",
+                    tuple(
+                        _yaml_dumper_state_value(item, seen)
+                        for item in value
+                    ),
+                )
+            if type(value) is tuple:
+                return (
+                    "tuple",
+                    tuple(
+                        _yaml_dumper_state_value(item, seen)
+                        for item in value
+                    ),
+                )
+            if type(value) is dict:
+                return (
+                    "dict",
+                    tuple(
+                        (
+                            _yaml_dumper_state_value(key, seen),
+                            _yaml_dumper_state_value(item, seen),
+                        )
+                        for key, item in value.items()
+                    ),
+                )
+            return (
+                "set",
+                type(value),
+                tuple(
+                    _yaml_dumper_state_value(item, seen)
+                    for item in value
+                ),
+            )
+        finally:
+            seen.remove(identity)
+    return ("identity", type(value), value)
+
+
+def _yaml_dumper_state() -> object:
+    safe_dumper = yaml.SafeDumper
+    raw_state = (
+        yaml.safe_dump,
+        yaml.dump,
+        safe_dumper,
+        tuple(
+            (cls, dict(vars(cls)))
+            for cls in safe_dumper.__mro__
+        ),
+    )
+    return _yaml_dumper_state_value(raw_state)
+
+
+def _yaml_dumper_state_equal(
+    left: object,
+    right: object,
+) -> bool:
+    if type(left) is not tuple or type(right) is not tuple:
+        return False
+    if not left or not right:
+        return False
+    if type(left[0]) is not str or type(right[0]) is not str:
+        return False
+
+    left_tag = left[0]
+    right_tag = right[0]
+    if left_tag != right_tag:
+        return False
+    if left_tag == "null":
+        return len(left) == 1 and len(right) == 1
+
+    primitive_types = {
+        "bool": bool,
+        "int": int,
+        "float": str,
+        "str": str,
+        "bytes": bytes,
+    }
+    if left_tag in primitive_types:
+        if len(left) != 2 or len(right) != 2:
+            return False
+        expected_type = primitive_types[left_tag]
+        if type(left[1]) is not expected_type:
+            return False
+        if type(right[1]) is not expected_type:
+            return False
+        return left[1] == right[1]
+    if left_tag == "regex":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if type(left[1]) is not str or type(right[1]) is not str:
+            return False
+        if type(left[2]) is not int or type(right[2]) is not int:
+            return False
+        return left[1] == right[1] and left[2] == right[2]
+    if left_tag in ("identity", "recursive-identity"):
+        if len(left) != 3 or len(right) != 3:
+            return False
+        return left[1] is right[1] and left[2] is right[2]
+    if left_tag in ("list", "tuple"):
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_items = left[1]
+        right_items = right[1]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        return all(
+            _yaml_dumper_state_equal(left_item, right_item)
+            for left_item, right_item in zip(left_items, right_items)
+        )
+    if left_tag == "dict":
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_entries = left[1]
+        right_entries = right[1]
+        if type(left_entries) is not tuple or type(right_entries) is not tuple:
+            return False
+        if len(left_entries) != len(right_entries):
+            return False
+        for left_entry, right_entry in zip(left_entries, right_entries):
+            if type(left_entry) is not tuple or len(left_entry) != 2:
+                return False
+            if type(right_entry) is not tuple or len(right_entry) != 2:
+                return False
+            if not _yaml_dumper_state_equal(left_entry[0], right_entry[0]):
+                return False
+            if not _yaml_dumper_state_equal(left_entry[1], right_entry[1]):
+                return False
+        return True
+    if left_tag == "set":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if left[1] is not set and left[1] is not frozenset:
+            return False
+        if right[1] is not set and right[1] is not frozenset:
+            return False
+        if left[1] is not right[1]:
+            return False
+        left_items = left[2]
+        right_items = right[2]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        matched = [False] * len(right_items)
+        for left_item in left_items:
+            for index, right_item in enumerate(right_items):
+                if not matched[index] and _yaml_dumper_state_equal(
+                    left_item,
+                    right_item,
+                ):
+                    matched[index] = True
+                    break
+            else:
+                return False
+        return True
+    return False
+
+
+_ORIGINAL_YAML_DUMPER_STATE = _yaml_dumper_state()
+
+
+def _yaml_dump_cache_is_eligible() -> bool:
+    return _yaml_dumper_state_equal(
+        _yaml_dumper_state(),
+        _ORIGINAL_YAML_DUMPER_STATE,
+    )
+
 
 GATE_A_ATTACK_OBJECTIVES = [
     "semantic-strengthening",
@@ -61,18 +311,43 @@ def make_fixture(temporary: str) -> Path:
     return fixture_root
 
 
+def _load_cached_yaml_text(path: Path) -> object:
+    text = path.read_text()
+
+    if text not in _TEST_YAML_PARSE_CACHE:
+        _TEST_YAML_PARSE_CACHE[text] = yaml.safe_load(text)
+
+    return copy.deepcopy(_TEST_YAML_PARSE_CACHE[text])
+
+
 def load_manifest(fixture_root: Path) -> dict:
-    return yaml.safe_load((fixture_root / MANIFEST_RELATIVE).read_text())
+    return _load_cached_yaml_text(fixture_root / MANIFEST_RELATIVE)
 
 
 def save_manifest(fixture_root: Path, manifest: dict) -> None:
-    (fixture_root / MANIFEST_RELATIVE).write_text(
-        yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8"
+    key = _manifest_dump_cache_key(manifest)
+    cacheable = (
+        key is not _UNCACHEABLE_MANIFEST_DUMP_KEY
+        and _yaml_dump_cache_is_eligible()
     )
+    cache_hit = cacheable and key in _TEST_MANIFEST_DUMP_CACHE
+
+    if cache_hit:
+        text = _TEST_MANIFEST_DUMP_CACHE[key]
+    else:
+        text = yaml.safe_dump(manifest, sort_keys=False)
+
+    (fixture_root / MANIFEST_RELATIVE).write_text(
+        text,
+        encoding="utf-8",
+    )
+
+    if cacheable and not cache_hit:
+        _TEST_MANIFEST_DUMP_CACHE[key] = text
 
 
 def load_migration(fixture_root: Path) -> dict:
-    return yaml.safe_load((fixture_root / MIGRATION_RELATIVE).read_text())
+    return _load_cached_yaml_text(fixture_root / MIGRATION_RELATIVE)
 
 
 def save_migration(fixture_root: Path, migration: dict) -> None:
@@ -1408,13 +1683,845 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_schema_v3_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            manifest = load_manifest(fixture_root)
-            manifest["schema_version"] = 2
-            save_manifest(fixture_root, manifest)
-            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
-            self.assertTrue(
-                any("must use schema_version 3" in error for error in errors), errors
-            )
+            original_manifest_text = (
+                fixture_root / MANIFEST_RELATIVE
+            ).read_text(encoding="utf-8")
+            _TEST_YAML_PARSE_CACHE.clear()
+            try:
+                original_safe_load = yaml.safe_load
+                with mock.patch.object(
+                    yaml,
+                    "safe_load",
+                    wraps=original_safe_load,
+                ) as safe_load_mock:
+                    first = load_manifest(fixture_root)
+                    second = load_manifest(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(first, second)
+                    self.assertIsNot(first, second)
+
+                    first["schema_version"] = 999
+                    third = load_manifest(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(3, third["schema_version"])
+                    self.assertIsNot(third, second)
+
+                    third["schema_version"] = 2
+                    save_manifest(fixture_root, third)
+                    reloaded = load_manifest(fixture_root)
+                    self.assertEqual(2, reloaded["schema_version"])
+                    self.assertEqual(2, safe_load_mock.call_count)
+
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any("must use schema_version 3" in error for error in errors),
+                    errors,
+                )
+
+                manifest_path = fixture_root / MANIFEST_RELATIVE
+                checker_manifest_text = manifest_path.read_text(encoding="utf-8")
+                manifest_path.write_text("[")
+                original_safe_load = yaml.safe_load
+                with mock.patch.object(
+                    yaml,
+                    "safe_load",
+                    wraps=original_safe_load,
+                ) as safe_load_mock:
+                    with self.assertRaises(yaml.YAMLError):
+                        load_manifest(fixture_root)
+                    with self.assertRaises(yaml.YAMLError):
+                        load_manifest(fixture_root)
+                    self.assertEqual(2, safe_load_mock.call_count)
+
+                manifest_path.write_text(
+                    checker_manifest_text,
+                    encoding="utf-8",
+                )
+                checker._YAML_PARSE_CACHE.clear()
+                try:
+                    cold_errors, cold_summary = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertTrue(
+                        any(
+                            "must use schema_version 3" in error
+                            for error in cold_errors
+                        ),
+                        cold_errors,
+                    )
+                    self.assertTrue(checker._YAML_PARSE_CACHE)
+                    cache_after_cold = copy.deepcopy(checker._YAML_PARSE_CACHE)
+
+                    hot_errors, hot_summary = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertEqual(cold_errors, hot_errors)
+                    self.assertEqual(cold_summary, hot_summary)
+                    self.assertEqual(
+                        cache_after_cold,
+                        checker._YAML_PARSE_CACHE,
+                    )
+
+                    first, first_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    second, second_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], first_errors)
+                    self.assertEqual([], second_errors)
+                    self.assertEqual(first, second)
+                    self.assertIsNot(first, second)
+
+                    on_disk_schema_version = second["schema_version"]
+                    first["schema_version"] = 999
+                    third, third_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], third_errors)
+                    self.assertEqual(
+                        on_disk_schema_version,
+                        third["schema_version"],
+                    )
+                    self.assertNotEqual(999, third["schema_version"])
+
+                    text_a = manifest_path.read_text(encoding="utf-8")
+                    manifest_b = load_manifest(fixture_root)
+                    manifest_b["schema_version"] = 999
+                    save_manifest(fixture_root, manifest_b)
+                    text_b = manifest_path.read_text(encoding="utf-8")
+                    self.assertNotEqual(text_a, text_b)
+
+                    errors_b, summary_b = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertTrue(
+                        any(
+                            "must use schema_version 3" in error
+                            for error in errors_b
+                        ),
+                        errors_b,
+                    )
+                    observed_b, observed_b_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], observed_b_errors)
+                    self.assertEqual(999, observed_b["schema_version"])
+                    self.assertIsInstance(summary_b, dict)
+
+                    manifest_path.write_text(
+                        text_a,
+                        encoding="utf-8",
+                    )
+                    errors_a2, summary_a2 = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertEqual(cold_errors, errors_a2)
+                    self.assertEqual(cold_summary, summary_a2)
+
+                    warmed_a, warmed_a_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], warmed_a_errors)
+                    self.assertEqual(
+                        on_disk_schema_version,
+                        warmed_a["schema_version"],
+                    )
+                    manifest_path.write_text(
+                        "[",
+                        encoding="utf-8",
+                    )
+                    invalid_errors_1, invalid_summary_1 = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    invalid_errors_2, invalid_summary_2 = checker.collect_errors(
+                        fixture_root,
+                        check_generated=False,
+                    )
+                    self.assertEqual(invalid_errors_1, invalid_errors_2)
+                    self.assertEqual(invalid_summary_1, invalid_summary_2)
+                    self.assertTrue(
+                        any(
+                            error.startswith(
+                                "cannot read formal/verification.yaml:"
+                            )
+                            for error in invalid_errors_1
+                        ),
+                        invalid_errors_1,
+                    )
+                    self.assertNotIn("[", checker._YAML_PARSE_CACHE)
+
+                    manifest_path.write_text(
+                        text_a,
+                        encoding="utf-8",
+                    )
+                    warmed_a, warmed_a_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], warmed_a_errors)
+                    self.assertEqual(
+                        on_disk_schema_version,
+                        warmed_a["schema_version"],
+                    )
+                    original_safe_load = checker.yaml.safe_load
+                    with mock.patch.object(
+                        checker.yaml,
+                        "safe_load",
+                        wraps=original_safe_load,
+                    ) as safe_load_mock:
+                        patched_first, patched_first_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        patched_second, patched_second_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        self.assertEqual([], patched_first_errors)
+                        self.assertEqual([], patched_second_errors)
+                        self.assertEqual(patched_first, patched_second)
+                        self.assertEqual(2, safe_load_mock.call_count)
+
+                    manifest_path.write_text(
+                        original_manifest_text,
+                        encoding="utf-8",
+                    )
+                    checker._YAML_PARSE_CACHE.clear()
+                    baseline, baseline_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], baseline_errors)
+                    self.assertEqual(3, baseline["schema_version"])
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+
+                    class EqualReplacementSafeLoad:
+                        def __init__(self) -> None:
+                            self.calls = 0
+
+                        def __call__(
+                            self,
+                            text: str,
+                        ) -> object:
+                            self.calls += 1
+                            return {
+                                "schema_version": "TURNLOCK-EQUAL-REPLACEMENT",
+                            }
+
+                        def __eq__(
+                            self,
+                            other: object,
+                        ) -> bool:
+                            return True
+
+                    original_safe_load = checker.yaml.safe_load
+                    replacement = EqualReplacementSafeLoad()
+                    with mock.patch.object(
+                        checker.yaml,
+                        "safe_load",
+                        replacement,
+                    ):
+                        self.assertIsNot(replacement, original_safe_load)
+                        self.assertTrue(replacement == original_safe_load)
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        equal_replacement_data, equal_replacement_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], equal_replacement_errors)
+                        self.assertEqual(
+                            "TURNLOCK-EQUAL-REPLACEMENT",
+                            equal_replacement_data["schema_version"],
+                        )
+                        self.assertEqual(1, replacement.calls)
+                        second_replacement_data, second_replacement_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], second_replacement_errors)
+                        self.assertEqual(
+                            "TURNLOCK-EQUAL-REPLACEMENT",
+                            second_replacement_data["schema_version"],
+                        )
+                        self.assertEqual(2, replacement.calls)
+
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    int_tag = "tag:yaml.org,2002:int"
+                    constructors = checker.yaml.SafeLoader.yaml_constructors
+                    original_int_constructor = constructors[int_tag]
+
+                    def replacement_int_constructor(loader, node):
+                        return "TURNLOCK-MUTATED-INT"
+
+                    with mock.patch.dict(
+                        constructors,
+                        {
+                            int_tag: replacement_int_constructor,
+                        },
+                        clear=False,
+                    ):
+                        self.assertIs(
+                            checker.yaml.safe_load,
+                            original_safe_load,
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        mutated, mutated_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        self.assertEqual([], mutated_errors)
+                        self.assertEqual(
+                            "TURNLOCK-MUTATED-INT",
+                            mutated["schema_version"],
+                        )
+
+                    self.assertIs(
+                        constructors[int_tag],
+                        original_int_constructor,
+                    )
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    class EqualConstructor:
+                        def __init__(self, original) -> None:
+                            self.original = original
+
+                        def __call__(self, loader, node):
+                            return "TURNLOCK-EQUAL-CONSTRUCTOR"
+
+                        def __eq__(
+                            self,
+                            other: object,
+                        ) -> bool:
+                            return True
+
+                    equal_constructor = EqualConstructor(
+                        original_int_constructor
+                    )
+                    self.assertIsNot(
+                        equal_constructor,
+                        original_int_constructor,
+                    )
+                    self.assertTrue(
+                        equal_constructor == original_int_constructor
+                    )
+                    try:
+                        constructors[int_tag] = equal_constructor
+                        self.assertIs(
+                            checker.yaml.safe_load,
+                            original_safe_load,
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        equal_constructor_data, equal_constructor_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], equal_constructor_errors)
+                        self.assertEqual(
+                            "TURNLOCK-EQUAL-CONSTRUCTOR",
+                            equal_constructor_data["schema_version"],
+                        )
+                    finally:
+                        constructors[int_tag] = original_int_constructor
+
+                    self.assertIs(
+                        constructors[int_tag],
+                        original_int_constructor,
+                    )
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    original_load = checker.yaml.load
+
+                    def replacement_load(stream, Loader):
+                        return {
+                            "schema_version": "TURNLOCK-REPLACED-LOAD",
+                        }
+
+                    with mock.patch.object(
+                        checker.yaml,
+                        "load",
+                        replacement_load,
+                    ):
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        replaced_load, replaced_load_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        self.assertEqual([], replaced_load_errors)
+                        self.assertEqual(
+                            "TURNLOCK-REPLACED-LOAD",
+                            replaced_load["schema_version"],
+                        )
+
+                    self.assertIs(checker.yaml.load, original_load)
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    original_safe_loader = checker.yaml.SafeLoader
+
+                    class ReplacementSafeLoader(original_safe_loader):
+                        pass
+
+                    with mock.patch.object(
+                        checker.yaml,
+                        "SafeLoader",
+                        ReplacementSafeLoader,
+                    ):
+                        self.assertIs(
+                            checker.yaml.safe_load,
+                            original_safe_load,
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        replacement_loader_data, replacement_loader_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], replacement_loader_errors)
+                        self.assertEqual(
+                            3,
+                            replacement_loader_data["schema_version"],
+                        )
+
+                    self.assertIs(
+                        checker.yaml.SafeLoader,
+                        original_safe_loader,
+                    )
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+
+                    implicit_resolvers = (
+                        checker.yaml.SafeLoader.yaml_implicit_resolvers
+                    )
+                    resolver_key = next(iter(implicit_resolvers))
+                    original_resolvers = list(
+                        implicit_resolvers[resolver_key]
+                    )
+                    try:
+                        implicit_resolvers[resolver_key].append(
+                            original_resolvers[0]
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                    finally:
+                        implicit_resolvers[resolver_key][:] = original_resolvers
+
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                finally:
+                    manifest_path.write_text(
+                        checker_manifest_text,
+                        encoding="utf-8",
+                    )
+                    checker._YAML_PARSE_CACHE.clear()
+
+                _TEST_MANIFEST_DUMP_CACHE.clear()
+                try:
+                    distinct_a = {
+                        "schema_version": 3,
+                        "nested": [1, {"value": "same"}],
+                    }
+                    distinct_b = copy.deepcopy(distinct_a)
+                    self.assertIsNot(distinct_a, distinct_b)
+                    self.assertIsNot(distinct_a["nested"], distinct_b["nested"])
+                    key_a = _manifest_dump_cache_key(distinct_a)
+                    key_b = _manifest_dump_cache_key(distinct_b)
+                    self.assertEqual(key_a, key_b)
+                    save_manifest(fixture_root, distinct_a)
+                    expected_a = manifest_path.read_text(encoding="utf-8")
+                    self.assertEqual(1, len(_TEST_MANIFEST_DUMP_CACHE))
+                    manifest_path.write_text(
+                        "TURNLOCK-CACHE-WRITE-SENTINEL",
+                        encoding="utf-8",
+                    )
+                    save_manifest(fixture_root, distinct_b)
+                    self.assertEqual(
+                        expected_a,
+                        manifest_path.read_text(encoding="utf-8"),
+                    )
+                    self.assertEqual(1, len(_TEST_MANIFEST_DUMP_CACHE))
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    mutable_manifest = {
+                        "schema_version": 3,
+                        "state": ["A"],
+                    }
+                    initial_key = _manifest_dump_cache_key(mutable_manifest)
+                    save_manifest(fixture_root, mutable_manifest)
+                    initial_text = manifest_path.read_text(encoding="utf-8")
+                    mutable_manifest["state"][0] = "B"
+                    mutated_key = _manifest_dump_cache_key(mutable_manifest)
+                    self.assertNotEqual(initial_key, mutated_key)
+                    save_manifest(fixture_root, mutable_manifest)
+                    mutated_text = manifest_path.read_text(encoding="utf-8")
+                    mutable_manifest["state"][0] = "A"
+                    restored_key = _manifest_dump_cache_key(mutable_manifest)
+                    self.assertEqual(initial_key, restored_key)
+                    save_manifest(fixture_root, mutable_manifest)
+                    restored_text = manifest_path.read_text(encoding="utf-8")
+                    self.assertEqual(initial_text, restored_text)
+                    self.assertNotEqual(initial_text, mutated_text)
+                    self.assertEqual(2, len(_TEST_MANIFEST_DUMP_CACHE))
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    ordered_a = {"x": 1, "y": 2}
+                    ordered_b = {"y": 2, "x": 1}
+                    self.assertNotEqual(
+                        _manifest_dump_cache_key(ordered_a),
+                        _manifest_dump_cache_key(ordered_b),
+                    )
+                    save_manifest(fixture_root, ordered_a)
+                    ordered_a_text = manifest_path.read_text(encoding="utf-8")
+                    save_manifest(fixture_root, ordered_b)
+                    ordered_b_text = manifest_path.read_text(encoding="utf-8")
+                    self.assertNotEqual(ordered_a_text, ordered_b_text)
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    shared = [1, 2]
+                    shared_manifest = {"a": shared, "b": shared}
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(shared_manifest),
+                    )
+                    save_manifest(fixture_root, shared_manifest)
+                    self.assertEqual({}, _TEST_MANIFEST_DUMP_CACHE)
+
+                    cycle = []
+                    cycle.append(cycle)
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(cycle),
+                    )
+                    self.assertEqual({}, _TEST_MANIFEST_DUMP_CACHE)
+
+                    class ManifestDictSubclass(dict):
+                        pass
+
+                    class ManifestListSubclass(list):
+                        pass
+
+                    class UnsupportedManifestObject:
+                        pass
+
+                    for unsupported in (
+                        ManifestDictSubclass(value=1),
+                        ManifestListSubclass([1]),
+                        1.5,
+                        b"bytes",
+                        (1,),
+                        {1},
+                        UnsupportedManifestObject(),
+                        {1: "non-string-key"},
+                    ):
+                        self.assertIs(
+                            _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                            _manifest_dump_cache_key(unsupported),
+                        )
+
+                    self.assertNotEqual(
+                        _manifest_dump_cache_key(True),
+                        _manifest_dump_cache_key(1),
+                    )
+                    self.assertNotEqual(
+                        _manifest_dump_cache_key(False),
+                        _manifest_dump_cache_key(0),
+                    )
+
+                    class EqualUnsupportedManifestObject:
+                        def __init__(self) -> None:
+                            self.equality_calls = 0
+
+                        def __eq__(self, other: object) -> bool:
+                            self.equality_calls += 1
+                            return True
+
+                    equal_unsupported = EqualUnsupportedManifestObject()
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(equal_unsupported),
+                    )
+                    self.assertEqual(0, equal_unsupported.equality_calls)
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    unsupported_manifest = {"unsupported": 1.5}
+                    self.assertIs(
+                        _UNCACHEABLE_MANIFEST_DUMP_KEY,
+                        _manifest_dump_cache_key(unsupported_manifest),
+                    )
+                    expected_unsupported = yaml.safe_dump(
+                        unsupported_manifest,
+                        sort_keys=False,
+                    )
+                    save_manifest(fixture_root, unsupported_manifest)
+                    self.assertEqual(
+                        expected_unsupported,
+                        manifest_path.read_text(encoding="utf-8"),
+                    )
+                    self.assertEqual({}, _TEST_MANIFEST_DUMP_CACHE)
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    guard_manifest = {"schema_version": 3}
+                    guard_key = _manifest_dump_cache_key(guard_manifest)
+                    save_manifest(fixture_root, guard_manifest)
+                    cached_guard_text = _TEST_MANIFEST_DUMP_CACHE[guard_key]
+                    original_safe_dump = yaml.safe_dump
+                    replacement_calls = []
+
+                    def replacement_safe_dump(*args, **kwargs):
+                        replacement_calls.append((args, kwargs))
+                        return "schema_version: TURNLOCK-REPLACED-DUMP\n"
+
+                    with mock.patch.object(
+                        yaml,
+                        "safe_dump",
+                        replacement_safe_dump,
+                    ):
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(1, len(replacement_calls))
+                        self.assertEqual(
+                            "schema_version: TURNLOCK-REPLACED-DUMP\n",
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            cached_guard_text,
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    save_manifest(fixture_root, guard_manifest)
+                    cached_guard_text = _TEST_MANIFEST_DUMP_CACHE[guard_key]
+
+                    class EqualSafeDumpReplacement:
+                        def __init__(self) -> None:
+                            self.calls = 0
+
+                        def __call__(self, *args, **kwargs):
+                            self.calls += 1
+                            return "schema_version: TURNLOCK-EQUAL-DUMP\n"
+
+                        def __eq__(self, other: object) -> bool:
+                            return True
+
+                    equal_safe_dump = EqualSafeDumpReplacement()
+                    with mock.patch.object(
+                        yaml,
+                        "safe_dump",
+                        equal_safe_dump,
+                    ):
+                        self.assertIsNot(equal_safe_dump, original_safe_dump)
+                        self.assertTrue(equal_safe_dump == original_safe_dump)
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(1, equal_safe_dump.calls)
+                        self.assertEqual(
+                            "schema_version: TURNLOCK-EQUAL-DUMP\n",
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            cached_guard_text,
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    expected_guard_text = yaml.safe_dump(
+                        guard_manifest,
+                        sort_keys=False,
+                    )
+                    original_dump = yaml.dump
+
+                    def replacement_dump(*args, **kwargs):
+                        return "TURNLOCK-REPLACED-YAML-DUMP"
+
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-DUMP-SENTINEL"
+                    )
+                    with mock.patch.object(yaml, "dump", replacement_dump):
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-DUMP-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertIs(yaml.dump, original_dump)
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    original_safe_dumper = yaml.SafeDumper
+
+                    class ReplacementSafeDumper(original_safe_dumper):
+                        pass
+
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-DUMPER-SENTINEL"
+                    )
+                    with mock.patch.object(
+                        yaml,
+                        "SafeDumper",
+                        ReplacementSafeDumper,
+                    ):
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-DUMPER-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    self.assertIs(yaml.SafeDumper, original_safe_dumper)
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    representers = yaml.SafeDumper.yaml_representers
+                    representer_key = str
+                    original_representer = representers[representer_key]
+
+                    def replacement_representer(dumper, data):
+                        return original_representer(dumper, data)
+
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-REPRESENTER-SENTINEL"
+                    )
+                    try:
+                        representers[representer_key] = replacement_representer
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-REPRESENTER-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    finally:
+                        representers[representer_key] = original_representer
+                    self.assertIs(
+                        representers[representer_key],
+                        original_representer,
+                    )
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    class EqualRepresenter:
+                        def __init__(self) -> None:
+                            self.calls = 0
+
+                        def __call__(self, dumper, data):
+                            self.calls += 1
+                            return original_representer(dumper, data)
+
+                        def __eq__(self, other: object) -> bool:
+                            return True
+
+                    equal_representer = EqualRepresenter()
+                    self.assertIsNot(equal_representer, original_representer)
+                    self.assertTrue(equal_representer == original_representer)
+                    _TEST_MANIFEST_DUMP_CACHE[guard_key] = (
+                        "TURNLOCK-CACHED-EQUAL-REPRESENTER-SENTINEL"
+                    )
+                    try:
+                        representers[representer_key] = equal_representer
+                        self.assertFalse(_yaml_dump_cache_is_eligible())
+                        save_manifest(fixture_root, guard_manifest)
+                        self.assertEqual(1, equal_representer.calls)
+                        self.assertEqual(
+                            expected_guard_text,
+                            manifest_path.read_text(encoding="utf-8"),
+                        )
+                        self.assertEqual(
+                            "TURNLOCK-CACHED-EQUAL-REPRESENTER-SENTINEL",
+                            _TEST_MANIFEST_DUMP_CACHE[guard_key],
+                        )
+                    finally:
+                        representers[representer_key] = original_representer
+                    self.assertTrue(_yaml_dump_cache_is_eligible())
+
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+                    failed_manifest = {
+                        "schema_version": 3,
+                        "write": "failure",
+                    }
+                    failed_key = _manifest_dump_cache_key(failed_manifest)
+                    self.assertNotIn(failed_key, _TEST_MANIFEST_DUMP_CACHE)
+                    with mock.patch.object(
+                        Path,
+                        "write_text",
+                        side_effect=OSError("TURNLOCK-WRITE-FAILURE"),
+                    ):
+                        with self.assertRaisesRegex(
+                            OSError,
+                            "TURNLOCK-WRITE-FAILURE",
+                        ):
+                            save_manifest(fixture_root, failed_manifest)
+                    self.assertNotIn(failed_key, _TEST_MANIFEST_DUMP_CACHE)
+                    save_manifest(fixture_root, failed_manifest)
+                    self.assertIn(failed_key, _TEST_MANIFEST_DUMP_CACHE)
+                finally:
+                    manifest_path.write_text(
+                        checker_manifest_text,
+                        encoding="utf-8",
+                    )
+                    _TEST_MANIFEST_DUMP_CACHE.clear()
+            finally:
+                _TEST_YAML_PARSE_CACHE.clear()
+                _TEST_MANIFEST_DUMP_CACHE.clear()
 
     def test_missing_invariant_coverage_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1620,14 +2727,116 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_legacy_migration_count_mismatch_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            migration = load_migration(fixture_root)
-            migration["entries"] = migration["entries"][:-1]
-            save_migration(fixture_root, migration)
-            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
-            self.assertTrue(
-                any("must contain exactly 50 entries" in error for error in errors),
-                errors,
-            )
+            migration_path = fixture_root / MIGRATION_RELATIVE
+            migration_text_a = migration_path.read_text(encoding="utf-8")
+            _TEST_YAML_PARSE_CACHE.clear()
+            try:
+                original_safe_load = yaml.safe_load
+                with mock.patch.object(
+                    yaml,
+                    "safe_load",
+                    wraps=original_safe_load,
+                ) as safe_load_mock:
+                    first = load_migration(fixture_root)
+                    second = load_migration(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(first, second)
+                    self.assertIsNot(first, second)
+
+                    original_count = len(second["entries"])
+                    first["entries"].pop()
+                    third = load_migration(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(original_count, len(third["entries"]))
+
+                    third["entries"] = third["entries"][:-1]
+                    save_migration(fixture_root, third)
+                    reloaded = load_migration(fixture_root)
+                    self.assertEqual(2, safe_load_mock.call_count)
+                    self.assertEqual(
+                        original_count - 1,
+                        len(reloaded["entries"]),
+                    )
+
+                migration_path.write_text(
+                    migration_text_a,
+                    encoding="utf-8",
+                )
+                checker._YAML_PARSE_CACHE.clear()
+                try:
+                    checker_first, checker_first_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    checker_second, checker_second_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_first_errors)
+                    self.assertEqual([], checker_second_errors)
+                    self.assertEqual(checker_first, checker_second)
+                    self.assertIsNot(checker_first, checker_second)
+
+                    checker_original_count = len(checker_second["entries"])
+                    checker_first["entries"].pop()
+                    checker_third, checker_third_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_third_errors)
+                    self.assertEqual(
+                        checker_original_count,
+                        len(checker_third["entries"]),
+                    )
+
+                    migration_b = copy.deepcopy(checker_third)
+                    migration_b["entries"] = migration_b["entries"][:-1]
+                    save_migration(fixture_root, migration_b)
+                    checker_b, checker_b_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_b_errors)
+                    self.assertEqual(
+                        checker_original_count - 1,
+                        len(checker_b["entries"]),
+                    )
+
+                    migration_path.write_text(
+                        migration_text_a,
+                        encoding="utf-8",
+                    )
+                    checker_a2, checker_a2_errors = checker._load_yaml(
+                        fixture_root,
+                        MIGRATION_RELATIVE,
+                    )
+                    self.assertEqual([], checker_a2_errors)
+                    self.assertEqual(
+                        checker_original_count,
+                        len(checker_a2["entries"]),
+                    )
+                finally:
+                    migration_path.write_text(
+                        migration_text_a,
+                        encoding="utf-8",
+                    )
+                    checker._YAML_PARSE_CACHE.clear()
+
+                final_migration = load_migration(fixture_root)
+                final_migration["entries"] = final_migration["entries"][:-1]
+                save_migration(fixture_root, final_migration)
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "must contain exactly 50 entries" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+            finally:
+                _TEST_YAML_PARSE_CACHE.clear()
 
     def test_legacy_migration_unknown_claim_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -3506,31 +4715,46 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_review_artifact_final_symlink_is_integrity_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            record = make_review(fixture_root)
-            raw_path = fixture_root / record["executions"][0]["raw_output"]["path"]
-            target = raw_path.with_name("a-real.md")
-            target.write_bytes(raw_path.read_bytes())
-            raw_path.unlink()
+            checker._SCHEMA_CHECK_CACHE.clear()
             try:
-                raw_path.symlink_to(target.name)
-            except OSError as error:
-                self.skipTest(f"cannot create symlink: {error}")
-            write_review(fixture_root, record)
-            errors, summary = checker.collect_errors(
-                fixture_root, check_generated=False
-            )
-            self.assertTrue(
-                any(
-                    "artifact path must not traverse symlinks" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(summary["gate_a"]["ready"])
-            self.assertEqual(
-                "hostile review evidence integrity failure",
-                summary["gate_a"]["reason"],
-            )
+                schema = json.loads(
+                    (
+                        fixture_root
+                        / "formal/reviews/review-protocol-bundle.schema.json"
+                    ).read_text(encoding="utf-8")
+                )
+                validator, schema_errors = checker._validator(schema)
+                self.assertIsNotNone(validator)
+                self.assertEqual([], schema_errors)
+                self.assertTrue(checker._SCHEMA_CHECK_CACHE)
+
+                record = make_review(fixture_root)
+                raw_path = fixture_root / record["executions"][0]["raw_output"]["path"]
+                target = raw_path.with_name("a-real.md")
+                target.write_bytes(raw_path.read_bytes())
+                raw_path.unlink()
+                try:
+                    raw_path.symlink_to(target.name)
+                except OSError as error:
+                    self.skipTest(f"cannot create symlink: {error}")
+                write_review(fixture_root, record)
+                errors, summary = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "artifact path must not traverse symlinks" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                self.assertFalse(summary["gate_a"]["ready"])
+                self.assertEqual(
+                    "hostile review evidence integrity failure",
+                    summary["gate_a"]["reason"],
+                )
+            finally:
+                checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_review_artifact_parent_directory_symlink_is_integrity_failure(
         self,
@@ -6196,6 +7420,37 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
             [], checker._schema_violations(validator, bundle, "protocol-v1")
         )
 
+        checker._SCHEMA_CHECK_CACHE.clear()
+        try:
+            original_check_schema = checker.Draft202012Validator.check_schema
+            with mock.patch.object(
+                checker.Draft202012Validator,
+                "check_schema",
+                wraps=original_check_schema,
+            ) as check_schema:
+                validator_1, errors_1 = checker._validator(schema)
+                validator_2, errors_2 = checker._validator(schema)
+            self.assertEqual([], errors_1)
+            self.assertEqual([], errors_2)
+            self.assertIsNotNone(validator_1)
+            self.assertIsNotNone(validator_2)
+            self.assertIsNot(validator_1, validator_2)
+            self.assertEqual(1, check_schema.call_count)
+            self.assertEqual(
+                [],
+                checker._schema_violations(
+                    validator_1, bundle, "protocol-v1-first"
+                ),
+            )
+            self.assertEqual(
+                [],
+                checker._schema_violations(
+                    validator_2, bundle, "protocol-v1-second"
+                ),
+            )
+        finally:
+            checker._SCHEMA_CHECK_CACHE.clear()
+
     def test_current_protocol_is_v3_and_predecessor_is_exact_v2(self) -> None:
         bundle = json.loads(
             (
@@ -6292,6 +7547,36 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         self.assertEqual(
             [], checker._schema_violations(validator, bundle, "protocol-v2")
         )
+
+        checker._SCHEMA_CHECK_CACHE.clear()
+        try:
+            original_check_schema = checker.Draft202012Validator.check_schema
+            with mock.patch.object(
+                checker.Draft202012Validator,
+                "check_schema",
+                wraps=original_check_schema,
+            ) as check_schema:
+                valid_validator, valid_errors = checker._validator(schema)
+                self.assertIsNotNone(valid_validator)
+                self.assertEqual([], valid_errors)
+                self.assertEqual(1, check_schema.call_count)
+
+                schema["type"] = 123
+                invalid_validator, invalid_errors = checker._validator(schema)
+                self.assertIsNone(invalid_validator)
+                self.assertEqual(1, len(invalid_errors))
+                self.assertTrue(
+                    invalid_errors[0].startswith("schema is invalid:"),
+                    invalid_errors,
+                )
+                self.assertEqual(2, check_schema.call_count)
+
+                replayed_validator, replayed_errors = checker._validator(schema)
+                self.assertIsNone(replayed_validator)
+                self.assertEqual(invalid_errors, replayed_errors)
+                self.assertEqual(2, check_schema.call_count)
+        finally:
+            checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_protocol_v3_missing_predecessor_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -7013,25 +8298,34 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             path = fixture_root / self.META_BUNDLE_V4
-            self.assertEqual(
-                self.META_PROTOCOL_V4_SHA, checker.sha256_hex(path.read_bytes())
-            )
-            path.write_bytes(
-                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
-                b'"type": "object"}'
-            )
-            errors, summary = checker.collect_errors(
-                fixture_root, check_generated=False
-            )
-            self.assertTrue(
-                any(
-                    "artifact sha256 does not match" in error
-                    and "review-protocol-bundle-v4.schema.json" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(summary["gate_a"]["ready"])
+            checker._SCHEMA_CHECK_CACHE.clear()
+            try:
+                self.assertEqual(
+                    self.META_PROTOCOL_V4_SHA, checker.sha256_hex(path.read_bytes())
+                )
+                original_schema = json.loads(path.read_text(encoding="utf-8"))
+                validator, schema_errors = checker._validator(original_schema)
+                self.assertIsNotNone(validator)
+                self.assertEqual([], schema_errors)
+                self.assertTrue(checker._SCHEMA_CHECK_CACHE)
+                path.write_bytes(
+                    b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                    b'"type": "object"}'
+                )
+                errors, summary = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "artifact sha256 does not match" in error
+                        and "review-protocol-bundle-v4.schema.json" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                self.assertFalse(summary["gate_a"]["ready"])
+            finally:
+                checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_mutating_versioned_review_evidence_meta_schema_is_detected_by_hash(
         self,
@@ -7040,26 +8334,35 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
             fixture_root = make_fixture(temporary)
             self._baseline_valid_fixture(fixture_root)
             path = fixture_root / self.META_EVIDENCE_V5
-            self.assertEqual(
-                self.LEGACY_REVIEW_EVIDENCE_SHA,
-                checker.sha256_hex(path.read_bytes()),
-            )
-            path.write_bytes(
-                b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
-                b'"type": "object"}'
-            )
-            errors, summary = checker.collect_errors(
-                fixture_root, check_generated=False
-            )
-            self.assertTrue(
-                any(
-                    "artifact sha256 does not match" in error
-                    and "review-evidence-v5.schema.json" in error
-                    for error in errors
-                ),
-                errors,
-            )
-            self.assertFalse(summary["gate_a"]["ready"])
+            checker._SCHEMA_CHECK_CACHE.clear()
+            try:
+                self.assertEqual(
+                    self.LEGACY_REVIEW_EVIDENCE_SHA,
+                    checker.sha256_hex(path.read_bytes()),
+                )
+                original_schema = json.loads(path.read_text(encoding="utf-8"))
+                validator, schema_errors = checker._validator(original_schema)
+                self.assertIsNotNone(validator)
+                self.assertEqual([], schema_errors)
+                self.assertTrue(checker._SCHEMA_CHECK_CACHE)
+                path.write_bytes(
+                    b'{"$schema": "https://json-schema.org/draft/2020-12/schema", '
+                    b'"type": "object"}'
+                )
+                errors, summary = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "artifact sha256 does not match" in error
+                        and "review-evidence-v5.schema.json" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+                self.assertFalse(summary["gate_a"]["ready"])
+            finally:
+                checker._SCHEMA_CHECK_CACHE.clear()
 
     def test_protocol_v3_predecessor_is_validated_with_legacy_snapshot_not_v4_schema(
         self,

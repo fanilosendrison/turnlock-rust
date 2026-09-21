@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from collections import Counter
+import copy
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
@@ -12,6 +14,263 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
+
+def _yaml_parser_state_value(
+    value: object,
+    seen: set[int] | None = None,
+) -> object:
+    if seen is None:
+        seen = set()
+
+    if value is None:
+        return ("null",)
+
+    if type(value) is bool:
+        return ("bool", value)
+
+    if type(value) is int:
+        return ("int", value)
+
+    if type(value) is float:
+        return ("float", value.hex())
+
+    if type(value) is str:
+        return ("str", value)
+
+    if type(value) is bytes:
+        return ("bytes", value)
+
+    if isinstance(value, re.Pattern):
+        return (
+            "regex",
+            value.pattern,
+            value.flags,
+        )
+
+    if type(value) in (list, tuple, dict, set, frozenset):
+        identity = id(value)
+
+        if identity in seen:
+            return (
+                "recursive-identity",
+                type(value),
+                value,
+            )
+
+        seen.add(identity)
+
+        try:
+            if type(value) is list:
+                return (
+                    "list",
+                    tuple(
+                        _yaml_parser_state_value(
+                            item,
+                            seen,
+                        )
+                        for item in value
+                    ),
+                )
+
+            if type(value) is tuple:
+                return (
+                    "tuple",
+                    tuple(
+                        _yaml_parser_state_value(
+                            item,
+                            seen,
+                        )
+                        for item in value
+                    ),
+                )
+
+            if type(value) is dict:
+                return (
+                    "dict",
+                    tuple(
+                        (
+                            _yaml_parser_state_value(
+                                key,
+                                seen,
+                            ),
+                            _yaml_parser_state_value(
+                                item,
+                                seen,
+                            ),
+                        )
+                        for key, item in value.items()
+                    ),
+                )
+
+            return (
+                "set",
+                type(value),
+                tuple(
+                    _yaml_parser_state_value(
+                        item,
+                        seen,
+                    )
+                    for item in value
+                ),
+            )
+
+        finally:
+            seen.remove(identity)
+
+    # Retain the actual object, rather than only id(value).
+    # For PyYAML's functions/classes/descriptors this preserves
+    # identity-sensitive comparison and also keeps the original
+    # object alive.
+    return (
+        "identity",
+        type(value),
+        value,
+    )
+
+
+def _yaml_parser_state() -> object:
+    safe_loader = yaml.SafeLoader
+    raw_state = (
+        yaml.safe_load,
+        yaml.load,
+        safe_loader,
+        tuple(
+            (
+                cls,
+                dict(vars(cls)),
+            )
+            for cls in safe_loader.__mro__
+        ),
+    )
+    return _yaml_parser_state_value(raw_state)
+
+
+def _yaml_parser_state_equal(
+    left: object,
+    right: object,
+) -> bool:
+    if type(left) is not tuple or type(right) is not tuple:
+        return False
+    if not left or not right:
+        return False
+    if type(left[0]) is not str or type(right[0]) is not str:
+        return False
+
+    left_tag = left[0]
+    right_tag = right[0]
+    if left_tag != right_tag:
+        return False
+
+    if left_tag == "null":
+        return len(left) == 1 and len(right) == 1
+
+    primitive_types = {
+        "bool": bool,
+        "int": int,
+        "float": str,
+        "str": str,
+        "bytes": bytes,
+    }
+    if left_tag in primitive_types:
+        if len(left) != 2 or len(right) != 2:
+            return False
+        expected_type = primitive_types[left_tag]
+        if type(left[1]) is not expected_type:
+            return False
+        if type(right[1]) is not expected_type:
+            return False
+        return left[1] == right[1]
+
+    if left_tag == "regex":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if type(left[1]) is not str or type(right[1]) is not str:
+            return False
+        if type(left[2]) is not int or type(right[2]) is not int:
+            return False
+        return left[1] == right[1] and left[2] == right[2]
+
+    if left_tag in ("identity", "recursive-identity"):
+        if len(left) != 3 or len(right) != 3:
+            return False
+        return left[1] is right[1] and left[2] is right[2]
+
+    if left_tag in ("list", "tuple"):
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_items = left[1]
+        right_items = right[1]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        return all(
+            _yaml_parser_state_equal(left_item, right_item)
+            for left_item, right_item in zip(left_items, right_items)
+        )
+
+    if left_tag == "dict":
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_entries = left[1]
+        right_entries = right[1]
+        if type(left_entries) is not tuple or type(right_entries) is not tuple:
+            return False
+        if len(left_entries) != len(right_entries):
+            return False
+        for left_entry, right_entry in zip(left_entries, right_entries):
+            if type(left_entry) is not tuple or len(left_entry) != 2:
+                return False
+            if type(right_entry) is not tuple or len(right_entry) != 2:
+                return False
+            if not _yaml_parser_state_equal(left_entry[0], right_entry[0]):
+                return False
+            if not _yaml_parser_state_equal(left_entry[1], right_entry[1]):
+                return False
+        return True
+
+    if left_tag == "set":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if left[1] is not set and left[1] is not frozenset:
+            return False
+        if right[1] is not set and right[1] is not frozenset:
+            return False
+        if left[1] is not right[1]:
+            return False
+        left_items = left[2]
+        right_items = right[2]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        matched = [False] * len(right_items)
+        for left_item in left_items:
+            for index, right_item in enumerate(right_items):
+                if not matched[index] and _yaml_parser_state_equal(
+                    left_item,
+                    right_item,
+                ):
+                    matched[index] = True
+                    break
+            else:
+                return False
+        return True
+
+    return False
+
+
+_ORIGINAL_YAML_PARSER_STATE = _yaml_parser_state()
+
+
+def _yaml_parse_cache_is_eligible() -> bool:
+    return _yaml_parser_state_equal(
+        _yaml_parser_state(),
+        _ORIGINAL_YAML_PARSER_STATE,
+    )
+
+
+_YAML_PARSE_CACHE: dict[str, object] = {}
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -157,6 +416,9 @@ MATERIALITY_AXES = (
 )
 FUTURE_EVIDENCE_NOTE = "NOT-APPLICABLE (candidate model absent)"
 
+_UNCACHEABLE_SCHEMA_CHECK_KEY = object()
+_SCHEMA_CHECK_CACHE: dict[object, str | None] = {}
+
 
 def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -194,7 +456,15 @@ def _sequence(value: object) -> list:
 def _load_yaml(root: Path, relative: Path) -> tuple[object, list[str]]:
     path = root / relative
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        if not _yaml_parse_cache_is_eligible():
+            data = yaml.safe_load(text)
+        elif text in _YAML_PARSE_CACHE:
+            data = copy.deepcopy(_YAML_PARSE_CACHE[text])
+        else:
+            parsed = yaml.safe_load(text)
+            _YAML_PARSE_CACHE[text] = parsed
+            data = copy.deepcopy(parsed)
     except (OSError, UnicodeError, yaml.YAMLError) as error:
         return None, [f"cannot read {relative.as_posix()}: {error}"]
     return data, []
@@ -209,13 +479,66 @@ def _load_json(root: Path, relative: Path) -> tuple[object, list[str]]:
     return data, []
 
 
-def _validator(schema: object) -> tuple[Draft202012Validator | None, list[str]]:
-    if not isinstance(schema, dict):
-        return None, ["schema must be a JSON object"]
+def _schema_check_cache_key(value: object) -> object:
+    if value is None:
+        return ("null",)
+    if type(value) is bool:
+        return ("bool", value)
+    if type(value) is int:
+        return ("int", value)
+    if type(value) is float:
+        if not math.isfinite(value):
+            return _UNCACHEABLE_SCHEMA_CHECK_KEY
+        return ("float", value)
+    if type(value) is str:
+        return ("str", value)
+    if type(value) is list:
+        children = []
+        for child in value:
+            child_key = _schema_check_cache_key(child)
+            if child_key is _UNCACHEABLE_SCHEMA_CHECK_KEY:
+                return _UNCACHEABLE_SCHEMA_CHECK_KEY
+            children.append(child_key)
+        return ("list", tuple(children))
+    if type(value) is dict:
+        entries = []
+        for key, child in value.items():
+            if type(key) is not str:
+                return _UNCACHEABLE_SCHEMA_CHECK_KEY
+            child_key = _schema_check_cache_key(child)
+            if child_key is _UNCACHEABLE_SCHEMA_CHECK_KEY:
+                return _UNCACHEABLE_SCHEMA_CHECK_KEY
+            entries.append((key, child_key))
+        return ("dict", tuple(entries))
+    return _UNCACHEABLE_SCHEMA_CHECK_KEY
+
+
+def _schema_check_error(schema: dict) -> str | None:
+    key = _schema_check_cache_key(schema)
+    if key is _UNCACHEABLE_SCHEMA_CHECK_KEY:
+        try:
+            Draft202012Validator.check_schema(schema)
+        except SchemaError as error:
+            return f"schema is invalid: {error.message}"
+        return None
+    if key in _SCHEMA_CHECK_CACHE:
+        return _SCHEMA_CHECK_CACHE[key]
     try:
         Draft202012Validator.check_schema(schema)
     except SchemaError as error:
-        return None, [f"schema is invalid: {error.message}"]
+        diagnostic = f"schema is invalid: {error.message}"
+        _SCHEMA_CHECK_CACHE[key] = diagnostic
+        return diagnostic
+    _SCHEMA_CHECK_CACHE[key] = None
+    return None
+
+
+def _validator(schema: object) -> tuple[Draft202012Validator | None, list[str]]:
+    if not isinstance(schema, dict):
+        return None, ["schema must be a JSON object"]
+    schema_error = _schema_check_error(schema)
+    if schema_error is not None:
+        return None, [schema_error]
     return Draft202012Validator(schema, format_checker=FormatChecker()), []
 
 
