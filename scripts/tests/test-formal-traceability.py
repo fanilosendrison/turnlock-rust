@@ -1421,6 +1421,9 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_schema_v3_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            original_manifest_text = (
+                fixture_root / MANIFEST_RELATIVE
+            ).read_text(encoding="utf-8")
             _TEST_YAML_PARSE_CACHE.clear()
             try:
                 original_safe_load = yaml.safe_load
@@ -1629,6 +1632,272 @@ class FormalTraceabilityTests(unittest.TestCase):
                         self.assertEqual([], patched_second_errors)
                         self.assertEqual(patched_first, patched_second)
                         self.assertEqual(2, safe_load_mock.call_count)
+
+                    manifest_path.write_text(
+                        original_manifest_text,
+                        encoding="utf-8",
+                    )
+                    checker._YAML_PARSE_CACHE.clear()
+                    baseline, baseline_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], baseline_errors)
+                    self.assertEqual(3, baseline["schema_version"])
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+
+                    class EqualReplacementSafeLoad:
+                        def __init__(self) -> None:
+                            self.calls = 0
+
+                        def __call__(
+                            self,
+                            text: str,
+                        ) -> object:
+                            self.calls += 1
+                            return {
+                                "schema_version": "TURNLOCK-EQUAL-REPLACEMENT",
+                            }
+
+                        def __eq__(
+                            self,
+                            other: object,
+                        ) -> bool:
+                            return True
+
+                    original_safe_load = checker.yaml.safe_load
+                    replacement = EqualReplacementSafeLoad()
+                    with mock.patch.object(
+                        checker.yaml,
+                        "safe_load",
+                        replacement,
+                    ):
+                        self.assertIsNot(replacement, original_safe_load)
+                        self.assertTrue(replacement == original_safe_load)
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        equal_replacement_data, equal_replacement_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], equal_replacement_errors)
+                        self.assertEqual(
+                            "TURNLOCK-EQUAL-REPLACEMENT",
+                            equal_replacement_data["schema_version"],
+                        )
+                        self.assertEqual(1, replacement.calls)
+                        second_replacement_data, second_replacement_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], second_replacement_errors)
+                        self.assertEqual(
+                            "TURNLOCK-EQUAL-REPLACEMENT",
+                            second_replacement_data["schema_version"],
+                        )
+                        self.assertEqual(2, replacement.calls)
+
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    int_tag = "tag:yaml.org,2002:int"
+                    constructors = checker.yaml.SafeLoader.yaml_constructors
+                    original_int_constructor = constructors[int_tag]
+
+                    def replacement_int_constructor(loader, node):
+                        return "TURNLOCK-MUTATED-INT"
+
+                    with mock.patch.dict(
+                        constructors,
+                        {
+                            int_tag: replacement_int_constructor,
+                        },
+                        clear=False,
+                    ):
+                        self.assertIs(
+                            checker.yaml.safe_load,
+                            original_safe_load,
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        mutated, mutated_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        self.assertEqual([], mutated_errors)
+                        self.assertEqual(
+                            "TURNLOCK-MUTATED-INT",
+                            mutated["schema_version"],
+                        )
+
+                    self.assertIs(
+                        constructors[int_tag],
+                        original_int_constructor,
+                    )
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    class EqualConstructor:
+                        def __init__(self, original) -> None:
+                            self.original = original
+
+                        def __call__(self, loader, node):
+                            return "TURNLOCK-EQUAL-CONSTRUCTOR"
+
+                        def __eq__(
+                            self,
+                            other: object,
+                        ) -> bool:
+                            return True
+
+                    equal_constructor = EqualConstructor(
+                        original_int_constructor
+                    )
+                    self.assertIsNot(
+                        equal_constructor,
+                        original_int_constructor,
+                    )
+                    self.assertTrue(
+                        equal_constructor == original_int_constructor
+                    )
+                    try:
+                        constructors[int_tag] = equal_constructor
+                        self.assertIs(
+                            checker.yaml.safe_load,
+                            original_safe_load,
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        equal_constructor_data, equal_constructor_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], equal_constructor_errors)
+                        self.assertEqual(
+                            "TURNLOCK-EQUAL-CONSTRUCTOR",
+                            equal_constructor_data["schema_version"],
+                        )
+                    finally:
+                        constructors[int_tag] = original_int_constructor
+
+                    self.assertIs(
+                        constructors[int_tag],
+                        original_int_constructor,
+                    )
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    original_load = checker.yaml.load
+
+                    def replacement_load(stream, Loader):
+                        return {
+                            "schema_version": "TURNLOCK-REPLACED-LOAD",
+                        }
+
+                    with mock.patch.object(
+                        checker.yaml,
+                        "load",
+                        replacement_load,
+                    ):
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        replaced_load, replaced_load_errors = checker._load_yaml(
+                            fixture_root,
+                            MANIFEST_RELATIVE,
+                        )
+                        self.assertEqual([], replaced_load_errors)
+                        self.assertEqual(
+                            "TURNLOCK-REPLACED-LOAD",
+                            replaced_load["schema_version"],
+                        )
+
+                    self.assertIs(checker.yaml.load, original_load)
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+                    restored, restored_errors = checker._load_yaml(
+                        fixture_root,
+                        MANIFEST_RELATIVE,
+                    )
+                    self.assertEqual([], restored_errors)
+                    self.assertEqual(3, restored["schema_version"])
+
+                    original_safe_loader = checker.yaml.SafeLoader
+
+                    class ReplacementSafeLoader(original_safe_loader):
+                        pass
+
+                    with mock.patch.object(
+                        checker.yaml,
+                        "SafeLoader",
+                        ReplacementSafeLoader,
+                    ):
+                        self.assertIs(
+                            checker.yaml.safe_load,
+                            original_safe_load,
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                        replacement_loader_data, replacement_loader_errors = (
+                            checker._load_yaml(
+                                fixture_root,
+                                MANIFEST_RELATIVE,
+                            )
+                        )
+                        self.assertEqual([], replacement_loader_errors)
+                        self.assertEqual(
+                            3,
+                            replacement_loader_data["schema_version"],
+                        )
+
+                    self.assertIs(
+                        checker.yaml.SafeLoader,
+                        original_safe_loader,
+                    )
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
+
+                    implicit_resolvers = (
+                        checker.yaml.SafeLoader.yaml_implicit_resolvers
+                    )
+                    resolver_key = next(iter(implicit_resolvers))
+                    original_resolvers = list(
+                        implicit_resolvers[resolver_key]
+                    )
+                    try:
+                        implicit_resolvers[resolver_key].append(
+                            original_resolvers[0]
+                        )
+                        self.assertFalse(
+                            checker._yaml_parse_cache_is_eligible()
+                        )
+                    finally:
+                        implicit_resolvers[resolver_key][:] = original_resolvers
+
+                    self.assertTrue(checker._yaml_parse_cache_is_eligible())
                 finally:
                     manifest_path.write_text(
                         checker_manifest_text,
