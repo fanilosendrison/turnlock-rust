@@ -3369,20 +3369,32 @@ run(command):
                         snapshot.unresolvedExecutions from the durable Arm authority
                         alone
 
-                    recovery = recovery_operator.classify_unresolved_execution(
-                        exact descriptor
-                    )
+                    recovery = recovery_operator.classify_unresolved_execution({
+                        runId: run.runId,
+                        unresolvedExecution: exact descriptor,
+                        outstandingOperationalBlockers:
+                            exact committed snapshot.blockers
+                            filtered only by kind == operational
+                            preserving snapshot order
+                    })
 
                     if recovery.kind == "blocked":
-                        commit:
+                        commit through M2:
                             recovery.blocker
                             recovery.resolution if non-null
                             recovery.lastPending if non-null
-                        through M2
+                            blockerIdsToDispose =
+                                exact recovery.blockerIdsToDispose
 
                         return OPERATOR-ACTION-REQUIRED projection
 
                     require recovery.kind == "resolved"
+
+                    commit through M2:
+                        recovery.resolution
+                        its recovered terminal outcome when applicable
+                        blockerIdsToDispose =
+                            exact recovery.blockerIdsToDispose
 
                     if recovery.resolution.classification == PROVEN-COMPLETED:
                         if recovery.resolution.recoveredOutcome.kind == "captured":
@@ -3531,24 +3543,34 @@ run(command):
 
                 commit the exact publication uncertainty enrichment through M2
 
-                recovery = recovery_operator.classify_unresolved_execution(
-                    capture.value
-                )
+                recovery = recovery_operator.classify_unresolved_execution({
+                    runId: run.runId,
+                    unresolvedExecution: capture.value,
+                    outstandingOperationalBlockers:
+                        exact committed snapshot.blockers
+                        filtered only by kind == operational
+                        preserving snapshot order
+                })
 
                 if recovery.kind == "blocked":
-                    commit:
+                    commit through M2:
                         recovery.blocker
                         recovery.resolution if non-null
                         recovery.lastPending if non-null
-                    through M2
+                        blockerIdsToDispose =
+                            exact recovery.blockerIdsToDispose
 
                     return OPERATOR-ACTION-REQUIRED projection
 
                 require recovery.kind == "resolved"
 
-                if recovery.resolution.classification == PROVEN-NOT-EXECUTED:
-                    commit recovery.resolution through M2
+                commit through M2:
+                    recovery.resolution
+                    its recovered terminal outcome when applicable
+                    blockerIdsToDispose =
+                        exact recovery.blockerIdsToDispose
 
+                if recovery.resolution.classification == PROVEN-NOT-EXECUTED:
                     retain the same PublicationIntent
 
                     continue
