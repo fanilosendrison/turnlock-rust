@@ -15,7 +15,261 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 
-_ORIGINAL_YAML_SAFE_LOAD = yaml.safe_load
+def _yaml_parser_state_value(
+    value: object,
+    seen: set[int] | None = None,
+) -> object:
+    if seen is None:
+        seen = set()
+
+    if value is None:
+        return ("null",)
+
+    if type(value) is bool:
+        return ("bool", value)
+
+    if type(value) is int:
+        return ("int", value)
+
+    if type(value) is float:
+        return ("float", value.hex())
+
+    if type(value) is str:
+        return ("str", value)
+
+    if type(value) is bytes:
+        return ("bytes", value)
+
+    if isinstance(value, re.Pattern):
+        return (
+            "regex",
+            value.pattern,
+            value.flags,
+        )
+
+    if type(value) in (list, tuple, dict, set, frozenset):
+        identity = id(value)
+
+        if identity in seen:
+            return (
+                "recursive-identity",
+                type(value),
+                value,
+            )
+
+        seen.add(identity)
+
+        try:
+            if type(value) is list:
+                return (
+                    "list",
+                    tuple(
+                        _yaml_parser_state_value(
+                            item,
+                            seen,
+                        )
+                        for item in value
+                    ),
+                )
+
+            if type(value) is tuple:
+                return (
+                    "tuple",
+                    tuple(
+                        _yaml_parser_state_value(
+                            item,
+                            seen,
+                        )
+                        for item in value
+                    ),
+                )
+
+            if type(value) is dict:
+                return (
+                    "dict",
+                    tuple(
+                        (
+                            _yaml_parser_state_value(
+                                key,
+                                seen,
+                            ),
+                            _yaml_parser_state_value(
+                                item,
+                                seen,
+                            ),
+                        )
+                        for key, item in value.items()
+                    ),
+                )
+
+            return (
+                "set",
+                type(value),
+                tuple(
+                    _yaml_parser_state_value(
+                        item,
+                        seen,
+                    )
+                    for item in value
+                ),
+            )
+
+        finally:
+            seen.remove(identity)
+
+    # Retain the actual object, rather than only id(value).
+    # For PyYAML's functions/classes/descriptors this preserves
+    # identity-sensitive comparison and also keeps the original
+    # object alive.
+    return (
+        "identity",
+        type(value),
+        value,
+    )
+
+
+def _yaml_parser_state() -> object:
+    safe_loader = yaml.SafeLoader
+    raw_state = (
+        yaml.safe_load,
+        yaml.load,
+        safe_loader,
+        tuple(
+            (
+                cls,
+                dict(vars(cls)),
+            )
+            for cls in safe_loader.__mro__
+        ),
+    )
+    return _yaml_parser_state_value(raw_state)
+
+
+def _yaml_parser_state_equal(
+    left: object,
+    right: object,
+) -> bool:
+    if type(left) is not tuple or type(right) is not tuple:
+        return False
+    if not left or not right:
+        return False
+    if type(left[0]) is not str or type(right[0]) is not str:
+        return False
+
+    left_tag = left[0]
+    right_tag = right[0]
+    if left_tag != right_tag:
+        return False
+
+    if left_tag == "null":
+        return len(left) == 1 and len(right) == 1
+
+    primitive_types = {
+        "bool": bool,
+        "int": int,
+        "float": str,
+        "str": str,
+        "bytes": bytes,
+    }
+    if left_tag in primitive_types:
+        if len(left) != 2 or len(right) != 2:
+            return False
+        expected_type = primitive_types[left_tag]
+        if type(left[1]) is not expected_type:
+            return False
+        if type(right[1]) is not expected_type:
+            return False
+        return left[1] == right[1]
+
+    if left_tag == "regex":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if type(left[1]) is not str or type(right[1]) is not str:
+            return False
+        if type(left[2]) is not int or type(right[2]) is not int:
+            return False
+        return left[1] == right[1] and left[2] == right[2]
+
+    if left_tag in ("identity", "recursive-identity"):
+        if len(left) != 3 or len(right) != 3:
+            return False
+        return left[1] is right[1] and left[2] is right[2]
+
+    if left_tag in ("list", "tuple"):
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_items = left[1]
+        right_items = right[1]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        return all(
+            _yaml_parser_state_equal(left_item, right_item)
+            for left_item, right_item in zip(left_items, right_items)
+        )
+
+    if left_tag == "dict":
+        if len(left) != 2 or len(right) != 2:
+            return False
+        left_entries = left[1]
+        right_entries = right[1]
+        if type(left_entries) is not tuple or type(right_entries) is not tuple:
+            return False
+        if len(left_entries) != len(right_entries):
+            return False
+        for left_entry, right_entry in zip(left_entries, right_entries):
+            if type(left_entry) is not tuple or len(left_entry) != 2:
+                return False
+            if type(right_entry) is not tuple or len(right_entry) != 2:
+                return False
+            if not _yaml_parser_state_equal(left_entry[0], right_entry[0]):
+                return False
+            if not _yaml_parser_state_equal(left_entry[1], right_entry[1]):
+                return False
+        return True
+
+    if left_tag == "set":
+        if len(left) != 3 or len(right) != 3:
+            return False
+        if left[1] is not set and left[1] is not frozenset:
+            return False
+        if right[1] is not set and right[1] is not frozenset:
+            return False
+        if left[1] is not right[1]:
+            return False
+        left_items = left[2]
+        right_items = right[2]
+        if type(left_items) is not tuple or type(right_items) is not tuple:
+            return False
+        if len(left_items) != len(right_items):
+            return False
+        matched = [False] * len(right_items)
+        for left_item in left_items:
+            for index, right_item in enumerate(right_items):
+                if not matched[index] and _yaml_parser_state_equal(
+                    left_item,
+                    right_item,
+                ):
+                    matched[index] = True
+                    break
+            else:
+                return False
+        return True
+
+    return False
+
+
+_ORIGINAL_YAML_PARSER_STATE = _yaml_parser_state()
+
+
+def _yaml_parse_cache_is_eligible() -> bool:
+    return _yaml_parser_state_equal(
+        _yaml_parser_state(),
+        _ORIGINAL_YAML_PARSER_STATE,
+    )
+
+
 _YAML_PARSE_CACHE: dict[str, object] = {}
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -203,13 +457,12 @@ def _load_yaml(root: Path, relative: Path) -> tuple[object, list[str]]:
     path = root / relative
     try:
         text = path.read_text(encoding="utf-8")
-        current_safe_load = yaml.safe_load
-        if current_safe_load is not _ORIGINAL_YAML_SAFE_LOAD:
-            data = current_safe_load(text)
+        if not _yaml_parse_cache_is_eligible():
+            data = yaml.safe_load(text)
         elif text in _YAML_PARSE_CACHE:
             data = copy.deepcopy(_YAML_PARSE_CACHE[text])
         else:
-            parsed = current_safe_load(text)
+            parsed = yaml.safe_load(text)
             _YAML_PARSE_CACHE[text] = parsed
             data = copy.deepcopy(parsed)
     except (OSError, UnicodeError, yaml.YAMLError) as error:
