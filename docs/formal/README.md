@@ -310,6 +310,20 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   — deterministic snapshot reconstruction, unresolved-execution projection,
   retained-state integrity, and provenance-root materialization.
 
+M8 `recovery-operator` is architecturally decomposed. Its M8-A
+`recovery-reconciliation` responsibility is defined by the active Module Brief:
+
+- [`nib-m-gate-a-recovery-operator-reconciliation.md`](nib-m-gate-a-recovery-operator-reconciliation.md)
+  — exact unresolved-execution validation, executor-owned recovery-port
+  invocation, deterministic bounded re-observation, recovery evidence
+  projection, immutable reconciliation traces, and restart-safe episode
+  behavior.
+
+That Module Brief intentionally does not define M8-B `operator-boundary`:
+operational blocker identity/materialization, operator-request presentation,
+blocker disposition, operator resolution, and explicit operational supersession
+remain a separate M8 construction responsibility.
+
 The persistence/ownership Module Brief selects SQLite and therefore requires a
 separate `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` Dependency Contract before
 GREEN. That Dependency Contract is not part of the current task.
