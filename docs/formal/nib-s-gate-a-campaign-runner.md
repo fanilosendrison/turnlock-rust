@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.7"
+version: "6.0.8"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -122,6 +122,18 @@ remain auditable but may not silently re-enter authoritative progression.
 Cognitive Executions whose protocol outcome was never mechanically established
 remain GateARun operational history and are not fabricated into hostile-review
 receipt attempts.
+
+Version `6.0.8` closes the M8 operator-boundary construction contract without
+changing TURNLOCK product semantics. M8 now owns deterministic operational-
+blocker materialization, immutable Operator Action Request presentation,
+recovery-blocker reuse and disposition, the closed operator-resolution
+language, and operator-resolution ingestion. Non-recovery blockers use
+occurrence identity bound to an immutable producer cause descriptor and base
+StateRevision; M8 recovery blockers use stable causal identity independent of
+reconciliation episode or StateRevision. Operator resolution never creates
+domain truth: M8 validates the requested action and M2 independently validates
+its current authoritative admissibility before any atomic blocker disposition
+or Execution progression supersession.
 
 ## 2. System objective
 
@@ -2503,6 +2515,144 @@ type ClassifyUnresolvedExecutionResult =
       readonly blockerIdsToDispose: readonly BlockerId[];
     };
 
+type NonRecoveryOperationalBlockerProducerV1 =
+  | "campaign-authority"
+  | "assurance-ledger"
+  | "mechanical-validation"
+  | "repository-control";
+
+type RecoveryOperationalBlockerCauseV1 =
+  | "pending-policy-exhausted"
+  | "no-recovery-capability"
+  | "executor-domain-indeterminacy";
+
+type OperatorMechanicalContinuationV1 =
+  | {
+      readonly kind: "resume-reconciliation";
+      readonly executionId: ExecutionId;
+    };
+
+type NonRecoveryOperatorResolutionContractV1 =
+  | {
+      readonly kind: "request-operational-recheck";
+    }
+  | {
+      readonly kind: "authorize-known-terminal-execution-replacement";
+      readonly priorExecutionId: ExecutionId;
+      readonly requiredAcceptedConsequence:
+        "prior-execution-remains-authoritative-history-and-this-authorizes-one-additional-execution-occurrence";
+    };
+
+type OperatorResolutionContractV1 =
+  | NonRecoveryOperatorResolutionContractV1
+  | {
+      readonly kind: "authorize-uncertain-execution-replacement";
+      readonly priorExecutionId: ExecutionId;
+      readonly requiredAcceptedRisk:
+        "prior-execution-may-have-produced-the-external-effect-and-the-replacement-may-produce-that-effect-again";
+    };
+
+type OperatorBlockerSourceV1 =
+  | {
+      readonly kind: "producer-occurrence";
+      readonly producer: NonRecoveryOperationalBlockerProducerV1;
+      readonly causeDescriptor: ArtifactRef;
+      readonly baseStateRevision: StateRevision;
+    }
+  | {
+      readonly kind: "recovery-causal";
+      readonly producer: "recovery-operator";
+      readonly cause: RecoveryOperationalBlockerCauseV1;
+    };
+
+interface GateAOperatorActionRequestV1 {
+  readonly schema: "gate-a-operator-action-request.v1";
+  readonly runId: GateARunId;
+  readonly blockerId: BlockerId;
+  readonly obligationId: ObligationId;
+  readonly workItemId: WorkItemId | null;
+  readonly executionId: ExecutionId | null;
+  readonly source: OperatorBlockerSourceV1;
+  readonly mechanicalContinuations:
+    readonly OperatorMechanicalContinuationV1[];
+  readonly resolutionContracts: readonly OperatorResolutionContractV1[];
+}
+
+type GateAOperatorResolutionArtifactV1 =
+  | {
+      readonly schema: "gate-a-operator-resolution-artifact.v1";
+      readonly kind: "request-operational-recheck";
+      readonly runId: GateARunId;
+      readonly blockerId: BlockerId;
+      readonly operatorRequest: ArtifactRef;
+    }
+  | {
+      readonly schema: "gate-a-operator-resolution-artifact.v1";
+      readonly kind: "authorize-known-terminal-execution-replacement";
+      readonly runId: GateARunId;
+      readonly blockerId: BlockerId;
+      readonly operatorRequest: ArtifactRef;
+      readonly priorExecutionId: ExecutionId;
+      readonly acceptedConsequence:
+        "prior-execution-remains-authoritative-history-and-this-authorizes-one-additional-execution-occurrence";
+    }
+  | {
+      readonly schema: "gate-a-operator-resolution-artifact.v1";
+      readonly kind: "authorize-uncertain-execution-replacement";
+      readonly runId: GateARunId;
+      readonly blockerId: BlockerId;
+      readonly operatorRequest: ArtifactRef;
+      readonly priorExecutionId: ExecutionId;
+      readonly acceptedRisk:
+        "prior-execution-may-have-produced-the-external-effect-and-the-replacement-may-produce-that-effect-again";
+    };
+
+type OperationalBlockerMaterializationRequestV1 =
+  | {
+      readonly kind: "producer-occurrence";
+      readonly runId: GateARunId;
+      readonly baseStateRevision: StateRevision;
+      readonly producer: NonRecoveryOperationalBlockerProducerV1;
+      readonly obligationId: ObligationId;
+      readonly workItemId: WorkItemId | null;
+      readonly executionId: ExecutionId | null;
+      readonly causeDescriptor: ArtifactRef;
+      readonly resolutionContracts:
+        readonly NonRecoveryOperatorResolutionContractV1[];
+    }
+  | {
+      readonly kind: "recovery-causal";
+      readonly runId: GateARunId;
+      readonly workItem: WorkItemRef;
+      readonly execution: ExecutionRef;
+      readonly cause: RecoveryOperationalBlockerCauseV1;
+    };
+
+interface MaterializedOperationalBlockerV1 {
+  readonly blocker: OperationalBlocker;
+}
+
+type OperatorResolutionStateEffect =
+  | {
+      readonly kind: "resolve-blocker-only";
+    }
+  | {
+      readonly kind: "resolve-blocker-and-replace-execution";
+      readonly priorExecutionId: ExecutionId;
+    };
+
+interface ValidateOperatorResolutionRequestV1 {
+  readonly runId: GateARunId;
+  readonly operatorResolutionPath: string;
+  readonly outstandingOperationalBlockers:
+    readonly OperationalBlocker[];
+}
+
+interface ValidatedOperatorResolutionV1 {
+  readonly envelope: OperatorResolutionEnvelope;
+  readonly effect: OperatorResolutionStateEffect;
+}
+
 interface OperatorResolutionEnvelope {
   readonly schema: "gate-a-operator-resolution.v1";
   readonly runId: GateARunId;
@@ -2510,6 +2660,267 @@ interface OperatorResolutionEnvelope {
   readonly resolution: ArtifactRef;
 }
 ```
+
+For a non-recovery operational blocker, `causeDescriptor` is the exact immutable
+canonical description of the producer-owned operational condition.
+
+The producing module owns:
+
+```text
+cause-descriptor schema
+domain meaning
+exact causal fields
+runtime validation
+```
+
+It does not own `BlockerId` or Operator Action Request identity.
+
+Every non-recovery cause descriptor uses the runner canonical JSON
+serialization:
+
+```text
+UTF-8 JSON
+object keys recursively lexicographically sorted
+array order preserves semantic order
+all required fields present
+no undefined
+no bigint
+no NaN
+no positive or negative Infinity
+no insignificant whitespace
+no trailing newline
+mediaType = application/json
+```
+
+Occurrence-only material must not enter the cause descriptor unless that value
+is genuinely part of the producer-domain causal condition.
+
+In particular, a producer cause descriptor must not include merely for
+identity:
+
+```text
+StateRevision
+RunnerSessionId
+ownership generation
+wall-clock timestamp
+process ID
+temporary path
+log path
+random UUID
+retry counter
+```
+
+`basisArtifacts`, logs, diagnostics, and other changing evidence are not blocker
+identity. They remain separate provenance.
+
+For non-recovery blocker identity, the exact producer cause identity is:
+
+```text
+causeDescriptor.sha256
+```
+
+Every M3, M5, M6, or M7 `OperationalBlocker` must be materialized through the
+M8-B operational-boundary contract.
+
+Those modules may establish producer-domain cause semantics and immutable cause
+descriptors, but they do not independently invent:
+
+```text
+BlockerId
+Operator Action Request schema
+Operator Action Request bytes
+operator-resolution kinds
+operator-resolution state effects
+```
+
+The producing module's accepted NIB-M determines which
+`NonRecoveryOperatorResolutionContractV1` values are lawful for each exact
+producer cause.
+
+M8-B validates the common materialization contract and normalizes identity and
+presentation. It does not infer or broaden producer-domain continuation rights.
+
+M8-B owns exactly two operational-blocker identity policies.
+
+For one non-recovery producer occurrence:
+
+```text
+workItemComponent =
+    "work-item:null"
+    when workItemId == null
+
+    otherwise
+    "work-item:" + workItemId
+
+executionComponent =
+    "execution:null"
+    when executionId == null
+
+    otherwise
+    "execution:" + executionId
+
+BlockerId =
+    deriveId(
+        "gate-a-operational-blocker-occurrence.v1",
+        runId,
+        producer,
+        obligationId,
+        workItemComponent,
+        executionComponent,
+        causeDescriptor.sha256,
+        decimal baseStateRevision
+    )
+```
+
+The same exact cause rediscovered after a disposed occurrence and a later
+authoritative re-evaluation therefore receives a new blocker identity.
+
+For one M8 recovery causal condition:
+
+```text
+BlockerId =
+    deriveId(
+        "gate-a-recovery-operational-blocker.v1",
+        runId,
+        workItemId,
+        executionId,
+        recoveryCause
+    )
+```
+
+Recovery blocker identity does not contain:
+
+```text
+StateRevision
+ownership generation
+reconciliation episode
+observation ordinal
+trace ArtifactRef
+ReconciliationPendingRef
+timestamp
+```
+
+The same Execution and same still-active recovery cause therefore reuse the
+same exact blocker across fresh reconciliation episodes.
+
+For an M8 recovery blocker, the representative `obligationId` is exactly:
+
+```text
+workItem.sourceObligationIds[0]
+```
+
+The WorkItem source-obligation list must already be non-empty under the accepted
+WorkItem invariants.
+
+That value is a deterministic presentation anchor only. It does not assert that
+the selected obligation uniquely caused the recovery blocker.
+
+For:
+
+```text
+cause = pending-policy-exhausted
+```
+
+the exact OAR continuation contract is:
+
+```ts
+mechanicalContinuations = [
+  {
+    kind: "resume-reconciliation",
+    executionId: exact ExecutionId,
+  },
+]
+
+resolutionContracts = [
+  {
+    kind: "authorize-uncertain-execution-replacement",
+    priorExecutionId: exact ExecutionId,
+    requiredAcceptedRisk:
+      "prior-execution-may-have-produced-the-external-effect-and-the-replacement-may-produce-that-effect-again",
+  },
+]
+```
+
+For:
+
+```text
+cause = no-recovery-capability
+```
+
+or:
+
+```text
+cause = executor-domain-indeterminacy
+```
+
+the exact OAR continuation contract is:
+
+```ts
+mechanicalContinuations = []
+
+resolutionContracts = [
+  {
+    kind: "authorize-uncertain-execution-replacement",
+    priorExecutionId: exact ExecutionId,
+    requiredAcceptedRisk:
+      "prior-execution-may-have-produced-the-external-effect-and-the-replacement-may-produce-that-effect-again",
+  },
+]
+```
+
+A fresh runner resume may re-enter M8 reconciliation for an exact unresolved
+Execution with an outstanding `pending-policy-exhausted` recovery blocker
+without first disposing that blocker.
+
+That resume is not an operator resolution.
+
+It may perform only the already-safe observational reconciliation permitted by
+the exact pending witness. Ordinary campaign progression remains blocked unless
+the recovery cause is mechanically superseded or an accepted operator
+resolution is committed.
+
+For a `producer-occurrence` materialization:
+
+```text
+mechanicalContinuations = []
+```
+
+M8-B accepts only duplicate-free `resolutionContracts`.
+
+The only permitted contracts are:
+
+```text
+request-operational-recheck
+authorize-known-terminal-execution-replacement
+```
+
+A non-recovery producer may not request:
+
+```text
+authorize-uncertain-execution-replacement
+```
+
+If `authorize-known-terminal-execution-replacement` is present:
+
+```text
+request.executionId != null
+contract.priorExecutionId == request.executionId
+```
+
+M8-B canonicalizes the OAR resolution-contract array in this fixed order:
+
+```text
+1. request-operational-recheck
+2. authorize-known-terminal-execution-replacement
+```
+
+The existence of a contract in an OAR means only that this exact blocker cause
+permits that operator request form.
+
+It does not mean the requested state transition is still admissible when a
+future operator artifact is submitted.
+
+M2 remains the current-state admissibility authority.
 
 For every unresolved execution, M8 consumes the complete `UnresolvedExecutionRecoveryRef` and invokes the exact `ExecutionRecoveryPort` implemented by the owning executor when reconciliation is required.
 
@@ -2576,7 +2987,88 @@ A returned not-executed observation whose required `NonExecutionProofRef` is
 missing or invalid is an implementation/process/integrity failure, not
 `UNRESOLVABLE`.
 
-`RecoveryPlan.kind = "cleared"` is valid only when every supplied unresolved execution has a terminal `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` resolution and no recovery blocker remains.
+Before classifying any unresolved Execution, M8-B validates and indexes the
+complete outstanding operational-blocker set.
+
+Every outstanding operational blocker must carry one intact
+`GateAOperatorActionRequestV1` whose bindings and identity policy validate
+against the blocker.
+
+For recovery planning, only OARs with:
+
+```text
+source.kind == recovery-causal
+source.producer == recovery-operator
+```
+
+are M8 recovery blockers.
+
+A valid non-recovery OAR remains authoritative and untouched but does not
+become a recovery blocker merely because it references the same WorkItem or
+Execution.
+
+Malformed retained OAR bytes, a missing/corrupt OAR artifact, an invalid
+blocker/OAR binding, or an identity mismatch in retained authority is an
+integrity failure.
+
+At most one M8 recovery blocker may be outstanding for one Execution.
+
+A pre-existing recovery blocker with cause:
+
+```text
+no-recovery-capability
+executor-domain-indeterminacy
+```
+
+is valid only when its Execution is absent from the supplied unresolved set.
+
+If such a terminal recovery blocker and the same Execution both appear in the
+active unresolved set, the snapshot/request is inconsistent and recovery fails
+as an integrity failure before invoking M8-A.
+
+An outstanding:
+
+```text
+pending-policy-exhausted
+```
+
+recovery blocker is compatible with the same Execution remaining unresolved
+and does not prevent a fresh M8-A episode.
+
+M8 processes every legitimate supplied unresolved Execution sequentially in
+request order even if another Execution or pre-existing terminal recovery
+blocker already guarantees that the aggregate plan will be blocked.
+
+A legitimate blocked result for one Execution never causes fail-fast of later
+unresolved Executions.
+
+Integrity, contract, or dependency failure still aborts the whole invocation.
+
+After all classifications, M8 computes the set of M8 recovery blockers that
+would remain outstanding after the planned dispositions.
+
+`RecoveryPlan.kind = "cleared"` is valid only when:
+
+```text
+every supplied unresolved Execution terminated as
+    PROVEN-NOT-EXECUTED
+    or
+    PROVEN-COMPLETED
+
+AND
+
+zero M8 recovery blocker remains outstanding after planned dispositions
+```
+
+Otherwise the aggregate plan is `blocked`.
+
+A pre-existing terminal recovery blocker whose Execution is no longer in
+`RecoveryRequest.unresolvedExecutions` is not duplicated into
+`RecoveryPlan.blockers`; it remains authoritative in the snapshot and still
+forces `RecoveryPlan.kind = "blocked"`.
+
+`RecoveryPlan.blockers` contains only exact recovery blockers
+materialized/reused for positions in the supplied unresolved-execution request.
 
 `RecoveryPlan.kind = "blocked"` is required when any execution is `UNRESOLVABLE` or when the finite automatic reconciliation policy ends while a reconcilable execution is still pending.
 
@@ -2602,8 +3094,173 @@ For every `UNRESOLVABLE` resolution, `blockers` contains exactly the
 OperationalBlocker carried by that resolution.
 
 For every entry in `pending`, `blockers` contains exactly one
-OperationalBlocker for that same Execution and that pending-policy-exhaustion
-episode.
+`OperationalBlocker` for that same Execution and its stable
+`pending-policy-exhausted` causal condition.
+
+A later reconciliation episode that ends pending again reuses that exact
+blocker; episode occurrence is not blocker identity.
+
+For one unresolved Execution `E`, M8-B applies this exact matrix:
+
+```text
+existing M8 recovery blocker = none
+M8-A result = PROVEN-NOT-EXECUTED
+→ no blocker
+→ no disposition
+
+existing = none
+M8-A result = PROVEN-COMPLETED
+→ no blocker
+→ no disposition
+
+existing = none
+M8-A result = pending-policy-exhausted
+→ materialize B_pending(E)
+
+existing = none
+M8-A result = no-recovery-capability
+→ materialize B_no_capability(E)
+→ construct UNRESOLVABLE
+
+existing = none
+M8-A result = executor-domain-indeterminacy
+→ materialize B_domain(E)
+→ construct UNRESOLVABLE
+
+existing = B_pending(E)
+M8-A result = PROVEN-NOT-EXECUTED
+→ dispose B_pending(E)
+→ create no new blocker
+
+existing = B_pending(E)
+M8-A result = PROVEN-COMPLETED
+→ dispose B_pending(E)
+→ create no new blocker
+
+existing = B_pending(E)
+M8-A result = pending-policy-exhausted
+→ reuse exact B_pending(E)
+→ disposition empty
+
+existing = B_pending(E)
+M8-A result = executor-domain-indeterminacy
+→ dispose B_pending(E)
+→ materialize B_domain(E)
+→ construct UNRESOLVABLE
+
+existing = B_pending(E)
+M8-A result = no-recovery-capability
+→ integrity failure
+
+existing = B_no_capability(E)
+AND E supplied as unresolved
+→ integrity failure before M8-A
+
+existing = B_domain(E)
+AND E supplied as unresolved
+→ integrity failure before M8-A
+```
+
+`B_pending(E)`, `B_no_capability(E)`, and `B_domain(E)` are distinct logical
+IDs because their exact recovery causes differ.
+
+The operator-resolution artifact is operator-authored input.
+
+The mutable filesystem path is never authority.
+
+M8-B reads the exact file bytes once, validates those exact bytes, seals those
+same exact bytes into immutable artifact storage, and then constructs
+`OperatorResolutionEnvelope`.
+
+M8-B must not parse one filesystem read and seal a later filesystem read.
+
+M8-B does not canonicalize or rewrite operator-authored bytes before sealing.
+The exact submitted UTF-8 JSON bytes are retained.
+
+The three and only three v1 resolution kinds are:
+
+```text
+request-operational-recheck
+authorize-known-terminal-execution-replacement
+authorize-uncertain-execution-replacement
+```
+
+No generic:
+
+```text
+resolve
+acknowledge
+ignore
+force-success
+force-failure
+mark-not-executed
+mark-completed
+retry-anyway
+```
+
+operator action exists.
+
+`request-operational-recheck` maps to:
+
+```ts
+{ kind: "resolve-blocker-only" }
+```
+
+It means only:
+
+```text
+dispose this exact blocker occurrence
+allow its authoritative producer boundary to be evaluated again
+```
+
+It does not assert that the producer-domain condition now passes.
+
+Both replacement resolution kinds map to:
+
+```ts
+{
+  kind: "resolve-blocker-and-replace-execution",
+  priorExecutionId: exact prior Execution,
+}
+```
+
+The operator never provides the successor ExecutionId or next attempt ordinal.
+
+M2 derives the exact successor when the transition is currently admissible.
+
+For every submitted operator-resolution artifact `R`, M8-B requires:
+
+```text
+R.runId == current run
+R.blockerId == exact currently outstanding target blocker
+R.operatorRequest == exact target blocker.operatorRequest
+R.kind is present in the exact OAR resolutionContracts
+```
+
+For `request-operational-recheck`, no Execution replacement is requested.
+
+For `authorize-known-terminal-execution-replacement`:
+
+```text
+R.priorExecutionId == exact OAR contract priorExecutionId
+R.acceptedConsequence ==
+"prior-execution-remains-authoritative-history-and-this-authorizes-one-additional-execution-occurrence"
+```
+
+For `authorize-uncertain-execution-replacement`:
+
+```text
+R.priorExecutionId == exact OAR contract priorExecutionId
+R.acceptedRisk ==
+"prior-execution-may-have-produced-the-external-effect-and-the-replacement-may-produce-that-effect-again"
+```
+
+M8 validates resolution meaning.
+
+M2 independently validates whether the resulting state effect remains legal in
+the current authoritative state.
+
+A valid operator artifact is not a permanent capability token.
 
 A `PROVEN-NOT-EXECUTED` or `PROVEN-COMPLETED` resolution creates no recovery
 blocker merely by being proven.
@@ -3508,6 +4165,22 @@ type RunnerResult =
   | OperatorActionRequiredResult;
 ```
 
+For an `OPERATOR-ACTION-REQUIRED` projection:
+
+```text
+operatorRequests
+=
+the exact operatorRequest ArtifactRef of every currently outstanding
+OperationalBlocker, preserving authoritative blocker order
+```
+
+Each operational blocker contributes exactly one Operator Action Request.
+
+M8-B does not invent semantic Decision Request content.
+
+Existing `DecisionRequestRef.request` artifacts remain M5-owned semantic
+products and are projected exactly through the existing Decision Request path.
+
 Projection precedence is exact:
 
 ```text
@@ -3559,7 +4232,27 @@ run-gate-a-review resume \
 
 A `DECISION-REQUIRED` run is not semantically resumed after product authority changes. A later `start` begins a new run from the new repository authority.
 
-An `OPERATOR-ACTION-REQUIRED` run may be resumed after an explicit operator resolution.
+An `OPERATOR-ACTION-REQUIRED` run may be resumed with an explicit operator
+resolution.
+
+A resume without an operator-resolution artifact may perform a mechanical
+continuation only when an outstanding exact Operator Action Request explicitly
+contains that continuation.
+
+In v1 the only such continuation is:
+
+```text
+resume-reconciliation
+```
+
+for the exact unresolved Execution whose recovery blocker cause is
+`pending-policy-exhausted`.
+
+Such a resume does not dispose the blocker before reconciliation and does not
+authorize ordinary campaign progression while its cause remains outstanding.
+
+All other outstanding operational blockers require their exact producer-defined
+resolution contract or remain blocking.
 
 The CLI is non-interactive.
 
@@ -3653,11 +4346,20 @@ run(command):
         snapshot = ownership_result.snapshot
 
         if command.operatorResolutionPath exists:
-            resolution = recovery_operator.validate_and_admit_resolution(
-                exact blocker from snapshot,
-                command.operatorResolutionPath
-            )
-            commit resolution through M2
+            validated_resolution =
+                recovery_operator.validate_operator_resolution({
+                    runId: run.runId,
+                    operatorResolutionPath:
+                        command.operatorResolutionPath,
+                    outstandingOperationalBlockers:
+                        snapshot.blockers filtered only by kind == operational
+                        preserving snapshot order
+                })
+
+            commit through M2:
+                validated_resolution.envelope
+                validated_resolution.effect
+
             snapshot = committed snapshot
 
         root_preflight_obligation = exact obligation from snapshot where:
