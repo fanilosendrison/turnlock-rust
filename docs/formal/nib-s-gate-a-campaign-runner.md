@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.4"
+version: "6.0.5"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -90,6 +90,15 @@ carry an exact cross-module `NonExecutionProofRef` before M8 may derive
 executor-domain non-execution facts, M8 validates only their common bindings
 and owns recovery classification, and M2 remains the sole authority that admits
 the resulting recovery fact.
+
+Version `6.0.5` closes the pending/unknown construction boundary without
+changing TURNLOCK product semantics: executor-owned pending observations must
+carry an exact `ReconciliationContinuabilityRef` that positively establishes
+safe re-observability, executor-owned unknown observations must carry an exact
+`RecoveryIndeterminacyRef` that positively establishes executor-domain recovery
+indeterminacy, and M8 automatic-policy exhaustion remains distinct from
+executor-domain recovery exhaustion. The no-capability direct `UNRESOLVABLE`
+path, M2 recovery-admission shapes, and all other M2 semantics remain unchanged.
 
 ## 2. System objective
 
@@ -1082,6 +1091,28 @@ interface NonExecutionProofRef {
   readonly basisArtifacts: readonly ArtifactRef[];
 }
 
+interface ReconciliationContinuabilityRef {
+  readonly schema: "gate-a-reconciliation-continuability.v1";
+  readonly execution: ExecutionRef;
+  readonly workItemId: WorkItemId;
+  readonly executor: "cognitive-execution" | "repository-control";
+  readonly dispatchIntent: ArtifactRef;
+  readonly recoveryCapability: RecoveryCapabilityRef;
+  readonly continuability: ArtifactRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
+}
+
+interface RecoveryIndeterminacyRef {
+  readonly schema: "gate-a-recovery-indeterminacy.v1";
+  readonly execution: ExecutionRef;
+  readonly workItemId: WorkItemId;
+  readonly executor: "cognitive-execution" | "repository-control";
+  readonly dispatchIntent: ArtifactRef;
+  readonly recoveryCapability: RecoveryCapabilityRef;
+  readonly indeterminacy: ArtifactRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
+}
+
 interface ArmedExecutionDispatchRef {
   readonly execution: ExecutionRef;
   readonly workItem: WorkItemRef;
@@ -1141,11 +1172,11 @@ type ExecutionRecoveryObservation =
     }
   | {
       readonly kind: "pending";
-      readonly evidence: readonly ArtifactRef[];
+      readonly continuability: ReconciliationContinuabilityRef;
     }
   | {
       readonly kind: "unknown";
-      readonly evidence: readonly ArtifactRef[];
+      readonly indeterminacy: RecoveryIndeterminacyRef;
     };
 
 interface ExecutionRecoveryPort {
@@ -1274,6 +1305,107 @@ make non-execution authoritative.
 bound recovery classification and M2 has admitted that recovery through the
 ordinary authoritative mutation boundary.
 
+`ReconciliationContinuabilityRef` and `RecoveryIndeterminacyRef` are common
+cross-module envelopes for positive executor-owned recovery facts. Neither is
+itself an authoritative recovery classification.
+
+For an unresolved descriptor `U` and either returned envelope `R`, M8 accepts
+the observation for classification only when all of these common bindings hold:
+
+```text
+R.execution == U.execution
+
+R.workItemId == U.workItem.workItemId
+
+R.executor == U.workItem.executor
+
+U.recoveryCapability != null
+
+R.executor == U.recoveryCapability.executor
+
+R.recoveryCapability == U.recoveryCapability
+
+R.dispatchIntent == U.dispatchIntent
+```
+
+M8 additionally requires successful immutable-artifact verification for:
+
+```text
+R.dispatchIntent
+R.recoveryCapability.reconciliationOperation
+every R.basisArtifacts entry
+R.continuability when R is ReconciliationContinuabilityRef
+R.indeterminacy when R is RecoveryIndeterminacyRef
+```
+
+For both envelope types, `basisArtifacts` must be duplicate-free. The primary
+`continuability` or `indeterminacy` artifact must not also occur in
+`basisArtifacts`.
+
+M0 validates the common envelope shapes. The owning executor must
+runtime-validate the executor-domain meaning of its envelope before returning
+the observation. M8 validates only common bindings and artifact integrity; it
+must not reinterpret executor-domain evidence.
+
+A `ReconciliationContinuabilityRef` positively establishes that invoking its
+exact `recoveryCapability.reconciliationOperation` again:
+
+```text
+is observational with respect to the original external effect
+cannot create, repeat, or replay that original external effect
+remains bound to the exact Execution, WorkItem, executor, and dispatch intent
+```
+
+It establishes safe re-observability only. It does not promise that another
+observation will produce progress or a terminal outcome.
+
+A `RecoveryIndeterminacyRef` positively establishes that the executor's
+available domain recovery mechanism is exhausted for the exact operation: it
+cannot establish a terminal outcome, a valid non-execution proof, or a valid
+safe-re-observation continuability fact.
+
+It does not prove that the original effect executed or did not execute.
+
+A failed lookup, elapsed time, process crash, absent result, missing convenient
+evidence, or M8's decision to stop automatically re-observing is insufficient
+by itself to establish either envelope.
+
+A malformed envelope, failed binding, missing or corrupt artifact, wrong
+executor, wrong Execution, wrong WorkItem, wrong dispatch intent, or wrong
+recovery capability is an implementation/process/integrity failure. M8 must not
+downgrade it to `pending`, `unknown`, or `UNRESOLVABLE`.
+
+For one accepted pending envelope `C`, M8 constructs the existing
+`ReconciliationPendingRef` as:
+
+```text
+unresolvedExecution = U
+recoveryCapability  = C.recoveryCapability
+evidence            = ordered duplicate-free [
+    C.continuability,
+    ...C.basisArtifacts
+]
+```
+
+For one accepted unknown envelope `I`, M8 constructs the `UNRESOLVABLE`
+resolution evidence as the ordered duplicate-free sequence:
+
+```text
+[
+    I.indeterminacy,
+    ...I.basisArtifacts
+]
+```
+
+In both projections, the first occurrence of an exact `ArtifactRef` is retained.
+
+Executor-domain recovery exhaustion and M8 automatic-policy exhaustion are
+distinct. An accepted `RecoveryIndeterminacyRef` establishes the former and
+produces `UNRESOLVABLE`. When M8 ends its finite automatic policy while the last
+accepted observation remains pending, the executor has positively established
+safe re-observability; M8 retains the exact `ReconciliationPendingRef`, creates
+no `RecoveryIndeterminacyRef`, and produces no terminal recovery resolution.
+
 type ProvenExecutionRecoveryResolution =
   | {
       readonly executionId: ExecutionId;
@@ -1362,8 +1494,14 @@ This System Brief does not make recovery capability universally mandatory:
 provide a trustworthy capability.
 
 For a possibly-dispatched Execution with no terminal outcome and no usable
-recovery capability, M8 must follow the existing `UNRESOLVABLE` rule; it must
-not infer non-execution from the absence of a capability.
+recovery capability, M8 must follow the existing direct `UNRESOLVABLE` rule
+without invoking an `ExecutionRecoveryPort`; it must not infer non-execution
+from the absence of a capability.
+
+The non-null `recoveryCapability` required inside
+`ReconciliationContinuabilityRef` and `RecoveryIndeterminacyRef` does not alter
+`RecoveryCapabilityRef | null` on `ArmedExecutionDispatchRef` or
+`UnresolvedExecutionRecoveryRef`.
 
 `RECONCILABLE` is represented only by `ExecutionRecoveryStep.kind = "reconcilable"`. It is an intermediate recovery state, not a terminal recovery resolution and not permission to resume campaign external dispatch.
 
@@ -1775,6 +1913,25 @@ boundary was not crossed belong to the M4 NIB-M and the scoped `llm-runtime`
 Dependency Contract.
 
 M8 must not reimplement that M4/domain proof algorithm.
+
+M4 may return `ExecutionRecoveryObservation.kind = "pending"` only with a
+runtime-validated `ReconciliationContinuabilityRef` that positively establishes
+that another invocation of the exact cognitive reconciliation operation is
+observational and cannot submit, resubmit, or otherwise replay the original
+cognitive request.
+
+M4 may return `ExecutionRecoveryObservation.kind = "unknown"` only with a
+runtime-validated `RecoveryIndeterminacyRef` that positively establishes that
+the exact provider/transport recovery capability cannot determine a terminal
+outcome and cannot establish safe continued observation.
+
+A missing response, cancellation, elapsed time, process interruption,
+provider/transport failure, missing provider material, or unavailable
+convenient lookup is not independently sufficient for either cognitive
+recovery fact.
+
+M4 owns validation of the cognitive executor-domain meaning. M8 validates the
+common envelope bindings and artifacts and owns recovery classification.
 
 A completed captured response must be submitted by M1 to M6. M6 invokes the
 existing Python hostile-review validation authority and returns the exact typed
@@ -2277,26 +2434,39 @@ terminal observation with known technical failure
 → PROVEN-COMPLETED
 → recoveredOutcome.kind = technical-failure
 
-pending observation with valid recovery capability
+pending observation carrying one valid exact ReconciliationContinuabilityRef
+whose common bindings and artifacts pass M8 validation
 → RECONCILABLE intermediate step
+→ construct the exact ReconciliationPendingRef evidence projection
 → keep recovery barrier closed
-→ automatically re-observe under the finite M8 NIB-M reconciliation policy
+→ M8 may automatically re-observe under its finite NIB-M policy
 
-unknown observation
-or no usable recovery capability for a possibly-dispatched execution
+unknown observation carrying one valid exact RecoveryIndeterminacyRef
+whose common bindings and artifacts pass M8 validation
+→ executor-domain recovery exhaustion
 → UNRESOLVABLE
+→ resolution evidence preserves the exact executor-owned indeterminacy basis
 → exact OperationalBlocker
 
-automatic reconciliation policy exhausted while still pending
-→ no fabricated terminal classification
+no usable recovery capability for a possibly-dispatched execution
+→ do not invoke the owning executor recovery port
+→ direct UNRESOLVABLE under the existing rule
 → exact OperationalBlocker
+
+automatic reconciliation policy exhausted while the last accepted observation
+remains pending
+→ M8 automatic-policy exhaustion, not executor-domain recovery exhaustion
+→ retain the exact ReconciliationPendingRef
+→ create no RecoveryIndeterminacyRef and no terminal recovery resolution
+→ exact pending-policy-exhaustion OperationalBlocker
 → OPERATOR-ACTION-REQUIRED
 ```
 
 Inability to establish non-execution proof is not an independent M8
-classification input; the owning executor must represent that condition through
-its valid pending, unknown, or terminal observation according to its exact
-domain contract.
+classification input. The owning executor must return a terminal observation,
+a pending observation carrying a valid exact
+`ReconciliationContinuabilityRef`, or an unknown observation carrying a valid
+exact `RecoveryIndeterminacyRef` according to its exact domain contract.
 
 A returned not-executed observation whose required `NonExecutionProofRef` is
 missing or invalid is an implementation/process/integrity failure, not
@@ -2356,6 +2526,10 @@ For `blocked`:
 * exactly one of `resolution` and `lastPending` is non-null.
 
 M8 must not convert pending into `PROVEN-NOT-EXECUTED`, `PROVEN-COMPLETED`, or `UNRESOLVABLE` merely because time passed.
+
+M8 automatic-policy exhaustion preserves the last accepted pending fact. It
+must not manufacture executor-domain recovery exhaustion, a
+`RecoveryIndeterminacyRef`, or an `UNRESOLVABLE` classification.
 
 `RecoveryRequest.outstandingOperationalBlockers` is the complete ordered set of
 currently outstanding `OperationalBlocker` values from the exact
@@ -2594,9 +2768,13 @@ The barrier must:
 load verifiable durable authority
 → enumerate complete unresolved-execution recovery descriptors
 → for each descriptor invoke M8 classification
-→ if observation is pending:
+→ if no usable recovery capability exists:
+     use the direct UNRESOLVABLE path without invoking the recovery port
+→ if observation is pending with valid ReconciliationContinuabilityRef:
      remain inside recovery barrier
      automatically re-observe under finite M8 NIB-M reconciliation policy
+→ if observation is unknown with valid RecoveryIndeterminacyRef:
+     materialize the exact UNRESOLVABLE resolution and blocker
 → preserve every proven completed recovered outcome
 → preserve every proven non-execution
 → materialize exact blockers for UNRESOLVABLE executions
@@ -2981,11 +3159,17 @@ exact target proves intended successor present
 AND exact transition/material identity is established
 → M7 recovery observation = terminal captured publication observation
 
-target state is temporarily pending but remains mechanically queryable
+target state is nonterminal, the exact committed conditional publication
+operation remains mechanically queryable, and another exact observation is
+positively established to be non-mutating
 → M7 recovery observation = pending
+→ carries exact ReconciliationContinuabilityRef
 
-target state cannot establish a safe outcome
+repository-domain evidence positively establishes that the exact committed
+conditional publication operation cannot be classified as applied, not applied,
+or safely re-observable through the available recovery capability
 → M7 recovery observation = unknown
+→ carries exact RecoveryIndeterminacyRef
 ```
 
 For M7 recovery, the relevant non-execution effect boundary is the exact
@@ -3010,7 +3194,18 @@ The exact M7 proof artifact schema, conditional-operation identity, repository
 evidence interpretation, and dependency mechanism sufficient to prove
 non-application belong to the M7 NIB-M and the Repository Dependency Contract.
 
-M8 must not reimplement that repository-domain proof algorithm.
+A publication pending observation must not perform, reissue, or replay the
+publication mutation. Its `ReconciliationContinuabilityRef` authorizes only the
+exact non-mutating reconciliation observation.
+
+Inability to contact the remote, absence of convenient repository evidence,
+elapsed time, or a failed lookup is not by itself publication recovery
+indeterminacy. M7 may return `unknown` only after runtime-validating positive
+repository-domain evidence for the exact `RecoveryIndeterminacyRef`.
+
+M7 owns validation of repository-domain continuability and indeterminacy. M8
+must not reconstruct or reinterpret Git or repository semantics; it validates
+the common envelope bindings and artifacts and owns recovery classification.
 
 M8 alone converts those observations into the authoritative recovery disposition.
 
@@ -4152,6 +4347,16 @@ GI-67  An explicit executor uncertainty capture enriches an already-unresolved
        armed Execution; it does not create unresolvedness. Restart recovery can
        reconstruct the initial unresolved descriptor from durable Arm authority
        alone.
+
+GI-68  Every accepted pending recovery observation carries one exact validated
+       ReconciliationContinuabilityRef proving that another invocation of the
+       exact reconciliation operation is observational and cannot create,
+       repeat, or replay the original external effect.
+
+GI-69  Every accepted unknown recovery observation carries one exact validated
+       RecoveryIndeterminacyRef proving executor-domain recovery exhaustion.
+       No-capability direct UNRESOLVABLE and M8 automatic-policy exhaustion
+       remain distinct paths and create neither envelope for the other.
 ```
 
 ## 40. Cross-cutting policies
@@ -4220,11 +4425,16 @@ An executor may report exact external observations.
 
 Only M8 classifies unresolved execution uncertainty.
 
+An executor may return pending only with an exact validated
+`ReconciliationContinuabilityRef` and unknown only with an exact validated
+`RecoveryIndeterminacyRef`.
+
 `RECONCILABLE` keeps the recovery barrier closed.
 
 If the finite automatic reconciliation policy cannot close a pending execution
-during the current invocation, the runner emits an exact operational blocker
-and `OPERATOR-ACTION-REQUIRED`; it never guesses a terminal outcome.
+during the current invocation, the runner retains the exact pending fact, emits
+an exact operational blocker and `OPERATOR-ACTION-REQUIRED`, and creates no
+executor-domain indeterminacy or terminal outcome.
 
 ### CP-12 — Published-state validation is identity-bound
 
@@ -4350,6 +4560,8 @@ what mechanically qualifies a candidate
 which explicit M5 ledger products cross the module boundary
 how exact cognitive retry authorization crosses from M5 to M2 and is consumed once
 how M4 distinguishes no-response technical failure from uncertainty
+how M4 and M7 positively establish safe re-observability for pending and executor-domain recovery indeterminacy for unknown
+how executor-domain recovery exhaustion differs from M8 automatic-policy exhaustion and no-capability direct UNRESOLVABLE
 what exact publication target and fast-forward Git transition may be mutated
 what the CLI returns
 why GATE-A-READY is justified
