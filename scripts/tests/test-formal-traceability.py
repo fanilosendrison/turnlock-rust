@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 from pathlib import Path
@@ -26,6 +27,8 @@ spec.loader.exec_module(checker)
 MANIFEST_RELATIVE = Path("formal/verification.yaml")
 MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
 MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
+
+_TEST_YAML_PARSE_CACHE: dict[str, object] = {}
 
 GATE_A_ATTACK_OBJECTIVES = [
     "semantic-strengthening",
@@ -62,8 +65,17 @@ def make_fixture(temporary: str) -> Path:
     return fixture_root
 
 
+def _load_cached_yaml_text(path: Path) -> object:
+    text = path.read_text()
+
+    if text not in _TEST_YAML_PARSE_CACHE:
+        _TEST_YAML_PARSE_CACHE[text] = yaml.safe_load(text)
+
+    return copy.deepcopy(_TEST_YAML_PARSE_CACHE[text])
+
+
 def load_manifest(fixture_root: Path) -> dict:
-    return yaml.safe_load((fixture_root / MANIFEST_RELATIVE).read_text())
+    return _load_cached_yaml_text(fixture_root / MANIFEST_RELATIVE)
 
 
 def save_manifest(fixture_root: Path, manifest: dict) -> None:
@@ -73,7 +85,7 @@ def save_manifest(fixture_root: Path, manifest: dict) -> None:
 
 
 def load_migration(fixture_root: Path) -> dict:
-    return yaml.safe_load((fixture_root / MIGRATION_RELATIVE).read_text())
+    return _load_cached_yaml_text(fixture_root / MIGRATION_RELATIVE)
 
 
 def save_migration(fixture_root: Path, migration: dict) -> None:
@@ -1409,13 +1421,55 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_schema_v3_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            manifest = load_manifest(fixture_root)
-            manifest["schema_version"] = 2
-            save_manifest(fixture_root, manifest)
-            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
-            self.assertTrue(
-                any("must use schema_version 3" in error for error in errors), errors
-            )
+            _TEST_YAML_PARSE_CACHE.clear()
+            try:
+                original_safe_load = yaml.safe_load
+                with mock.patch.object(
+                    yaml,
+                    "safe_load",
+                    wraps=original_safe_load,
+                ) as safe_load_mock:
+                    first = load_manifest(fixture_root)
+                    second = load_manifest(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(first, second)
+                    self.assertIsNot(first, second)
+
+                    first["schema_version"] = 999
+                    third = load_manifest(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(3, third["schema_version"])
+                    self.assertIsNot(third, second)
+
+                    third["schema_version"] = 2
+                    save_manifest(fixture_root, third)
+                    reloaded = load_manifest(fixture_root)
+                    self.assertEqual(2, reloaded["schema_version"])
+                    self.assertEqual(2, safe_load_mock.call_count)
+
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any("must use schema_version 3" in error for error in errors),
+                    errors,
+                )
+
+                manifest_path = fixture_root / MANIFEST_RELATIVE
+                manifest_path.write_text("[")
+                original_safe_load = yaml.safe_load
+                with mock.patch.object(
+                    yaml,
+                    "safe_load",
+                    wraps=original_safe_load,
+                ) as safe_load_mock:
+                    with self.assertRaises(yaml.YAMLError):
+                        load_manifest(fixture_root)
+                    with self.assertRaises(yaml.YAMLError):
+                        load_manifest(fixture_root)
+                    self.assertEqual(2, safe_load_mock.call_count)
+            finally:
+                _TEST_YAML_PARSE_CACHE.clear()
 
     def test_missing_invariant_coverage_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1621,14 +1675,47 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_legacy_migration_count_mismatch_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
-            migration = load_migration(fixture_root)
-            migration["entries"] = migration["entries"][:-1]
-            save_migration(fixture_root, migration)
-            errors, _ = checker.collect_errors(fixture_root, check_generated=False)
-            self.assertTrue(
-                any("must contain exactly 50 entries" in error for error in errors),
-                errors,
-            )
+            _TEST_YAML_PARSE_CACHE.clear()
+            try:
+                original_safe_load = yaml.safe_load
+                with mock.patch.object(
+                    yaml,
+                    "safe_load",
+                    wraps=original_safe_load,
+                ) as safe_load_mock:
+                    first = load_migration(fixture_root)
+                    second = load_migration(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(first, second)
+                    self.assertIsNot(first, second)
+
+                    original_count = len(second["entries"])
+                    first["entries"].pop()
+                    third = load_migration(fixture_root)
+                    self.assertEqual(1, safe_load_mock.call_count)
+                    self.assertEqual(original_count, len(third["entries"]))
+
+                    third["entries"] = third["entries"][:-1]
+                    save_migration(fixture_root, third)
+                    reloaded = load_migration(fixture_root)
+                    self.assertEqual(2, safe_load_mock.call_count)
+                    self.assertEqual(
+                        original_count - 1,
+                        len(reloaded["entries"]),
+                    )
+
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=False
+                )
+                self.assertTrue(
+                    any(
+                        "must contain exactly 50 entries" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+            finally:
+                _TEST_YAML_PARSE_CACHE.clear()
 
     def test_legacy_migration_unknown_claim_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
