@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import Counter
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
@@ -157,6 +158,9 @@ MATERIALITY_AXES = (
 )
 FUTURE_EVIDENCE_NOTE = "NOT-APPLICABLE (candidate model absent)"
 
+_UNCACHEABLE_SCHEMA_CHECK_KEY = object()
+_SCHEMA_CHECK_CACHE: dict[object, str | None] = {}
+
 
 def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -209,13 +213,66 @@ def _load_json(root: Path, relative: Path) -> tuple[object, list[str]]:
     return data, []
 
 
-def _validator(schema: object) -> tuple[Draft202012Validator | None, list[str]]:
-    if not isinstance(schema, dict):
-        return None, ["schema must be a JSON object"]
+def _schema_check_cache_key(value: object) -> object:
+    if value is None:
+        return ("null",)
+    if type(value) is bool:
+        return ("bool", value)
+    if type(value) is int:
+        return ("int", value)
+    if type(value) is float:
+        if not math.isfinite(value):
+            return _UNCACHEABLE_SCHEMA_CHECK_KEY
+        return ("float", value)
+    if type(value) is str:
+        return ("str", value)
+    if type(value) is list:
+        children = []
+        for child in value:
+            child_key = _schema_check_cache_key(child)
+            if child_key is _UNCACHEABLE_SCHEMA_CHECK_KEY:
+                return _UNCACHEABLE_SCHEMA_CHECK_KEY
+            children.append(child_key)
+        return ("list", tuple(children))
+    if type(value) is dict:
+        entries = []
+        for key, child in value.items():
+            if type(key) is not str:
+                return _UNCACHEABLE_SCHEMA_CHECK_KEY
+            child_key = _schema_check_cache_key(child)
+            if child_key is _UNCACHEABLE_SCHEMA_CHECK_KEY:
+                return _UNCACHEABLE_SCHEMA_CHECK_KEY
+            entries.append((key, child_key))
+        return ("dict", tuple(entries))
+    return _UNCACHEABLE_SCHEMA_CHECK_KEY
+
+
+def _schema_check_error(schema: dict) -> str | None:
+    key = _schema_check_cache_key(schema)
+    if key is _UNCACHEABLE_SCHEMA_CHECK_KEY:
+        try:
+            Draft202012Validator.check_schema(schema)
+        except SchemaError as error:
+            return f"schema is invalid: {error.message}"
+        return None
+    if key in _SCHEMA_CHECK_CACHE:
+        return _SCHEMA_CHECK_CACHE[key]
     try:
         Draft202012Validator.check_schema(schema)
     except SchemaError as error:
-        return None, [f"schema is invalid: {error.message}"]
+        diagnostic = f"schema is invalid: {error.message}"
+        _SCHEMA_CHECK_CACHE[key] = diagnostic
+        return diagnostic
+    _SCHEMA_CHECK_CACHE[key] = None
+    return None
+
+
+def _validator(schema: object) -> tuple[Draft202012Validator | None, list[str]]:
+    if not isinstance(schema, dict):
+        return None, ["schema must be a JSON object"]
+    schema_error = _schema_check_error(schema)
+    if schema_error is not None:
+        return None, [schema_error]
     return Draft202012Validator(schema, format_checker=FormatChecker()), []
 
 
