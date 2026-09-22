@@ -162,25 +162,19 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 - Never use a Project status transition or Issue closure as a substitute for
   repository validation or formal evidence.
 
-## Worktree operating model
+## Repository worktree specialization
 
-- Use one normal permanent user checkout, normally on branch `main`.
-- Treat the permanent checkout as read-only task infrastructure, never as an
-  agent task workspace.
-- Never modify or clean the permanent checkout as task setup.
-- Do not let tracked edits, untracked files, or ignored user state in the
-  permanent checkout block an agent task.
+Apply the enclosing workspace's global Git workspace-isolation rule. This
+repository specializes that rule as follows:
+
+- Keep the normal permanent user checkout on branch `main` when user state
+  permits; never use it as an agent task workspace.
+- Place every task worktree under
+  `$HOME/Developper/Projects/.worktrees/turnlock-rust/<unique-task-id>`.
 - Before task creation, fetch `origin/main` through the permanent checkout's Git
   metadata.
-- Give every task a unique linked worktree created detached from exact
-  `origin/main`.
-- Do not require a temporary task branch.
-- Perform all task edits, commits, validation-environment creation, generated
-  task-file creation, reconciliation, validation, and publication preparation
-  only inside that task's worktree.
-- Permit multiple task worktrees to coexist concurrently.
-- Never modify, clean, reset, switch, inspect for cleanliness as a prerequisite,
-  or remove another task worktree.
+- Create every task worktree detached from exact `origin/main`; do not require a
+  temporary task branch.
 - Immediately before publication, refetch `origin/main`.
 - If `origin/main` advanced, reconcile only the current task, re-evaluate its
   semantic and source guards, and rerun complete validation.
@@ -188,12 +182,11 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
   `HEAD:refs/heads/main`.
 - Never force-push `main`.
 - After successful publication, prove the exact task `HEAD` is reachable from
-  current `origin/main`.
-- Remove only the successfully published task worktree.
-- Preserve failed, interrupted, conflicted, or unpublished task worktrees for
-  inspection.
-- When no task is active, retain only the normal permanent `turnlock-rust`
-  checkout.
+  current `origin/main` before applying the global successful-worktree cleanup
+  rule.
+- When no task is active and no failed, interrupted, conflicted, or unpublished
+  task worktree requires preservation, retain only the normal permanent
+  `turnlock-rust` checkout.
 
 ## Architectural invariants
 
