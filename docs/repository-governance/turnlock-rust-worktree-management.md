@@ -11,8 +11,9 @@ name: "Turnlock-Rust worktree management policy"
 
 ## Purpose and authority
 
-Use this policy to operate the permanent bare repository, create isolated task
-worktrees, publish task commits, and remove successfully published worktrees.
+Use this policy to preserve the user-owned repository checkout, create isolated
+agent task worktrees, publish task commits, and remove successfully published
+task worktrees.
 
 Treat [AGENTS.md](../../AGENTS.md) as the authority for repository execution
 guardrails and this document as the detailed worktree procedure. Treat Git refs,
@@ -23,73 +24,92 @@ This policy affects repository governance only. It creates no TURNLOCK product
 semantics, architecture commitment, formal-verification claim, or qualification
 evidence.
 
-## Permanent repository
+## Repository roles
 
 Define:
 
 ```text
-BARE_REPOSITORY =
-the permanent local bare Git repository for turnlock-rust
+PERSISTENT_CHECKOUT =
+the normal user-owned non-bare turnlock-rust repository
 ```
 
-The bare repository contains:
+Define:
 
 ```text
-objects
-refs
-origin remote configuration
-worktree administration metadata
+TASK_WORKTREE =
+one temporary detached linked worktree created from freshly fetched origin/main
 ```
 
-It contains no checked-out project files and is not itself a task workspace.
-
-The normal permanent local branch set contains exactly:
+`PERSISTENT_CHECKOUT` is not a task workspace. It contains the user's normal
+checked-out project files and may normally remain on:
 
 ```text
 refs/heads/main
 ```
 
-Do not rely on local `main` being as fresh as remote state. Fetch remote
-publication authority as:
-
-```text
-refs/remotes/origin/main
-```
-
-## No permanent worktree roles
-
 There is no operational role for a:
 
 ```text
-primary worktree
 dedicated main worktree
-integration worktree
+primary development worktree
 permanent detached worktree
+permanent integration worktree
 ```
 
-A path name never creates a worktree role. Maintain zero permanent worktrees.
+A path name never creates such a role. No permanent agent worktree exists.
+
+## Persistent-checkout boundary
+
+Treat the persistent checkout as user-owned state. Never use it for:
+
+```text
+task edits
+task commits
+temporary implementation files
+validation virtual environments
+generated task artifacts
+rebases
+merges
+publication preparation
+```
+
+Do not modify or clean the persistent checkout to prepare an agent task.
+
+Tracked edits, untracked files, and ignored files in the persistent checkout do
+not block task creation or task execution. Never stash, clean, reset, restore,
+checkout, switch, merge, rebase, or commit the persistent checkout merely to
+prepare a task.
+
+Fetching remote metadata and administering linked worktrees through the
+persistent repository are not task-file edits.
 
 ## Task creation
 
-Before every task, run:
+Before every task, fetch current remote authority:
 
 ```bash
-git --git-dir=<BARE_REPOSITORY> fetch origin
+git -C <PERSISTENT_CHECKOUT> fetch origin
 ```
 
 Record exactly:
 
 ```text
-TASK_BASE = refs/remotes/origin/main
+TASK_BASE = origin/main
 ```
 
-Create one unique detached task worktree:
+Create one unique detached linked worktree:
 
 ```bash
-git --git-dir=<BARE_REPOSITORY> worktree add \
+git -C <PERSISTENT_CHECKOUT> worktree add \
   --detach \
-  <UNIQUE_TASK_PATH> \
-  refs/remotes/origin/main
+  <UNIQUE_TASK_WORKTREE> \
+  origin/main
+```
+
+Place the task path outside the persistent checkout. The recommended parent is:
+
+```text
+/Users/neelo/Developper/Projects/.turnlock-rust-worktrees/
 ```
 
 Require:
@@ -113,12 +133,16 @@ BISECT_LOG
 sequencer
 ```
 
-Do not create a task branch by default. Never check out `main` in a task
-worktree.
+Do not require a temporary task branch.
 
 ## Task isolation
 
-One task owns one worktree. Write only within the current task's worktree.
+One task owns one worktree. Perform every task edit, commit, validation,
+validation-environment creation, generated-task-artifact creation,
+reconciliation, and publication-preparation operation inside that task worktree.
+
+Multiple task worktrees may coexist concurrently. Their existence and state do
+not block another task.
 
 Never:
 
@@ -132,13 +156,12 @@ remove another task worktree
 require another task worktree to be clean
 ```
 
-Treat other active worktrees as normal parallel activity. Their existence does
-not block task creation or execution.
+Only publication to `refs/heads/main` is serialized.
 
 ## Detached commits
 
-Create task commits directly on detached `HEAD` when needed. The task worktree
-retains the detached commit chain before publication.
+Create task commits directly on detached `HEAD`. The task worktree retains the
+detached commit chain before publication.
 
 Do not remove an unpublished task worktree merely because its `HEAD` is
 detached.
@@ -146,23 +169,22 @@ detached.
 ## Validation
 
 Create all task-specific validation environments and generated validation state
-inside the task worktree. No permanent checked-out repository exists to
-pollute.
+inside the task worktree. Run every task-required validation there.
 
-Run every task-required validation from the current task worktree.
+Do not create task validation state in the persistent checkout.
 
 ## Pre-publication synchronization
 
-Immediately before publication, run:
+Immediately before publication, fetch again:
 
 ```bash
-git --git-dir=<BARE_REPOSITORY> fetch origin
+git -C <PERSISTENT_CHECKOUT> fetch origin
 ```
 
 Let:
 
 ```text
-CURRENT_MAIN = refs/remotes/origin/main
+CURRENT_MAIN = origin/main
 ```
 
 If:
@@ -181,16 +203,14 @@ CURRENT_MAIN != TASK_BASE
 
 re-evaluate the exact semantic, source, and blob guards specified by the task.
 
-When automatic continuation is authorized, replay only the current task commit
-range:
+When automatic continuation is authorized, replay only:
 
 ```text
 TASK_BASE..HEAD
 ```
 
-onto `CURRENT_MAIN`. Use detached-HEAD rebase or cherry-pick mechanics selected
-by the task, but create no merge commit unless separate authority explicitly
-requires one.
+onto current `origin/main`. Create no merge commit unless separate authority
+explicitly requires one.
 
 If a conflict, authority change, source-guard failure, or ambiguity appears:
 
@@ -199,7 +219,7 @@ STOP
 preserve the task worktree
 ```
 
-After successful replay:
+After successful replay, set:
 
 ```text
 TASK_BASE = CURRENT_MAIN
@@ -209,11 +229,7 @@ Then rerun complete task validation.
 
 ## Publication
 
-Require:
-
-```text
-CURRENT_MAIN is ancestor of task HEAD
-```
+Require current `origin/main` to be an ancestor of task `HEAD`.
 
 Publish only:
 
@@ -221,136 +237,118 @@ Publish only:
 git push origin HEAD:refs/heads/main
 ```
 
-Use an ordinary fast-forward push only.
+Use an ordinary fast-forward push only. Never force-push `main`, use
+force-with-lease to rewrite `main`, delete `main`, or push another task's
+commit.
 
-Never:
-
-```text
-force
-force-with-lease to rewrite main
-delete main
-push another task's commit
-```
-
-If another task advances `main` and the push is rejected:
+If another task advances `main` and publication is rejected:
 
 ```text
 fetch again
-re-evaluate guards
+re-evaluate task guards
 reconcile the current task when permitted
-revalidate
+rerun complete validation
 retry an ordinary fast-forward push
 ```
 
 ## Post-publication proof
 
-After successful push, run:
-
-```bash
-git --git-dir=<BARE_REPOSITORY> fetch origin
-```
-
-Require:
+After successful publication, fetch `origin/main` again and require:
 
 ```text
-task HEAD is ancestor-or-equal to
-refs/remotes/origin/main
+task HEAD is ancestor-or-equal to current origin/main
 ```
 
 Remote `main` may already contain later concurrent commits. Equality is not
 required.
 
-## Local main branch
+## Successful task-worktree cleanup
 
-Retain:
-
-```text
-refs/heads/main
-```
-
-as the single ordinary permanent local branch in the bare repository.
-
-Treat local `main` as convenience/local state, not publication authority. After
-a successful fetch, fast-forward local `main` to current remote `main` only
-when:
+After publication reachability is proven, require the current task worktree to
+contain no:
 
 ```text
-local main is ancestor-or-equal to remote main
-```
-
-No worktree checks out `main`, so update it without requiring a worktree. Never
-rewrite local `main` backwards or sideways.
-
-A stale local `main` does not block task creation because every task starts from
-fresh `refs/remotes/origin/main`.
-
-## Successful worktree cleanup
-
-After publication reachability is proven, require the current task's own
-worktree to contain no:
-
-```text
-staged tracked changes
-unstaged tracked changes
+tracked modifications
 untracked non-ignored files
 active Git operation
 ```
 
-Delete task-generated ignored content only when it is disposable task
+Task-generated ignored content may be deleted as disposable task
 infrastructure.
 
-Remove exactly the current task's worktree. Then run:
+Remove exactly that temporary task worktree. Then run:
 
 ```bash
-git --git-dir=<BARE_REPOSITORY> worktree prune
+git -C <PERSISTENT_CHECKOUT> worktree prune
 ```
 
-Verify that the worktree record disappeared. Do not inspect or modify another
-task worktree as a cleanup prerequisite.
+Verify that its worktree record disappeared. Never remove the persistent
+checkout.
 
-## Failed task preservation
+## Failed-task preservation
 
-If publication did not succeed, or task `HEAD` is not proven reachable from a
-retained ref:
+If publication fails or task `HEAD` is not proven retained:
 
 ```text
-DO NOT REMOVE THE WORKTREE
+DO NOT REMOVE THE TASK WORKTREE
 ```
 
 Report:
 
 ```text
-task path
+path
 TASK_BASE
-task HEAD
-publication state
-reason cleanup was refused
+HEAD
+reason
 ```
 
-No other agent may delete it merely because it looks stale.
+Never discard it automatically. No other agent may remove it merely because it
+looks stale.
+
+## Persistent-checkout synchronization
+
+Do not require the persistent checkout to advance after every agent
+publication.
+
+Synchronize it only when it is completely clean and operation-free, using:
+
+```bash
+git -C <PERSISTENT_CHECKOUT> fetch origin
+git -C <PERSISTENT_CHECKOUT> merge --ff-only origin/main
+```
+
+If user state is present, do not modify it and report that local `main` remains
+behind until the user chooses to synchronize.
 
 ## Normal topology
 
-When no tasks run:
+When no task is active:
 
 ```text
-permanent bare repository
-+
-zero non-bare worktrees
+turnlock-rust/
+    normal non-bare repository
+    main checked out
+
+no temporary task worktrees
 ```
 
-When N tasks run:
+During N parallel tasks:
 
 ```text
-permanent bare repository
-+
-N temporary detached worktrees
+turnlock-rust/
+    normal user checkout
+
+.turnlock-rust-worktrees/
+    task-1/
+    task-2/
+    ...
+    task-N/
 ```
 
-After one successful task:
+After all successful task worktrees are removed:
 
 ```text
-N := N - 1
+turnlock-rust/
 ```
 
-No worktree survives because of a permanent role.
+remains as the permanent user checkout.
