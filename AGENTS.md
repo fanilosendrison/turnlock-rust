@@ -164,18 +164,35 @@ accepted decision establishes their responsibilities and ecosystem boundaries.
 
 ## Worktree operating model
 
-- Read
-  `docs/repository-governance/turnlock-rust-worktree-management.md` before
-  creating, switching, removing, or repurposing a branch or worktree.
-- Resolve the primary worktree and the unique worktree checking out
-  `refs/heads/main` from `git worktree list --porcelain`; never identify either
-  role from a remembered or machine-specific path.
-- Reserve the main worktree for clean-main validation, integration, and
-  publication operations. Use the distinct primary worktree for temporary
-  branch work only after all policy safety gates pass.
-- Never remove the primary or main worktree during routine cleanup. Preserve
-  temporary worktree commits and branch refs until the policy's reachability,
-  ignored-content, authorization, and conditional-deletion gates pass.
+- Use one permanent bare Git repository and no permanent worktree.
+- Retain local branch `main` in the bare repository without requiring it to be
+  checked out.
+- Before creating a task worktree, fetch `origin/main`.
+- Give every task a unique linked worktree created detached from exact
+  `refs/remotes/origin/main`.
+- Never check out `main` in a task worktree.
+- Do not require a temporary task branch.
+- Perform all task edits, validation-environment creation, generated task-file
+  creation, commits, reconciliation, validation, and publication preparation
+  only inside that task's worktree.
+- Permit multiple task worktrees to coexist concurrently.
+- Never modify, clean, switch, inspect for cleanliness as a prerequisite, or
+  remove another active task worktree.
+- Immediately before publication, refetch `origin/main`.
+- If `origin/main` advanced, reconcile only the current task's commit range onto
+  the new `origin/main` under that task's semantic and source guards.
+- Revalidate completely after reconciliation.
+- Publish only with an ordinary non-force push of
+  `HEAD:refs/heads/main`.
+- Never force-push `main`.
+- If publication races with another publisher, refetch, reconcile when
+  authorized, revalidate, and retry an ordinary fast-forward push.
+- After successful publication, prove the exact task `HEAD` is reachable from
+  current `origin/main`.
+- Then remove that task's temporary worktree.
+- Preserve a failed, interrupted, conflicted, or unpublished task worktree for
+  inspection; never delete it automatically.
+- When no task is active, maintain zero non-bare worktrees.
 
 ## Architectural invariants
 

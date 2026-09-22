@@ -11,177 +11,346 @@ name: "Turnlock-Rust worktree management policy"
 
 ## Purpose and authority
 
-Use this policy to select worktrees, create temporary branches, and clean up
-completed branch work without depending on machine-specific paths or directory
-names.
+Use this policy to operate the permanent bare repository, create isolated task
+worktrees, publish task commits, and remove successfully published worktrees.
 
 Treat [AGENTS.md](../../AGENTS.md) as the authority for repository execution
-guardrails and this document as the detailed worktree procedure. Treat Git refs
-and Git worktree metadata as the authority for current branch and worktree
-state. Do not maintain a second inventory in documentation.
+guardrails and this document as the detailed worktree procedure. Treat Git refs,
+remote-tracking refs, and Git worktree metadata as authority for repository and
+worktree state. Do not maintain a second inventory in documentation.
 
 This policy affects repository governance only. It creates no TURNLOCK product
 semantics, architecture commitment, formal-verification claim, or qualification
 evidence.
 
-## Resolve worktree roles mechanically
+## Permanent repository
 
-Run the following command before creating, switching, removing, or repurposing a
-branch or worktree:
+Define:
 
-```bash
-git worktree list --porcelain
+```text
+BARE_REPOSITORY =
+the permanent local bare Git repository for turnlock-rust
 ```
 
-Resolve the roles from that output:
+The bare repository contains:
 
-1. Treat the first worktree record as Git's primary worktree.
-2. Treat the unique non-bare record whose `branch` value is exactly
-   `refs/heads/main` as the dedicated main worktree.
-3. Resolve paths from the records. Never infer a role from a path basename,
-   sibling-directory convention, user-specific path, or remembered session
-   state.
+```text
+objects
+refs
+origin remote configuration
+worktree administration metadata
+```
 
-Fail closed and request operator action when:
+It contains no checked-out project files and is not itself a task workspace.
 
-- the primary worktree is absent, bare, locked, or prunable;
-- no worktree or more than one worktree declares `refs/heads/main`;
-- the dedicated main worktree is bare, locked, or prunable;
-- the primary and dedicated main roles resolve to the same worktree before
-  temporary branch work;
-- any worktree record is malformed or its role cannot be determined uniquely.
+The normal permanent local branch set contains exactly:
 
-Do not resolve duplicate or ambiguous roles by declaration order, path sorting,
-or agent preference.
+```text
+refs/heads/main
+```
 
-## Preserve role separation
+Do not rely on local `main` being as fresh as remote state. Fetch remote
+publication authority as:
 
-Reserve the dedicated main worktree for:
+```text
+refs/remotes/origin/main
+```
 
-- synchronizing and inspecting `main`;
-- clean-main validation;
-- integration verification;
-- publication preparation and post-publication verification.
+## No permanent worktree roles
 
-Never create or check out a temporary development branch in the dedicated main
+There is no operational role for a:
+
+```text
+primary worktree
+dedicated main worktree
+integration worktree
+permanent detached worktree
+```
+
+A path name never creates a worktree role. Maintain zero permanent worktrees.
+
+## Task creation
+
+Before every task, run:
+
+```bash
+git --git-dir=<BARE_REPOSITORY> fetch origin
+```
+
+Record exactly:
+
+```text
+TASK_BASE = refs/remotes/origin/main
+```
+
+Create one unique detached task worktree:
+
+```bash
+git --git-dir=<BARE_REPOSITORY> worktree add \
+  --detach \
+  <UNIQUE_TASK_PATH> \
+  refs/remotes/origin/main
+```
+
+Require:
+
+```text
+detached HEAD
+HEAD == TASK_BASE
+clean
+operation-free
+```
+
+Operation-free means no active:
+
+```text
+MERGE_HEAD
+CHERRY_PICK_HEAD
+REVERT_HEAD
+rebase-merge
+rebase-apply
+BISECT_LOG
+sequencer
+```
+
+Do not create a task branch by default. Never check out `main` in a task
 worktree.
 
-Use the primary worktree as the default workspace for temporary development
-branches when its safety gates pass. Create an additional linked worktree only
-when the task requires isolation or concurrent work and the operation is
-explicitly authorized. Do not allow an additional worktree to replace the
-stable main role.
+## Task isolation
 
-## Apply the worktree safety gates
+One task owns one worktree. Write only within the current task's worktree.
 
-Before switching, repurposing, synchronizing, or removing a worktree, require
-this command to exit successfully and produce no output:
+Never:
 
-```bash
-git -C <worktree-path> status --porcelain=v2 --untracked-files=all
+```text
+edit another task worktree
+switch another task worktree
+clean another task worktree
+stash another task worktree
+reset another task worktree
+remove another task worktree
+require another task worktree to be clean
 ```
 
-Treat staged, unstaged, and untracked content as dirty state. Do not rely on
-color, human-oriented status formatting, or configuration-dependent aliases.
+Treat other active worktrees as normal parallel activity. Their existence does
+not block task creation or execution.
 
-Ignored content is outside this ordinary cleanliness result. Before removing a
-worktree, inspect it explicitly with:
+## Detached commits
+
+Create task commits directly on detached `HEAD` when needed. The task worktree
+retains the detached commit chain before publication.
+
+Do not remove an unpublished task worktree merely because its `HEAD` is
+detached.
+
+## Validation
+
+Create all task-specific validation environments and generated validation state
+inside the task worktree. No permanent checked-out repository exists to
+pollute.
+
+Run every task-required validation from the current task worktree.
+
+## Pre-publication synchronization
+
+Immediately before publication, run:
 
 ```bash
-git -C <worktree-path> status \
-  --porcelain=v2 \
-  --untracked-files=all \
-  --ignored=matching
+git --git-dir=<BARE_REPOSITORY> fetch origin
 ```
 
-Preserve ignored content that must survive. Remove a worktree containing ignored
-content only after the operator explicitly authorizes discarding or separately
-preserving the reported paths.
+Let:
 
-Resolve operation-state paths with:
+```text
+CURRENT_MAIN = refs/remotes/origin/main
+```
+
+If:
+
+```text
+CURRENT_MAIN == TASK_BASE
+```
+
+continue after final validation.
+
+If:
+
+```text
+CURRENT_MAIN != TASK_BASE
+```
+
+re-evaluate the exact semantic, source, and blob guards specified by the task.
+
+When automatic continuation is authorized, replay only the current task commit
+range:
+
+```text
+TASK_BASE..HEAD
+```
+
+onto `CURRENT_MAIN`. Use detached-HEAD rebase or cherry-pick mechanics selected
+by the task, but create no merge commit unless separate authority explicitly
+requires one.
+
+If a conflict, authority change, source-guard failure, or ambiguity appears:
+
+```text
+STOP
+preserve the task worktree
+```
+
+After successful replay:
+
+```text
+TASK_BASE = CURRENT_MAIN
+```
+
+Then rerun complete task validation.
+
+## Publication
+
+Require:
+
+```text
+CURRENT_MAIN is ancestor of task HEAD
+```
+
+Publish only:
 
 ```bash
-git -C <worktree-path> rev-parse --git-path <state-name>
+git push origin HEAD:refs/heads/main
 ```
 
-Require all of the following operation states to be absent before proceeding:
+Use an ordinary fast-forward push only.
 
-- `MERGE_HEAD`;
-- `CHERRY_PICK_HEAD`;
-- `REVERT_HEAD`;
-- `rebase-merge`;
-- `rebase-apply`;
-- `BISECT_LOG`;
-- `sequencer`.
+Never:
 
-Stop when Git reports another active operation or an unexpected administrative
-state, even when the worktree status is otherwise clean.
+```text
+force
+force-with-lease to rewrite main
+delete main
+push another task's commit
+```
 
-Before switching the primary worktree away from its current branch or detached
-commit, record the current ref and commit identity. Preserve a branch or another
-reachable ref for every commit that must survive the switch.
+If another task advances `main` and the push is rejected:
 
-## Synchronize main safely
+```text
+fetch again
+re-evaluate guards
+reconcile the current task when permitted
+revalidate
+retry an ordinary fast-forward push
+```
 
-Apply the cleanliness and operation-state gates to the dedicated main worktree.
-Re-read the remote `main` ref before relying on local integration state. Update
-the local remote-tracking ref through an authorized fetch mechanism, then
-advance local `main` through the dedicated main worktree and only by
-fast-forward unless separate repository authority explicitly permits another
-operation.
+## Post-publication proof
 
-After advancing `main`, verify the dedicated worktree's `HEAD`, index, files,
-and status against the intended main commit. Do not update the branch ref behind
-that worktree through an external ref mutation.
+After successful push, run:
 
-Do not treat a stale local `main`, stale remote-tracking ref, or remembered SHA
-as current remote state. Do not rewrite `main` to simplify worktree cleanup.
+```bash
+git --git-dir=<BARE_REPOSITORY> fetch origin
+```
 
-## Remove temporary worktrees and branches
+Require:
 
-Never remove the primary worktree or the dedicated main worktree as part of
-routine cleanup.
+```text
+task HEAD is ancestor-or-equal to
+refs/remotes/origin/main
+```
 
-For every temporary worktree:
+Remote `main` may already contain later concurrent commits. Equality is not
+required.
 
-1. Reapply the cleanliness, ignored-content, and operation-state gates.
-2. Record its current branch, if any, and exact `HEAD` commit.
-3. For a detached `HEAD`, prove that the commit is reachable from a retained
-   ref, create an explicitly authorized durable ref, or obtain explicit operator
-   authorization to discard the exact reported uncontained commit.
-4. Remove only the worktree. Preserve any branch ref until branch deletion is
-   independently authorized and verified.
-5. Re-run `git worktree list --porcelain` and confirm that both persistent roles
-   remain valid.
+## Local main branch
 
-Before deleting a temporary branch, prove that its exact tip is reachable from
-the exact current `main` commit. Use Git ancestry when both exact objects are
-available locally, or use the authoritative remote comparison API when local
-refs are stale. Do not infer integration from equal file content, branch names,
-Pull Request state, or a previous comparison.
+Retain:
 
-If reachability cannot be proved, preserve the branch. Delete an uncontained
-branch only after the operator receives the exact uncontained commit identity
-and explicitly authorizes that destructive outcome.
+```text
+refs/heads/main
+```
 
-After reachability proof, delete a local ref only with an atomic expected-old
-object identity and only after confirming that no worktree checks it out. Delete
-a remote ref only through a mechanism that atomically conditions deletion on
-its expected old object identity. Stop and request operator action when the
-available remote API cannot provide that condition; an immediate re-read alone
-does not close the race.
+as the single ordinary permanent local branch in the bare repository.
 
-## Verify the resulting topology
+Treat local `main` as convenience/local state, not publication authority. After
+a successful fetch, fast-forward local `main` to current remote `main` only
+when:
 
-After every worktree or branch lifecycle operation:
+```text
+local main is ancestor-or-equal to remote main
+```
 
-1. Run `git worktree list --porcelain` again.
-2. Enumerate local branches and their upstreams.
-3. Read remote branch refs from the remote authority.
-4. Confirm that the primary and dedicated main worktrees remain distinct,
-   present, unlocked, and non-prunable.
-5. Confirm that every retained worktree passes the cleanliness and
-   operation-state gates.
+No worktree checks out `main`, so update it without requiring a worktree. Never
+rewrite local `main` backwards or sideways.
 
-Report the observed state from Git. Do not copy the current paths, branch list,
-or commit identities into maintained repository documentation.
+A stale local `main` does not block task creation because every task starts from
+fresh `refs/remotes/origin/main`.
+
+## Successful worktree cleanup
+
+After publication reachability is proven, require the current task's own
+worktree to contain no:
+
+```text
+staged tracked changes
+unstaged tracked changes
+untracked non-ignored files
+active Git operation
+```
+
+Delete task-generated ignored content only when it is disposable task
+infrastructure.
+
+Remove exactly the current task's worktree. Then run:
+
+```bash
+git --git-dir=<BARE_REPOSITORY> worktree prune
+```
+
+Verify that the worktree record disappeared. Do not inspect or modify another
+task worktree as a cleanup prerequisite.
+
+## Failed task preservation
+
+If publication did not succeed, or task `HEAD` is not proven reachable from a
+retained ref:
+
+```text
+DO NOT REMOVE THE WORKTREE
+```
+
+Report:
+
+```text
+task path
+TASK_BASE
+task HEAD
+publication state
+reason cleanup was refused
+```
+
+No other agent may delete it merely because it looks stale.
+
+## Normal topology
+
+When no tasks run:
+
+```text
+permanent bare repository
++
+zero non-bare worktrees
+```
+
+When N tasks run:
+
+```text
+permanent bare repository
++
+N temporary detached worktrees
+```
+
+After one successful task:
+
+```text
+N := N - 1
+```
+
+No worktree survives because of a permanent role.
