@@ -66,6 +66,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | Make unvalidated cognitive completions terminal and validate readiness projections | accepted | 2026-09-20 | complete | Retry admissibility for cognitive roles without deterministic output validators<br>Protocol v3 role-aware completion policy<br>Published protocol-v2 artifact immutability<br>Formal readiness projection validation |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | Content-address hostile-review meta-schemas | accepted | 2026-09-20 | complete | Hostile-review protocol-bundle meta-schema identity<br>Hostile-review evidence meta-schema identity<br>Protocol v4 meta-schema binding<br>Historical meta-schema interpretation<br>Append-only hostile-review meta-schema evolution |
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | Clarify hostile-review execution receipt attempt mapping | accepted | 2026-09-20 | complete | Hostile-review execution receipt identity<br>Protocol-attempt aggregation in execution receipts<br>Protocol retry to receipt-attempt mapping<br>LLM call and transport-attempt separation |
+| [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | Allow shared governance implementation without transferring repository authority | accepted | 2026-09-22 | complete | Ownership boundary between repository authority and shared governance implementation<br>Use of proto-ring as a reusable governance implementation provider<br>Immutable pinning and local bindings for shared governance tooling |
 
 ## Recorded outgoing relations
 
@@ -184,6 +185,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | amends | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | amends | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | confirms | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
+| [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | amends | [ADR-017](adr-017-adopt-validated-okf-architecture-decision-record-metadata.md) |
 
 ## Derived incoming relations
 
@@ -239,6 +241,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | amended by | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-015](adr-015-evolve-the-normative-and-formal-specifications-together.md) | clarified by | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) |
 | [ADR-016](adr-016-separate-workflow-authorship-from-runtime-execution-authority.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
+| [ADR-017](adr-017-adopt-validated-okf-architecture-decision-record-metadata.md) | amended by | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | amended by | [ADR-039](adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md) |
 | [ADR-018](adr-018-require-completed-workflow-execution-inspectability.md) | clarified by | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) |
 | [ADR-019](adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md) | clarified by | [ADR-029](adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md) |
