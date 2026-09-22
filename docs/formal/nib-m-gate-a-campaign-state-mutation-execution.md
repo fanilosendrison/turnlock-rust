@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.12"
+version: "1.0.13"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.12`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.13`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -190,21 +190,118 @@ interface AdmitCandidateV1 {
 
 Candidate identity is M2-owned.
 
-For `C0`:
+Before the C0/Cn+1 split, M2 requires the following common bindings:
+
+```text
+candidate.runId ==
+    exact GateARun runId
+
+sealedCandidate.runId ==
+    exact GateARun runId
+
+candidate.materialization ==
+    sealedCandidate.materialization
+```
+
+A mismatch is:
+
+```text
+INVALID_MUTATION
+```
+
+For `C0`, retain all existing requirements and additionally require:
 
 ```text
 ordinal = 0
 parentCandidateId = null
 producedByRepairIntentId = null
+
+sealedCandidate.parentCandidateId == null
+
+sealedCandidate.producedByRepairIntentId == null
+
+candidate.parentCandidateId == null
+
+candidate.producedByRepairIntentId == null
 ```
 
-For `Cn+1`:
+For `AdmitCandidateV1` when `ordinal = 0`:
 
 ```text
-ordinal = currentCandidate.ordinal + 1
-parentCandidateId = currentCandidate.candidateId
-producedByRepairIntentId = exact admitted qualified RepairIntent
+exact EstablishPreflightV1 exists
+
+sealedCandidate ==
+    EstablishPreflightV1.repositoryInspection.sealedBaselineCandidate
 ```
+
+C0 may not substitute another materialization after baseline establishment.
+
+For every non-C0 `AdmitCandidateV1`:
+
+Let:
+
+```text
+P = exact currentCandidate before mutation
+
+R = exact admitted RepairIntentRef whose repairIntentId ==
+    candidate.producedByRepairIntentId
+```
+
+Require exactly one such `R`.
+
+Require:
+
+```text
+candidate.ordinal ==
+    P.ordinal + 1
+
+candidate.parentCandidateId ==
+    P.candidateId
+
+candidate.producedByRepairIntentId ==
+    R.repairIntentId
+
+R.runId ==
+    exact GateARun runId
+
+R.candidateId ==
+    P.candidateId
+```
+
+Require exact sealed-candidate provenance:
+
+```text
+sealedCandidate.runId ==
+    exact GateARun runId
+
+sealedCandidate.parentCandidateId ==
+    P.candidateId
+
+sealedCandidate.producedByRepairIntentId ==
+    R.repairIntentId
+
+candidate.materialization ==
+    sealedCandidate.materialization
+```
+
+Require construction provenance retains the exact source and patch:
+
+```text
+sealedCandidate.materializationEvidence contains exactly the ArtifactRef:
+    P.materialization
+
+sealedCandidate.materializationEvidence contains exactly the ArtifactRef:
+    R.approvedPatch
+```
+
+`contains exactly` here means exact `ArtifactRef` structural equality.
+
+Do not define the complete ordering/content of
+`materializationEvidence` in this patch; future M7-A owns its full deterministic
+closure.
+
+Require every retained evidence ArtifactRef used by the admission to exist and
+be intact under the existing artifact-store rules.
 
 Identity:
 
@@ -222,16 +319,61 @@ deriveId(
 
 A second different payload for the same slot is `INVALID_MUTATION`.
 
-For `AdmitCandidateV1` when `ordinal = 0`:
+Before admitting Cn+1 require:
 
 ```text
-exact EstablishPreflightV1 exists
-
-sealedCandidate ==
-    EstablishPreflightV1.repositoryInspection.sealedBaselineCandidate
+zero previously admitted CandidateRevision exists where:
+    producedByRepairIntentId ==
+        R.repairIntentId
 ```
 
-C0 may not substitute another materialization after baseline establishment.
+If one already exists:
+
+```text
+INVALID_MUTATION
+```
+
+Do not add:
+
+```text
+repairIntent.consumed
+consumedAtRevision
+consumed boolean
+```
+
+or any mutable consumption marker.
+
+The historical successor candidate is the consumption fact.
+
+`R.candidateId` must equal the exact current parent candidate `P.candidateId` at
+admission time.
+
+Therefore an old RepairIntent for Cn may not be applied to Cn+k even when:
+
+```text
+Cn.materialization ==
+Cn+k.materialization
+```
+
+The material patch may be content-identical, but RepairIntent authority is
+candidate-occurrence-specific.
+
+Replay semantics:
+
+M7-A may seal deterministic successor artifacts and crash before
+`AdmitCandidateV1`.
+
+Because no authoritative candidate was admitted, restart may replay the same
+sourceCandidate + RepairIntent and reproduce the same sealed successor.
+
+Once one CandidateRevision with `producedByRepairIntentId == R` exists, R is
+consumed and ordinary orchestration must not invoke M7-A with R again.
+
+No special recovery protocol is introduced.
+
+No Execution is involved.
+
+No external-effect Arm is involved.
 
 ### 5.3 Review campaign bundle
 
@@ -2102,6 +2244,20 @@ Its runner history remains authoritative.
 * Already-armed execution may still close after semantic terminality.
 * Artifact reference exists in JSON but CAS bytes fail verification:
   integrity/invocation failure before commit.
+* `candidate.materialization` differs from `sealedCandidate.materialization`:
+  `INVALID_MUTATION`.
+* Repaired `sealedCandidate` parent differs from `currentCandidate`:
+  `INVALID_MUTATION`.
+* Repaired `sealedCandidate` RepairIntent differs from candidate RepairIntent:
+  `INVALID_MUTATION`.
+* Candidate names a missing/non-admitted RepairIntent: `INVALID_MUTATION`.
+* RepairIntent `candidateId` differs from `currentCandidate`: `INVALID_MUTATION`.
+* The same RepairIntent already produced one CandidateRevision:
+  `INVALID_MUTATION`.
+* Repaired sealed-candidate `materializationEvidence` does not retain exact
+  source candidate materialization: `INVALID_MUTATION`.
+* Repaired sealed-candidate `materializationEvidence` does not retain exact
+  RepairIntent.approvedPatch: `INVALID_MUTATION`.
 
 ## 21. Constraints
 

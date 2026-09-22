@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.12"
+version: "6.0.13"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -247,6 +247,52 @@ RepositoryInspectionResult returning producer cause material
 
 exact NonRecoveryOperationalCauseRefV1 wrapper
 → no-normative-impact construction mechanism
+```
+
+No product ADR is created.
+
+Version `6.0.13` closes the M7-A RepairIntent-to-candidate construction binding
+before repository-control candidate-construction Module Brief authoring.
+
+Candidate construction now consumes one complete authoritative RepairIntentRef
+rather than separately supplied RepairIntentId and approvedPatch values.
+
+The exact RepairIntent must name the exact source CandidateRevision, and M7 may
+consume only that RepairIntent's exact approvedPatch.
+
+A repaired sealed candidate and the CandidateRevision admitted from it must
+retain exact parent-candidate, RepairIntent, and materialization bindings.
+
+One RepairIntent may produce at most one CandidateRevision. The admitted
+CandidateRevision itself is the append-only proof that the RepairIntent was
+consumed; no mutable consumed flag exists.
+
+M2 independently enforces these bindings during candidate admission and
+snapshot reconstruction detects retained violations as integrity failures.
+
+This revision changes implementation-construction contracts only and creates no
+TURNLOCK product semantics.
+
+The construction discovery classifications recorded by this revision are:
+
+```text
+separately supplied repairIntentId + approvedPatch at M7 candidate construction
+→ authority-conflict-or-uncertain
+
+because the caller could combine an authority identity with a different patch
+artifact
+```
+
+```text
+M7 consumes the complete admitted RepairIntentRef and uses only its
+approvedPatch
+→ derived-from-existing-authority
+```
+
+```text
+one RepairIntent produces at most one CandidateRevision and that historical
+candidate is append-only proof of consumption
+→ derived-from-existing-authority
 ```
 
 No product ADR is created.
@@ -2712,11 +2758,11 @@ Repository inspection has no WorkItem Execution. M7 owns the future exact
 repository-control cause schemas; this System Brief defines no individual cause
 schema.
 
+```ts
 interface CandidateConstructionRequest {
   readonly runId: GateARunId;
   readonly sourceCandidate: CandidateRevisionRef;
-  readonly repairIntentId: RepairIntentId;
-  readonly approvedPatch: ArtifactRef;
+  readonly repairIntent: RepairIntentRef;
 }
 
 interface CandidateSealResult {
@@ -2785,6 +2831,58 @@ type PublicationObservationQualificationResult =
       readonly blocker: OperationalBlocker;
     };
 ```
+
+Candidate-construction bindings:
+
+```text
+request.runId ==
+    request.sourceCandidate.runId ==
+    request.repairIntent.runId
+
+request.repairIntent.candidateId ==
+    request.sourceCandidate.candidateId
+
+request.repairIntent is the exact authoritative RepairIntentRef selected from
+the current GateARunSnapshot
+
+M7 uses exactly:
+    request.repairIntent.approvedPatch
+
+M7 accepts no separately supplied replacement, override, fallback, or
+reconstructed patch ArtifactRef
+```
+
+For a successful result require exactly:
+
+```text
+result.sealedCandidate.runId ==
+    request.runId
+
+result.sealedCandidate.parentCandidateId ==
+    request.sourceCandidate.candidateId
+
+result.sealedCandidate.producedByRepairIntentId ==
+    request.repairIntent.repairIntentId
+```
+
+M7 validates only mechanical construction admissibility of the exact
+approvedPatch representation under the future M7-A contract.
+
+M7 does not decide whether the repair is semantically correct, sufficient,
+authorized, or challenge-qualified.
+
+Those facts are already owned by the admitted RepairIntent produced through M5
+authority.
+
+Candidate construction has no normal blocked result.
+
+Once an authoritative RepairIntent exists for the exact source candidate,
+malformed/inconsistent approved construction provenance is an
+implementation/process/integrity failure rather than an
+OPERATOR-ACTION-REQUIRED repair conflict.
+
+Replay-safe local process/resource failure before authoritative candidate
+admission creates no campaign fact and may be retried from durable state.
 
 Repository inspection is the only M7 operation in the initial-run path that may
 read mutable `repositoryPath` to establish the initial mechanical repository
@@ -5259,34 +5357,99 @@ run(command):
         work = derive_enabled_work(snapshot)
 
         if qualified exact repair is enabled:
-            sealed_successor = repository_control.apply_exact_patch_and_seal(
-                exact source candidate,
-                exact approved patch,
-                exact RepairIntent
-            )
+            repair_intent =
+                exact enabled authoritative RepairIntentRef
+                selected from snapshot.repairIntents
+
+            source_candidate =
+                exact snapshot.currentCandidate
+
+            require source_candidate != null
+
+            require repair_intent.runId == run.runId
+
+            require source_candidate.runId == run.runId
+
+            require repair_intent.candidateId ==
+                source_candidate.candidateId
+
+            require zero CandidateRevision already exists where:
+                producedByRepairIntentId ==
+                    repair_intent.repairIntentId
+
+            sealed_successor =
+                repository_control.apply_exact_patch_and_seal({
+                    runId: run.runId,
+                    sourceCandidate: source_candidate,
+                    repairIntent: repair_intent
+                })
+
+            require sealed_successor.sealedCandidate.runId ==
+                run.runId
+
+            require sealed_successor.sealedCandidate.parentCandidateId ==
+                source_candidate.candidateId
+
+            require sealed_successor.sealedCandidate.producedByRepairIntentId ==
+                repair_intent.repairIntentId
 
             successor_subject = campaign_authority.derive_subject({
                 sealedCandidate: sealed_successor.sealedCandidate
             })
 
-            successor = construct complete CandidateRevision(
-                runId = run.runId,
-                ordinal = source candidate ordinal + 1,
-                parentCandidateId = source candidate ID,
-                materialization = sealed_successor.sealedCandidate.materialization,
-                semanticSubject = successor_subject.semanticSubject,
-                producedByRepairIntentId = exact RepairIntent ID
-            )
+            successor = construct complete CandidateRevision:
+                runId =
+                    run.runId
 
-            commit successor through M2
+                ordinal =
+                    source_candidate.ordinal + 1
 
-            if successor.semanticSubject != source candidate subject:
+                parentCandidateId =
+                    source_candidate.candidateId
+
+                materialization =
+                    sealed_successor.sealedCandidate.materialization
+
+                semanticSubject =
+                    successor_subject.semanticSubject
+
+                producedByRepairIntentId =
+                    repair_intent.repairIntentId
+
+            commit through M2 one exact AdmitCandidateV1:
+                {
+                    kind: "admit-candidate",
+                    sealedCandidate: sealed_successor.sealedCandidate,
+                    candidate: successor
+                }
+
+            after successful admission:
+                existence of successor is the append-only proof that
+                repair_intent was consumed
+
+            if successor.semanticSubject != source_candidate.semanticSubject:
                 prior campaigns become non-current for the successor subject by derivation
             else:
                 retain the complete current campaign set for unchanged exact (S, P)
                 do not create a campaign because CandidateRevision changed
 
             continue
+
+        M7-A may seal deterministic successor artifacts and crash before
+        AdmitCandidateV1.
+
+        Because no authoritative candidate was admitted, restart may replay the
+        same sourceCandidate + RepairIntent and reproduce the same sealed
+        successor.
+
+        Once one CandidateRevision with producedByRepairIntentId == R exists, R
+        is consumed and ordinary orchestration must not invoke M7-A with R again.
+
+        No special recovery protocol is introduced.
+
+        No Execution is involved.
+
+        No external-effect Arm is involved.
 
         if one or more ordinary WorkItems are enabled:
             select only already-authorized WorkItems
@@ -6146,6 +6309,16 @@ GI-82  A later PublicationIntent may supersede an armed prior publication
 GI-83  After publication Arm, observing the intended successor never enters the
        already-current shortcut; it belongs to the existing outcome/recovery
        lifecycle of the armed Execution.
+
+GI-84  M7 candidate construction consumes one exact authoritative
+       RepairIntentRef, applies only that RepairIntent's exact approvedPatch to
+       the exact CandidateRevision named by that RepairIntent, and returns a
+       sealed candidate bound to the same source candidate and RepairIntent.
+
+GI-85  One RepairIntent may produce at most one CandidateRevision. The admitted
+       CandidateRevision carrying that RepairIntentId is the append-only proof
+       of consumption; no mutable consumed flag may authorize or suppress
+       repair reuse.
 ```
 
 ## 40. Cross-cutting policies

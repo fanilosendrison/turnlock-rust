@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "1.0.11"
+version: "1.0.12"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.12`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.13`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -731,6 +731,98 @@ C0's admitted sealedCandidate ==
 
 A C0 using another sealed materialization is integrity failure.
 
+For every admitted candidate and its exact `AdmitCandidateV1` basis require:
+
+```text
+candidate.runId ==
+    runId
+
+sealedCandidate.runId ==
+    runId
+
+candidate.materialization ==
+    sealedCandidate.materialization
+```
+
+For C0 retain the existing preflight binding and require:
+
+```text
+candidate.parentCandidateId == null
+
+candidate.producedByRepairIntentId == null
+
+sealedCandidate.parentCandidateId == null
+
+sealedCandidate.producedByRepairIntentId == null
+```
+
+For every Cn+1:
+
+Let:
+
+```text
+P = exact immediately previous CandidateRevision in the linear lineage
+
+R = exact retained RepairIntentRef named by:
+    candidate.producedByRepairIntentId
+```
+
+Require:
+
+```text
+R exists exactly once
+
+R.runId == runId
+
+R.candidateId == P.candidateId
+
+candidate.parentCandidateId ==
+    P.candidateId
+
+sealedCandidate.parentCandidateId ==
+    P.candidateId
+
+candidate.producedByRepairIntentId ==
+    R.repairIntentId
+
+sealedCandidate.producedByRepairIntentId ==
+    R.repairIntentId
+
+candidate.materialization ==
+    sealedCandidate.materialization
+```
+
+Require:
+
+```text
+sealedCandidate.materializationEvidence contains exact:
+    P.materialization
+
+sealedCandidate.materializationEvidence contains exact:
+    R.approvedPatch
+```
+
+All referenced ArtifactRefs must remain intact.
+
+During reconstruction require:
+
+```text
+for every RepairIntentRef R:
+
+count(
+    candidates where
+    producedByRepairIntentId == R.repairIntentId
+) <= 1
+```
+
+If two retained candidates name the same exact RepairIntent:
+
+```text
+INTEGRITY_FAILURE
+```
+
+There is no “choose latest candidate” recovery.
+
 ### 10.1 `gateQualification`
 
 Let:
@@ -1155,6 +1247,21 @@ I61  At most one PublicationNonApplicationRef exists for one Execution, and it
 I62  Automatic later-PublicationIntent replacement after any prior Arm is
      permitted only when every relevant prior armed Execution has exact
      PROVEN-NOT-EXECUTED or exact PublicationNonApplicationRef disposition.
+
+I63  Every CandidateRevision is bound to the exact
+     SealedCandidateMaterializationRef admitted with it; their run and
+     materialization identities are exact, and their parent/repair provenance
+     agrees for the candidate's construction position.
+
+I64  Every non-C0 CandidateRevision names exactly one retained RepairIntent
+     whose runId matches the GateARun and whose candidateId is the exact
+     immediately prior CandidateRevision; the admitted sealed candidate
+     retains both the exact source materialization and exact
+     RepairIntent.approvedPatch in its construction provenance.
+
+I65  One RepairIntent produces at most one CandidateRevision. A retained second
+     CandidateRevision naming the same RepairIntent is integrity failure; no
+     mutable RepairIntent-consumed flag exists.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -1179,7 +1286,10 @@ reconstructSnapshot(runId):
     verify preflight establishment and RepositoryInspectionRef provenance
     verify sealed baseline candidate integrity
     verify C0 sealedCandidate binding
-    verify candidate linearity
+    verify candidate/sealed-materialization exact binding
+    verify every non-C0 candidate's exact parent RepairIntent binding
+    verify repaired sealed-candidate source/approvedPatch provenance
+    verify one-shot RepairIntent consumption
     verify obligation/disposition graph
     verify WorkItem source closure
     verify Execution chains and creation bases
@@ -1269,6 +1379,15 @@ Examples:
 missing committed artifact
 broken revision chain
 two committed candidate payloads in one slot
+retained CandidateRevision materialization differs from its admitted
+SealedCandidateMaterializationRef
+retained repaired candidate names RepairIntent whose candidateId is not its
+immediate parent
+retained repaired sealed candidate names different RepairIntent from the
+CandidateRevision
+retained repaired sealed candidate lacks exact source materialization or exact
+approvedPatch provenance
+two retained CandidateRevisions name the same RepairIntent
 two committed classifications for one cognitive attempt
 database structural corruption
 ```
