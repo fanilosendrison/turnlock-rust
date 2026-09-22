@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.11"
+version: "6.0.12"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -215,6 +215,37 @@ direct terminal ref non-application != PROVEN-NOT-EXECUTED
 → derived-from-existing-authority
 
 PublicationNonApplicationRef representation
+→ no-normative-impact construction mechanism
+```
+
+Version `6.0.12` closes the repository-inspection operational-blocker ownership
+gap required before M7-A construction.
+
+M7 repository inspection now returns producer-owned immutable operational cause
+material instead of constructing `OperationalBlocker` directly.
+
+M1 binds the exact current occurrence anchors.
+
+M8-B remains the sole owner of `BlockerId`, Operator Action Request
+construction, and `OperationalBlocker` materialization.
+
+M2 remains the sole authoritative state-admission boundary.
+
+This revision changes implementation-construction contracts only and creates no
+TURNLOCK product semantics.
+
+The construction discovery classifications recorded by this revision are:
+
+```text
+RepositoryInspectionResult returning OperationalBlocker directly
+→ authority-conflict-or-uncertain
+
+because M8-B already owns blocker identity/OAR materialization
+
+RepositoryInspectionResult returning producer cause material
+→ derived-from-existing-authority
+
+exact NonRecoveryOperationalCauseRefV1 wrapper
 → no-normative-impact construction mechanism
 ```
 
@@ -2653,8 +2684,32 @@ type RepositoryInspectionResult =
     }
   | {
       readonly kind: "blocked";
-      readonly blocker: OperationalBlocker;
+      readonly cause: NonRecoveryOperationalCauseRefV1;
     };
+
+For `RepositoryInspectionResult.kind == "blocked"`, M1 requires:
+
+```text
+cause.producer == "repository-control"
+
+cause.resolutionContracts equals exactly:
+[
+  {
+    kind: "request-operational-recheck"
+  }
+]
+```
+
+A repository-inspection cause may not expose:
+
+```text
+authorize-known-terminal-execution-replacement
+authorize-uncertain-execution-replacement
+```
+
+Repository inspection has no WorkItem Execution. M7 owns the future exact
+repository-control cause schemas; this System Brief defines no individual cause
+schema.
 
 interface CandidateConstructionRequest {
   readonly runId: GateARunId;
@@ -2981,6 +3036,57 @@ type GateAOperatorResolutionArtifactV1 =
       readonly acceptedRisk:
         "prior-execution-may-have-produced-the-external-effect-and-the-replacement-may-produce-that-effect-again";
     };
+
+interface NonRecoveryOperationalCauseRefV1 {
+  readonly producer: NonRecoveryOperationalBlockerProducerV1;
+  readonly causeDescriptor: ArtifactRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
+  readonly resolutionContracts:
+    readonly NonRecoveryOperatorResolutionContractV1[];
+}
+
+`NonRecoveryOperationalCauseRefV1` is immutable producer material used to
+request M8-B blocker materialization. It is not authoritative campaign state
+and is not an `OperationalBlocker`.
+
+The normative bindings are:
+
+```text
+causeDescriptor is the exact producer-owned canonical operational cause
+
+causeDescriptor.mediaType == "application/json"
+
+causeDescriptor exists and is intact
+
+basisArtifacts is duplicate-free
+
+every basisArtifacts ArtifactRef exists and is intact
+
+resolutionContracts is duplicate-free
+
+producer modules own:
+    cause schema
+    cause-domain meaning
+    cause field validation
+    basis evidence
+    lawful non-recovery resolution contracts
+
+producer modules do NOT own:
+    BlockerId
+    Operator Action Request bytes
+    blocker occurrence identity
+    operator-resolution state effects
+```
+
+The cause reference is immutable producer material used only to request M8-B
+materialization. It does not itself create blocker identity, an Operator Action
+Request, a blocker occurrence identity, or an operator-resolution state effect.
+
+M7 repository inspection constructs and runtime-validates its exact canonical
+cause descriptor, seals that descriptor through `CampaignArtifactStore`, and
+returns the resulting cause reference with its basis artifacts. M8-B alone
+materializes the `OperationalBlocker`; M2 independently validates the
+materialized blocker before authoritative admission.
 
 type OperationalBlockerMaterializationRequestV1 =
   | {
@@ -4721,13 +4827,64 @@ run(command):
         })
 
         if inspection_result is blocked:
-            require inspection_result.blocker references bootstrap.preflightObligation
-            commit exact blocker through M2 using
-                ownership + snapshot.stateRevision
+            expected_state_revision = snapshot.stateRevision
+            snapshot = campaign_state.load_snapshot({
+                runId: run.runId
+            })
+            require snapshot.stateRevision == expected_state_revision
+
+            root_preflight_obligation =
+                exact current outstanding bootstrap preflight obligation
+            require root_preflight_obligation == bootstrap.preflightObligation
+            require inspection_result.cause.producer == "repository-control"
+            require inspection_result.cause.resolutionContracts equals exactly:
+                [
+                    {
+                        kind: "request-operational-recheck"
+                    }
+                ]
+
+            materialized =
+                recovery_operator.materialize_operational_blocker({
+                    kind: "producer-occurrence",
+                    runId: run.runId,
+                    baseStateRevision: snapshot.stateRevision,
+                    producer: "repository-control",
+                    obligationId: root_preflight_obligation.obligationId,
+                    workItemId: null,
+                    executionId: null,
+                    causeDescriptor: inspection_result.cause.causeDescriptor,
+                    resolutionContracts:
+                        inspection_result.cause.resolutionContracts,
+                })
+
+            require materialized.blocker.kind == "operational"
+            require materialized.blocker.obligationId ==
+                root_preflight_obligation.obligationId
+            require materialized.blocker.executionId == null
+
+            M1 does not construct `BlockerId`, `GateAOperatorActionRequestV1`,
+            or `operatorRequest`; it consumes the exact M8-B materialization.
+
+            committed = commit through M2 one exact EstablishOperationalBlockersV1
+                using ownership + expected_state_revision:
+                {
+                    kind: "establish-operational-blockers",
+                    blockers: [
+                        materialized.blocker
+                    ],
+                    basisArtifacts:
+                        ordered duplicate-free first-occurrence sequence:
+                        [
+                            inspection_result.cause.causeDescriptor,
+                            ...inspection_result.cause.basisArtifacts
+                        ]
+                }
+            snapshot = committed snapshot
             require snapshot.run.initialRepositoryAuthority == null
             require snapshot.run.publicationTarget == null
             require root preflight obligation remains outstanding
-            return project_runner_result()
+            return project_runner_result(snapshot)
 
         require inspection_result.kind == observed
         inspection = inspection_result.inspection
@@ -4863,13 +5020,62 @@ run(command):
             })
 
             if inspection_result is blocked:
-                require inspection_result.blocker references root_preflight_obligation
-                commit exact blocker through M2 using
-                    ownership + snapshot.stateRevision
+                expected_state_revision = snapshot.stateRevision
+                snapshot = campaign_state.load_snapshot({
+                    runId: run.runId
+                })
+                require snapshot.stateRevision == expected_state_revision
+                require root_preflight_obligation is the exact current outstanding
+                    bootstrap preflight obligation
+                require inspection_result.cause.producer == "repository-control"
+                require inspection_result.cause.resolutionContracts equals exactly:
+                    [
+                        {
+                            kind: "request-operational-recheck"
+                        }
+                    ]
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId: run.runId,
+                        baseStateRevision: snapshot.stateRevision,
+                        producer: "repository-control",
+                        obligationId: root_preflight_obligation.obligationId,
+                        workItemId: null,
+                        executionId: null,
+                        causeDescriptor: inspection_result.cause.causeDescriptor,
+                        resolutionContracts:
+                            inspection_result.cause.resolutionContracts,
+                    })
+
+                require materialized.blocker.kind == "operational"
+                require materialized.blocker.obligationId ==
+                    root_preflight_obligation.obligationId
+                require materialized.blocker.executionId == null
+
+                M1 does not construct `BlockerId`, `GateAOperatorActionRequestV1`,
+                or `operatorRequest`; it consumes the exact M8-B materialization.
+
+                committed = commit through M2 one exact EstablishOperationalBlockersV1
+                    using ownership + expected_state_revision:
+                    {
+                        kind: "establish-operational-blockers",
+                        blockers: [
+                            materialized.blocker
+                        ],
+                        basisArtifacts:
+                            ordered duplicate-free first-occurrence sequence:
+                            [
+                                inspection_result.cause.causeDescriptor,
+                                ...inspection_result.cause.basisArtifacts
+                            ]
+                    }
+                snapshot = committed snapshot
                 require snapshot.run.initialRepositoryAuthority == null
                 require snapshot.run.publicationTarget == null
                 require root_preflight_obligation remains outstanding
-                return project_runner_result()
+                return project_runner_result(snapshot)
 
             require inspection_result.kind == observed
             inspection = inspection_result.inspection
@@ -5570,6 +5776,14 @@ publication-target, root-obligation, sealed-candidate, semantic-subject, and
 CandidateRevision ordinal-0 construction used by `start`. If preflight blocks
 again, the newly established exact blockers are committed and the run remains
 `OPERATOR-ACTION-REQUIRED`.
+
+After an accepted operator `request-operational-recheck` resolution, ordinary
+orchestration may invoke repository inspection again against the current
+operational repository state under the existing M8-B and M2 blocker-disposition
+rules. M1 does not create a retry counter, reuse prior mutable repository
+observations, or convert a prior cause descriptor into repository truth. Each
+new inspection returns either `observed` or one fresh producer cause under the
+current exact state.
 
 The initial-run and incomplete-preflight order is therefore always:
 
