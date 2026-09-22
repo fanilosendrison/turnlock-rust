@@ -2686,6 +2686,7 @@ type RepositoryInspectionResult =
       readonly kind: "blocked";
       readonly cause: NonRecoveryOperationalCauseRefV1;
     };
+```
 
 For `RepositoryInspectionResult.kind == "blocked"`, M1 requires:
 
