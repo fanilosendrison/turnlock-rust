@@ -10,6 +10,14 @@ import sys
 import tempfile
 import unittest
 
+from proto_ring.repository_integrity import (
+    CommandObligation,
+    IntegrityProfile,
+    IntegrityVerdict,
+    ObligationStatus,
+    evaluate,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "check-repository-integrity.py"
 
@@ -34,6 +42,89 @@ def make_git_fixture(temporary: str) -> Path:
 
 def python_command(source: str) -> list[str]:
     return [sys.executable, "-c", source]
+
+
+def shared_evaluate(
+    root: Path,
+    steps: list[tuple[str, list[str]]],
+):
+    profile = IntegrityProfile(
+        obligations=tuple(
+            CommandObligation(
+                name=name,
+                argv=tuple(argv),
+            )
+            for name, argv in steps
+        ),
+        continue_after_non_satisfied=True,
+    )
+    return evaluate(
+        root,
+        profile,
+        env=os.environ,
+    )
+
+
+def make_committed_git_fixture(temporary: str) -> Path:
+    fixture = Path(temporary)
+
+    subprocess.run(
+        ["git", "init", "-q", str(fixture)],
+        check=True,
+    )
+
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(fixture),
+            "config",
+            "user.name",
+            "Turnlock Repository Integrity Test",
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(fixture),
+            "config",
+            "user.email",
+            "turnlock-ri@example.invalid",
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    (fixture / "tracked.txt").write_text(
+        "baseline\n",
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        ["git", "-C", str(fixture), "add", "tracked.txt"],
+        check=True,
+        capture_output=True,
+    )
+
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(fixture),
+            "commit",
+            "-q",
+            "-m",
+            "baseline",
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    return fixture
 
 
 CHILD_SCRIPT_PATHS = [
@@ -300,6 +391,347 @@ class RepositoryIntegrityRunnerTests(unittest.TestCase):
                 os.environ.update(saved)
             self.assertEqual([], errors)
             self.assertEqual([], failed)
+
+
+class SharedRepositoryIntegrityShadowTests(unittest.TestCase):
+    def test_shadow_clean_non_mutating_success_is_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_committed_git_fixture(temporary)
+            steps = [("noop", python_command("pass"))]
+
+            legacy_errors, legacy_failed = checker.run_validation(
+                fixture,
+                steps,
+            )
+            shared = shared_evaluate(
+                fixture,
+                steps,
+            )
+
+            self.assertEqual([], legacy_errors)
+            self.assertEqual([], legacy_failed)
+
+            self.assertEqual(
+                IntegrityVerdict.PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                ObligationStatus.SATISFIED,
+                shared.obligations[0].status,
+            )
+
+    def test_shadow_non_mutating_failure_is_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_committed_git_fixture(temporary)
+            steps = [
+                (
+                    "failing",
+                    python_command("raise SystemExit(7)"),
+                )
+            ]
+
+            legacy_errors, legacy_failed = checker.run_validation(
+                fixture,
+                steps,
+            )
+            shared = shared_evaluate(
+                fixture,
+                steps,
+            )
+
+            self.assertEqual([("failing", 7)], legacy_failed)
+            self.assertTrue(
+                any(
+                    "validation step failed: failing" in error
+                    for error in legacy_errors
+                ),
+                legacy_errors,
+            )
+
+            self.assertEqual(
+                IntegrityVerdict.NON_PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                ObligationStatus.VIOLATED,
+                shared.obligations[0].status,
+            )
+            self.assertEqual(
+                7,
+                shared.obligations[0].returncode,
+            )
+
+    def test_shadow_multiple_non_mutating_failures_continue_and_aggregate(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_committed_git_fixture(temporary)
+            steps = [
+                (
+                    "first-failure",
+                    python_command("raise SystemExit(3)"),
+                ),
+                (
+                    "second-failure",
+                    python_command("raise SystemExit(7)"),
+                ),
+            ]
+
+            legacy_errors, legacy_failed = checker.run_validation(
+                fixture,
+                steps,
+            )
+            shared = shared_evaluate(
+                fixture,
+                steps,
+            )
+
+            self.assertEqual(
+                [
+                    ("first-failure", 3),
+                    ("second-failure", 7),
+                ],
+                legacy_failed,
+            )
+
+            self.assertEqual(
+                IntegrityVerdict.NON_PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                [
+                    ObligationStatus.VIOLATED,
+                    ObligationStatus.VIOLATED,
+                ],
+                [
+                    result.status
+                    for result in shared.obligations
+                ],
+            )
+            self.assertEqual(
+                [3, 7],
+                [
+                    result.returncode
+                    for result in shared.obligations
+                ],
+            )
+
+    def test_shadow_pre_existing_dirty_unchanged_is_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_committed_git_fixture(temporary)
+
+            (fixture / "tracked.txt").write_text(
+                "dirty\n",
+                encoding="utf-8",
+            )
+
+            (fixture / "untracked.txt").write_text(
+                "scratch\n",
+                encoding="utf-8",
+            )
+
+            steps = [("noop", python_command("pass"))]
+
+            legacy_errors, legacy_failed = checker.run_validation(
+                fixture,
+                steps,
+            )
+            shared = shared_evaluate(
+                fixture,
+                steps,
+            )
+
+            self.assertEqual([], legacy_errors)
+            self.assertEqual([], legacy_failed)
+
+            self.assertEqual(
+                IntegrityVerdict.PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                ObligationStatus.SATISFIED,
+                shared.obligations[0].status,
+            )
+
+    def test_shadow_clean_tracked_mutation_is_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            legacy_fixture = make_committed_git_fixture(
+                str(Path(temporary) / "legacy")
+            )
+            shared_fixture = make_committed_git_fixture(
+                str(Path(temporary) / "shared")
+            )
+
+            command = python_command(
+                "from pathlib import Path\n"
+                "Path('tracked.txt').write_text('mutated\\n', encoding='utf-8')"
+            )
+
+            legacy_errors, _legacy_failed = checker.run_validation(
+                legacy_fixture,
+                [("mutate", command)],
+            )
+            self.assertTrue(
+                any(
+                    "repository integrity validation modified the worktree"
+                    in error
+                    for error in legacy_errors
+                ),
+                legacy_errors,
+            )
+
+            shared = shared_evaluate(
+                shared_fixture,
+                [("mutate", command)],
+            )
+            self.assertEqual(
+                IntegrityVerdict.NON_PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                ObligationStatus.VIOLATED,
+                shared.obligations[0].status,
+            )
+            self.assertEqual(
+                0,
+                shared.obligations[0].returncode,
+            )
+            self.assertNotEqual(
+                shared.baseline_state_identity,
+                shared.final_state_identity,
+            )
+
+    def test_shadow_already_dirty_tracked_content_mutation_is_strengthened(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            legacy_fixture = make_committed_git_fixture(
+                str(Path(temporary) / "legacy")
+            )
+            shared_fixture = make_committed_git_fixture(
+                str(Path(temporary) / "shared")
+            )
+
+            for fixture in (legacy_fixture, shared_fixture):
+                (fixture / "tracked.txt").write_text(
+                    "dirty-one\n",
+                    encoding="utf-8",
+                )
+
+            legacy_status_before = subprocess.run(
+                ["git", "-C", str(legacy_fixture), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            self.assertEqual(" M tracked.txt\n", legacy_status_before)
+
+            command = python_command(
+                "from pathlib import Path\n"
+                "Path('tracked.txt').write_text('dirty-two\\n', encoding='utf-8')"
+            )
+
+            legacy_errors, legacy_failed = checker.run_validation(
+                legacy_fixture,
+                [("mutate-dirty", command)],
+            )
+
+            legacy_status_after = subprocess.run(
+                ["git", "-C", str(legacy_fixture), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            self.assertEqual(" M tracked.txt\n", legacy_status_after)
+            self.assertEqual([], legacy_errors)
+            self.assertEqual([], legacy_failed)
+
+            shared = shared_evaluate(
+                shared_fixture,
+                [("mutate-dirty", command)],
+            )
+            self.assertEqual(
+                IntegrityVerdict.NON_PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                ObligationStatus.VIOLATED,
+                shared.obligations[0].status,
+            )
+            self.assertEqual(
+                0,
+                shared.obligations[0].returncode,
+            )
+            self.assertNotEqual(
+                shared.baseline_state_identity,
+                shared.final_state_identity,
+            )
+
+    def test_shadow_already_present_untracked_content_mutation_is_strengthened(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            legacy_fixture = make_committed_git_fixture(
+                str(Path(temporary) / "legacy")
+            )
+            shared_fixture = make_committed_git_fixture(
+                str(Path(temporary) / "shared")
+            )
+
+            for fixture in (legacy_fixture, shared_fixture):
+                (fixture / "loose.txt").write_text(
+                    "one\n",
+                    encoding="utf-8",
+                )
+
+            legacy_status_before = subprocess.run(
+                ["git", "-C", str(legacy_fixture), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            self.assertEqual("?? loose.txt\n", legacy_status_before)
+
+            command = python_command(
+                "from pathlib import Path\n"
+                "Path('loose.txt').write_text('two\\n', encoding='utf-8')"
+            )
+
+            legacy_errors, legacy_failed = checker.run_validation(
+                legacy_fixture,
+                [("mutate-untracked", command)],
+            )
+
+            legacy_status_after = subprocess.run(
+                ["git", "-C", str(legacy_fixture), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            self.assertEqual("?? loose.txt\n", legacy_status_after)
+            self.assertEqual([], legacy_errors)
+            self.assertEqual([], legacy_failed)
+
+            shared = shared_evaluate(
+                shared_fixture,
+                [("mutate-untracked", command)],
+            )
+            self.assertEqual(
+                IntegrityVerdict.NON_PASS,
+                shared.verdict,
+            )
+            self.assertEqual(
+                ObligationStatus.VIOLATED,
+                shared.obligations[0].status,
+            )
+            self.assertEqual(
+                0,
+                shared.obligations[0].returncode,
+            )
+            self.assertNotEqual(
+                shared.baseline_state_identity,
+                shared.final_state_identity,
+            )
 
 
 if __name__ == "__main__":
