@@ -10,15 +10,45 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from typing import Mapping
+
+from proto_ring import git_whitespace
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "check-git-whitespace.py"
 
-spec = importlib.util.spec_from_file_location("git_whitespace", SCRIPT)
+spec = importlib.util.spec_from_file_location(
+    "legacy_git_whitespace",
+    SCRIPT,
+)
 if spec is None or spec.loader is None:
     raise RuntimeError(f"cannot load {SCRIPT}")
-checker = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(checker)
+
+legacy_checker = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(legacy_checker)
+
+
+class ParityChecker:
+    @staticmethod
+    def collect_errors(
+        root: Path,
+        *,
+        env: Mapping[str, str],
+    ) -> list[str]:
+        legacy_errors = legacy_checker.collect_errors(root, env=env)
+        shared_errors = git_whitespace.check(root, env=env)
+
+        if legacy_errors != shared_errors:
+            raise AssertionError(
+                "Git whitespace parity mismatch:\n"
+                f"legacy={legacy_errors!r}\n"
+                f"proto_ring={shared_errors!r}"
+            )
+
+        return legacy_errors
+
+
+checker = ParityChecker()
 
 ZERO_SHA = "0" * 40
 
