@@ -16,9 +16,10 @@ workspace-isolation rule for Turnlock-Rust.
 
 Treat [AGENTS.md](../../AGENTS.md) as the authority for repository execution
 guardrails. Treat the global operational implementation rules as authority for
-generic task-worktree isolation, ownership, lifecycle, and cleanup. This
-document owns only the Turnlock-Rust base, path namespace, detached mode,
-publication, synchronization, and topology specializations.
+generic task-worktree isolation, ownership, lifecycle, post-publication
+persistent-checkout reconciliation, and cleanup. This document owns only the
+Turnlock-Rust base, path namespace, detached mode, publication, synchronization,
+and topology specializations.
 
 Treat Git refs, remote-tracking refs, and Git worktree metadata as authority for
 repository and worktree state. Do not maintain a second inventory in
@@ -179,8 +180,15 @@ After successful publication, fetch `origin/main` again and require task `HEAD`
 to be ancestor-or-equal to current `origin/main`. Remote `main` may already
 contain later concurrent commits; equality is not required.
 
-Then apply the global successful-task-worktree cleanup rule. Remove exactly the
-published task worktree and run:
+Complete any required validation of the exact published state before persistent
+checkout reconciliation.
+
+Then apply the global post-publication persistent-checkout reconciliation rule
+before successful task-worktree cleanup.
+
+After reconciliation succeeds or is safely skipped because its preconditions do
+not hold, apply the global successful-task-worktree cleanup rule. Remove exactly
+the published task worktree and run:
 
 ```bash
 git -C <PERSISTENT_CHECKOUT> worktree prune
@@ -195,18 +203,41 @@ the global preservation rule. Report the preserved worktree's path, `TASK_BASE`,
 
 ## Persistent-checkout synchronization
 
-Do not require the persistent checkout to advance after every agent
-publication.
+Apply the enclosing workspace's global post-publication persistent-checkout
+reconciliation rule.
 
-Synchronize it only when it is completely clean and operation-free, using:
+For Turnlock-Rust, specialize the generic rule as:
 
-```bash
-git -C <PERSISTENT_CHECKOUT> fetch origin
-git -C <PERSISTENT_CHECKOUT> merge --ff-only origin/main
+```text
+EXPECTED_TARGET_BRANCH = main
+REMOTE = origin
+REMOTE_TARGET_REF = origin/main
 ```
 
-If user state is present, do not modify it. Report that local `main` remains
-behind until the user chooses to synchronize.
+After the required fresh fetch, capture the exact `origin/main` object identity.
+
+If the normal persistent checkout has `main` checked out, is completely clean,
+is operation-free, and its current `HEAD` is ancestor-or-equal to that captured
+target object, fast-forward synchronization to that exact object is mandatory.
+
+Use only:
+
+```bash
+git -C <PERSISTENT_CHECKOUT> merge --ff-only <CAPTURED_ORIGIN_MAIN_OID>
+```
+
+and verify afterward that persistent-checkout `HEAD` equals the captured target
+OID.
+
+If any generic synchronization precondition does not hold, preserve the
+persistent checkout exactly as found and report its current branch, local
+`HEAD`, captured `origin/main` OID, and the failed precondition.
+
+Never stash, clean, reset, restore, switch, rebase, create a non-fast-forward
+merge, or commit user state merely to synchronize the persistent checkout.
+
+Turnlock-Rust adds no exception that permits a safely fast-forwardable
+persistent checkout to remain stale.
 
 ## Normal topology
 
