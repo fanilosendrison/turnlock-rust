@@ -19,7 +19,26 @@ ROOT = Path(__file__).resolve().parents[1]
 def canonical_steps() -> list[tuple[str, list[str]]]:
     python = sys.executable
     return [
-        ("ADR metadata tests", [python, "scripts/tests/test-adr-metadata.py"]),
+        (
+            "ADR metadata provider binding tests",
+            [python, "scripts/tests/test-adr-metadata-provider-binding.py"],
+        ),
+        (
+            "ADR metadata profile validation tests",
+            [python, "scripts/tests/test-adr-metadata-profile-validation.py"],
+        ),
+        (
+            "ADR metadata migration evidence tests",
+            [python, "scripts/tests/test-adr-metadata-migration-evidence.py"],
+        ),
+        (
+            "ADR metadata generated index tests",
+            [python, "scripts/tests/test-adr-metadata-generated-index.py"],
+        ),
+        (
+            "ADR metadata annotated history tests",
+            [python, "scripts/tests/test-adr-metadata-annotated-history.py"],
+        ),
         (
             "Formal traceability tests",
             [python, "scripts/tests/test-formal-traceability.py"],
@@ -29,8 +48,27 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             [python, "scripts/tests/test-normative-terminology.py"],
         ),
         (
-            "Repository integrity tests",
-            [python, "scripts/tests/test-repository-integrity.py"],
+            "Repository integrity binding tests",
+            [python, "scripts/tests/test-repository-integrity-bindings.py"],
+        ),
+        (
+            "Repository integrity evaluator tests",
+            [python, "scripts/tests/test-repository-integrity-evaluator.py"],
+        ),
+        (
+            "Repository integrity CLI tests",
+            [python, "scripts/tests/test-repository-integrity-cli.py"],
+        ),
+        (
+            "Repository integrity validator purity tests",
+            [
+                python,
+                "scripts/tests/test-repository-integrity-validator-purity.py",
+            ],
+        ),
+        (
+            "Governance test module size tests",
+            [python, "scripts/tests/test-governance-test-module-size.py"],
         ),
         (
             "Git whitespace tests",
