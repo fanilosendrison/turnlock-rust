@@ -4,143 +4,128 @@ kind: "KnowledgeAsset"
 asset_type: "agent-directives"
 domain: "turnlock-rust-repository-governance"
 severity: "strict"
-name: "Turnlock-Rust mutable projection integrity policy"
+name: "Turnlock-Rust Projection Integrity binding"
 ---
 
-# Turnlock-Rust mutable projection integrity policy
+# Turnlock-Rust Projection Integrity binding
 
-## Scope
+## Shared contract
 
-This policy governs mechanically derivable mutable repository state, including:
-
-- current ADR corpus membership, order, titles, lifecycle status, and paths;
-- current presence or absence of governed artifacts;
-- formal-model lifecycle status;
-- formal profile lifecycle status;
-- generated mappings;
-- current GitHub Issue and Project state.
-
-This policy does not attempt to mechanically prove semantic consistency of
-ordinary explanatory prose or vision documents. Existing authority and
-discovery-classification rules continue to govern semantic paraphrases.
-
-## Canonical ownership
-
-A mutable derived repository fact must have one canonical owner.
-
-A secondary document must not manually mirror that fact unless the duplicated
-derivable portion is mechanically generated or mechanically validated.
-
-Reference, generate, validate, or explicitly snapshot; never manually mirror
-mutable derived repository state without a guard.
-
-## Allowed projection modes
-
-Every secondary representation of a mutable derived fact must use exactly one of
-these modes:
-
-1. **Reference** - point to the canonical owner without copying the mutable
-   value.
-2. **Generated projection** - derive the value mechanically from the canonical
-   owner.
-3. **Validated maintained projection** - keep manually authored explanatory
-   text, but mechanically validate all duplicated derivable fields.
-4. **Bounded historical snapshot** - retain a past value only when explicitly
-   scoped to a date, commit, migration, or other immutable historical context.
-
-A historical range such as a migration explicitly covering ADR-001 through
-ADR-016 is legitimate because its scope is immutable historical provenance.
-
-Avoid projection chains: a secondary projection must derive from or be validated
-against the canonical owner, never against another projection.
-
-## Forbidden forms
-
-The following are forbidden:
-
-- an explanatory README manually stating the current highest ADR number;
-- an explanatory document manually stating current artifact presence or absence
-  when another authority owns that state;
-- a manual projection derived from another projection;
-- relying on agent memory or ordinary diligence as the synchronization
-  mechanism.
-
-## Current ownership examples
+Apply the canonical proto-ring Projection Integrity contract at this immutable
+identity:
 
 ```text
-ADR frontmatter / canonical ADR files
-    → canonical ADR identity, name, lifecycle status, path and relations
+fanilosendrison/proto-ring
+ae8d05935553086b68d5d832dc9d3317328f0c89
+docs/contracts/projection-integrity.md
+```
+
+The exact provider commit is also the repository's pinned proto-ring dependency.
+Mutable provider state is not authority for this binding.
+
+The shared contract owns generic canonical-owner, projection-mode,
+direct-source, currentness, validation-ownership, synchronization, and
+completion rules. This profile owns only the Turnlock-Rust mappings and local
+extensions below.
+
+## Local scope
+
+Apply the shared contract whenever a Turnlock-Rust artifact states mechanically
+derivable mutable repository state, including current ADR metadata, governed
+artifact presence, formal lifecycle and traceability state, generated mappings,
+validation membership, and live engineering work state.
+
+Ordinary explanatory prose and vision documents are not required to receive a
+mechanical semantic-equivalence proof. Existing authority and discovery
+classification continue to govern semantic paraphrases.
+
+## Turnlock-Rust owner mappings
+
+Use these local bindings:
+
+```text
+ADR frontmatter and canonical ADR files
+    → own current ADR identity, name, lifecycle status, path, and relations
 
 docs/adr/index.md
-    → generated ADR metadata/relationship projection
+    → generated projection from canonical ADR frontmatter
 
 docs/adr/README.md chronological trace
-    → manually maintained narrative
-    → derivable identity/name/status/path/order/coverage must be validated
-    → narrative annotations remain manually authored
+    → mechanically validated maintained projection for derivable ADR fields
+    → independently authored narrative remains maintained content
 
 formal/verification.yaml
-    → formal-model lifecycle state
-    → intended formal traceability and profile state
+    → owns formal-model lifecycle, intended formal traceability, and profile state
 
 docs/formal/invariant-mapping.md
-    → generated projection of formal/verification.yaml
+    → generated projection from formal/verification.yaml
 
 formal/results/
-    → concrete bounded TLC execution evidence
+    → owns concrete bounded execution evidence for each recorded run
 
-repository filesystem/tree
-    → actual artifact presence or absence
+repository filesystem and Git tree
+    → own current governed artifact presence or absence
 
 accepted ADRs and other declared repository authority
-    → accepted implementation/architecture commitments
+    → own accepted implementation and architecture commitments
 
 AGENTS.md
-    → repository authorization and execution guardrails
+    → owns repository authorization and execution guardrails
 
 scripts/check-repository-integrity.py
-    → mandatory repository validation membership and order
+    → owns mandatory repository-validation membership and order
 
 .github/workflows/repository-integrity.yml
-    → CI environment/bootstrap plus invocation of the canonical validation suite
+    → references the canonical validation entry point and owns CI bootstrap
 
-GitHub Issue / Project / native relationships
-    → live work state
+GitHub Issues, Project fields, and native relationships
+    → own current engineering work state
 ```
 
-README files are explanatory consumers, not additional current-state owners.
+README files remain explanatory consumers unless a more specific mapping above
+assigns maintained or generated projection responsibility.
 
-## Validation ownership
+## Local extensions
 
-Validation membership is mutable repository knowledge. Documentation and CI must
-reference one canonical executable validation suite rather than maintain parallel
-command lists.
+The maintained ADR history must validate every duplicated derivable identity,
+name, lifecycle status, path, order, and coverage field directly against
+canonical ADR records. Narrative annotations remain independently authored and
+are not generated.
 
-## Change protocol
+Formal readiness projections may be generated only after the complete local
+traceability and evidence validation succeeds. A focused checker or partial
+traceability result is not a canonical source for those projections.
 
-Before introducing a mutable derived fact, decide:
+Generated ADR and formal mappings are produced only through their declared local
+render commands. Repository Integrity remains diagnostic and must reject stale
+output rather than silently repairing it into a passing state.
 
-```text
-What artifact owns this fact?
+Historical migration ranges and sealed formal evidence must retain their exact
+revision-, protocol-, subject-, or run-bounded scope. They must not be presented
+as current mutable state.
 
-If another artifact owns it:
-- can this document reference the owner instead of copying the value?
-  → reference it.
+Live engineering work state must be referenced through GitHub's native owners.
+Repository prose must not maintain a manual status, classification, dependency,
+parentage, or linked-change dashboard.
 
-If the exact value must be reproduced:
-- can it be generated?
-  → generate it.
+## Change procedure
 
-If explanatory/manual text must be retained:
-- add mechanical validation in the same change.
+For a new or changed Turnlock-Rust projection, apply the shared contract first,
+then add or update the concrete owner mapping and local generator or validator in
+the same change. Keep product semantics, formal semantics, accepted decisions,
+evidence, paths, commands, and Project coordinates local.
 
-If the value is intentionally historical:
-- bind it explicitly to immutable historical scope.
-```
+Do not duplicate the generic contract in this profile. Do not treat a local
+mapping as proto-ring authority. Run the canonical Repository Integrity suite
+and refresh every affected generated projection before completing the change.
 
-## Completion condition
+## Authority boundary
 
-Repository work is not complete when a canonical change leaves a required
-generated or validated projection stale.
+This binding changes repository governance only. It does not change TURNLOCK
+product meaning, formal-assurance semantics, hostile-review claims, bounded
+verification evidence, accepted ADR content, or the authority order in
+`AGENTS.md`.
 
-Do not create a generic checker solely for this document.
+The separate governed-identity finding remains outside this binding. Projection
+Integrity does not resolve identity or canonicalization semantics that current
+Turnlock-Rust authority has not accepted.
