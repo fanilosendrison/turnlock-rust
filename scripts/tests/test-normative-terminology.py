@@ -137,7 +137,7 @@ class NormativeTerminologyTests(unittest.TestCase):
     def test_shared_engine_is_bound_to_exact_executable_provider(self) -> None:
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
-            "proto-ring.git@2a15655bcb88fcab13822a99a41360e48f1740af",
+            "proto-ring.git@72e6e9615703e4d3293175f023d1d953632c45a8",
             requirements,
         )
         binding = (
@@ -147,7 +147,7 @@ class NormativeTerminologyTests(unittest.TestCase):
             / "turnlock-rust-shared-governance-provider.md"
         ).read_text(encoding="utf-8")
         self.assertIn("974ca31ff12630a90da6371cc27c1f5ef0cc590e", binding)
-        self.assertNotIn("2a15655bcb88fcab13822a99a41360e48f1740af", binding)
+        self.assertNotIn("72e6e9615703e4d3293175f023d1d953632c45a8", binding)
 
     def test_generic_types_and_operations_delegate_to_shared_engine(self) -> None:
         self.assertIs(checker.RegistryEntry, shared_terminology.RegistryEntry)

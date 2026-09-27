@@ -100,6 +100,14 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 [sys.executable, "scripts/adr-metadata.py", "check"],
             ),
             (
+                "Accepted ADR body immutability",
+                [
+                    sys.executable,
+                    "-m",
+                    "proto_ring.accepted_adr_body",
+                ],
+            ),
+            (
                 "Shared Governance Provider binding",
                 [
                     sys.executable,
@@ -164,7 +172,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@2a15655bcb88fcab13822a99a41360e48f1740af",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@72e6e9615703e4d3293175f023d1d953632c45a8",
             requirements.splitlines(),
         )
 
