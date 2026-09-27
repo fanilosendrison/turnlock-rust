@@ -606,18 +606,18 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
             self.assertEqual([], errors)
             self.assertEqual([], failed)
 
-    def test_requirements_pin_exact_repository_integrity_provider(self) -> None:
+    def test_requirements_pin_exact_current_provider(self) -> None:
         requirements = (ROOT / "requirements.txt").read_text(
             encoding="utf-8"
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@5b0d3a3493e01a4b9569ded7665d7a44a444bf35",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@7aa7ebbe6d7ad1c82aa440f285192c1385e69793",
             requirements.splitlines(),
         )
 
         self.assertNotIn(
-            "8784935272db7fbde20d8cef603c203fb2457d3d",
+            "proto-ring.git@5b0d3a3493e01a4b9569ded7665d7a44a444bf35",
             requirements,
         )
 
