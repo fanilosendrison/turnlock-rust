@@ -16,7 +16,20 @@ adr_metadata = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adr_metadata)
 
 
+def write_repository_governance(fixture_root: Path) -> None:
+    (fixture_root / "AGENTS.md").write_text(
+        "---\n"
+        "repository_governance:\n"
+        "  architecture_decisions:\n"
+        '    profile_path: "docs/adr/adr-profile.yaml"\n'
+        "---\n"
+        "# Test repository directives\n",
+        encoding="utf-8",
+    )
+
+
 def disable_git_bound_validation(fixture_root: Path) -> None:
+    write_repository_governance(fixture_root)
     profile_path = fixture_root / "docs" / "adr" / "adr-profile.yaml"
     profile = adr_metadata.load_yaml(profile_path)
     profile["migration_evidence"] = {

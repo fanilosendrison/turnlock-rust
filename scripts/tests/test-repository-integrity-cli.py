@@ -21,6 +21,7 @@ def make_runner_fixture(
         support_paths=(
             "AGENTS.md",
             "docs/repository-governance/turnlock-rust-shared-governance-provider.md",
+            "docs/adr/adr-profile.yaml",
             "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md",
         ),
         child_sources=child_sources,

@@ -36,6 +36,8 @@ REPLACEMENT_SOURCE_MODULES = (
 EXPECTED_LEGACY_TEST_IDENTITIES = (
     "AdrMetadataTests.test_repository_passes_full_profile",
     "AdrMetadataTests.test_shared_primitives_are_bound_to_pinned_provider",
+    "AdrMetadataTests.test_profile_path_resolution_delegates_to_shared_provider",
+    "AdrMetadataTests.test_adr_051_resolves_and_outside_same_id_is_ignored",
     "AdrMetadataTests.test_calendar_aware_schema_validation_rejects_invalid_dates",
     "AdrMetadataTests.test_body_digest_uses_exact_context_suffix",
     "AdrMetadataTests.test_unknown_and_stale_legacy_entries_fail_closed",
@@ -99,7 +101,7 @@ class GovernanceTestModuleSizeTests(unittest.TestCase):
             Counter(EXPECTED_LEGACY_TEST_IDENTITIES),
             Counter(observed),
         )
-        self.assertEqual(35, len(observed))
+        self.assertEqual(37, len(observed))
 
         for relative in REPLACEMENT_SOURCE_MODULES:
             with self.subTest(source=relative):
