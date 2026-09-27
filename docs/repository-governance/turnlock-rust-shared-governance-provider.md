@@ -9,7 +9,6 @@ shared_governance_provider:
   mandatory: true
   authority_adr:
     id: "ADR-051"
-    path: "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md"
   contract:
     repository: "fanilosendrison/proto-ring"
     commit: "974ca31ff12630a90da6371cc27c1f5ef0cc590e"
