@@ -164,7 +164,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@f7d07f23c8c3969166142049dd91c78ed4bc80fa",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@2a15655bcb88fcab13822a99a41360e48f1740af",
             requirements.splitlines(),
         )
 
