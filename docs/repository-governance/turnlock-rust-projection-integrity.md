@@ -20,8 +20,19 @@ ae8d05935553086b68d5d832dc9d3317328f0c89
 docs/contracts/projection-integrity.md
 ```
 
-The exact provider commit is also the repository's pinned proto-ring dependency.
-Mutable provider state is not authority for this binding.
+The Projection Integrity contract is bound to the exact immutable proto-ring
+commit above. This contract identity identifies only the governance contract
+adopted by Turnlock-Rust.
+
+Turnlock-Rust's executable proto-ring package dependency is pinned independently
+to the immutable provider revision required by the shared implementations it
+consumes. That package identity identifies the executable shared implementation
+being imported. The package dependency pin and this governance-contract
+authority pin need not be identical when they govern different responsibilities;
+neither pin automatically authorizes or determines the other.
+
+Neither mutable proto-ring state nor an unpinned provider reference is authority
+for either binding.
 
 The shared contract owns generic canonical-owner, projection-mode,
 direct-source, currentness, validation-ownership, synchronization, and
