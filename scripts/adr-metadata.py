@@ -11,6 +11,7 @@ import sys
 from typing import Any
 
 import yaml
+from proto_ring.canonical_adr import configured_profile_path
 from proto_ring.adr_metadata import (
     AdrMetadataError,
     decision_body_bytes,
@@ -29,7 +30,6 @@ from proto_ring.adr_metadata import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE_PATH = Path("docs/adr/adr-profile.yaml")
 PROFILE_VERSION = "0.1.0"
 RELATION_TYPES = ("clarifies", "amends", "supersedes", "confirms")
 ANNOTATED_TRACE_ENTRY_START = re.compile(
@@ -44,10 +44,11 @@ MARKDOWN_LINK_DEFINITION = re.compile(r"(?m)^\s*\[([^\]]+)\]:\s*(\S+)\s*$")
 
 
 def load_profile(root: Path) -> dict[str, Any]:
-    profile = _require_mapping(load_yaml(root / PROFILE_PATH), str(PROFILE_PATH))
+    profile_path = configured_profile_path(root)
+    profile = _require_mapping(load_yaml(profile_path), str(profile_path))
     if profile.get("profile_version") != PROFILE_VERSION:
         raise AdrMetadataError(
-            f"{PROFILE_PATH} must use profile_version {PROFILE_VERSION}"
+            f"{profile_path} must use profile_version {PROFILE_VERSION}"
         )
 
     canonical = _require_mapping(profile.get("canonical_schema"), "canonical_schema")
