@@ -76,6 +76,14 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
         ),
         ("ADR metadata check", [python, "scripts/adr-metadata.py", "check"]),
         (
+            "Accepted ADR body immutability",
+            [
+                python,
+                "-m",
+                "proto_ring.accepted_adr_body",
+            ],
+        ),
+        (
             "Shared Governance Provider binding",
             [
                 python,
