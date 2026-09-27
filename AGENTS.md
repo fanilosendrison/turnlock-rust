@@ -39,6 +39,9 @@ parent permission, security, formatting, naming, or implementation rule.
   finding, apply the shared GitHub Engineering Projects operational protocol,
   then read
   `docs/repository-governance/turnlock-rust-engineering.md` before acting.
+- Before adding, modifying, replacing, or designing any repository-governance
+  mechanism, read and apply
+  `docs/repository-governance/turnlock-rust-shared-governance-provider.md`.
 
 ## Authority by responsibility
 
@@ -611,6 +614,8 @@ change.
   `docs/repository-governance/turnlock-rust-discovery-classification.md`
 - Projection-integrity policy:
   `docs/repository-governance/turnlock-rust-projection-integrity.md`
+- Shared Governance Provider binding:
+  `docs/repository-governance/turnlock-rust-shared-governance-provider.md`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`
 - Worktree management policy:

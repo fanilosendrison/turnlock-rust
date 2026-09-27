@@ -105,6 +105,10 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Projection-integrity policy](docs/repository-governance/turnlock-rust-projection-integrity.md)
   defines repository policy for mutable derived state and documentation
   projections.
+- [Shared Governance Provider binding](docs/repository-governance/turnlock-rust-shared-governance-provider.md)
+  binds Turnlock-Rust to the immutable proto-ring provider-selection contract
+  for generic repository governance while keeping Turnlock-specific authority
+  local.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, canonical terminology, promises, invariants, boundaries, and
   architectural implications.
