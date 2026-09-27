@@ -38,6 +38,13 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
         ),
         ("ADR metadata check", [python, "scripts/adr-metadata.py", "check"]),
         (
+            "Shared Governance Provider binding",
+            [
+                python,
+                "scripts/check-shared-governance-provider.py",
+            ],
+        ),
+        (
             "Normative terminology check",
             [python, "scripts/check-normative-terminology.py"],
         ),

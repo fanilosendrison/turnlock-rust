@@ -106,6 +106,7 @@ CHILD_SCRIPT_PATHS = [
     "scripts/tests/test-repository-integrity.py",
     "scripts/tests/test-git-whitespace.py",
     "scripts/adr-metadata.py",
+    "scripts/check-shared-governance-provider.py",
     "scripts/check-normative-terminology.py",
     "scripts/check-formal-traceability.py",
     "scripts/check-git-whitespace.py",
@@ -205,6 +206,13 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
             (
                 "ADR metadata check",
                 [sys.executable, "scripts/adr-metadata.py", "check"],
+            ),
+            (
+                "Shared Governance Provider binding",
+                [
+                    sys.executable,
+                    "scripts/check-shared-governance-provider.py",
+                ],
             ),
             (
                 "Normative terminology check",
@@ -612,7 +620,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@7aa7ebbe6d7ad1c82aa440f285192c1385e69793",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@4b139e2858fcb26b694503386096eb3fcea80d31",
             requirements.splitlines(),
         )
 
