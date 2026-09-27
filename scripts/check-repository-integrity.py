@@ -41,7 +41,8 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             "Shared Governance Provider binding",
             [
                 python,
-                "scripts/check-shared-governance-provider.py",
+                "-m",
+                "proto_ring.shared_governance_provider",
             ],
         ),
         (

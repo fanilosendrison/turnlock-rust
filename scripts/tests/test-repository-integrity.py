@@ -106,7 +106,6 @@ CHILD_SCRIPT_PATHS = [
     "scripts/tests/test-repository-integrity.py",
     "scripts/tests/test-git-whitespace.py",
     "scripts/adr-metadata.py",
-    "scripts/check-shared-governance-provider.py",
     "scripts/check-normative-terminology.py",
     "scripts/check-formal-traceability.py",
     "scripts/check-git-whitespace.py",
@@ -160,6 +159,15 @@ def make_runner_fixture(
         runner_dir / "check-repository-integrity.py",
     )
 
+    for relative in (
+        "AGENTS.md",
+        "docs/repository-governance/turnlock-rust-shared-governance-provider.md",
+        "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md",
+    ):
+        target = fixture / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, target)
+
     child_sources = child_sources or {}
 
     for relative in CHILD_SCRIPT_PATHS:
@@ -211,7 +219,8 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 "Shared Governance Provider binding",
                 [
                     sys.executable,
-                    "scripts/check-shared-governance-provider.py",
+                    "-m",
+                    "proto_ring.shared_governance_provider",
                 ],
             ),
             (
@@ -620,7 +629,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@b806791f15dd107c54f6c43bf111f5fca1f9d831",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@743d0e7142b84364ba47700e4774b94752670320",
             requirements.splitlines(),
         )
 
