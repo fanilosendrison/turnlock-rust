@@ -145,4 +145,22 @@ def make_runner_fixture(
             child_sources.get(relative, "pass\n"),
             encoding="utf-8",
         )
+    subprocess.run(
+        ["git", "-C", str(fixture), "add", "-A"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(fixture),
+            "commit",
+            "-q",
+            "-m",
+            "runner baseline",
+        ],
+        check=True,
+        capture_output=True,
+    )
     return fixture
