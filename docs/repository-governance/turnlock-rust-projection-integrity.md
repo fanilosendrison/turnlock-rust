@@ -80,6 +80,19 @@ repository filesystem and Git tree
 accepted ADRs and other declared repository authority
     → own accepted implementation and architecture commitments
 
+ADR-051
+    → owns accepted Shared Governance Provider adoption and the exact
+      Shared Governance Provider contract identity
+
+docs/repository-governance/turnlock-rust-shared-governance-provider.md
+    → mechanically validated maintained projection of ADR-051 for the
+      authority ADR identity/path, mandatory adoption, and Shared Governance
+      Provider contract identity
+
+AGENTS.md frontmatter.repository_governance.shared_governance_provider
+    → owns repository-operational routing to the local Shared Governance
+      Provider binding
+
 AGENTS.md
     → owns repository authorization and execution guardrails
 

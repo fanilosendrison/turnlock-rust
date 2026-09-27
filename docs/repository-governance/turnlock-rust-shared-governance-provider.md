@@ -5,9 +5,22 @@ asset_type: "agent-directives"
 domain: "turnlock-rust-repository-governance"
 severity: "strict"
 name: "Turnlock-Rust Shared Governance Provider binding"
+shared_governance_provider:
+  mandatory: true
+  authority_adr:
+    id: "ADR-051"
+    path: "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md"
+  contract:
+    repository: "fanilosendrison/proto-ring"
+    commit: "974ca31ff12630a90da6371cc27c1f5ef0cc590e"
+    path: "docs/contracts/shared-governance-provider.md"
 ---
 
 # Turnlock-Rust Shared Governance Provider binding
+
+The `shared_governance_provider` frontmatter is the machine-readable local
+projection of the accepted authority identified there. The prose below remains
+human-readable guidance and does not replace that authority.
 
 ## Shared contract
 

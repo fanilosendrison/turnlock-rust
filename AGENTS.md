@@ -5,6 +5,10 @@ asset_type: "agent-directives"
 domain: "turnlock-rust"
 severity: "strict"
 name: "Turnlock-Rust repository agent directives"
+repository_governance:
+  shared_governance_provider:
+    required: true
+    binding_path: "docs/repository-governance/turnlock-rust-shared-governance-provider.md"
 ---
 
 # Turnlock-Rust repository directives
