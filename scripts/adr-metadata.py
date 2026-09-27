@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -12,13 +11,26 @@ import sys
 from typing import Any
 
 import yaml
-from jsonschema import Draft202012Validator, FormatChecker
-from jsonschema.exceptions import SchemaError
+from proto_ring.adr_metadata import (
+    AdrMetadataError,
+    decision_body_bytes,
+    h1_text as _h1,
+    load_json,
+    load_yaml,
+    parse_adr,
+    preserved_payload_bytes,
+    relation_target_errors,
+    repository_path,
+    require_mapping as _require_mapping,
+    require_string as _require_string,
+    require_string_list as _require_string_list,
+    schema_errors,
+    sha256_hex,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_PATH = Path("docs/adr/adr-profile.yaml")
 PROFILE_VERSION = "0.1.0"
-BODY_BOUNDARY = re.compile(br"(?m)^## Context(?: |$)")
 RELATION_TYPES = ("clarifies", "amends", "supersedes", "confirms")
 ANNOTATED_TRACE_ENTRY_START = re.compile(
     r"(?m)^\s*(?P<ordinal>\d+)\.\s+\[(?P<id>ADR-(?P<number>[0-9]{3})):"
@@ -29,156 +41,6 @@ ANNOTATED_TRACE_ENTRY_HEADER = re.compile(
 )
 ANNOTATED_TRACE_STATUS = re.compile(r"\s*—\s*\*\*([^*]+)\*\*")
 MARKDOWN_LINK_DEFINITION = re.compile(r"(?m)^\s*\[([^\]]+)\]:\s*(\S+)\s*$")
-
-
-class AdrMetadataError(ValueError):
-    pass
-
-
-def load_yaml(path: Path) -> Any:
-    try:
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, yaml.YAMLError) as error:
-        raise AdrMetadataError(f"cannot read YAML {path}: {error}") from error
-
-
-def load_json(path: Path) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise AdrMetadataError(f"cannot read JSON {path}: {error}") from error
-
-
-def sha256_hex(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def decision_body_bytes(data: bytes) -> bytes:
-    if data.startswith(b"\xef\xbb\xbf"):
-        raise AdrMetadataError("UTF-8 BOM is forbidden")
-    if b"\r" in data:
-        raise AdrMetadataError("CRLF or bare CR is forbidden; ADRs must use LF")
-    try:
-        data.decode("utf-8")
-    except UnicodeDecodeError as error:
-        raise AdrMetadataError(f"ADR is not valid UTF-8: {error}") from error
-
-    boundaries = list(BODY_BOUNDARY.finditer(data))
-    if len(boundaries) != 1:
-        raise AdrMetadataError(
-            "ADR must contain exactly one line beginning with '## Context'"
-        )
-    return data[boundaries[0].start() :]
-
-
-def preserved_payload_bytes(data: bytes) -> bytes:
-    decision_body_bytes(data)
-    headings = list(re.finditer(br"(?m)^# .+$", data))
-    if len(headings) != 1:
-        raise AdrMetadataError("ADR must contain exactly one H1 heading")
-    return data[headings[0].start() :]
-
-
-def parse_adr(path: Path) -> tuple[dict[str, Any], bytes]:
-    try:
-        data = path.read_bytes()
-    except OSError as error:
-        raise AdrMetadataError(f"cannot read {path}: {error}") from error
-    body = decision_body_bytes(data)
-    if not data.startswith(b"---\n"):
-        raise AdrMetadataError("ADR has no YAML frontmatter")
-
-    closing = data.find(b"\n---\n", 4)
-    if closing < 0:
-        raise AdrMetadataError("ADR frontmatter has no closing delimiter")
-    try:
-        metadata = yaml.safe_load(data[4:closing].decode("utf-8"))
-    except (UnicodeDecodeError, yaml.YAMLError) as error:
-        raise AdrMetadataError(f"invalid ADR frontmatter: {error}") from error
-    if not isinstance(metadata, dict):
-        raise AdrMetadataError("ADR frontmatter must be a mapping")
-    return metadata, body
-
-
-def _compile_schema_validators(
-    base_schema: dict[str, Any],
-    overlay_schema: dict[str, Any],
-) -> tuple[tuple[str, Any, str | None], ...]:
-    validators: list[tuple[str, Any, str | None]] = []
-    checker = FormatChecker()
-    for label, schema in (("base", base_schema), ("overlay", overlay_schema)):
-        try:
-            Draft202012Validator.check_schema(schema)
-            validator = Draft202012Validator(schema, format_checker=checker)
-        except SchemaError as error:
-            validators.append(
-                (label, None, f"{label} schema is invalid: {error.message}")
-            )
-            continue
-        validators.append((label, validator, None))
-    return tuple(validators)
-
-
-def _schema_errors_with_validators(
-    metadata: dict[str, Any],
-    validators: tuple[tuple[str, Any, str | None], ...],
-) -> list[str]:
-    errors: list[str] = []
-    for label, validator, schema_error in validators:
-        if schema_error is not None:
-            errors.append(schema_error)
-            continue
-        assert validator is not None
-        for error in sorted(
-            validator.iter_errors(metadata),
-            key=lambda item: item.json_path,
-        ):
-            errors.append(f"{label} schema {error.json_path}: {error.message}")
-    return errors
-
-
-def schema_errors(
-    metadata: dict[str, Any],
-    base_schema: dict[str, Any],
-    overlay_schema: dict[str, Any],
-) -> list[str]:
-    validators = _compile_schema_validators(base_schema, overlay_schema)
-    return _schema_errors_with_validators(metadata, validators)
-
-
-def repository_path(root: Path, relative: Any) -> Path:
-    if not isinstance(relative, str) or not relative:
-        raise AdrMetadataError("repository path must be a non-empty string")
-    candidate = Path(relative)
-    if candidate.is_absolute():
-        raise AdrMetadataError(f"repository path must be relative: {relative}")
-    resolved_root = root.resolve()
-    resolved = (resolved_root / candidate).resolve()
-    if not resolved.is_relative_to(resolved_root):
-        raise AdrMetadataError(f"repository path escapes root: {relative}")
-    return resolved
-
-
-def _require_mapping(value: Any, label: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise AdrMetadataError(f"{label} must be a mapping")
-    return value
-
-
-def _require_string(value: Any, label: str) -> str:
-    if not isinstance(value, str) or not value:
-        raise AdrMetadataError(f"{label} must be a non-empty string")
-    return value
-
-
-def _require_string_list(value: Any, label: str) -> list[str]:
-    if not isinstance(value, list) or any(
-        not isinstance(item, str) or not item for item in value
-    ):
-        raise AdrMetadataError(f"{label} must be a list of non-empty strings")
-    if len(value) != len(set(value)):
-        raise AdrMetadataError(f"{label} contains duplicates")
-    return value
 
 
 def load_profile(root: Path) -> dict[str, Any]:
@@ -280,14 +142,6 @@ def load_profile(root: Path) -> dict[str, Any]:
     _require_string(commands.get("check"), "commands.check")
     _require_string(commands.get("render"), "commands.render")
     return profile
-
-
-def _h1(data: bytes) -> str:
-    text = data.decode("utf-8")
-    headings = re.findall(r"(?m)^# (.+)$", text)
-    if len(headings) != 1:
-        raise AdrMetadataError("ADR must contain exactly one H1 heading")
-    return headings[0]
 
 
 def _derived_identity(
@@ -623,7 +477,6 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
         return [str(error)]
 
     base_schema, overlay_schema, schema_load_errors = _load_schemas(root, profile)
-    compiled_schema_validators = None
     errors.extend(schema_load_errors)
     repository = profile["repository"]
     try:
@@ -704,15 +557,7 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
             continue
         record["metadata"] = metadata
         record["body"] = parsed_body
-        if compiled_schema_validators is None:
-            compiled_schema_validators = _compile_schema_validators(
-                base_schema,
-                overlay_schema,
-            )
-        for error in _schema_errors_with_validators(
-            metadata,
-            compiled_schema_validators,
-        ):
+        for error in schema_errors(metadata, base_schema, overlay_schema):
             errors.append(f"{prefix}: {error}")
 
         metadata_id = metadata.get("id")
@@ -769,15 +614,13 @@ def collect_errors(root: Path, *, check_generated: bool = True) -> list[str]:
             targets = relations.get(relation_type)
             if not isinstance(targets, list):
                 continue
-            for target in targets:
-                if target == adr_id:
-                    errors.append(
-                        f"{record['relative_path']}: {relation_type} cannot reference itself"
-                    )
-                elif target not in all_ids:
-                    errors.append(
-                        f"{record['relative_path']}: {relation_type} references missing {target}"
-                    )
+            for relation_error in relation_target_errors(
+                source_id=adr_id,
+                relation_type=relation_type,
+                targets=targets,
+                known_ids=all_ids,
+            ):
+                errors.append(f"{record['relative_path']}: {relation_error}")
 
     errors.extend(_migration_evidence_errors(root, profile, records_by_id))
     errors.extend(_annotated_history_errors(root, profile, records_by_id))
