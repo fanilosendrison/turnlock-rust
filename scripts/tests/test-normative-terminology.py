@@ -9,7 +9,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
+from proto_ring import normative_terminology as shared_terminology
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -132,8 +134,76 @@ class NormativeTerminologyTests(unittest.TestCase):
     def test_repository_conforms(self) -> None:
         self.assertEqual([], checker.check_paths())
 
+    def test_shared_engine_is_bound_to_exact_executable_provider(self) -> None:
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        self.assertIn(
+            "proto-ring.git@b806791f15dd107c54f6c43bf111f5fca1f9d831",
+            requirements,
+        )
+        binding = (
+            ROOT
+            / "docs"
+            / "repository-governance"
+            / "turnlock-rust-shared-governance-provider.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("974ca31ff12630a90da6371cc27c1f5ef0cc590e", binding)
+        self.assertNotIn("b806791f15dd107c54f6c43bf111f5fca1f9d831", binding)
+
+    def test_generic_types_and_operations_delegate_to_shared_engine(self) -> None:
+        self.assertIs(checker.RegistryEntry, shared_terminology.RegistryEntry)
+        self.assertIs(checker.Block, shared_terminology.MarkdownBlock)
+        self.assertIs(checker.Occurrence, shared_terminology.Occurrence)
+
+        with (
+            mock.patch.object(
+                shared_terminology,
+                "parse_registry",
+                wraps=shared_terminology.parse_registry,
+            ) as parse_registry,
+            mock.patch.object(
+                shared_terminology,
+                "discover_occurrences",
+                wraps=shared_terminology.discover_occurrences,
+            ) as discover_occurrences,
+            mock.patch.object(
+                shared_terminology,
+                "reconcile_inventory",
+                wraps=shared_terminology.reconcile_inventory,
+            ) as reconcile_inventory,
+        ):
+            self.assertEqual([], checker.check_document(SPEC, GOLDEN_INVENTORY))
+
+        parse_registry.assert_called()
+        discover_occurrences.assert_called()
+        reconcile_inventory.assert_called_once()
+
     def test_fixture_conforms_with_intent_obligation_and_implication_uses(self) -> None:
         self.assertEqual([], checker.check_document(SPEC, GOLDEN_INVENTORY))
+
+    def test_canonical_location_does_not_treat_section_twenty_as_section_two(self) -> None:
+        changed = SPEC.replace("## 2.1 Alpha", "## 20.1 Alpha")
+        entries, registry_errors = checker.parse_registry(changed)
+        self.assertEqual([], registry_errors)
+        _occurrences, errors = checker.discover_occurrences(changed, entries)
+        self.assertTrue(any("outside Section 2" in error for error in errors), errors)
+
+    def test_role_mapping_uses_exact_section_hierarchies(self) -> None:
+        expected = {
+            "0.1": "intent",
+            "3.1": "obligation",
+            "5.1": "implication",
+            "8.1": "synopsis",
+            "20": "reference",
+            "30": "reference",
+            "50": "reference",
+            "80": "reference",
+        }
+        for section, role in expected.items():
+            with self.subTest(section=section):
+                occurrence = checker.Occurrence(
+                    ("alpha",), section, f"{section} Heading", "0" * 64, 1, False
+                )
+                self.assertEqual(role, checker.occurrence_record(occurrence)["role"])
 
     def test_registry_requires_a_valid_gfm_separator(self) -> None:
         separator = "| ----------- | -------------- | ---------------- | ---------------- | ------------------ | -------------- |\n"
