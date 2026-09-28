@@ -118,6 +118,13 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 ],
             ),
             (
+                "Authoritative Ref Monotonicity effective rules",
+                [
+                    sys.executable,
+                    "scripts/check-authoritative-ref-monotonicity.py",
+                ],
+            ),
+            (
                 "Normative terminology check",
                 [sys.executable, "scripts/check-normative-terminology.py"],
             ),
@@ -163,8 +170,14 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         for obligation in profile.obligations:
+            expected = (
+                frozenset({2})
+                if obligation.name
+                == "Authoritative Ref Monotonicity effective rules"
+                else frozenset()
+            )
             self.assertEqual(
-                frozenset(),
+                expected,
                 obligation.undetermined_exit_codes,
             )
 
@@ -174,7 +187,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@72e6e9615703e4d3293175f023d1d953632c45a8",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@c298343efa07d71790b53493ff15494f2fcac671",
             requirements.splitlines(),
         )
 
