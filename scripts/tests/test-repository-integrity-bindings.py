@@ -5,6 +5,8 @@ import importlib
 import sys
 import unittest
 
+import yaml
+
 fixture = importlib.import_module("repository-integrity-test-fixture")
 ROOT = fixture.ROOT
 checker = fixture.checker
@@ -180,6 +182,37 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
             "proto-ring.git@5b0d3a3493e01a4b9569ded7665d7a44a444bf35",
             requirements,
         )
+
+    def test_authoritative_ref_monotonicity_binding(self) -> None:
+        binding = (
+            ROOT
+            / "docs/repository-governance/turnlock-rust-authoritative-ref-monotonicity.md"
+        ).read_text(encoding="utf-8")
+        _prefix, frontmatter, _body = binding.split("---", 2)
+        metadata = yaml.safe_load(frontmatter)
+        configuration = metadata["authoritative_ref_monotonicity"]
+
+        self.assertEqual(
+            {
+                "repository": "fanilosendrison/proto-ring",
+                "commit": "650a481b7dfa7c4d3671bd053c63642a5dab1087",
+                "path": "docs/contracts/authoritative-ref-monotonicity.md",
+            },
+            configuration["contract"],
+        )
+        self.assertEqual(
+            {
+                "provider": "github",
+                "owner": "fanilosendrison",
+                "name": "turnlock-rust",
+            },
+            configuration["repository"],
+        )
+        self.assertEqual("refs/heads/main", configuration["authoritative_ref"])
+        protection = configuration["protection"]
+        self.assertEqual("github-repository-ruleset", protection["mechanism"])
+        self.assertIs(type(protection["ruleset_id"]), int)
+        self.assertGreater(protection["ruleset_id"], 0)
 
 
 if __name__ == "__main__":
