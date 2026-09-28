@@ -15,6 +15,10 @@ from proto_ring.repository_integrity import (
 
 ROOT = Path(__file__).resolve().parents[1]
 
+UNDETERMINED_EXIT_CODES_BY_STEP = {
+    "Authoritative Ref Monotonicity effective rules": frozenset({2}),
+}
+
 
 def canonical_steps() -> list[tuple[str, list[str]]]:
     python = sys.executable
@@ -92,6 +96,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             ],
         ),
         (
+            "Authoritative Ref Monotonicity effective rules",
+            [python, "scripts/check-authoritative-ref-monotonicity.py"],
+        ),
+        (
             "Normative terminology check",
             [python, "scripts/check-normative-terminology.py"],
         ),
@@ -114,6 +122,10 @@ def _integrity_profile(
             CommandObligation(
                 name=name,
                 argv=tuple(argv),
+                undetermined_exit_codes=UNDETERMINED_EXIT_CODES_BY_STEP.get(
+                    name,
+                    frozenset(),
+                ),
             )
             for name, argv in steps
         ),
