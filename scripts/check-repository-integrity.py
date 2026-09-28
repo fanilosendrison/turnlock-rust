@@ -161,6 +161,18 @@ def run_validation(
         return errors, failed_steps
 
     for obligation in result.obligations:
+        if obligation.status is ObligationStatus.UNDETERMINED:
+            detail = (
+                f": {obligation.detail}"
+                if obligation.detail
+                else ""
+            )
+            errors.append(
+                "validation step undetermined: "
+                f"{obligation.name}{detail}"
+            )
+            continue
+
         if obligation.returncode is not None and obligation.returncode != 0:
             failed_steps.append(
                 (
@@ -172,18 +184,6 @@ def run_validation(
                 "validation step failed: "
                 f"{obligation.name} "
                 f"(exit {obligation.returncode})"
-            )
-            continue
-
-        if obligation.status is ObligationStatus.UNDETERMINED:
-            detail = (
-                f": {obligation.detail}"
-                if obligation.detail
-                else ""
-            )
-            errors.append(
-                "validation step undetermined: "
-                f"{obligation.name}{detail}"
             )
 
     if any(
