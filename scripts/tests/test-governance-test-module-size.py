@@ -71,6 +71,7 @@ EXPECTED_LEGACY_TEST_IDENTITIES = (
     "RepositoryIntegrityBindingTests.test_cli_preserves_child_stdout_and_stderr",
     "RepositoryIntegrityBindingTests.test_whitespace_checker_is_non_mutating_under_shared_binding",
     "RepositoryIntegrityBindingTests.test_requirements_pin_exact_current_provider",
+    "RepositoryIntegrityBindingTests.test_authoritative_ref_monotonicity_binding",
 )
 
 
@@ -101,7 +102,7 @@ class GovernanceTestModuleSizeTests(unittest.TestCase):
             Counter(EXPECTED_LEGACY_TEST_IDENTITIES),
             Counter(observed),
         )
-        self.assertEqual(37, len(observed))
+        self.assertEqual(38, len(observed))
 
         for relative in REPLACEMENT_SOURCE_MODULES:
             with self.subTest(source=relative):
