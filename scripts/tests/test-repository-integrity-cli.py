@@ -74,6 +74,37 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
             self.assertIn("exit 7", combined)
             self.assertIn("repository integrity: FAILED", combined)
 
+    def test_cli_preserves_undetermined_diagnostic_and_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_runner_fixture(
+                temporary,
+                child_sources={
+                    "scripts/check-authoritative-ref-monotonicity.py":
+                        "raise SystemExit(2)\n",
+                },
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/check-repository-integrity.py",
+                ],
+                cwd=fixture,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            combined = result.stdout + result.stderr
+            name = "Authoritative Ref Monotonicity effective rules"
+            self.assertEqual(1, result.returncode)
+            self.assertIn(
+                f"validation step undetermined: {name}: command exited with 2",
+                combined,
+            )
+            self.assertNotIn(f"validation step failed: {name}", combined)
+            self.assertIn("repository integrity: FAILED", combined)
+
     def test_cli_preserves_child_stdout_and_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = make_runner_fixture(

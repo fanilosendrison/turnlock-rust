@@ -62,6 +62,7 @@ EXPECTED_LEGACY_TEST_IDENTITIES = (
     "RepositoryIntegrityBindingTests.test_shared_profile_preserves_membership_order_and_continuation",
     "RepositoryIntegrityBindingTests.test_non_mutating_pass_maps_to_no_local_error",
     "RepositoryIntegrityBindingTests.test_multiple_non_mutating_failures_are_both_reported",
+    "RepositoryIntegrityBindingTests.test_undetermined_exit_is_not_reported_as_failed",
     "RepositoryIntegrityBindingTests.test_pre_existing_dirty_state_remains_admissible",
     "RepositoryIntegrityBindingTests.test_already_dirty_tracked_mutation_is_rejected_by_local_binding",
     "RepositoryIntegrityBindingTests.test_already_present_untracked_mutation_is_rejected_by_local_binding",
@@ -69,6 +70,7 @@ EXPECTED_LEGACY_TEST_IDENTITIES = (
     "RepositoryIntegrityBindingTests.test_failure_and_mutation_are_both_reported",
     "RepositoryIntegrityBindingTests.test_cli_returns_zero_when_all_canonical_children_pass",
     "RepositoryIntegrityBindingTests.test_cli_returns_nonzero_when_canonical_child_fails",
+    "RepositoryIntegrityBindingTests.test_cli_preserves_undetermined_diagnostic_and_fails_closed",
     "RepositoryIntegrityBindingTests.test_cli_preserves_child_stdout_and_stderr",
     "RepositoryIntegrityBindingTests.test_whitespace_checker_is_non_mutating_under_shared_binding",
     "RepositoryIntegrityBindingTests.test_requirements_pin_exact_current_provider",
@@ -103,7 +105,7 @@ class GovernanceTestModuleSizeTests(unittest.TestCase):
             Counter(EXPECTED_LEGACY_TEST_IDENTITIES),
             Counter(observed),
         )
-        self.assertEqual(38, len(observed))
+        self.assertEqual(40, len(observed))
 
         for relative in REPLACEMENT_SOURCE_MODULES:
             with self.subTest(source=relative):

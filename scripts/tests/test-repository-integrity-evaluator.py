@@ -60,6 +60,35 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 errors,
             )
 
+    def test_undetermined_exit_is_not_reported_as_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = make_committed_git_fixture(temporary)
+
+            errors, failed = checker.run_validation(
+                fixture,
+                [
+                    (
+                        "Authoritative Ref Monotonicity effective rules",
+                        python_command("raise SystemExit(2)"),
+                    )
+                ],
+            )
+
+            self.assertEqual([], failed)
+            self.assertEqual(
+                [
+                    "validation step undetermined: "
+                    "Authoritative Ref Monotonicity effective rules: "
+                    "command exited with 2"
+                ],
+                errors,
+            )
+            self.assertNotIn(
+                "validation step failed: "
+                "Authoritative Ref Monotonicity effective rules",
+                "\n".join(errors),
+            )
+
     def test_pre_existing_dirty_state_remains_admissible(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = make_committed_git_fixture(temporary)
