@@ -14,6 +14,12 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
+from proto_ring.exact_evidence_binding import (
+    BindingStatus,
+    EvidenceBinding,
+    EvidenceRequirement,
+    evaluate as evaluate_evidence_binding,
+)
 
 def _yaml_parser_state_value(
     value: object,
@@ -2777,6 +2783,52 @@ def _challenge_output_objections(root: Path, reference: object) -> list | None:
     return _sequence(output.get("objections"))
 
 
+def _gate_a_binding_status(
+    *,
+    current_subject: dict | None,
+    current_bundle_sha256: object,
+    record: dict,
+    gate_a_subject: dict,
+    context_required: bool,
+) -> BindingStatus:
+    requirement = EvidenceRequirement(
+        admitted_classes=frozenset({GATE_A_REVIEW_CLASS}),
+        subject_identity=(
+            _canonical_json_bytes(current_subject)
+            if isinstance(current_subject, dict)
+            else None
+        ),
+        context_required=context_required,
+        context_identity=(
+            current_bundle_sha256.encode("utf-8")
+            if context_required
+            and isinstance(current_bundle_sha256, str)
+            and current_bundle_sha256
+            else None
+        ),
+    )
+    record_review_class = record.get("review_class")
+    record_bundle_sha256 = _mapping(
+        _mapping(record.get("protocol")).get("protocol_bundle")
+    ).get("sha256")
+    evidence = EvidenceBinding(
+        evidence_class=(
+            record_review_class
+            if isinstance(record_review_class, str)
+            else None
+        ),
+        subject_identity=_canonical_json_bytes(gate_a_subject),
+        context_identity=(
+            record_bundle_sha256.encode("utf-8")
+            if context_required
+            and isinstance(record_bundle_sha256, str)
+            and record_bundle_sha256
+            else None
+        ),
+    )
+    return evaluate_evidence_binding(requirement, evidence)
+
+
 def derive_gate_a(
     root: Path,
     manifest: dict,
@@ -2793,17 +2845,26 @@ def derive_gate_a(
     current: list[dict] = []
     stale: list[dict] = []
     for _path, record in records:
-        if record.get("review_class") != GATE_A_REVIEW_CLASS:
-            continue
         gate_a_subjects = _gate_a_derived_subjects(record.get("subjects"))
         if len(gate_a_subjects) != 1:
             continue
-        if current_subject is None or gate_a_subjects[0] != current_subject:
+        subject_binding = _gate_a_binding_status(
+            current_subject=current_subject,
+            current_bundle_sha256=current_bundle_sha256,
+            record=record,
+            gate_a_subject=gate_a_subjects[0],
+            context_required=False,
+        )
+        if subject_binding is not BindingStatus.MATCH:
             continue
-        bundle_sha256 = _mapping(
-            _mapping(record.get("protocol")).get("protocol_bundle")
-        ).get("sha256")
-        if isinstance(current_bundle_sha256, str) and bundle_sha256 == current_bundle_sha256:
+        current_binding = _gate_a_binding_status(
+            current_subject=current_subject,
+            current_bundle_sha256=current_bundle_sha256,
+            record=record,
+            gate_a_subject=gate_a_subjects[0],
+            context_required=True,
+        )
+        if current_binding is BindingStatus.MATCH:
             current.append(record)
         else:
             stale.append(record)
