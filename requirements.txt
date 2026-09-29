@@ -1,3 +1,3 @@
 jsonschema==4.25.1
 PyYAML==6.0.2
-proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@c298343efa07d71790b53493ff15494f2fcac671
+proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@3bddcd4b49147f022466fdeb4acbf590e68890ce
