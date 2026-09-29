@@ -48,6 +48,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             [python, "scripts/tests/test-formal-traceability.py"],
         ),
         (
+            "Exact Evidence Binding tests",
+            [python, "scripts/tests/test-exact-evidence-binding.py"],
+        ),
+        (
             "Normative terminology tests",
             [python, "scripts/tests/test-normative-terminology.py"],
         ),

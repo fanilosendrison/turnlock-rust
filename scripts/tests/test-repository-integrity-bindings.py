@@ -55,6 +55,10 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 [sys.executable, "scripts/tests/test-formal-traceability.py"],
             ),
             (
+                "Exact Evidence Binding tests",
+                [sys.executable, "scripts/tests/test-exact-evidence-binding.py"],
+            ),
+            (
                 "Normative terminology tests",
                 [sys.executable, "scripts/tests/test-normative-terminology.py"],
             ),
@@ -187,7 +191,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@c298343efa07d71790b53493ff15494f2fcac671",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@3bddcd4b49147f022466fdeb4acbf590e68890ce",
             requirements.splitlines(),
         )
 
