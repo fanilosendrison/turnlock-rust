@@ -18,7 +18,8 @@ from proto_ring.exact_evidence_binding import (
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKER_PATH = ROOT / "scripts" / "check-formal-traceability.py"
-PROVIDER_COMMIT = "3bddcd4b49147f022466fdeb4acbf590e68890ce"
+EXECUTABLE_PROVIDER_COMMIT = "870a805265b423bcf08d3d377274a7e55742b878"
+EXACT_EVIDENCE_CONTRACT_COMMIT = "3bddcd4b49147f022466fdeb4acbf590e68890ce"
 CONTRACT_PATH = (
     ROOT
     / "docs"
@@ -67,7 +68,7 @@ class ExactEvidenceBindingTests(unittest.TestCase):
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
             "proto-ring @ git+https://github.com/fanilosendrison/"
-            f"proto-ring.git@{PROVIDER_COMMIT}",
+            f"proto-ring.git@{EXECUTABLE_PROVIDER_COMMIT}",
             requirements.splitlines(),
         )
 
@@ -78,7 +79,7 @@ class ExactEvidenceBindingTests(unittest.TestCase):
         self.assertEqual(
             {
                 "repository": "fanilosendrison/proto-ring",
-                "commit": PROVIDER_COMMIT,
+                "commit": EXACT_EVIDENCE_CONTRACT_COMMIT,
                 "path": "docs/contracts/exact-evidence-binding.md",
             },
             metadata["exact_evidence_binding"]["contract"],
