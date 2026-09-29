@@ -109,6 +109,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   binds Turnlock-Rust to the immutable proto-ring provider-selection contract
   for generic repository governance while keeping Turnlock-specific authority
   local.
+- [Exact Evidence Binding](docs/repository-governance/turnlock-rust-exact-evidence-binding.md)
+  is the local consumer binding to proto-ring Exact Evidence Binding.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, canonical terminology, promises, invariants, boundaries, and
   architectural implications.

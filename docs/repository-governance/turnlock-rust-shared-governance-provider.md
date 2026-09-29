@@ -69,6 +69,9 @@ Projection Integrity retains its own binding and its own immutable
 contract-authority pin in
 `docs/repository-governance/turnlock-rust-projection-integrity.md`.
 
+Exact Evidence Binding retains its own contract pin in
+`docs/repository-governance/turnlock-rust-exact-evidence-binding.md`.
+
 The `proto-ring` package in `requirements.txt` retains its own
 executable-provider pin.
 

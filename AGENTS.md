@@ -622,6 +622,8 @@ change.
   `docs/repository-governance/turnlock-rust-projection-integrity.md`
 - Shared Governance Provider binding:
   `docs/repository-governance/turnlock-rust-shared-governance-provider.md`
+- Exact Evidence Binding:
+  `docs/repository-governance/turnlock-rust-exact-evidence-binding.md`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`
 - Worktree management policy:
