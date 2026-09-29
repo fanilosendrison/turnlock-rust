@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 import shutil
 import tempfile
 import unittest
 
 from proto_ring import adr_metadata as shared_adr_metadata
 from proto_ring import canonical_adr as shared_canonical_adr
+from proto_ring import governance_bootstrap as shared_governance_bootstrap
 
 fixture = importlib.import_module("adr-metadata-test-fixture")
 ROOT = fixture.ROOT
@@ -21,7 +23,7 @@ class AdrMetadataTests(unittest.TestCase):
     def test_shared_primitives_are_bound_to_pinned_provider(self) -> None:
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
-            "proto-ring.git@3bddcd4b49147f022466fdeb4acbf590e68890ce",
+            "proto-ring.git@870a805265b423bcf08d3d377274a7e55742b878",
             requirements,
         )
         bindings = {
@@ -40,6 +42,55 @@ class AdrMetadataTests(unittest.TestCase):
                 self.assertIs(getattr(adr_metadata, name), shared)
 
     def test_profile_path_resolution_delegates_to_shared_provider(self) -> None:
+        bootstrap = shared_governance_bootstrap.load(ROOT)
+        self.assertEqual(
+            "docs/adr/adr-profile.yaml",
+            bootstrap.repository_governance["architecture_decisions"][
+                "profile_path"
+            ],
+        )
+        self.assertEqual(
+            {
+                "required": True,
+                "binding_path": (
+                    "docs/repository-governance/"
+                    "turnlock-rust-shared-governance-provider.md"
+                ),
+            },
+            bootstrap.repository_governance["shared_governance_provider"],
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary)
+            (repository / "AGENTS.md").write_text(
+                "---\n"
+                "repository_governance:\n"
+                "  architecture_decisions:\n"
+                '    profile_path: "docs/adr/adr-profile.yaml"\n'
+                "  shared_governance_provider:\n"
+                "    required: true\n"
+                '    binding_path: "binding.md"\n'
+                "---\n"
+                "# Directives\n\n"
+                "repository_governance:\n"
+                "  fake: true\n",
+                encoding="utf-8",
+            )
+            fixture_bootstrap = shared_governance_bootstrap.load(repository)
+        self.assertEqual(
+            {
+                "architecture_decisions": {
+                    "profile_path": "docs/adr/adr-profile.yaml"
+                },
+                "shared_governance_provider": {
+                    "required": True,
+                    "binding_path": "binding.md",
+                },
+            },
+            fixture_bootstrap.repository_governance,
+        )
+        self.assertNotIn("fake", fixture_bootstrap.repository_governance)
+
         self.assertIs(
             adr_metadata.configured_profile_path,
             shared_canonical_adr.configured_profile_path,
