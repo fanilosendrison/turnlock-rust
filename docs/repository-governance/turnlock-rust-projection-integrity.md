@@ -80,7 +80,7 @@ repository filesystem and Git tree
 accepted ADRs and other declared repository authority
     → own accepted implementation and architecture commitments
 
-AGENTS.md frontmatter.repository_governance.architecture_decisions.profile_path
+AGENTS.md frontmatter.repository_governance.capabilities.architecture_decisions.routes.profile
     → owns repository-operational routing to the canonical ADR profile
 
 docs/adr/adr-profile.yaml
@@ -94,7 +94,7 @@ docs/repository-governance/turnlock-rust-shared-governance-provider.md
     → mechanically validated projection of ADR-051 for mandatory adoption and
       Shared Governance Provider contract identity
 
-AGENTS.md frontmatter.repository_governance.shared_governance_provider
+AGENTS.md frontmatter.repository_governance.capabilities.shared_governance_provider.routes.binding
     → owns repository-operational routing to the local Shared Governance
       Provider binding
 
