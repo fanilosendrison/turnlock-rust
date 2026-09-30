@@ -122,6 +122,13 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 ],
             ),
             (
+                "Governance Authority profile",
+                [
+                    sys.executable,
+                    "scripts/check-governance-authority.py",
+                ],
+            ),
+            (
                 "Authoritative Ref Monotonicity effective rules",
                 [
                     sys.executable,
@@ -191,7 +198,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@07fa4e96dc2f762e5fbc99a8a3ffc820d5336b93",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@305d968c50db17cce43199ae3fa78d64da2aabdb",
             requirements.splitlines(),
         )
 
