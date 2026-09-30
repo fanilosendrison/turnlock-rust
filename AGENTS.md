@@ -22,6 +22,10 @@ repository_governance:
         required: true
       routes:
         binding: "docs/repository-governance/turnlock-rust-shared-governance-provider.md"
+    governance_authority:
+      configuration: {}
+      routes:
+        profile: "docs/repository-governance/turnlock-rust-governance-authority.md"
 ---
 
 # Turnlock-Rust repository directives
@@ -61,6 +65,10 @@ parent permission, security, formatting, naming, or implementation rule.
   `docs/repository-governance/turnlock-rust-shared-governance-provider.md`.
 
 ## Authority by responsibility
+
+The routed governance-authority profile is the canonical machine-readable
+repository-governance mapping. This section is agent-facing explanation; it
+does not replace the underlying consumer authorities or the structured mapping.
 
 Use each source only for the responsibility it owns:
 

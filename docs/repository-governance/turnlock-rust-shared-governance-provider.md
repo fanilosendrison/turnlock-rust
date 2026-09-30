@@ -72,8 +72,13 @@ contract-authority pin in
 Exact Evidence Binding retains its own contract pin in
 `docs/repository-governance/turnlock-rust-exact-evidence-binding.md`.
 
+Governance Authority has its own immutable contract-authority pin in
+`turnlock-rust-governance-authority.md`.
+
 The `proto-ring` package in `requirements.txt` retains its own
-executable-provider pin.
+executable-provider pin. The Governance Authority contract pin and this
+executable-provider pin remain independent. Neither pin upgrades or determines
+the other.
 
 The Shared Governance Provider contract upgrades neither of those pins.
 
