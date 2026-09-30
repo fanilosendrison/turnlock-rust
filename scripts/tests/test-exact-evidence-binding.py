@@ -18,7 +18,7 @@ from proto_ring.exact_evidence_binding import (
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKER_PATH = ROOT / "scripts" / "check-formal-traceability.py"
-EXECUTABLE_PROVIDER_COMMIT = "870a805265b423bcf08d3d377274a7e55742b878"
+EXECUTABLE_PROVIDER_COMMIT = "07fa4e96dc2f762e5fbc99a8a3ffc820d5336b93"
 EXACT_EVIDENCE_CONTRACT_COMMIT = "3bddcd4b49147f022466fdeb4acbf590e68890ce"
 CONTRACT_PATH = (
     ROOT

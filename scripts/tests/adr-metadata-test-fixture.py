@@ -20,11 +20,35 @@ def write_repository_governance(fixture_root: Path) -> None:
     (fixture_root / "AGENTS.md").write_text(
         "---\n"
         "repository_governance:\n"
-        "  architecture_decisions:\n"
-        '    profile_path: "docs/adr/adr-profile.yaml"\n'
+        "  model_version: 1\n"
+        "  provider:\n"
+        '    id: "proto-ring"\n'
+        "    binding:\n"
+        '      capability: "shared_governance_provider"\n'
+        '      route: "binding"\n'
+        "  capabilities:\n"
+        "    architecture_decisions:\n"
+        "      configuration: {}\n"
+        "      routes:\n"
+        '        profile: "docs/adr/adr-profile.yaml"\n'
+        "    shared_governance_provider:\n"
+        "      configuration:\n"
+        "        required: true\n"
+        "      routes:\n"
+        '        binding: "docs/repository-governance/test-shared-governance-provider.md"\n'
         "---\n"
         "# Test repository directives\n",
         encoding="utf-8",
+    )
+    binding = (
+        fixture_root
+        / "docs"
+        / "repository-governance"
+        / "test-shared-governance-provider.md"
+    )
+    binding.parent.mkdir(parents=True, exist_ok=True)
+    binding.write_text(
+        "# Test Shared Governance Provider binding target\n", encoding="utf-8"
     )
 
 
