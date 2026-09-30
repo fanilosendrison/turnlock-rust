@@ -100,6 +100,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             ],
         ),
         (
+            "Governance Authority profile",
+            [python, "scripts/check-governance-authority.py"],
+        ),
+        (
             "Authoritative Ref Monotonicity effective rules",
             [python, "scripts/check-authoritative-ref-monotonicity.py"],
         ),
