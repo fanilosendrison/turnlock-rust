@@ -121,13 +121,21 @@ may otherwise coexist.
 
 ## Detached commits
 
-Create task commits directly on detached `HEAD`. The task worktree retains the
-detached commit chain before publication. Do not remove an unpublished task
-worktree merely because its `HEAD` is detached.
+Keep the task worktree on detached `HEAD`. The canonical installed
+`git-commits-push` targeted invocation is the sole supported task
+commit/publication mutator and may create one or more task commits directly on
+that detached `HEAD`.
+
+Do not create a temporary transport branch and do not use raw `git commit`,
+`git commit-tree`, or `git push`.
+
+If a targeted invocation creates task commits but publication does not complete,
+preserve the task worktree and its detached commit chain for reconciliation and
+retry. Do not remove the worktree merely because its `HEAD` is detached.
 
 ## Pre-publication synchronization
 
-Immediately before publication, fetch again:
+Immediately before targeted publication, fetch again:
 
 ```bash
 git -C <PERSISTENT_CHECKOUT> fetch origin
@@ -137,42 +145,124 @@ Let:
 
 ```text
 CURRENT_MAIN = origin/main
+TASK_HEAD = exact current task-worktree HEAD
 ```
 
 If `CURRENT_MAIN == TASK_BASE`, continue after final validation.
 
 If `CURRENT_MAIN != TASK_BASE`, re-evaluate the exact semantic, source, and blob
-guards specified by the task. When automatic continuation is authorized, replay
-only `TASK_BASE..HEAD` onto current `origin/main`. Create no merge commit unless
-separate authority explicitly requires one.
+guards specified by the task before changing the task worktree.
 
-If a conflict, authority change, source-guard failure, or ambiguity appears:
+If `TASK_HEAD == TASK_BASE`, no task commit exists yet. Move only the current
+detached task worktree to the exact current remote base:
+
+```bash
+git -C <TASK_WORKTREE> switch --detach <CURRENT_MAIN>
+```
+
+This operation may carry the task's uncommitted changes only when Git can do so
+without overwriting them. Never force the switch, stash task state, discard
+changes, or resolve a conflict automatically.
+
+After a successful switch require:
+
+```text
+HEAD == CURRENT_MAIN
+HEAD is detached
+the intended task changes are still present
+```
+
+If Git refuses the switch or the intended task changes cannot be proven
+preserved:
 
 ```text
 STOP
 preserve the task worktree
 ```
 
-After successful replay, set `TASK_BASE = CURRENT_MAIN`, then rerun complete
-task validation.
+If `TASK_HEAD != TASK_BASE`, task commits already exist. Require the task
+worktree to contain no additional tracked or untracked non-ignored changes and
+no active Git operation, then replay only the current task commit range onto the
+exact current remote base:
+
+```bash
+git -C <TASK_WORKTREE> rebase \
+  --onto <CURRENT_MAIN> \
+  <TASK_BASE> \
+  <TASK_HEAD>
+```
+
+Create no merge commit.
+
+If the rebase conflicts, an authority guard changes, or any ambiguity appears:
+
+```text
+STOP
+preserve the task worktree
+```
+
+After either successful reconciliation path, set:
+
+```text
+TASK_BASE = CURRENT_MAIN
+```
+
+Then re-evaluate all task guards and rerun complete repository validation before
+publication.
 
 ## Publication
 
-Require current `origin/main` to be an ancestor of task `HEAD`.
+Require current `origin/main` to be ancestor-or-equal to the task worktree's
+current `HEAD`.
 
-Publish only:
+Publish and create any still-uncommitted task commits only through the canonical
+installed `git-commits-push` targeted mode:
 
 ```bash
-git push origin HEAD:refs/heads/main
+"$HOME/.local/bin/git-commits-push" \
+  --repository "/absolute/path/to/exact-task-worktree" \
+  --push-remote origin \
+  --push-ref refs/heads/main
 ```
 
-Use an ordinary fast-forward push only. Never force-push `main`, use
-force-with-lease to rewrite `main`, delete `main`, or push another task's
-commit.
+At execution time, replace `/absolute/path/to/exact-task-worktree` with the
+concrete canonical absolute task-worktree path as a literal shell-quoted static
+argument. Do not pass a shell variable, command substitution, relative path, or
+placeholder to the executable.
 
-If another task advances `main` and publication is rejected, fetch again,
-re-evaluate the current task's guards, reconcile when permitted, rerun complete
-validation, and retry an ordinary fast-forward push.
+The targeted invocation owns the commit/publication mutation boundary. It must
+remain bound to exactly:
+
+```text
+repository = exact current task worktree
+remote = origin
+destination = refs/heads/main
+```
+
+Do not use raw `git commit`, `git commit-tree`, or `git push`. Do not create a
+temporary publication branch, configure an upstream, or persist
+`push.default`, `branch.*.remote`, or `branch.*.merge` to make publication
+possible.
+
+`git-commits-push` is responsible for freezing the explicit remote destination,
+creating the task commit or commits directly on detached `HEAD`, performing its
+exact-SHA fast-forward publication checks, and verifying the resulting remote
+destination.
+
+If the explicit destination moves and `git-commits-push` refuses stale
+publication, do not bypass it. Preserve the task worktree, fetch current
+`origin/main`, apply the pre-publication synchronization procedure above,
+re-evaluate the task guards, rerun complete validation, and retry the same
+targeted invocation.
+
+For any other publication failure:
+
+```text
+STOP
+preserve the task worktree
+```
+
+Never force-push `main` and never publish another task's commit.
 
 ## Post-publication proof and cleanup
 

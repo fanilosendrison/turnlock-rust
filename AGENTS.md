@@ -210,8 +210,13 @@ repository specializes that rule as follows:
 - Immediately before publication, refetch `origin/main`.
 - If `origin/main` advanced, reconcile only the current task, re-evaluate its
   semantic and source guards, and rerun complete validation.
-- Publish only with an ordinary fast-forward push of
-  `HEAD:refs/heads/main`.
+- Publish the task only through the canonical installed `git-commits-push`
+  targeted mode, bound to the exact absolute task-worktree path, remote
+  `origin`, and destination `refs/heads/main`.
+- The targeted invocation is the sole supported commit/publication mutator for
+  the detached task worktree. Do not use raw `git commit`, `git commit-tree`,
+  or `git push`; do not create a temporary transport branch; and do not persist
+  branch, upstream, or `push.default` configuration to make publication work.
 - Never force-push `main`.
 - After successful publication, prove the exact task `HEAD` is reachable from
   current `origin/main` before applying the global successful-worktree cleanup
