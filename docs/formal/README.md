@@ -310,6 +310,21 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   — deterministic snapshot reconstruction, unresolved-execution projection,
   retained-state integrity, and provenance-root materialization.
 
+M7 `repository-control` is construction-decomposed into M7-A materialization /
+candidate construction and M7-B publication / remote observation / recovery.
+
+The active M7-A Module Brief is
+[`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md).
+It owns repository inspection, exact baseline Git basis, publication-target
+identity resolution, canonical candidate materialization, exact RepairIntent
+patch application, Git tree projection, deterministic publication successor
+`T`, and the internal M7-A → M7-B successor boundary.
+
+It selects `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` as a required separate
+Dependency Contract before GREEN.
+
+Publication/remote/recovery behavior remains outside the M7-A brief.
+
 M8 `recovery-operator` is architecturally decomposed into two active Module
 Briefs:
 
