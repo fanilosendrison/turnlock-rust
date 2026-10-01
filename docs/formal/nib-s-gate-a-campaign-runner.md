@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.14"
+version: "7.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -297,8 +297,9 @@ candidate is append-only proof of consumption
 
 No product ADR is created.
 
-Version `6.0.14` synchronizes the M4 realization boundary with the approved
-Pi qualification result without changing TURNLOCK product semantics or
+Version `7.0.0` is a breaking construction-contract revision of version
+`6.0.14`. It synchronizes the M4 realization boundary with the approved Pi
+qualification result without changing TURNLOCK product semantics or
 hostile-review protocol semantics.
 
 M4 now consumes `@earendil-works/pi-ai@0.99.2` at Pi commit
@@ -315,8 +316,12 @@ one-provider-call and recovery/evidence contracts. It exposes provider-owned
 identity evidence without resolving the separate provider-reported
 resolved-identity-versus-alias question routed to Issue #47.
 
-This revision changes implementation-construction dependency selection only
-and creates no TURNLOCK product semantics.
+The selected external M4 dependency and construction runtime floor change the
+implementation boundary and minimum supported runtime. The downstream NIB-M
+consumers therefore consume this new System Brief version.
+
+This breaking construction revision changes implementation-construction
+dependency selection only and creates no TURNLOCK product semantics.
 
 No product ADR is created.
 
