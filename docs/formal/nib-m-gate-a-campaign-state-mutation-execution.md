@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "1.0.13"
+version: "1.0.14"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.13`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.14`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -1667,7 +1667,7 @@ maximum protocol-invalid replacement Executions = 1
 maximum consecutive PROVEN-NOT-EXECUTED replacement Executions = 2
 ```
 
-Provider/transport retries below one `llm-runtime` call do not count.
+Provider/transport retries below one Pi M4 adapter call do not count.
 
 Operator-authorized replacement does not create a protocol retry authorization
 but still counts against the absolute total of five Executions.
