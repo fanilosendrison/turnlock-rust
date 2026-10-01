@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "6.0.13"
+version: "6.0.14"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -297,6 +297,29 @@ candidate is append-only proof of consumption
 
 No product ADR is created.
 
+Version `6.0.14` synchronizes the M4 realization boundary with the approved
+Pi qualification result without changing TURNLOCK product semantics or
+hostile-review protocol semantics.
+
+M4 now consumes `@earendil-works/pi-ai@0.99.2` at Pi commit
+`005af57d88ee23b33778f343a9595b32e67ff788` through one explicit,
+campaign-owned adapter around public `Models.streamSimple(...)`. The adapter
+is the sole Pi execution boundary; `AgentSession`, Pi coding-agent/subagent
+loops, Codex CLI, Codex App Server, and other higher-level harness paths are
+not M4 execution paths.
+
+The construction runtime floor is Node.js `>= 22.19.0`.
+
+The adapter preserves the existing one-Execution/one-protocol-attempt/
+one-provider-call and recovery/evidence contracts. It exposes provider-owned
+identity evidence without resolving the separate provider-reported
+resolved-identity-versus-alias question routed to Issue #47.
+
+This revision changes implementation-construction dependency selection only
+and creates no TURNLOCK product semantics.
+
+No product ADR is created.
+
 ## 2. System objective
 
 Build one isolated TypeScript/Node assurance-tooling application that mechanically executes the accepted Gate A hostile-review protocol over exact candidate repository states, persists and recovers execution without fabricating external outcomes, applies only exact protocol-authorized repairs, starts a full new review campaign whenever a repair changes the semantic subject `S`, and publishes only an exact mechanically qualified candidate.
@@ -309,7 +332,7 @@ The selected implementation realization is:
 
 ```text
 language       = TypeScript
-runtime        = Node.js >= 20
+runtime        = Node.js >= 22.19.0
 module system  = ESM
 type checking  = strict TypeScript
 application    = isolated repository tool
@@ -317,13 +340,20 @@ application    = isolated repository tool
 
 Production TURNLOCK code must not depend on this TypeScript application merely because the runner is implemented in TypeScript.
 
-The runner consumes `llm-runtime` in-process through one campaign-owned adapter.
+The runner consumes `@earendil-works/pi-ai@0.99.2` in-process through one
+campaign-owned Pi M4 adapter. The selected Pi source identity is commit
+`005af57d88ee23b33778f343a9595b32e67ff788`.
+
+The adapter creates a fresh public `pi-ai` Context and invokes public
+`Models.streamSimple(...)` directly. It does not invoke `AgentSession`, a Pi
+coding-agent or subagent loop, Codex CLI, Codex App Server, or another
+higher-level harness execution path.
 
 The runner invokes existing Python validation authority out-of-process.
 
 The runner invokes Git/repository mechanisms through an explicit repository boundary.
 
-No artificial IPC layer is inserted between the runner and `llm-runtime`.
+No artificial IPC layer is inserted between the runner and the Pi M4 adapter.
 
 No Python validator logic is silently reimplemented in TypeScript.
 
@@ -587,7 +617,7 @@ hostile-review receipt hierarchy from ADR-049:
 cognitive WorkItem / logical hostile-review execution identity
 → zero or more runner Executions that reach the cognitive call boundary
 → one protocol attempt per such executed runner Execution
-→ one llm-runtime call per protocol attempt
+→ one Pi M4 adapter call per protocol attempt
 → provider/transport attempts internal to that call
 → after the first qualified attempt, one complete hostile-review receipt
   aggregates every ordered protocol attempt
@@ -599,7 +629,7 @@ receipt is assembled:
 ```text
 receipt.execution_id == WorkItemId
 receipt.attempts[*].attempt_id == the corresponding runner ExecutionId
-receipt.attempts[*].call_id == the exact llm-runtime call identity
+receipt.attempts[*].call_id == the exact Pi M4 adapter call identity
 ```
 
 The ordered receipt-attempt sequence follows the order of the corresponding
@@ -652,7 +682,7 @@ The runner must not treat any of the following as implicit authority:
 * absence of a finding;
 * a free-form `PASS`;
 * a repair synthesizer's assertion that its own repair is valid;
-* a result merely because `llm-runtime` returned successfully.
+* a result merely because the Pi M4 adapter returned successfully.
 
 A cognitive execution cannot be the sole authority that both proposes a semantic claim and certifies that claim as sufficient for progression.
 
@@ -847,8 +877,8 @@ It does not select unregistered reviewer profiles or models.
 Owns:
 
 * the `CognitiveExecutionPort`;
-* the sole direct import/use of `llm-runtime`;
-* mapping from cognitive WorkItem/Execution identity to ADR-049 receipt execution/attempt identity, `llm-runtime` call identity, and provider-attempt evidence;
+* the sole direct import/use of `@earendil-works/pi-ai`, through the explicit Pi M4 adapter;
+* mapping from cognitive WorkItem/Execution identity to ADR-049 receipt execution/attempt identity, Pi M4 adapter call identity, and provider-attempt evidence;
 * dispatch/cancellation integration;
 * raw result capture;
 * exact attempt artifacts and runtime metadata needed to preserve pre-receipt
@@ -857,7 +887,7 @@ Owns:
 
 It does not adjudicate semantic correctness.
 
-It does not retry outside the exact behavior authorized by the protocol and the `llm-runtime` Dependency Contract.
+It does not retry outside the exact behavior authorized by the protocol and the Pi M4 Dependency Contract.
 
 ### M5 — `assurance-ledger`
 
@@ -1979,8 +2009,8 @@ M1 never invents retry permission.
 
 M2 validates and consumes admitted retry authorization but never invents it.
 
-Provider/transport retries internal to one `llm-runtime` call are governed by
-the `llm-runtime` Dependency Contract and do not use
+Provider/transport retries internal to one Pi M4 adapter call are governed by
+the Pi M4 Dependency Contract and do not use
 `ExecutionRetryAuthorizationRef`.
 
 ## 16. Module boundary request/result types
@@ -2316,6 +2346,28 @@ type CognitiveExecutionCapture =
 
 For `kind = "uncertain"`, `value.terminalOutcome` may be non-null only when a terminal outcome has already been durably captured but the exact authoritative execution disposition still requires recovery reconciliation.
 
+The selected M4 realization is the explicit Pi M4 adapter around
+`Models.streamSimple(...)`. Its construction responsibilities are exactly:
+
+1. Construct a fresh public `pi-ai` Context and call
+   `Models.streamSimple(...)` directly; do not use `AgentSession` or a
+   coding-agent loop.
+2. Set transport, `maxRetries`, tool behavior, deferred behavior, and the
+   execution-owned `AbortSignal` explicitly rather than relying on defaults.
+3. Capture provider-owned request/response evidence through `fetch`,
+   `onPayload`, `onResponse`, and `onProviderStreamEvent` without rewriting the
+   semantic request.
+4. Bind provider response identity and effective model identity from
+   provider-owned events; do not substitute the requested `AssistantMessage.model`
+   or an unpopulated high-level `responseModel` field.
+5. Preserve the exact provider-semantic textual completion and the operational
+   M4 journal/recovery evidence before interpretation; never manufacture
+   provider truth from Pi normalization or absence of response.
+
+The adapter must not decide whether a provider-reported model identifier is a
+resolved identity or an unresolved alias. That remains the unresolved
+Product Semantics question tracked separately in Issue #47.
+
 M4 must execute only an `ArmedExecutionDispatchRef` produced after successful
 M2 Arm admission. It must not reconstruct a WorkItem, dispatch intent,
 dispatch evidence, or recovery identity from `ExecutionRef` alone.
@@ -2375,10 +2427,10 @@ No response, no receipt, timeout, cancellation, process interruption, missing
 provider material, or an otherwise negative lookup is sufficient by itself to
 prove cognitive non-execution.
 
-The exact M4 proof artifact schema, its mapping to the exact `llm-runtime` call
-identity, and the external facts sufficient to prove that the cognitive-call
-boundary was not crossed belong to the M4 NIB-M and the scoped `llm-runtime`
-Dependency Contract.
+The exact M4 proof artifact schema, its mapping to the exact Pi M4 adapter
+call identity, and the external facts sufficient to prove that the
+cognitive-call boundary was not crossed belong to the M4 NIB-M and the scoped
+Pi M4 Dependency Contract.
 
 M8 must not reimplement that M4/domain proof algorithm.
 
@@ -2411,9 +2463,9 @@ product derived from the accepted attempt classification. M4 and M5 never
 reimplement or override the Python classification.
 
 M4 may perform only dependency-internal provider/transport retries inside the
-same `llm-runtime` call when the Dependency Contract authorizes them. Those
-transport retries do not create runner Executions or hostile-review protocol
-attempts.
+same Pi M4 adapter call when the Pi M4 Dependency Contract authorizes them.
+Those transport retries do not create runner Executions or hostile-review
+protocol attempts.
 ```
 
 ### M5
@@ -4162,18 +4214,28 @@ qualification, publication qualification, or other progression-bearing
 admission for that prior Execution may silently re-enter authoritative campaign
 progression.
 
-## 21. `llm-runtime` boundary
+## 21. Pi M4 runtime boundary
 
-Only M4 imports `llm-runtime`.
+Only M4 imports `@earendil-works/pi-ai`, and only through the explicit
+campaign-owned Pi M4 adapter around public `Models.streamSimple(...)`.
 
 All other modules depend on M0 contracts and the M4 port.
 
-The future `llm-runtime` Dependency Contract must close at least:
+The selected dependency identity is:
+
+```text
+package = @earendil-works/pi-ai@0.99.2
+Pi source commit = 005af57d88ee23b33778f343a9595b32e67ff788
+public execution surface = Models.streamSimple(...)
+execution wrapper = explicit Pi M4 adapter
+```
+
+The scoped Pi M4 Dependency Contract must close at least:
 
 ```text
 cognitive WorkItem / hostile-review receipt execution identity
 → runner Execution / hostile-review receipt attempt identity
-→ llm-runtime call
+→ explicit Pi M4 adapter invocation of Models.streamSimple(...)
 → provider transport attempt(s)
 ```
 
@@ -4182,7 +4244,7 @@ For cognitive WorkItems, the construction binding is exact:
 ```text
 receipt.execution_id = WorkItemId
 receipt.attempts[*].attempt_id = corresponding ExecutionId
-receipt.attempts[*].call_id = exact llm-runtime call identity
+receipt.attempts[*].call_id = exact Pi M4 adapter call identity
 ```
 
 A runner-level protocol retry therefore creates a new `Execution` and, if a
@@ -4193,9 +4255,9 @@ A dependency-internal transport retry does not. Before qualification, the exact
 attempt remains GateARun operational history rather than an incomplete
 hostile-review receipt.
 
-and must define:
+The Pi M4 Dependency Contract must define:
 
-* call identity;
+* adapter call identity;
 * provider-attempt identity;
 * dispatch boundary;
 * internal retry behavior;
@@ -4206,7 +4268,8 @@ and must define:
 * recovery/reconciliation capability;
 * behavior when runner execution authority is revoked.
 
-A dependency capable of autonomous retry may not begin a new provider attempt after the owning caller's campaign execution authority has been revoked.
+The Pi M4 adapter may not begin a new provider attempt after the owning
+caller's campaign execution authority has been revoked.
 
 An already-dispatched provider attempt remains a reconciliation concern.
 
@@ -4730,7 +4793,7 @@ Secret values never enter:
 
 M4 receives provider credentials through an injected runtime credential boundary.
 
-The exact credential names/source integration belong to the M4 NIB-M and `llm-runtime` Dependency Contract.
+The exact credential names/source integration belong to the M4 NIB-M and Pi M4 Dependency Contract.
 
 The campaign runner has no direct runtime dependency on Doppler.
 
@@ -5973,13 +6036,15 @@ It only coordinates work already permitted by the current exact authority and ad
 ### Runtime dependencies/boundaries
 
 ```text
-Node.js >= 20
+Node.js >= 22.19.0
   required process/runtime platform
 
-llm-runtime
-  TypeScript ESM in-process library
-  consumed only by M4
-  exact contract deferred to Issue #31 Dependency Contract
+@earendil-works/pi-ai@0.99.2
+  TypeScript ESM in-process package
+  consumed only by M4 through the explicit Pi M4 adapter
+  public execution surface = Models.streamSimple(...)
+  Pi source commit = 005af57d88ee23b33778f343a9595b32e67ff788
+  exact contract deferred to Issue #31 Pi M4 Dependency Contract
 
 Python 3 + repository-pinned Python tooling
   external mechanical validation authority
@@ -6192,7 +6257,7 @@ GI-61  For cognitive WorkItems, hostile-review receipt execution_id is the
        WorkItemId. If a qualified attempt is reached, every preserved
        receipt-admissible protocol attempt contributes one receipt attempt whose
        attempt_id is the corresponding runner ExecutionId, and the attempt
-       call_id binds the exact llm-runtime call. A progression-superseded
+       call_id binds the exact Pi M4 adapter call. A progression-superseded
        Execution whose protocol outcome was never mechanically established
        remains GateARun operational history and contributes no fabricated
        receipt attempt. Provider/transport retries remain below this identity
@@ -6459,7 +6524,7 @@ The NIB-M set must not change the system module boundaries above.
 The accepted module design requires, at minimum:
 
 ```text
-llm-runtime Dependency Contract
+Pi M4 Dependency Contract
 ```
 
 before M4 implementation.
@@ -6510,10 +6575,10 @@ who may write state
 what exact recovery descriptors and ports exist after crash/ownership transfer
 how one successful Arm produces the exact M4/M7 dispatch context and makes the Execution immediately reconstructible as unresolved across crash/restart
 how WorkItems and Executions differ
-how cognitive WorkItem, runner Execution, hostile-review receipt, receipt attempt, llm-runtime call, and provider transport attempt identities map without collapse
+how cognitive WorkItem, runner Execution, hostile-review receipt, receipt attempt, Pi M4 adapter call, and provider transport attempt identities map without collapse
 how M4 capture reaches existing Python validation through M6 and then M5 without reimplementation
 how pre-receipt attempt history becomes one complete schema-v3 receipt only after qualification
-where llm-runtime is allowed
+where `@earendil-works/pi-ai` and the explicit Pi M4 adapter are allowed
 where Python authority remains authoritative
 how repair may proceed
 when a Decision Request is legitimate
