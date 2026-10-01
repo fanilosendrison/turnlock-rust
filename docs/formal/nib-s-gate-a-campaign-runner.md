@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "7.0.0"
+version: "7.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -322,6 +322,44 @@ consumers therefore consume this new System Brief version.
 
 This breaking construction revision changes implementation-construction
 dependency selection only and creates no TURNLOCK product semantics.
+
+No product ADR is created.
+
+Version `7.0.1` closes the M7-A repository materialization and candidate-
+construction contract before M7-A Module Brief publication without changing
+TURNLOCK product semantics, hostile-review protocol semantics, canonical formal
+semantics, or verification evidence.
+
+M7 construction is decomposed into:
+
+```text
+M7-A repository materialization / candidate construction
+and
+M7-B publication / remote observation / recovery
+```
+
+M7-A owns deterministic construction of the exact publication successor `T`
+from the retained baseline repository inspection and exact candidate
+materialization.
+
+M7-B owns observation of the exact current remote predecessor `P`, proof that
+`P` is ancestor-or-equal to `T`, publication realization, remote mutation,
+already-current observation, publication recovery, and publication
+qualification. M7-B may not recompute or modify `T`.
+
+`PublicationPreparationRequest` now carries the exact
+`RepositoryInspectionRef` so the retained baseline Git basis used to derive `T`
+is bound explicitly rather than reconstructed through mutable repository state.
+
+The active M7-A Module Brief owns the exact `baselineGitBasis` representation,
+candidate-materialization representation, evidence ordering, repository-
+inspection operational causes, deterministic successor projection, and the
+required Git Dependency Contract primitive surface.
+
+The required Git Dependency Contract remains a separate construction artifact
+that must exist before GREEN.
+
+This revision is implementation-construction authority only.
 
 No product ADR is created.
 
@@ -966,6 +1004,35 @@ Owns:
 * already-current observation and publication reconciliation;
 * exact published-candidate materialization proof.
 
+M7 construction decomposition:
+
+```text
+M7-A — repository materialization / candidate construction
+- initial repository inspection and immutable baseline capture;
+- publication-target identity resolution from local Git configuration;
+- reconstructible baseline Git basis;
+- exact C0 materialization;
+- exact candidate representation;
+- exact RepairIntent patch application;
+- Git tree projection and round-trip verification;
+- deterministic publication-successor projection T;
+- restart-safe local materialization of an already-projected T.
+
+M7-B — publication / remote observation / recovery
+- current target predecessor observation P;
+- fast-forward ancestry/equality proof P <= T;
+- PublicationIntent and publication WorkItem preparation;
+- already-current observation;
+- conditional ref mutation after Arm;
+- publication capture, recovery, qualification, confirmation,
+  non-application proof, and published-repository view materialization.
+```
+
+M7-B consumes the exact successor projection produced by M7-A.
+M7-B may verify that projection and materialize its exact Git objects, but may
+not derive another successor, modify commit metadata, select another parent, or
+make successor identity depend on current remote state.
+
 M7 proposes that bundle. M2 alone admits it authoritatively.
 
 The WorkItem ownership distinction is exact:
@@ -1180,10 +1247,12 @@ is intact
 every repositoryInspection.evidence ArtifactRef exists and is intact
 ```
 
-The future M7 NIB-M and Git Dependency Contract must close the exact
-`baselineGitBasis` representation and prove before M2 admission that restoring
-that basis independently reconstructs the exact baseline commit/tree and the
-material required for publication from that baseline.
+The active
+`NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION`
+owns the exact M7-A representation and algorithms, while
+`DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` owns the exact Git dependency
+realization required before GREEN. The separate Dependency Contract does not
+yet exist.
 
 The exact `sealedBaselineCandidate` must be derived from the exact retained
 baseline tree, not mutable working-tree bytes.
@@ -2112,6 +2181,7 @@ interface LoadGateARunSnapshotRequest {
 
 interface GateARunSnapshot {
   readonly run: GateARunRef;
+  readonly repositoryInspection: RepositoryInspectionRef | null;
   readonly stateRevision: StateRevision;
   readonly currentCandidate: CandidateRevisionRef | null;
   readonly reviewCampaigns: readonly ReviewCampaignRef[];
@@ -2163,6 +2233,64 @@ type CommitAuthoritativeMutationResult =
       readonly currentOwnershipGeneration: OwnershipGeneration;
     };
 ```
+
+`repositoryInspection` is a derived snapshot projection of authoritative
+preflight history.
+
+Before one `EstablishPreflightV1` is admitted:
+
+```text
+snapshot.repositoryInspection == null
+
+snapshot.run.initialRepositoryAuthority == null
+
+snapshot.run.publicationTarget == null
+```
+
+After the unique `EstablishPreflightV1` is admitted:
+
+```text
+snapshot.repositoryInspection ==
+    the exact RepositoryInspectionRef retained by that
+    EstablishPreflightV1 mutation
+
+snapshot.repositoryInspection.runId ==
+    snapshot.run.runId
+
+snapshot.repositoryInspection.baselineAuthority ==
+    snapshot.run.initialRepositoryAuthority
+
+snapshot.repositoryInspection.publicationTarget ==
+    snapshot.run.publicationTarget
+```
+
+The projected `RepositoryInspectionRef` is never reconstructed from:
+
+```text
+repositoryPath
+baselineGitBasis bytes
+evidence arrays
+current Git configuration
+current repository state
+commit/tree identity alone
+```
+
+M2 projects the exact retained value from authoritative history.
+
+The projection is immutable for the lifetime of the `GateARun` because
+`EstablishPreflightV1` is admitted at most once.
+
+Require exact equivalence:
+
+```text
+snapshot.repositoryInspection == null
+iff
+snapshot.run.initialRepositoryAuthority == null
+AND
+snapshot.run.publicationTarget == null
+```
+
+Any retained state violating this is `INTEGRITY_FAILURE`.
 
 `CreateGateARunAndAcquireInitialOwnershipResult.kind = "created"` atomically persists the first `GateARun` revision, its initial fenced owner, and the root obligation to establish exact baseline authority, publication target, and current protocol or record exact preflight blockers. No separately visible run-without-owner or run-without-root-obligation state exists.
 
@@ -2828,6 +2956,7 @@ interface CandidateSealResult {
 
 interface PublicationPreparationRequest {
   readonly runId: GateARunId;
+  readonly repositoryInspection: RepositoryInspectionRef;
   readonly candidate: CandidateRevisionRef;
   readonly qualification: GateAQualificationRef;
   readonly target: RepositoryPublicationTargetRef;
@@ -2888,6 +3017,38 @@ type PublicationObservationQualificationResult =
       readonly blocker: OperationalBlocker;
     };
 ```
+
+Publication-preparation bindings:
+
+```text
+request.runId ==
+    request.repositoryInspection.runId ==
+    request.candidate.runId
+
+request.repositoryInspection.baselineAuthority ==
+    exact GateARun.initialRepositoryAuthority
+
+request.repositoryInspection.publicationTarget ==
+    request.target
+
+request.target ==
+    exact GateARun.publicationTarget
+```
+
+For ordinary M1 publication preparation:
+
+```text
+request.repositoryInspection ==
+    exact current GateARunSnapshot.repositoryInspection
+```
+
+The caller may not substitute another structurally valid
+`RepositoryInspectionRef` having the same `baselineAuthority` or
+`publicationTarget`.
+
+The exact retained preflight inspection is required.
+
+No caller may provide a separate baseline Git basis or baseline authority.
 
 Candidate-construction bindings:
 
@@ -5693,8 +5854,20 @@ run(command):
             continue
 
         if exact qualified candidate exists and publication is enabled:
+            require snapshot.repositoryInspection != null
+
+            require snapshot.repositoryInspection.runId ==
+                run.runId
+
+            require snapshot.repositoryInspection.baselineAuthority ==
+                snapshot.run.initialRepositoryAuthority
+
+            require snapshot.repositoryInspection.publicationTarget ==
+                snapshot.run.publicationTarget
+
             preparation = repository_control.prepare_publication({
                 runId: run.runId,
+                repositoryInspection: exact snapshot.repositoryInspection,
                 candidate: exact candidate,
                 qualification: exact qualification,
                 target: exact snapshot.run.publicationTarget
