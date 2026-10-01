@@ -82,16 +82,7 @@ The System Brief establishes the complete system frame: objective, pipeline, mod
 
 Module Briefs then define the exact behavior of every implementation module selected by the System Brief. They contain the algorithms, signatures, edge cases, error behavior, and constraints required to eliminate implementation discretion.
 
-Dependency Contracts define only the exact external interfaces consumed by those modules. The selected M4 runtime, `@earendil-works/pi-ai@0.99.2`, requires a scoped Pi M4 Dependency Contract before implementation of its consumer boundary. Any additional non-trivial dependency receives a contract only if the accepted module design actually selects it.
-
-The selected M4 realization is an explicit campaign-owned adapter around public
-`Models.streamSimple(...)` at Pi commit
-`005af57d88ee23b33778f343a9595b32e67ff788`, running on Node.js `>= 22.19.0`.
-The adapter does not use `AgentSession`, Pi coding-agent/subagent loops, Codex
-CLI, Codex App Server, or another higher-level harness execution path. It
-preserves the existing M4 execution, evidence, retry, and recovery boundaries;
-it does not resolve the separate provider-reported identity question tracked in
-Issue #47.
+Dependency Contracts define only the exact external interfaces consumed by those modules. The M4 cognitive-execution dependency selected by the active NIB-S requires a scoped Dependency Contract before implementation of its consumer boundary. Any additional non-trivial dependency receives a contract only if the accepted module design actually selects it.
 
 The TDD Tests Brief is written last. It defines observable acceptance tests, property/anti-cheat tests, contract invariants, fixtures, and test vectors without prescribing internal implementation structure.
 
@@ -133,7 +124,7 @@ The final implementation must realize, somewhere in the accepted module architec
 * exact semantic-subject and review-protocol currentness;
 * content-addressed sealed campaign artifacts;
 * durable campaign journal, restart, and recovery;
-* bounded cognitive execution through the selected Pi M4 adapter and runtime dependency;
+* bounded cognitive execution through the selected runtime dependency;
 * reviewer-profile and effective-model-identity enforcement;
 * initial hostile reviewer execution;
 * exact one-to-one finding normalization;
@@ -193,7 +184,7 @@ NIB-S
   ↓
 NIB-M
   ↓
-Pi M4 Dependency Contract
+M4 cognitive-execution Dependency Contract
   ↓
 NIB-T
   ↓
