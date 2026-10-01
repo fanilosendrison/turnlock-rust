@@ -23,7 +23,7 @@ class AdrMetadataTests(unittest.TestCase):
     def test_shared_primitives_are_bound_to_pinned_provider(self) -> None:
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
-            "proto-ring.git@2b3f335aa0d658cda1e6e0e851263d6fe56d71c2",
+            "proto-ring.git@bef7d3c0a5d1ef170d95f3eb9c8114e11149f85d",
             requirements,
         )
         bindings = {
