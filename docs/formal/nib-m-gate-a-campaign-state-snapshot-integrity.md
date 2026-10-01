@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "2.0.0"
+version: "2.0.1"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.1`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -183,7 +183,7 @@ If a contradiction is already present in committed history, this is
 
 ## 5. Snapshot field projection
 
-### 5.1 `run`
+### 5.1 `run` and `repositoryInspection`
 
 Derived from:
 
@@ -227,6 +227,56 @@ After successful preflight both authority values become non-null together and
 never change. The exact `RepositoryInspectionRef` provenance remains retained;
 there is no authoritative revision with baseline authority but without its
 already-sealed reconstructible repository basis.
+
+`repositoryInspection` is derived only from the exact unique
+`EstablishPreflightV1` mutation.
+
+If preflight establishment is absent:
+
+```text
+repositoryInspection = null
+```
+
+If preflight establishment exists:
+
+```text
+repositoryInspection =
+    exact EstablishPreflightV1.repositoryInspection
+
+repositoryInspection.runId ==
+    run.runId
+
+repositoryInspection.baselineAuthority ==
+    run.initialRepositoryAuthority
+
+repositoryInspection.publicationTarget ==
+    run.publicationTarget
+```
+
+The snapshot implementation returns the exact retained
+`RepositoryInspectionRef` value.
+
+It does not reconstruct an equivalent replacement from normalized database
+columns, root-obligation `basisArtifacts`, CAS contents, `repositoryPath`,
+current Git state, or any other source.
+
+Require:
+
+```text
+repositoryInspection == null
+iff
+preflight establishment absent
+iff
+run.initialRepositoryAuthority == null
+AND
+run.publicationTarget == null
+```
+
+Any contradiction is:
+
+```text
+INTEGRITY_FAILURE
+```
 
 ### 5.2 `stateRevision`
 
@@ -720,6 +770,25 @@ After preflight:
 ```text
 both non-null
 and exact RepositoryInspectionRef provenance is retained
+```
+
+Require exactly:
+
+```text
+when preflight establishment exists:
+
+snapshot.repositoryInspection ==
+    exact RepositoryInspectionRef in EstablishPreflightV1
+
+snapshot.repositoryInspection.baselineAuthority ==
+    snapshot.run.initialRepositoryAuthority
+
+snapshot.repositoryInspection.publicationTarget ==
+    snapshot.run.publicationTarget
+
+when preflight establishment does not exist:
+
+snapshot.repositoryInspection == null
 ```
 
 If C0 exists:
@@ -1262,6 +1331,11 @@ I64  Every non-C0 CandidateRevision names exactly one retained RepairIntent
 I65  One RepairIntent produces at most one CandidateRevision. A retained second
      CandidateRevision naming the same RepairIntent is integrity failure; no
      mutable RepairIntent-consumed flag exists.
+
+I66  The projected repositoryInspection is null exactly before preflight and,
+     after preflight, equals the exact RepositoryInspectionRef retained by the
+     unique EstablishPreflightV1 and binds the exact run baseline authority and
+     publication target.
 ```
 
 ## 12. Snapshot reconstruction algorithm

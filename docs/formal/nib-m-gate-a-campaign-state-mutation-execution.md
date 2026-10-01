@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "2.0.0"
+version: "2.0.1"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.1`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -177,6 +177,22 @@ duplicate-free first-occurrence sequence:
     ...preflightEvidence
 ]
 ```
+
+After successful admission of `EstablishPreflightV1`, the returned
+`GateARunSnapshot` must satisfy:
+
+```text
+snapshot.repositoryInspection ==
+    mutation.repositoryInspection
+
+snapshot.run.initialRepositoryAuthority ==
+    mutation.baselineAuthority
+
+snapshot.run.publicationTarget ==
+    mutation.publicationTarget
+```
+
+This is a projection requirement only. It adds no persisted fact or write path.
 
 ### 5.2 Candidate
 
