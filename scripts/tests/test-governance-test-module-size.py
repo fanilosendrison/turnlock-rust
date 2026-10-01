@@ -27,6 +27,8 @@ PRESERVED_TEST_MODULES = (
 
 REPLACEMENT_SOURCE_MODULES = (
     "scripts/check-authoritative-ref-monotonicity.py",
+    "scripts/check-governed-objects.py",
+    "scripts/tests/test-governed-objects.py",
     "scripts/tests/adr-metadata-test-fixture.py",
     *PRESERVED_TEST_MODULES[:5],
     "scripts/tests/repository-integrity-test-fixture.py",

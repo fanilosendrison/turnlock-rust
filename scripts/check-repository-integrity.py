@@ -52,6 +52,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
             [python, "scripts/tests/test-exact-evidence-binding.py"],
         ),
         (
+            "Governed Objects profile tests",
+            [python, "scripts/tests/test-governed-objects.py"],
+        ),
+        (
             "Normative terminology tests",
             [python, "scripts/tests/test-normative-terminology.py"],
         ),
@@ -102,6 +106,10 @@ def canonical_steps() -> list[tuple[str, list[str]]]:
         (
             "Governance Authority profile",
             [python, "scripts/check-governance-authority.py"],
+        ),
+        (
+            "Governed Objects profile",
+            [python, "scripts/check-governed-objects.py"],
         ),
         (
             "Authoritative Ref Monotonicity effective rules",

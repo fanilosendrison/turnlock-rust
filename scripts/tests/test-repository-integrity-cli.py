@@ -22,6 +22,7 @@ def make_runner_fixture(
             "AGENTS.md",
             "docs/repository-governance/turnlock-rust-shared-governance-provider.md",
             "docs/repository-governance/turnlock-rust-governance-authority.md",
+            "docs/repository-governance/turnlock-rust-governed-objects.md",
             "docs/adr/adr-profile.yaml",
             "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md",
         ),

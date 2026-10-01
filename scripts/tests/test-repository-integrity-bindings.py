@@ -59,6 +59,10 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 [sys.executable, "scripts/tests/test-exact-evidence-binding.py"],
             ),
             (
+                "Governed Objects profile tests",
+                [sys.executable, "scripts/tests/test-governed-objects.py"],
+            ),
+            (
                 "Normative terminology tests",
                 [sys.executable, "scripts/tests/test-normative-terminology.py"],
             ),
@@ -126,6 +130,13 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
                 [
                     sys.executable,
                     "scripts/check-governance-authority.py",
+                ],
+            ),
+            (
+                "Governed Objects profile",
+                [
+                    sys.executable,
+                    "scripts/check-governed-objects.py",
                 ],
             ),
             (
@@ -198,7 +209,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         )
 
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@305d968c50db17cce43199ae3fa78d64da2aabdb",
+            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@2b3f335aa0d658cda1e6e0e851263d6fe56d71c2",
             requirements.splitlines(),
         )
 
