@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION
-version: "1.0.9"
+version: "2.0.0"
 scope: gate-a-campaign-runner/recovery-operator/recovery-reconciliation
 status: active
 consumers: [architect, coding-agent]
@@ -21,7 +21,7 @@ This document is the active Module Brief for M8-A
 `recovery-operator/recovery-reconciliation` in the Gate A hostile-review
 campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `6.0.14`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.0`.
 
 It is implementation-construction authority only.
 
@@ -111,7 +111,7 @@ by M4 and M7.
 M8-A does not directly import:
 
 ```text
-Pi M4 adapter
+@earendil-works/pi-ai
 Git libraries
 provider SDKs
 repository APIs
