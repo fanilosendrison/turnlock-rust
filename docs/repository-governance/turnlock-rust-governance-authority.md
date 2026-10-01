@@ -122,6 +122,10 @@ governance_authority:
       roles:
         agents_governance_frontmatter: authority
       precedence: []
+    governed_objects_profile_route:
+      roles:
+        agents_governance_frontmatter: authority
+      precedence: []
     repository_agent_guardrails:
       roles:
         agents_directives: authority

@@ -26,6 +26,10 @@ repository_governance:
       configuration: {}
       routes:
         profile: "docs/repository-governance/turnlock-rust-governance-authority.md"
+    governed_objects:
+      configuration: {}
+      routes:
+        profile: "docs/repository-governance/turnlock-rust-governed-objects.md"
 ---
 
 # Turnlock-Rust repository directives
