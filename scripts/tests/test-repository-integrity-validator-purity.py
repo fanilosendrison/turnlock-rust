@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -28,12 +29,16 @@ class RepositoryIntegrityValidatorPurityTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
             ).stdout
+            environment = dict(os.environ)
+            environment.pop("GITHUB_EVENT_NAME", None)
+            environment.pop("GITHUB_EVENT_PATH", None)
             result = subprocess.run(
                 [sys.executable, str(checker)],
                 cwd=root,
                 capture_output=True,
                 text=True,
                 check=False,
+                env=environment,
             )
             after = subprocess.run(
                 ["git", "-C", str(root), "status", "--porcelain"],
