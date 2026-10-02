@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "7.0.3"
+version: "7.0.4"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -459,6 +459,52 @@ No hostile-review protocol semantics change.
 No canonical formal semantics change.
 No verification evidence change.
 No product ADR is created.
+
+Version `7.0.4` closes the remaining M3 operational-cause / M8-B blocker-
+materialization / M2 obligation-admission seam before M3 Module Brief authoring.
+
+M3 owns campaign-authority operational cause meaning and immutable cause
+descriptors.
+
+M3 never constructs `OperationalBlocker`, `BlockerId`, Operator Action Request,
+operator-resolution identity, or operator-resolution state effects.
+
+Every M3 operational blocker is materialized by M8-B from exact M3-owned
+`NonRecoveryOperationalCauseRefV1` material.
+
+Post-preflight M3 blocking conditions require an exact candidate-scoped
+`ObligationRef` because every `OperationalBlocker` must reference an admitted or
+co-admitted obligation.
+
+`EstablishOperationalBlockersV1` is extended with `obligationsToAdd` so the
+already-declared co-admission rule becomes mechanically realizable.
+
+Insufficient reviewer prerequisites under the immutable current candidate/P are
+`OPERATOR-ACTION-REQUIRED` but have no same-run operator resolution contract.
+
+Invalid review authority over an already-authoritative immutable candidate is
+also `OPERATOR-ACTION-REQUIRED` with no same-run operator resolution contract.
+
+Invalid review authority before preflight remains genuinely recheckable because
+no baseline authority has yet been admitted.
+
+This revision changes implementation-construction authority only.
+
+No TURNLOCK product semantics change.
+No hostile-review protocol semantics change.
+No canonical formal semantics change.
+No verification evidence change.
+No product ADR is created.
+
+The construction discovery classification recorded by this revision is:
+
+```text
+derived-from-existing-authority
+architecture-or-implementation
+no-normative-impact
+```
+
+No ADR or Issue is created.
 
 ## 2. System objective
 
@@ -2608,6 +2654,48 @@ No other module writes authoritative campaign state directly.
 ### M3
 
 ```ts
+type CampaignAuthorityOperationalCauseRefV1 =
+  NonRecoveryOperationalCauseRefV1 & {
+    readonly producer: "campaign-authority";
+  };
+
+type GateACampaignAuthorityOperationalCauseV1 =
+  | PreflightReviewAuthorityInvalidCauseV1
+  | CurrentCandidateReviewAuthorityInvalidCauseV1
+  | ReviewerPrerequisitesUnavailableCauseV1;
+
+interface PreflightReviewAuthorityInvalidCauseV1 {
+  readonly schema:
+    "gate-a-campaign-authority-operational-cause.v1";
+  readonly kind:
+    "preflight-review-authority-invalid";
+  readonly candidateMaterialization: ArtifactRef;
+  readonly reviewAuthorityProjection: ArtifactRef;
+}
+
+interface CurrentCandidateReviewAuthorityInvalidCauseV1 {
+  readonly schema:
+    "gate-a-campaign-authority-operational-cause.v1";
+  readonly kind:
+    "current-candidate-review-authority-invalid";
+  readonly candidateId: CandidateRevisionId;
+  readonly candidateMaterialization: ArtifactRef;
+  readonly reviewAuthorityProjection: ArtifactRef;
+}
+
+interface ReviewerPrerequisitesUnavailableCauseV1 {
+  readonly schema:
+    "gate-a-campaign-authority-operational-cause.v1";
+  readonly kind:
+    "reviewer-prerequisites-unavailable";
+  readonly candidateId: CandidateRevisionId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly minimumIndependentReviewers: number;
+  readonly qualifyingReviewerProfileIds: readonly string[];
+  readonly reviewAuthorityProjection: ArtifactRef;
+}
+
 interface PreflightRequest {
   readonly runId: GateARunId;
   readonly repositoryInspection: RepositoryInspectionRef;
@@ -2629,7 +2717,7 @@ type PreflightResolution =
     }
   | {
       readonly kind: "blocked";
-      readonly blockers: readonly OperationalBlocker[];
+      readonly cause: CampaignAuthorityOperationalCauseRefV1;
     };
 
 interface ReviewContext {
@@ -2689,7 +2777,8 @@ type ReviewerPrerequisiteResolution =
     }
   | {
       readonly kind: "blocked";
-      readonly blockers: readonly OperationalBlocker[];
+      readonly blockingObligation: ObligationRef;
+      readonly cause: CampaignAuthorityOperationalCauseRefV1;
     };
 
 interface ReviewCurrentnessRequest {
@@ -2717,9 +2806,356 @@ type ReviewCurrentnessResolution =
     }
   | {
       readonly kind: "blocked";
-      readonly blockers: readonly OperationalBlocker[];
+      readonly blockingObligation: ObligationRef;
+      readonly cause: CampaignAuthorityOperationalCauseRefV1;
     };
 ```
+
+M3 may return only cause references whose:
+
+```text
+producer == "campaign-authority"
+```
+
+M3 does not return an already-materialized `OperationalBlocker`. Under current
+M3 semantics each blocked result has exactly one producer cause; do not add a
+cause or blocker array.
+
+M3 owns the campaign-authority cause schema, cause-domain meaning, exact causal
+fields, runtime validation, basis evidence, and lawful resolution contracts.
+M3 never constructs `OperationalBlocker`, `BlockerId`, Operator Action Request,
+operator-resolution identity, or operator-resolution state effects. Every M3
+operational blocker is materialized by M8-B from exact M3-owned
+`NonRecoveryOperationalCauseRefV1` material.
+
+Every M3 `causeDescriptor` is the exact immutable canonical serialization of
+one `GateACampaignAuthorityOperationalCauseV1` value.
+
+Every M3 operational cause descriptor is:
+
+```text
+runner-owned
+canonical runner JSON
+UTF-8
+application/json
+causeDescriptor.repositoryPath = null
+sealed through CampaignArtifactStore
+verified after sealing
+```
+
+Use the existing runner canonical JSON contract. M3 does not own `BlockerId` or
+Operator Action Request serialization. The future M3 NIB-M will close the exact
+implementation algorithm.
+
+Do not add any of these fields to an M3 cause descriptor:
+
+```text
+StateRevision
+RunnerSessionId
+ownershipGeneration
+timestamp
+process ID
+temporary path
+repositoryPath
+retry counter
+random identity
+mutable environment state
+credential value
+diagnostic text
+```
+
+M3 has exactly three campaign-authority operational cause kinds in this
+revision:
+
+```text
+preflight-review-authority-invalid
+current-candidate-review-authority-invalid
+reviewer-prerequisites-unavailable
+```
+
+For `preflight-review-authority-invalid`, require exactly:
+
+```text
+cause.candidateMaterialization ==
+    reviewAuthority.candidateMaterialization
+
+cause.reviewAuthorityProjection ==
+    reviewAuthority.projection
+
+basisArtifacts =
+ordered duplicate-free first-occurrence sequence:
+[
+    reviewAuthority.projection,
+    reviewAuthority.diagnostics,
+    ...reviewAuthority.evidence
+]
+
+resolutionContracts =
+[
+    {
+        kind: "request-operational-recheck"
+    }
+]
+```
+
+Diagnostics remain provenance/evidence only and are not part of cause identity.
+
+`preflight-review-authority-invalid` is recheckable because:
+
+```text
+no EstablishPreflightV1 has been admitted
+baseline authority is still null
+C0 does not exist
+the root preflight obligation remains outstanding
+a later invocation may inspect a newly corrected mutable repository state
+```
+
+After accepted `request-operational-recheck` disposition:
+
+```text
+M1 performs a fresh M7 repository inspection
+→ fresh sealed baseline candidate
+→ fresh M6 subject/review-authority projections
+→ fresh M3 preflight
+```
+
+M1 does not reuse the prior mutable repository observation.
+
+For `current-candidate-review-authority-invalid`, require exactly:
+
+```text
+cause.candidateId ==
+    exact current candidate.candidateId
+
+cause.candidateMaterialization ==
+    exact current candidate.materialization
+
+cause.reviewAuthorityProjection ==
+    reviewAuthority.projection
+
+basisArtifacts =
+ordered duplicate-free first-occurrence sequence:
+[
+    reviewAuthority.projection,
+    reviewAuthority.diagnostics,
+    ...reviewAuthority.evidence
+]
+
+resolutionContracts = []
+```
+
+Diagnostics remain provenance/evidence only and are not part of cause identity.
+
+`current-candidate-review-authority-invalid` has no same-run resolution because:
+
+```text
+CandidateRevision is already authoritative and immutable
+M6 is bound to exact candidate.materialization
+rereading or modifying an external repository cannot alter candidate authority
+rechecking the same immutable candidate cannot lawfully substitute new bytes
+```
+
+The current `GateARun` therefore remains operationally blocked. Any correction
+that changes repository authority must be materialized through the repository
+authority mechanism and observed by a later `GateARun`. Do not invent candidate
+mutation or rebaseline-in-place.
+
+For `reviewer-prerequisites-unavailable`, require exactly:
+
+```text
+cause.candidateId ==
+    request.candidate.candidateId
+
+cause.semanticSubject ==
+    request.semanticSubject
+
+cause.protocolBundle ==
+    request.protocolBundle
+
+cause.minimumIndependentReviewers ==
+    request.reviewAuthority.minimumIndependentReviewers
+
+cause.reviewAuthorityProjection ==
+    request.reviewAuthority.projection
+
+cause.qualifyingReviewerProfileIds ==
+    exact complete canonical set of profile IDs that satisfy the accepted
+    statically checkable reviewer-profile qualification rules, even when that
+    complete set is insufficient to satisfy the applicable prerequisite/minimum
+
+cause.qualifyingReviewerProfileIds ordered by unsigned ASCII ascending
+
+basisArtifacts =
+ordered duplicate-free first-occurrence sequence:
+[
+    request.reviewAuthority.projection,
+    ...request.reviewAuthority.evidence
+]
+
+resolutionContracts = []
+```
+
+`reviewer-prerequisites-unavailable` has no same-run resolution contract. The
+current protocol `P` and its reviewer-profile registry are candidate-bound
+authority. A profile-registry change requires a new protocol snapshot and
+therefore a new `P`. The current `GateARun` may not mutate `P` or its candidate
+authority in place. The blocker therefore remains outstanding in that run. Do
+not emit `request-operational-recheck` for this cause.
+
+For an M3 cause reference:
+
+```text
+resolutionContracts = []
+```
+
+means:
+
+```text
+the operational condition legitimately requires external operator action,
+but the current GateARun exposes no accepted same-run operator-resolution
+transition that can establish the missing domain fact.
+```
+
+Such a blocker remains `OPERATOR-ACTION-REQUIRED` while outstanding. It is not:
+
+```text
+DECISION-REQUIRED
+implementation failure
+automatic retry permission
+request-operational-recheck permission
+permission to mutate candidate/P in place
+```
+
+No `GateAOperatorResolutionArtifactV1` can validly target an Operator Action
+Request whose `resolutionContracts` array is empty.
+
+M3 owns exactly two candidate-scoped blocking-obligation meanings:
+
+```text
+current-review-authority
+reviewer-prerequisites
+```
+
+These are campaign-authority obligations. They are not protocol-derived M5
+obligations, the root M0 preflight obligation, or M7 publication obligations.
+The future M3 NIB-M owns the exact immutable runner-owned obligation-definition
+artifact payloads for these two meanings. Each definition `ArtifactRef` must be
+immutable, intact, runtime-valid, and content-addressed.
+
+For a post-preflight currentness invalidity, M3 constructs exactly one
+`ObligationRef` with:
+
+```text
+runId == exact GateARun
+candidateId == exact current candidate.candidateId
+reviewCampaignId == null
+definition == exact M3 current-review-authority obligation definition
+```
+
+Identity:
+
+```text
+obligationId =
+deriveId(
+    "campaign-authority-current-review-authority-obligation.v1",
+    runId,
+    candidateId,
+    definition.sha256
+)
+```
+
+This obligation means exactly:
+
+```text
+establish a mechanically valid complete hostile-review authority projection
+for this exact authoritative candidate before safe Gate A campaign progression
+can continue
+```
+
+Do not put M6 diagnostics or `StateRevision` into the identity.
+
+For reviewer-prerequisite failure, M3 constructs exactly one `ObligationRef`
+with:
+
+```text
+runId == exact GateARun
+candidateId == exact candidate.candidateId
+reviewCampaignId == null
+definition == exact M3 reviewer-prerequisites obligation definition
+```
+
+Identity:
+
+```text
+obligationId =
+deriveId(
+    "campaign-authority-reviewer-prerequisites-obligation.v1",
+    runId,
+    candidateId,
+    semanticSubject.selector,
+    semanticSubject.sha256,
+    protocolBundle.protocolId,
+    protocolBundle.sha256,
+    definition.sha256
+)
+```
+
+This obligation means exactly:
+
+```text
+establish sufficient protocol-authorized reviewer prerequisites for creation
+of a ReviewCampaign over this exact candidate, S, and P
+```
+
+Do not create a `ReviewCampaignId` merely to identify this obligation.
+`reviewCampaignId` remains `null`.
+
+The `current-review-authority` blocking obligation and the
+`reviewer-prerequisites` blocking obligation have no same-run automatic
+satisfaction path in this construction revision. They remain outstanding in the
+blocked `GateARun`. This does not create a persisted `campaignCurrentness` field
+and does not alter the rule that ordinary M3 currentness is freshly derived from
+exact current authority and campaign history. These obligations exist only when
+the corresponding blocking condition has actually been established.
+
+Require these exact blocked-result mappings:
+
+```text
+PreflightRequest.reviewAuthority.kind == invalid
+→ PreflightResolution.kind == blocked
+→ cause.kind == preflight-review-authority-invalid
+
+ReviewCurrentnessRequest.reviewAuthority.kind == invalid
+→ ReviewCurrentnessResolution.kind == blocked
+→ blockingObligation == exact current-review-authority obligation
+→ cause.kind == current-candidate-review-authority-invalid
+
+ReviewerPrerequisiteRequest cannot satisfy exact applicable prerequisites
+→ ReviewerPrerequisiteResolution.kind == blocked
+→ blockingObligation == exact reviewer-prerequisites obligation
+→ cause.kind == reviewer-prerequisites-unavailable
+```
+
+No other M3 cause kind exists in this revision.
+
+Do not convert any of these into operational causes:
+
+```text
+malformed M3 request
+candidate/run binding contradiction
+candidate-lineage contradiction
+registered campaign duplicate with incompatible immutable payload
+same ReviewCampaignId conflict
+corrupt/missing ArtifactRef required to trust the input
+CampaignArtifactStore integrity failure
+canonical serializer contradiction
+impossible M6 result under its declared contract
+untrustworthy Python authority
+subject-derivation failure
+```
+
+These remain outside normal M3 result unions as applicable implementation,
+process, integrity, dependency, or invocation failures.
 
 For preflight `kind = established`, require exactly:
 
@@ -2755,9 +3191,9 @@ reviewAuthorityProjection ==
 `subjectProjection` or `reviewAuthorityProjection` inside `evidence`.
 
 If `reviewAuthority.kind == "invalid"`, `PreflightResolution.kind == blocked`
-using exact M3-owned operational cause materialization rules to be closed by M3
-NIB-M. No campaign is created, baseline authority is not admitted, and the root
-preflight obligation remains outstanding.
+using the exact M3-owned operational cause construction rules above. M8-B alone
+materializes the blocker. No campaign is created, baseline authority is not
+admitted, and the root preflight obligation remains outstanding.
 
 M7 observes and mechanically captures repository/Git facts.
 
@@ -2963,8 +3399,9 @@ reviewer/profile prerequisite for the required Gate A review class. M3 may not
 choose an arbitrary subset. The order is `profileId` unsigned ASCII ascending.
 
 If the complete mechanically projected registry cannot satisfy the applicable
-minimum/prerequisite contract, the result is `blocked` with exact operational
-blockers. M1 and M3 never establish a resolution from runner configuration,
+minimum/prerequisite contract, the result is `blocked` with the exact
+candidate-scoped blocking obligation and exact M3-owned operational cause
+reference. M1 and M3 never establish a resolution from runner configuration,
 environment, an unregistered model alias, or a model alias absent from the
 protocol bundle.
 
@@ -5295,6 +5732,14 @@ Examples of the class include:
 * corrupted/missing required durable provenance;
 * an operational state for which no accepted automatic continuation exists.
 
+`OPERATOR-ACTION-REQUIRED` does not imply that the current `GateARun`
+necessarily exposes a same-run `OperatorResolution` capable of making progress.
+
+When an exact blocker has `resolutionContracts == []`, the Operator Action
+Request is a durable explanation of the required external intervention. The
+current run remains blocked and may require repository/protocol authority to
+change before a later `GateARun` can proceed.
+
 Operator authority is operational only.
 
 It may not resolve a product-semantic gap.
@@ -5935,6 +6380,7 @@ run(command):
                 using ownership + expected_state_revision:
                 {
                     kind: "establish-operational-blockers",
+                    obligationsToAdd: [],
                     blockers: [
                         materialized.blocker
                     ],
@@ -5973,13 +6419,51 @@ run(command):
             reviewAuthority: review_authority
         })
 
-        if preflight is blocked:
-            require every blocker references bootstrap.preflightObligation
-            commit exact blockers through M2 using
-                ownership + snapshot.stateRevision
-            require baseline/target remain null
+        if preflight.kind == "blocked":
+            root_preflight_obligation =
+                exact current outstanding bootstrap preflight obligation
+            require root_preflight_obligation == bootstrap.preflightObligation
+            require preflight.cause.producer == "campaign-authority"
+            require preflight.cause.resolutionContracts equals exactly:
+                [
+                    {
+                        kind: "request-operational-recheck"
+                    }
+                ]
+
+            materialized =
+                recovery_operator.materialize_operational_blocker({
+                    kind: "producer-occurrence",
+                    runId: run.runId,
+                    baseStateRevision: snapshot.stateRevision,
+                    producer: "campaign-authority",
+                    obligationId: root_preflight_obligation.obligationId,
+                    workItemId: null,
+                    executionId: null,
+                    causeDescriptor: preflight.cause.causeDescriptor,
+                    resolutionContracts: preflight.cause.resolutionContracts
+                })
+
+            committed = commit through M2 one exact EstablishOperationalBlockersV1:
+                {
+                    kind: "establish-operational-blockers",
+                    obligationsToAdd: [],
+                    blockers: [
+                        materialized.blocker
+                    ],
+                    basisArtifacts:
+                        ordered duplicate-free first-occurrence sequence:
+                        [
+                            preflight.cause.causeDescriptor,
+                            ...preflight.cause.basisArtifacts
+                        ]
+                }
+            snapshot = committed snapshot
+
+            require snapshot.run.initialRepositoryAuthority == null
+            require snapshot.run.publicationTarget == null
             require root preflight obligation remains outstanding
-            return project_runner_result()
+            return project_runner_result(snapshot)
 
         require preflight.kind == established
         require preflight.baselineAuthority == inspection.baselineAuthority
@@ -6141,6 +6625,7 @@ run(command):
                     using ownership + expected_state_revision:
                     {
                         kind: "establish-operational-blockers",
+                        obligationsToAdd: [],
                         blockers: [
                             materialized.blocker
                         ],
@@ -6179,13 +6664,48 @@ run(command):
                 reviewAuthority: review_authority
             })
 
-            if preflight is blocked:
-                require every blocker references root_preflight_obligation
-                commit exact blockers through M2 using
-                    ownership + snapshot.stateRevision
-                require baseline/target remain null
+            if preflight.kind == "blocked":
+                require preflight.cause.producer == "campaign-authority"
+                require preflight.cause.resolutionContracts equals exactly:
+                    [
+                        {
+                            kind: "request-operational-recheck"
+                        }
+                    ]
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId: run.runId,
+                        baseStateRevision: snapshot.stateRevision,
+                        producer: "campaign-authority",
+                        obligationId: root_preflight_obligation.obligationId,
+                        workItemId: null,
+                        executionId: null,
+                        causeDescriptor: preflight.cause.causeDescriptor,
+                        resolutionContracts: preflight.cause.resolutionContracts
+                    })
+
+                committed = commit through M2 one exact EstablishOperationalBlockersV1:
+                    {
+                        kind: "establish-operational-blockers",
+                        obligationsToAdd: [],
+                        blockers: [
+                            materialized.blocker
+                        ],
+                        basisArtifacts:
+                            ordered duplicate-free first-occurrence sequence:
+                            [
+                                preflight.cause.causeDescriptor,
+                                ...preflight.cause.basisArtifacts
+                            ]
+                    }
+                snapshot = committed snapshot
+
+                require snapshot.run.initialRepositoryAuthority == null
+                require snapshot.run.publicationTarget == null
                 require root_preflight_obligation remains outstanding
-                return project_runner_result()
+                return project_runner_result(snapshot)
 
             require preflight.kind == established
             require preflight.baselineAuthority == inspection.baselineAuthority
@@ -6361,8 +6881,48 @@ run(command):
             })
 
             if prerequisites.kind == "blocked":
-                commit exact operational blockers through M2
-                return OPERATOR-ACTION-REQUIRED projection
+                require prerequisites.blockingObligation.runId == run.runId
+                require prerequisites.blockingObligation.candidateId ==
+                    currentness.candidate.candidateId
+                require prerequisites.blockingObligation.reviewCampaignId == null
+                require prerequisites.cause.producer == "campaign-authority"
+                require prerequisites.cause.resolutionContracts == []
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId: run.runId,
+                        baseStateRevision: snapshot.stateRevision,
+                        producer: "campaign-authority",
+                        obligationId:
+                            prerequisites.blockingObligation.obligationId,
+                        workItemId: null,
+                        executionId: null,
+                        causeDescriptor:
+                            prerequisites.cause.causeDescriptor,
+                        resolutionContracts: []
+                    })
+
+                committed = commit through M2 atomically:
+                    {
+                        kind: "establish-operational-blockers",
+                        obligationsToAdd: [
+                            prerequisites.blockingObligation
+                        ],
+                        blockers: [
+                            materialized.blocker
+                        ],
+                        basisArtifacts:
+                            ordered duplicate-free first-occurrence sequence:
+                            [
+                                prerequisites.cause.causeDescriptor,
+                                ...prerequisites.cause.basisArtifacts
+                            ]
+                    }
+                snapshot = committed snapshot
+                require no ReviewCampaign was created
+
+                return OPERATOR-ACTION-REQUIRED projection from snapshot
 
             campaign = construct exactly one full runner-produced ReviewCampaign(
                 logical slot =
@@ -6393,8 +6953,46 @@ run(command):
             continue
 
         if currentness.kind == "blocked":
-            commit exact operational blockers through M2
-            return project_runner_result()
+            require currentness.blockingObligation.runId == run.runId
+            require currentness.blockingObligation.candidateId ==
+                snapshot.currentCandidate.candidateId
+            require currentness.blockingObligation.reviewCampaignId == null
+            require currentness.cause.producer == "campaign-authority"
+            require currentness.cause.resolutionContracts == []
+
+            materialized =
+                recovery_operator.materialize_operational_blocker({
+                    kind: "producer-occurrence",
+                    runId: run.runId,
+                    baseStateRevision: snapshot.stateRevision,
+                    producer: "campaign-authority",
+                    obligationId:
+                        currentness.blockingObligation.obligationId,
+                    workItemId: null,
+                    executionId: null,
+                    causeDescriptor: currentness.cause.causeDescriptor,
+                    resolutionContracts: []
+                })
+
+            committed = commit through M2 atomically:
+                {
+                    kind: "establish-operational-blockers",
+                    obligationsToAdd: [
+                        currentness.blockingObligation
+                    ],
+                    blockers: [
+                        materialized.blocker
+                    ],
+                    basisArtifacts:
+                        ordered duplicate-free first-occurrence sequence:
+                        [
+                            currentness.cause.causeDescriptor,
+                            ...currentness.cause.basisArtifacts
+                        ]
+                }
+            snapshot = committed snapshot
+
+            return OPERATOR-ACTION-REQUIRED projection from snapshot
 
         evaluation_context = currentness.context
 
