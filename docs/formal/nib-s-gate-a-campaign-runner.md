@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "7.0.4"
+version: "8.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -506,6 +506,50 @@ no-normative-impact
 
 No ADR or Issue is created.
 
+Version `8.0.0` is a breaking implementation-construction contract revision
+that closes the remaining M5 construction gaps. It adds complete immutable
+referenced-artifact closure on the existing M6→M3 review-authority seam;
+`AssuranceRepositoryProjectionRef`; candidate provenance independent for
+`RepairIntent` and assurance projection; assurance-only, repair-only, and
+repair-plus-assurance successors; M5 assurance operational cause routing
+through M8-B; and M7 publication non-recovery cause routing through M8-B.
+
+The construction discovery classifications recorded by this revision are:
+
+```text
+repair-only assumption for every non-C0 candidate
+→ authority-conflict-or-uncertain at construction level
+
+assurance evidence needs exact candidate repository materialization
+→ derived-from-existing-authority
+
+AssuranceRepositoryProjectionRef
+→ no-normative-impact construction mechanism
+
+M6 review fact lacks immutable referenced-artifact closure required downstream
+→ derived-from-existing-authority
+
+adding exact closure to existing mechanical projection
+→ no-normative-impact construction mechanism
+
+M5 directly returning OperationalBlocker
+→ authority-conflict-or-uncertain
+
+M5 cause → M8-B materialization
+→ derived-from-existing-authority
+
+M7 non-recovery direct blocker result
+→ authority-conflict-or-uncertain with accepted M8-B ownership
+```
+
+No TURNLOCK product semantics change.
+No hostile-review protocol semantics change.
+No M6/M3 ownership change.
+No ReviewCampaign identity change.
+No M3 operational-cause architecture change.
+No blocker identity change.
+No product ADR is created.
+
 ## 2. System objective
 
 Build one isolated TypeScript/Node assurance-tooling application that mechanically executes the accepted Gate A hostile-review protocol over exact candidate repository states, persists and recovers execution without fabricating external outcomes, applies only exact protocol-authorized repairs, starts a full new review campaign whenever a repair changes the semantic subject `S`, and publishes only an exact mechanically qualified candidate.
@@ -656,66 +700,96 @@ Historical evidence remains immutable. No result produced under stale `P` satisf
 ## 6. Candidate model
 
 Candidate identity belongs to the `GateARun`, not to a fixed semantic subject.
-
 Candidates form one active linear lineage:
 
 ```text
 C0 → C1 → C2 → ... → Cn
 ```
 
-Branching, merging, speculative parallel candidate trees, and candidate selection are outside the initial runner.
+Branching, merging, speculative parallel candidate trees, and candidate
+selection are outside the initial runner. A mutable worktree is never a
+`CandidateRevision`.
 
-A `CandidateRevision` is:
-
-* constructed only after one exact repository materialization is sealed and its
-  exact semantic subject is derived;
-* immutable after admission;
-* bound to one exact repository materialization;
-* bound to one parent candidate except `C0`;
-* bound to exact construction/repair provenance;
-* bound to that exact derived semantic subject identity.
-
-A mutable worktree under repair is not a CandidateRevision.
-
-The construction boundary is:
+Candidate construction supports exactly:
 
 ```text
-complete admitted CandidateRevision Cn
-        ↓
-exact qualified RepairIntent
-        ↓
-mutable CandidateDraft
-        ↓
-exact approved patch applied
-        ↓
-seal candidate materialization Cn+1
-        ↓
-derive exact S(n+1)
-        ↓
-construct and admit complete CandidateRevision Cn+1
+C0:
+    repair = null
+    assurance = null
+
+assurance-only successor:
+    repair = null
+    assurance != null
+
+repair-only successor:
+    repair != null
+    assurance = null
+
+repair + assurance successor:
+    repair != null
+    assurance != null
 ```
 
-No review evidence may target a mutable draft.
+For every non-C0 candidate, the exact immediate parent `P` exists and at least
+one of `RepairIntent R` or `AssuranceRepositoryProjection A` is non-null.
 
-If:
+If `R != null`:
 
 ```text
-S(n+1) != S(n)
+R.runId == runId
+R.candidateId == P.candidateId
 ```
 
-then the ReviewCampaign set for `S(n) / P` is historical for the successor subject and a full new campaign for `Cn+1 / S(n+1) / current P` is required.
-
-If:
+If `A != null`:
 
 ```text
-S(n+1) == S(n)
-AND
-P(n+1) == P(n)
+A.runId == runId
+A.sourceCandidateId == P.candidateId
+A.semanticSubject == P.semanticSubject
 ```
 
-then CandidateRevision change alone does not make a campaign stale and does not require a new campaign. Campaign provenance remains bound to the exact candidate and repository authority where it was produced, while currentness remains derived from exact `(S, P)`.
+Candidate and sealed candidate agree exactly on parent, repair provenance,
+assurance-projection provenance, and materialization. No fake `RepairIntent`
+may place assurance evidence into repository state.
 
-The runner must never treat a repaired candidate that changes `S` as continuation of the old current campaign.
+Candidate identity is exactly:
+
+```text
+candidateId =
+deriveId(
+    "candidate-revision.v2",
+    runId,
+    decimal ordinal,
+    parentCandidateId or "-",
+    producedByRepairIntentId or "-",
+    producedByAssuranceProjectionId or "-"
+)
+```
+
+No migration mechanism is required because no production runner state exists.
+
+For an assurance-only successor:
+
+```text
+producedByRepairIntentId == null
+producedByAssuranceProjectionId != null
+
+M6-derived successor S ==
+P.semanticSubject ==
+A.semanticSubject
+```
+
+If M6 derives another subject, the invocation fails as an
+implementation/process/integrity failure: no candidate is admitted and no
+campaign-required interpretation is made. For repair plus assurance, `A` stays
+bound to the parent subject; the M6-derived successor subject may differ only
+because the separately authorized repair changed semantic-subject material.
+Assurance projection paths are structurally excluded from Gate A subject
+identity.
+
+If the M6-derived successor subject changes, campaigns for the old subject
+become historical. If exact `(S, P)` is unchanged, candidate identity or
+construction provenance alone does not make a campaign stale.
 
 ## 7. Authoritative state model
 
@@ -1105,7 +1179,8 @@ Owns:
 * stale-protocol finding re-adjudication state;
 * derivation, decision-necessity, repair, and decision-request qualification state;
 * authority-preserving RepairIntent qualification;
-* explicit finding, evidence, adjudication, re-adjudication, obligation-disposition, RepairIntent, and Decision Request products for M2 admission;
+* exact assurance repository projection selection from immutable M5 evidence;
+* explicit finding, evidence, adjudication, re-adjudication, obligation-disposition, RepairIntent, assurance-projection, and Decision Request products for M2 admission;
 * determination that a candidate and its complete current/contributing campaign sets are ready to be submitted to mechanical Gate A validation.
 
 It does not perform LLM calls.
@@ -1201,6 +1276,8 @@ M7-A — repository materialization / candidate construction
 - exact C0 materialization;
 - exact candidate representation;
 - exact RepairIntent patch application;
+- exact assurance repository projection application;
+- assurance-only and combined repair-plus-assurance successor construction;
 - Git tree projection and round-trip verification;
 - deterministic publication-successor projection T;
 - restart-safe local materialization of an already-projected T.
@@ -1367,14 +1444,41 @@ interface CandidateRevisionRef {
   readonly materialization: ArtifactRef;
   readonly semanticSubject: SemanticSubjectRef;
   readonly producedByRepairIntentId: RepairIntentId | null;
+  readonly producedByAssuranceProjectionId:
+    AssuranceRepositoryProjectionId | null;
 }
 
 interface SealedCandidateMaterializationRef {
   readonly runId: GateARunId;
   readonly parentCandidateId: CandidateRevisionId | null;
   readonly producedByRepairIntentId: RepairIntentId | null;
+  readonly producedByAssuranceProjectionId:
+    AssuranceRepositoryProjectionId | null;
   readonly materialization: ArtifactRef;
   readonly materializationEvidence: readonly ArtifactRef[];
+}
+
+interface AssuranceRepositoryProjectionEntryV1 {
+  readonly repositoryPath: string;
+  readonly content: ArtifactRef;
+}
+
+interface AssuranceRepositoryProjectionArtifactV1 {
+  readonly schema: "gate-a-assurance-repository-projection.v1";
+  readonly sourceCandidateId: CandidateRevisionId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly entries: readonly AssuranceRepositoryProjectionEntryV1[];
+}
+
+interface AssuranceRepositoryProjectionRef {
+  readonly projectionId: AssuranceRepositoryProjectionId;
+  readonly runId: GateARunId;
+  readonly sourceCandidateId: CandidateRevisionId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly projection: ArtifactRef;
+  readonly basisArtifacts: readonly ArtifactRef[];
 }
 
 interface RepositoryInspectionRef {
@@ -1513,6 +1617,8 @@ repositoryInspection.sealedBaselineCandidate.parentCandidateId == null
 
 repositoryInspection.sealedBaselineCandidate.producedByRepairIntentId == null
 
+repositoryInspection.sealedBaselineCandidate.producedByAssuranceProjectionId == null
+
 repositoryInspection.evidence is duplicate-free
 
 baselineGitBasis exists and is intact
@@ -1551,6 +1657,100 @@ Malformed or referentially invalid review evidence is never silently filtered to
 `contributingReviewCampaignIds` is an ordered, duplicate-free superset of `currentReviewCampaignIds`. It also contains every stale-protocol campaign over the same `S` whose findings or current-protocol re-adjudications enter the mechanical Gate A qualification basis.
 
 A stale-protocol campaign over the same `S` that has no finding or re-adjudication effect on the qualification basis is not included merely because it exists. A current campaign may never be omitted merely because another current campaign independently satisfies the minimum reviewer count.
+
+`AssuranceRepositoryProjectionArtifactV1` is runner-owned canonical JSON under
+the existing canonical runner JSON convention. Its `entries` array is non-empty,
+strictly ordered by exact `repositoryPath` UTF-8 unsigned bytes, and
+duplicate-free by path. Every content `ArtifactRef` is intact, has media type
+`application/json`, and materializes one regular Git blob with mode `100644`.
+No directory, symlink, or gitlink is created by assurance projection.
+
+The exact allowed target set is:
+
+```text
+formal/reviews/<ReviewCampaignId>.json
+formal/reviews/packets/*.json
+formal/reviews/challenge-packets/*.json
+formal/reviews/executions/*.json
+formal/reviews/raw/*.json
+formal/reviews/adjudications/*.json
+formal/reviews/challenges/*.json
+```
+
+For a root runner-produced review record:
+
+```text
+repositoryPath ==
+    "formal/reviews/" + campaign.reviewCampaignId + ".json"
+
+parsed record.review_id == campaign.reviewCampaignId
+parsed record.repository_commit ==
+    campaign.provenance.repositoryAuthority.commitSha
+```
+
+These bindings reuse the accepted `ReviewCampaignId == review_id` and
+`(runId, S, P)` identity rules. No competing campaign/record mapping exists.
+
+Projection targets are explicitly forbidden under:
+
+```text
+formal/reviews/prompts/**
+formal/reviews/protocols/**
+formal/reviews/schemas/**
+formal/reviews/meta-schemas/**
+formal/reviews/review-evidence.schema.json
+formal/reviews/review-protocol-bundle.schema.json
+formal/verification.yaml
+docs/**
+```
+
+Assurance projection cannot mutate judging authority.
+
+Application is additive/idempotent against the exact source candidate:
+
+```text
+path absent
+→ add exact content as mode 100644
+
+path exists as mode 100644 with exact same bytes
+→ idempotent equality permitted
+
+path exists with different bytes
+→ implementation/process/integrity failure
+
+path exists with another mode/type
+→ implementation/process/integrity failure
+```
+
+Projection never deletes, renames, changes mode, replaces different bytes,
+fuzzy-matches, performs a 3-way merge, resolves conflicts, or rewrites JSON. At
+least one entry must be absent from the source candidate; a complete no-op does
+not justify another candidate.
+
+A runner-produced root review record is projected only after M5 completes the
+campaign/adjudication state represented by those exact bytes. Once
+`formal/reviews/<ReviewCampaignId>.json` exists, later projection may encounter
+only exact byte equality and may not replace it. Raw outputs, receipts,
+challenge outputs, adjudication artifacts, and final review records remain
+append-only at their repository paths. The exact M5-D final-record readiness
+algorithm remains M5-D work.
+
+M2 owns and recomputes projection identity exactly:
+
+```text
+projectionId =
+deriveId(
+    "assurance-repository-projection.v1",
+    runId,
+    sourceCandidateId,
+    semanticSubject.sha256,
+    protocolBundle.sha256,
+    projection.sha256
+)
+```
+
+`StateRevision`, ownership generation, timestamp, and successor candidate ID do
+not participate.
 
 ```ts
 interface RepositoryPublicationTargetRef {
@@ -2488,6 +2688,8 @@ interface GateARunSnapshot {
   readonly adjudications: readonly AdjudicationRef[];
   readonly reAdjudications: readonly ReAdjudicationRef[];
   readonly repairIntents: readonly RepairIntentRef[];
+  readonly assuranceRepositoryProjections:
+    readonly AssuranceRepositoryProjectionRef[];
   readonly decisionRequests: readonly DecisionRequestRef[];
   readonly candidateReviewReadiness: CandidateReviewReadinessRef | null;
   readonly blockers: readonly CampaignBlocker[];
@@ -2732,6 +2934,7 @@ interface RepositoryReviewObservationV1 {
   readonly repositoryCommitSha: string;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly referencedArtifacts: readonly ArtifactRef[];
 }
 
 interface GateACampaignAuthorityEvaluationV1 {
@@ -3233,8 +3436,23 @@ reviewAuthority.candidateMaterialization ==
 `ReviewCurrentnessResolution.kind == blocked`. M3 does not use partial review
 records.
 
-For every established mechanically projected repository review, if no
-registered campaign has its `reviewId`, M3 constructs exactly:
+For every established mechanically projected repository review, M3 first
+constructs one exact canonical observation satisfying:
+
+```text
+observation.reviewCampaignId == review.reviewId
+observation.sourceRecord == review.sourceRecord
+observation.repositoryCommitSha == review.repositoryCommitSha
+observation.semanticSubject == review.semanticSubject
+observation.protocolBundle == review.protocolBundle
+observation.referencedArtifacts == review.referencedArtifacts
+```
+
+M3 does not add, remove, reorder, or reread closure artifacts. It does not
+reinterpret M6 mechanical validity. The exact observations remain solely in
+`GateACampaignAuthorityEvaluationV1.repositoryReviewObservations`.
+
+If no registered campaign has its `reviewId`, M3 constructs exactly:
 
 ```ts
 {
@@ -3666,6 +3884,15 @@ interface AssuranceDerivationRequest {
   readonly admittedArtifacts: readonly ArtifactRef[];
 }
 
+interface AssuranceOperationalBlockerRequest {
+  readonly obligationId: ObligationId;
+  readonly workItemId: WorkItemId | null;
+  readonly executionId: ExecutionId | null;
+  readonly cause: NonRecoveryOperationalCauseRefV1 & {
+    readonly producer: "assurance-ledger";
+  };
+}
+
 interface AssuranceLedgerDelta {
   readonly expectedStateRevision: StateRevision;
   readonly evidenceToEstablish: readonly EvidenceRef[];
@@ -3675,11 +3902,29 @@ interface AssuranceLedgerDelta {
   readonly obligationDispositions: readonly ObligationDispositionRef[];
   readonly repairIntentsToQualify: readonly RepairIntentRef[];
   readonly decisionRequestsToEstablish: readonly DecisionRequestRef[];
+  readonly assuranceRepositoryProjectionToEstablish:
+    AssuranceRepositoryProjectionRef | null;
   readonly obligationsToAdd: readonly ObligationRef[];
   readonly workItemsToAdd: readonly WorkItemRef[];
   readonly executionRetryAuthorizationsToEstablish: readonly ExecutionRetryAuthorizationRef[];
   readonly blockersToAdd: readonly CampaignBlocker[];
   readonly candidateReviewReadiness: CandidateReviewReadinessRef | null;
+}
+
+type AssuranceLedgerDeltaWithoutBlockers =
+  Omit<AssuranceLedgerDelta, "blockersToAdd">;
+
+interface AssuranceLedgerPreparation
+  extends AssuranceLedgerDeltaWithoutBlockers {
+  readonly semanticBlockersToAdd: readonly SemanticBlocker[];
+  readonly operationalBlockerRequests:
+    readonly AssuranceOperationalBlockerRequest[];
+}
+
+interface AssuranceLedgerFinalizationRequest {
+  readonly preparation: AssuranceLedgerPreparation;
+  readonly materializedOperationalBlockers:
+    readonly MaterializedOperationalBlockerV1[];
 }
 ```
 
@@ -3691,8 +3936,17 @@ behind only a new WorkItem or blocker.
 
 M2 returns those admitted products in `GateARunSnapshot`; M5 receives the
 complete prior ledger plus exact newly captured results, technical failures,
-and exact M6 cognitive-attempt validation results. No module may reconstruct
-the ledger by rescanning mutable workspaces.
+and exact M6 cognitive-attempt validation results.
+
+M5 consumes repository campaign evidence only through the exact
+`GateACampaignAuthorityEvaluationV1` named by
+`GateAEvaluationContext.authorityEvaluation`. For every current or stale
+repository-origin campaign, M5 obtains the exact
+`RepositoryReviewObservationV1`, `sourceRecord`, and `referencedArtifacts` from
+that immutable artifact and may read their bytes only through
+`CampaignArtifactStore`. M5 never reconstructs repository review evidence by
+scanning `repositoryPath`, a worktree or working tree, Git index, current
+checkout/files, or current remote.
 
 M5 must return complete cross-module `ObligationRef` values, not bare newly invented IDs.
 
@@ -3700,7 +3954,41 @@ M5 must return complete cross-module `ObligationRef` values, not bare newly inve
 
 The internal serialized schemas and algorithms for these exact product categories belong to M5 NIB-M. NIB-M may refine their internal artifact payloads but may not remove, merge, or invent another cross-module category.
 
-The cross-module rule is fixed: M5 returns one `AssuranceLedgerDelta`. It never commits state directly.
+The M5 public conceptual flow is:
+
+```text
+M5 prepare_complete_delta
+→ AssuranceLedgerPreparation
+
+M1 transports operational requests unchanged
+
+M8-B materializes exact OperationalBlockers
+
+M5 finalize_complete_delta
+→ final AssuranceLedgerDelta
+
+M2 admits final delta atomically
+```
+
+Finalization preserves every non-blocker preparation field exactly. Final
+`blockersToAdd` is `semanticBlockersToAdd` followed by each
+`materializedOperationalBlockers[*].blocker` in exact request order. M5 never
+invents `BlockerId`, OAR bytes,
+operator resolution kinds, or operator state effects. M5 never commits state or
+mutates candidate repository material.
+
+M5 may establish at most one assurance projection per delta. M2 retains all
+projections append-only. A projection is consumed exactly when a retained
+candidate names its `projectionId`; no consumed boolean, revision, or mutable
+consumption state exists. One projection produces at most one candidate. For one
+exact current source candidate, authoritative state contains at most one
+unconsumed projection; M2 rejects a competing second projection.
+
+If the exact current candidate has an unconsumed projection, M5 must not
+establish a non-null `CandidateReviewReadinessRef` for that source candidate.
+The projection must first be mechanically materialized into a successor, so a
+readiness basis always names a candidate whose exact repository materialization
+already contains every required evidence artifact.
 
 Before a cognitive WorkItem has a qualified attempt, M5 preserves its exact
 runner Executions, captured results or technical failures, M4 runtime evidence,
@@ -3724,12 +4012,17 @@ unknown stays in durable GateARun operational history. It is not fabricated
 into a schema-v3 receipt attempt and is not relabeled as `technical-failure`,
 `protocol-invalid`, or `qualified`.
 
-If finite runner retry policy ends before any qualified attempt exists, M5
-returns an exact `OperationalBlocker`, the external projection is
-`OPERATOR-ACTION-REQUIRED`, and no schema-v3 hostile-review receipt is admitted.
-The complete operational attempt history remains durable in the GateARun. If a
-later accepted continuation lawfully reaches a qualified attempt for that same
-WorkItem, the eventual receipt includes the preserved earlier attempts.
+If runner retry policy permits no replacement, no qualified attempt and no
+complete schema-v3 receipt exist, while operational attempt history remains
+durable. M5 returns one exact assurance-ledger
+`NonRecoveryOperationalCauseRefV1` plus exact occurrence anchors for M8-B.
+`resolutionContracts` may be empty when the accepted producer contract declares
+no lawful same-run resolution. Issue #50 does not decide which exact M5-A causes
+use `[]`, `request-operational-recheck`, or
+`authorize-known-terminal-execution-replacement`; M5-A must close that mapping.
+The external projection is `OPERATOR-ACTION-REQUIRED` only after M8-B
+materializes the blocker and M2 admits it. A later lawful qualified attempt may
+include preserved prior attempts.
 
 A partial or no-qualified receipt is never review evidence. Validator evidence
 for an individual attempt is likewise not a substitute for the complete
@@ -3779,6 +4072,7 @@ interface GateARepositoryReviewMechanicalFactV1 {
   readonly repositoryCommitSha: string;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly referencedArtifacts: readonly ArtifactRef[];
 }
 
 interface GateAReviewAuthorityMechanicalProjectionV1 {
@@ -3995,6 +4289,32 @@ protocolBundle == exact record protocol bundle
 sourceRecord == exact sealed/ingested record bytes
 ```
 
+For every repository review fact, M6 mechanically establishes from the exact
+immutable candidate materialization and existing Python hostile-review authority
+the complete repository artifact closure needed to interpret and validate that
+exact record. The closure is the exact graph required by current checker
+authority, including as applicable: review packet, protocol bundle and required
+predecessors, protocol-bound meta-schemas, prompts, execution receipts, raw
+outputs, challenge packets and outputs, adjudication artifacts, and every other
+exact hostile-review artifact required by accepted authority. M6 invents no
+alternate validation graph and interprets no finding semantics.
+
+For `referencedArtifacts`:
+
+```text
+sourceRecord is excluded
+every ArtifactRef.repositoryPath is non-null
+every path is inside the exact candidate materialization
+every ArtifactRef resolves to exact bytes at that path
+every SHA matches the review record or accepted transitive contract
+paths are duplicate-free
+order is repositoryPath exact UTF-8 unsigned-byte ascending
+```
+
+If a mechanically trustworthy complete closure cannot be established, M6 does
+not return an established review-authority fact for that record and follows the
+existing invalid/integrity behavior.
+
 Duplicate `review_id` is invalid authority; never tie-break.
 Malformed/referentially invalid review evidence is never silently omitted.
 
@@ -4120,7 +4440,9 @@ schema.
 interface CandidateConstructionRequest {
   readonly runId: GateARunId;
   readonly sourceCandidate: CandidateRevisionRef;
-  readonly repairIntent: RepairIntentRef;
+  readonly repairIntent: RepairIntentRef | null;
+  readonly assuranceProjection:
+    AssuranceRepositoryProjectionRef | null;
 }
 
 interface CandidateSealResult {
@@ -4142,7 +4464,9 @@ type PublicationPreparationResult =
     }
   | {
       readonly kind: "blocked";
-      readonly blocker: OperationalBlocker;
+      readonly cause: NonRecoveryOperationalCauseRefV1 & {
+        readonly producer: "repository-control";
+      };
     };
 
 interface PublicationExecutionRequest {
@@ -4187,7 +4511,9 @@ type PublicationObservationQualificationResult =
     }
   | {
       readonly kind: "blocked";
-      readonly blocker: OperationalBlocker;
+      readonly cause: NonRecoveryOperationalCauseRefV1 & {
+        readonly producer: "repository-control";
+      };
     };
 ```
 
@@ -4226,54 +4552,39 @@ No caller may provide a separate baseline Git basis or baseline authority.
 Candidate-construction bindings:
 
 ```text
-request.runId ==
-    request.sourceCandidate.runId ==
-    request.repairIntent.runId
-
-request.repairIntent.candidateId ==
-    request.sourceCandidate.candidateId
-
-request.repairIntent is the exact authoritative RepairIntentRef selected from
-the current GateARunSnapshot
-
-M7 uses exactly:
-    request.repairIntent.approvedPatch
-
-M7 accepts no separately supplied replacement, override, fallback, or
-reconstructed patch ArtifactRef
+request.runId == request.sourceCandidate.runId
+request.repairIntent != null OR request.assuranceProjection != null
 ```
 
-For a successful result require exactly:
+When repair is non-null, it is the exact current authoritative `RepairIntentRef`,
+its run/candidate bind the source, and M7 uses only its `approvedPatch`. When
+assurance projection is non-null, it is the exact authoritative projection and
+its run/source/S bindings equal the source candidate.
+
+Before applying either change, M7 derives exact repair and assurance path sets
+and requires an empty intersection. It then applies exactly:
 
 ```text
-result.sealedCandidate.runId ==
-    request.runId
-
-result.sealedCandidate.parentCandidateId ==
-    request.sourceCandidate.candidateId
-
-result.sealedCandidate.producedByRepairIntentId ==
-    request.repairIntent.repairIntentId
+1. exact immutable source candidate
+2. exact RepairIntent patch if non-null
+3. exact AssuranceRepositoryProjection if non-null
+4. validate resulting candidate
+5. canonical materialization
+6. Git tree projection
+7. round-trip verification
+8. seal
 ```
 
-M7 validates only mechanical construction admissibility of the exact
-approvedPatch representation under the future M7-A contract.
+No precedence rule, merge, or conflict resolution exists. M7 validates the
+projection `ArtifactRef`, canonical runner JSON, exact schema, source candidate,
+parent subject and protocol binding, ordered unique non-empty entries, allowed
+namespace, intact content refs, and exact source path state. It applies only the
+additive/idempotent rules above and never interprets hostile-review content.
 
-M7 does not decide whether the repair is semantically correct, sufficient,
-authorized, or challenge-qualified.
-
-Those facts are already owned by the admitted RepairIntent produced through M5
-authority.
-
-Candidate construction has no normal blocked result.
-
-Once an authoritative RepairIntent exists for the exact source candidate,
-malformed/inconsistent approved construction provenance is an
-implementation/process/integrity failure rather than an
-OPERATOR-ACTION-REQUIRED repair conflict.
-
-Replay-safe local process/resource failure before authoritative candidate
-admission creates no campaign fact and may be retried from durable state.
+Successful candidate and sealed-candidate provenance contains the exact nullable
+repair/projection IDs from the request. Candidate construction has no normal
+blocked result. Invalid construction provenance, overlap, namespace, bytes,
+mode/type, or source binding is an implementation/process/integrity failure.
 
 Repository inspection is the only M7 operation in the initial-run path that may
 read mutable `repositoryPath` to establish the initial mechanical repository
@@ -6511,6 +6822,7 @@ run(command):
             materialization = inspection.sealedBaselineCandidate.materialization,
             semanticSubject = snapshot.preflightSemanticSubject,
             producedByRepairIntentId = null
+            producedByAssuranceProjectionId = null
 
         commit through M2 one exact AdmitCandidateV1:
             {
@@ -6752,6 +7064,7 @@ run(command):
                 materialization = inspection.sealedBaselineCandidate.materialization,
                 semanticSubject = snapshot.preflightSemanticSubject,
                 producedByRepairIntentId = null
+                producedByAssuranceProjectionId = null
 
             commit through M2 one exact AdmitCandidateV1:
                 {
@@ -6781,6 +7094,7 @@ run(command):
                     inspection.sealedBaselineCandidate.materialization,
                 semanticSubject = snapshot.preflightSemanticSubject,
                 producedByRepairIntentId = null
+                producedByAssuranceProjectionId = null
 
             commit through M2 one exact AdmitCandidateV1:
                 {
@@ -7016,42 +7330,26 @@ run(command):
 
         work = derive_enabled_work(snapshot)
 
-        if qualified exact repair is enabled:
+        before ordinary WorkItem dispatch:
             repair_intent =
-                exact enabled authoritative RepairIntentRef
-                selected from snapshot.repairIntents
+                exact enabled current-candidate RepairIntentRef
+                or null
 
-            source_candidate =
-                exact snapshot.currentCandidate
+            assurance_projection =
+                exact unconsumed current-candidate
+                    AssuranceRepositoryProjectionRef
+                or null
 
-            require source_candidate != null
-
-            require repair_intent.runId == run.runId
-
-            require source_candidate.runId == run.runId
-
-            require repair_intent.candidateId ==
-                source_candidate.candidateId
-
-            require zero CandidateRevision already exists where:
-                producedByRepairIntentId ==
-                    repair_intent.repairIntentId
+        if repair_intent != null or assurance_projection != null:
+            source_candidate = exact snapshot.currentCandidate
 
             sealed_successor =
-                repository_control.apply_exact_patch_and_seal({
+                repository_control.apply_exact_candidate_changes_and_seal({
                     runId: run.runId,
                     sourceCandidate: source_candidate,
-                    repairIntent: repair_intent
+                    repairIntent: repair_intent,
+                    assuranceProjection: assurance_projection
                 })
-
-            require sealed_successor.sealedCandidate.runId ==
-                run.runId
-
-            require sealed_successor.sealedCandidate.parentCandidateId ==
-                source_candidate.candidateId
-
-            require sealed_successor.sealedCandidate.producedByRepairIntentId ==
-                repair_intent.repairIntentId
 
             successor_subject = mechanical_validation.derive_candidate_subject({
                 runId: run.runId,
@@ -7061,63 +7359,48 @@ run(command):
 
             if M6 does not produce a trustworthy subject result:
                 admit no successor CandidateRevision
-                leave RepairIntent unconsumed
+                leave repair/projection unconsumed
                 fabricate no CampaignBlocker
                 fail invocation outside normal RunnerResult
 
             successor = construct complete CandidateRevision:
-                runId =
-                    run.runId
-
-                ordinal =
-                    source_candidate.ordinal + 1
-
-                parentCandidateId =
-                    source_candidate.candidateId
-
+                ordinal = source_candidate.ordinal + 1
+                parentCandidateId = source_candidate.candidateId
+                producedByRepairIntentId =
+                    repair_intent?.repairIntentId or null
+                producedByAssuranceProjectionId =
+                    assurance_projection?.projectionId or null
                 materialization =
                     sealed_successor.sealedCandidate.materialization
+                semanticSubject = successor_subject.semanticSubject
 
-                semanticSubject =
-                    successor_subject.semanticSubject
+            require successor and sealed candidate agree exactly on:
+                parentCandidateId
+                producedByRepairIntentId
+                producedByAssuranceProjectionId
+                materialization
 
-                producedByRepairIntentId =
-                    repair_intent.repairIntentId
+            if repair_intent == null and assurance_projection != null:
+                require successor.semanticSubject ==
+                    source_candidate.semanticSubject ==
+                    assurance_projection.semanticSubject
+                otherwise fail invocation as implementation/process/integrity
+                    failure, admit no candidate, and do not reinterpret as
+                    campaign-required
 
-            commit through M2 one exact AdmitCandidateV1:
-                {
-                    kind: "admit-candidate",
-                    sealedCandidate: sealed_successor.sealedCandidate,
-                    candidate: successor
-                }
+            commit exact successor through M2 AdmitCandidateV1
 
             after successful admission:
-                existence of successor is the append-only proof that
-                repair_intent was consumed
-
-            if successor.semanticSubject != source_candidate.semanticSubject:
-                prior campaigns become non-current for the successor subject by derivation
-            else:
-                retain the complete current campaign set for unchanged exact (S, P)
-                do not create a campaign because CandidateRevision changed
+                candidate existence is immutable consumption proof for every
+                    non-null repair/projection authority
 
             continue
 
-        M7-A may seal deterministic successor artifacts and crash before
-        AdmitCandidateV1.
-
-        Because no authoritative candidate was admitted, restart may replay the
-        same sourceCandidate + RepairIntent and reproduce the same sealed
-        successor.
-
-        Once one CandidateRevision with producedByRepairIntentId == R exists, R
-        is consumed and ordinary orchestration must not invoke M7-A with R again.
-
-        No special recovery protocol is introduced.
-
-        No Execution is involved.
-
-        No external-effect Arm is involved.
+        A crash after projection admission but before M7 leaves the exact
+        projection authoritative and unconsumed. A crash after M7 sealing but
+        before candidate admission replays the same immutable inputs and
+        deterministically reproduces the same successor. M2 remains the sole
+        consumption enforcer.
 
         if one or more ordinary WorkItems are enabled:
             select only already-authorized WorkItems
@@ -7251,7 +7534,7 @@ run(command):
 
             require no CognitiveAttemptValidationRequest exists for a technical failure
 
-            delta = assurance_ledger.derive_complete_delta(
+            preparation = assurance_ledger.prepare_complete_delta(
                 evaluation_context,
                 current authoritative snapshot,
                 newly captured results,
@@ -7260,7 +7543,47 @@ run(command):
                 newly admitted artifacts
             )
 
-            commit every explicit delta product through M2
+            require preparation.expectedStateRevision ==
+                snapshot.stateRevision
+
+            materializedOperationalBlockers = []
+
+            for each request in preparation.operationalBlockerRequests
+            in exact order:
+                require request.cause.producer == "assurance-ledger"
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId: run.runId,
+                        baseStateRevision:
+                            preparation.expectedStateRevision,
+                        producer: "assurance-ledger",
+                        obligationId: request.obligationId,
+                        workItemId: request.workItemId,
+                        executionId: request.executionId,
+                        causeDescriptor: request.cause.causeDescriptor,
+                        resolutionContracts:
+                            request.cause.resolutionContracts
+                    })
+
+                append materialized to materializedOperationalBlockers
+
+            delta = assurance_ledger.finalize_complete_delta({
+                preparation,
+                materializedOperationalBlockers
+            })
+
+            commit one exact AdmitAssuranceLedgerDeltaV1
+            using the same expected StateRevision
+
+            if StateRevision becomes stale before commit:
+                no materialized blocker becomes authoritative
+                sealed M8-B artifacts remain non-authoritative durable material
+                reload authoritative snapshot
+                rederive preparation
+                replay no external effect
+
 
             continue
 
@@ -7312,7 +7635,13 @@ run(command):
             })
 
             if preparation is blocked:
-                commit exact operational blocker through M2
+                require preparation.cause.producer == "repository-control"
+                bind only exact already-determined authoritative occurrence
+                    anchors for preparation.cause
+                materialized = recovery_operator.materialize_operational_blocker(
+                    exact preparation.cause + exact anchors + current StateRevision
+                )
+                commit only materialized.blocker through M2
                 continue
 
             require preparation.transition.relationship == "fast-forward"
@@ -7388,7 +7717,17 @@ run(command):
                     })
 
                 if publication_qualification.kind == "blocked":
-                    commit publication_qualification.blocker through M2
+                    require publication_qualification.cause.producer ==
+                        "repository-control"
+                    bind only exact already-determined authoritative occurrence
+                        anchors for publication_qualification.cause
+                    materialized =
+                        recovery_operator.materialize_operational_blocker(
+                            exact publication_qualification.cause
+                            + exact anchors
+                            + current StateRevision
+                        )
+                    commit only materialized.blocker through M2
                     return OPERATOR-ACTION-REQUIRED projection
 
                 require publication_qualification.kind == "confirmed"
@@ -7524,7 +7863,17 @@ run(command):
                     })
 
                 if publication_qualification.kind == "blocked":
-                    commit publication_qualification.blocker through M2
+                    require publication_qualification.cause.producer ==
+                        "repository-control"
+                    bind only exact already-determined authoritative occurrence
+                        anchors for publication_qualification.cause
+                    materialized =
+                        recovery_operator.materialize_operational_blocker(
+                            exact publication_qualification.cause
+                            + exact anchors
+                            + current StateRevision
+                        )
+                    commit only materialized.blocker through M2
                     return OPERATOR-ACTION-REQUIRED projection
 
                 if publication_observation_source == "recovered" and
@@ -8023,6 +8372,23 @@ GI-85  One RepairIntent may produce at most one CandidateRevision. The admitted
        CandidateRevision carrying that RepairIntentId is the append-only proof
        of consumption; no mutable consumed flag may authorize or suppress
        repair reuse.
+GI-86  Every non-C0 candidate is produced by RepairIntent,
+       AssuranceRepositoryProjection, or both.
+GI-87  Assurance-only candidate construction preserves the exact M6-derived
+       semantic subject of parent and projection.
+GI-88  Assurance projection cannot modify judging authority.
+GI-89  M6 supplies complete immutable repository-review artifact closure; M3
+       preserves it exactly and M5 consumes it only through authorityEvaluation.
+GI-90  M5 does not scan mutable repository state or mutate candidate material.
+GI-91  M7 applies assurance projection mechanically and interprets no assurance
+       meaning.
+GI-92  One assurance projection produces at most one candidate and at most one
+       unconsumed projection exists per source candidate.
+GI-93  Candidate review readiness is null while the current candidate has an
+       unconsumed assurance projection.
+GI-94  M5 and M7 non-recovery causes become OperationalBlockers only through
+       M8-B; M2 alone admits them.
+GI-95  Combined repair/projection path sets are disjoint.
 ```
 
 ## 40. Cross-cutting policies
