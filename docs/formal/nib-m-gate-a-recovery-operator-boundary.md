@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY
-version: "2.0.2"
+version: "2.0.3"
 scope: gate-a-campaign-runner/recovery-operator/operator-boundary
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,7 @@ superseded_by: []
 
 # NIB-M — Gate A Recovery Operator — Operator Boundary
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.2`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.3`.
 
 This Module Brief is implementation-construction authority only. It does not
 create TURNLOCK product semantics, hostile-review protocol semantics, canonical
@@ -59,6 +59,7 @@ M8-B does NOT own:
 ```text
 M8-A executor-domain recovery truth
 M3 producer-domain cause meaning
+M4 cognitive-execution producer-domain cause meaning
 M5 assurance semantics
 M6 validation truth
 M7 repository-domain cause meaning
