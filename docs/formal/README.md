@@ -8,8 +8,9 @@ and, for hostile-review campaign execution, adjudication, and exact evidence
 binding,
 [ADR-042](../adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md),
 [ADR-043](../adr/adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md),
-[ADR-044](../adr/adr-044-require-one-unambiguous-gate-a-review-subject.md), and
-[ADR-045](../adr/adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md).
+[ADR-044](../adr/adr-044-require-one-unambiguous-gate-a-review-subject.md),
+[ADR-045](../adr/adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md), and
+[ADR-053](../adr/adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md).
 
 ## Architecture
 
@@ -260,32 +261,32 @@ evidence. Machine-readable linkage validates traceability consistency; it does
 not prove that a future TLA+ formula faithfully captures the prose meaning.
 Semantic correspondence remains a hostile-review obligation.
 
-## Hostile-review protocol v4 and immutable meta-schemas
+## Hostile-review protocol v5 and immutable meta-schemas
 
 The current hostile-review protocol identity `P` is
-`gate-a-campaign-protocol-v4`, and review evidence remains schema `5.0`.
-Protocol v4 binds the exact content-addressed protocol-bundle meta-schema
-`formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json` and the
-exact content-addressed review-evidence meta-schema
-`formal/reviews/meta-schemas/review-evidence-v5.schema.json` into `P`. Protocol
-bundles v1-v3 are interpreted with the immutable
-`formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json` snapshot.
-The previously mutable unversioned `review-evidence.schema.json` and
-`review-protocol-bundle.schema.json` files are byte-identical frozen legacy
-aliases and are no longer active validation authority. The Python traceability
-checker remains the finite mechanical schema-selection root; no schema registry,
-registry schema, or meta-meta-schema exists. Challenge evidence is bound to an
-exact canonical self-contained challenge packet embedding the exact reviewed
-Gate A packet and challenged candidate. Retry admissibility is checker-derived
-from sealed output; `protocol-invalid` is permitted only for the
-deterministically validated roles `initial-reviewer` and `challenge`, and is
-forbidden for the seven cognitive roles without a deterministic output
-validator. For those unvalidated roles the first completed response is the
-terminal qualified completion, meaning only the unique admitted completion of
-that execution. Historical protocol bundles are preserved and recursively
-validated through the `v4 -> v3 -> v2 -> v1` predecessor chain, where v1, v2,
-and v3 are immutable. This changes no TURNLOCK semantics and does not change the
-Gate A semantic subject.
+`gate-a-campaign-protocol-v5`, and review evidence remains schema `5.0`.
+Protocol v5 has exact v4 predecessor, binds
+`formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json`, and
+continues to bind unchanged
+`formal/reviews/meta-schemas/review-evidence-v5.schema.json`. Execution receipts
+remain schema `3.0`. Protocol v1-v4 artifacts remain immutable history; v1-v3
+use their immutable shared meta-schema snapshot and v4 retains its exact
+immutable v4 meta-schema. Frozen unversioned aliases remain inactive.
+
+Protocol v5 commits minimum-effective, deterministic, content-independent,
+round-based reviewer acquisition through the sole protocol-owned
+`profile_order`. Registry membership is eligibility, not execute-all authority.
+Pinned static duplicate identities may be skipped; provider-reported identities
+are not guessed or pre-collapsed; qualified collisions may acquire the next
+ordered profile. Selected-WorkItem retry exhaustion never becomes automatic
+profile substitution, and pool exhaustion below the effective minimum routes to
+`OPERATOR-ACTION-REQUIRED`. `minimum_independent_reviewers` remains
+`formal/verification.yaml` policy outside P.
+
+The Python checker remains the finite schema-selection root, challenge input
+binding and role-aware retry rules remain unchanged, and protocol history is
+recursively validated through `v5 -> v4 -> v3 -> v2 -> v1`. ADR-053 changes no
+TURNLOCK semantics and does not enter the Gate A semantic subject.
 
 ## Gate A campaign runner construction
 
@@ -294,9 +295,9 @@ campaign runner is documented in
 [`gate-a-campaign-runner-construction-plan.md`](gate-a-campaign-runner-construction-plan.md).
 
 The campaign-runner System Brief is stored in
-[`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md).
-The brief's own NIB metadata is the sole source for its construction lifecycle
-status.
+[`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
+version is `9.0.0`. The brief's own NIB metadata is the sole source for its
+construction lifecycle status.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
 
@@ -321,7 +322,14 @@ M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
 interpretation, campaign-authority operational causes and blocking obligations,
 `GateACampaignAuthorityEvaluationV1` sealing, and `ReviewContext` construction.
 
-M3 consumes NIB-S `8.0.1`.
+M3 consumes NIB-S `9.0.0`.
+
+NIB-S `9.0.0` adds the M6 → M3 → M5 reviewer-acquisition boundary. M6 projects
+exact protocol policy, M3 validates it and computes the complete lexical
+qualifying set, protocol-ordered acquisition candidates, statically known pinned
+identities, and optimistic maximum capacity, while M5 owns qualified-identity
+progress and later acquisition rounds. M3 never executes reviewers or resolves
+provider-reported identity.
 
 M3 requires no external Dependency Contract.
 

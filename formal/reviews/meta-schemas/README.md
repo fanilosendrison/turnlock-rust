@@ -20,8 +20,15 @@ above.
 semantics for protocol-bundle schema versions 1, 2, and 3.
 
 `review-protocol-bundle-v4.schema.json` defines protocol-bundle schema version
-4, which requires an exact top-level `meta_schemas` object binding the exact
+4, which introduced an exact top-level `meta_schemas` object binding the exact
 protocol-bundle meta-schema and the exact review-evidence meta-schema.
+
+`review-protocol-bundle-v5.schema.json` defines current protocol-bundle schema
+version 5. It preserves the v4 interpretation contract and adds required
+`policies.reviewer_acquisition` with exact mode
+`minimum-effective-independent-v1` and one duplicate-free total
+`profile_order`. Protocol v5 continues to bind unchanged
+`review-evidence-v5.schema.json`; execution receipts remain schema 3.0.
 
 Future schema changes create new files at new paths and require a new protocol
 identity. A future review-evidence schema change creates a new immutable

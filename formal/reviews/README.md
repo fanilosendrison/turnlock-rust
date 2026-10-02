@@ -61,9 +61,14 @@ prompt artifacts, canonical schema artifacts, reviewer profiles, and protocol
 policies. A protocol change requires a new content identity `P`. A review made
 under a stale `P` does not satisfy current Gate A.
 
-The current bundle is `gate-a-campaign-protocol-v4`. It cryptographically links the immutable v3 bundle as its predecessor, v3 links the immutable v2 bundle, and v2 links the immutable v1 bundle; predecessor bundles and their referenced prompts and schemas are recursively checked. Published versioned protocol bundles and referenced prompt/schema artifacts are append-only by path and bytes. The protocol history is `v4 -> v3 -> v2 -> v1`; v1, v2, and v3 are immutable historical bundles.
+The current bundle is `gate-a-campaign-protocol-v5`. It cryptographically links
+the exact immutable v4 bundle as its predecessor; v4 links v3, v3 links v2, and
+v2 links v1. Predecessor bundles and their referenced prompts and schemas are
+recursively checked. Published versioned protocol bundles and referenced
+prompt/schema artifacts are append-only by path and bytes. The protocol history
+is `v5 -> v4 -> v3 -> v2 -> v1`; v1-v4 remain immutable history.
 
-The published v1, v2, v3, and v4 bundles intentionally declare:
+The published v1-v5 bundles intentionally declare:
 
 ```json
 "reviewer_profiles": []
@@ -71,7 +76,8 @@ The published v1, v2, v3, and v4 bundles intentionally declare:
 
 The empty registry is intentional. No real Gate A campaign can qualify until a
 later protocol snapshot explicitly adds eligible profiles, and that profile
-change necessarily changes `P`.
+change necessarily changes `P`. Protocol v5 nevertheless commits the complete
+reviewer-acquisition contract through an empty `profile_order`.
 
 ## Immutable meta-schemas
 
@@ -82,25 +88,37 @@ immutable content-addressed meta-schemas:
 formal/reviews/meta-schemas/review-evidence-v5.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json
+formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json
 ```
 
-`review-evidence-v5.schema.json` is the immutable initial review-evidence
+`review-evidence-v5.schema.json` is the immutable unchanged review-evidence
 meta-schema. `review-protocol-bundle-v1-v3.schema.json` preserves the historical
 bundle validation semantics for bundle schema versions 1, 2, and 3.
-`review-protocol-bundle-v4.schema.json` defines bundle schema version 4.
+`review-protocol-bundle-v4.schema.json` defines historical bundle schema version
+4, and `review-protocol-bundle-v5.schema.json` is current for schema version 5.
 
-Protocol v4 binds both exact meta-schema artifact references into protocol
-identity `P`:
+Protocol v5 binds both exact current meta-schema artifact references into
+protocol identity `P`:
 
 ```text
-meta_schemas.protocol-bundle = exact review-protocol-bundle-v4.schema.json
+meta_schemas.protocol-bundle = exact review-protocol-bundle-v5.schema.json
 meta_schemas.review-evidence = exact review-evidence-v5.schema.json
 ```
 
 Protocol bundles v1-v3 are interpreted with the immutable v1-v3 bundle
-meta-schema snapshot, and their review records use the immutable schema-5
-evidence snapshot as compatibility support. No real pre-v4 campaign evidence
-exists.
+meta-schema snapshot; protocol v4 remains interpreted by its immutable v4
+meta-schema. Their review records use the immutable schema-5 evidence snapshot
+as compatibility support. No real campaign evidence exists.
+
+Protocol v5 reviewer acquisition is minimum-effective, deterministic,
+content-independent, round-based, and ordered only by
+`policies.reviewer_acquisition.profile_order`. Registry membership is
+eligibility, not execute-all authority. Statically duplicate pinned identities
+may be skipped; provider-reported identities are not guessed or pre-collapsed;
+qualified identity collisions may expand to the next ordered eligible profile.
+The numeric `minimum_independent_reviewers` remains
+`formal/verification.yaml` policy outside P. Review evidence remains schema 5.0
+and execution receipts remain schema 3.0.
 
 The Python traceability checker is the finite mechanical schema-selection root:
 it selects the meta-schema appropriate to a protocol-bundle schema version. No

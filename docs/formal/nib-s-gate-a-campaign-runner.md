@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "8.0.1"
+version: "9.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -24,7 +24,7 @@ It is implementation-construction authority only. It does not define TURNLOCK pr
 Its controlling technical inputs are:
 
 - `docs/specification/turnlock-spec.md`;
-- accepted ADR-041 through ADR-049;
+- accepted ADR-041 through ADR-049 and ADR-053;
 - `formal/verification.yaml`;
 - the content-addressed hostile-review protocol and evidence contracts under `formal/reviews/`;
 - the repository authority and validation rules in `AGENTS.md`.
@@ -576,6 +576,18 @@ No hostile-review protocol semantics change.
 No formal-assurance semantics change.
 No blocker/recovery semantics change.
 No product ADR is created.
+
+Version `9.0.0` is a breaking implementation-construction contract revision
+driven by ADR-053 and hostile-review protocol v5. It adds the protocol-owned,
+deterministic minimum-effective reviewer-acquisition boundary across M6 → M3 →
+M5. Reviewer registry membership remains eligibility rather than execute-all
+authority; acquisition is protocol-ordered, content-independent, round-based,
+and expands only after qualified effective-identity collision.
+
+The numeric `minimum_independent_reviewers` remains formal-assurance policy
+outside protocol identity P. This revision changes no TURNLOCK product
+semantics, Gate A semantic subject S, review-evidence schema, or execution-
+receipt schema.
 
 ## 2. System objective
 
@@ -2922,6 +2934,8 @@ interface ReviewerPrerequisitesUnavailableCauseV1 {
   readonly protocolBundle: ProtocolBundleRef;
   readonly minimumIndependentReviewers: number;
   readonly qualifyingReviewerProfileIds: readonly string[];
+  readonly maximumStaticallyPossibleIndependentReviewers: number;
+  readonly reviewerAcquisitionProfileIds: readonly string[];
   readonly reviewAuthorityProjection: ArtifactRef;
 }
 
@@ -3002,7 +3016,11 @@ interface ReviewerPrerequisiteRequest {
 type ReviewerPrerequisiteResolution =
   | {
       readonly kind: "established";
+      readonly minimumIndependentReviewers: number;
+      readonly acquisitionMode: "minimum-effective-independent-v1";
       readonly qualifyingReviewerProfileIds: readonly string[];
+      readonly reviewerAcquisitionCandidates:
+        readonly GateAReviewerAcquisitionCandidateV1[];
       readonly evidence: readonly ArtifactRef[];
     }
   | {
@@ -3638,17 +3656,46 @@ candidate.semanticSubject ==
     semanticSubject
 ```
 
+M6 mechanically projects `reviewerAcquisition` exactly from validated current P.
+M6 does not choose acquisition order, select profiles, or use finding content.
+
 For `kind = established`, `qualifyingReviewerProfileIds` must be the complete
 set of protocol-registered profiles that satisfy every accepted
 reviewer/profile prerequisite for the required Gate A review class. M3 may not
 choose an arbitrary subset. The order is `profileId` unsigned ASCII ascending.
 
-If the complete mechanically projected registry cannot satisfy the applicable
-minimum/prerequisite contract, the result is `blocked` with the exact
-candidate-scoped blocking obligation and exact M3-owned operational cause
-reference. M1 and M3 never establish a resolution from runner configuration,
-environment, an unregistered model alias, or a model alias absent from the
-protocol bundle.
+`reviewerAcquisitionCandidates` traverses exact P `profileOrder`, filtered to
+the complete statically qualifying set. It is never lexically resorted. A
+provider-reported candidate has `staticallyKnownEffectiveIdentity = null`. A
+pinned immutable candidate has the exact known `{ provider, modelVersion:
+requestModel }` identity.
+
+M3 computes the optimistic static capacity as the count of distinct known
+pinned effective identities plus the number of qualifying provider-reported
+profiles. It never pre-collapses provider-reported profiles. If that capacity is
+less than `minimumIndependentReviewers`, the result is `blocked` with the exact
+candidate-scoped blocking obligation, the extended exact cause fields, and
+`resolutionContracts = []`. No ReviewCampaign is created.
+
+M1 creates the first deterministic acquisition round from this exact M3 basis.
+M5 alone derives later rounds from qualified receipt identities. Registry
+membership never means execute-all authority. Selection and expansion depend
+only on P, the policy minimum, static profile facts, profiles already selected,
+qualified receipt existence, resolved identities, and statically known pinned
+identities. Finding content, favorability, latency, scheduling, and completion
+order are never inputs.
+
+A selected reviewer WorkItem remains required campaign work. Retry exhaustion
+never triggers automatic profile substitution and routes through the existing
+M5 → M8-B → M2 `OPERATOR-ACTION-REQUIRED` path. A qualified duplicate effective
+identity remains evidence and may cause M5 to derive the next ordered round.
+Eligible-pool exhaustion below the effective minimum produces exact M5
+assurance-domain non-recovery cause material for M8-B with
+`resolutionContracts = []`; it is never `DECISION-REQUIRED` and cannot mutate P
+inside the current run.
+
+M1 and M3 never establish a resolution from runner configuration, environment,
+an unregistered model alias, or a model alias absent from the protocol bundle.
 
 `PROTOCOL-CHANGED` requires one full new current-`P` campaign plus accepted
 stale-protocol re-adjudication. It is not permission to mutate any old
@@ -4093,6 +4140,32 @@ interface GateAReviewerProfileMechanicalFactV1 {
       };
 }
 
+interface GateAReviewerAcquisitionPolicyMechanicalFactV1 {
+  readonly mode: "minimum-effective-independent-v1";
+  readonly profileOrder: readonly string[];
+}
+
+interface EffectiveReviewerIdentityRefV1 {
+  readonly provider: string;
+  readonly modelVersion: string;
+}
+
+interface GateAReviewerAcquisitionCandidateV1 {
+  readonly profileId: string;
+  readonly provider: string;
+  readonly requestModel: string;
+  readonly identityResolution:
+    | {
+        readonly kind: "provider-reported";
+      }
+    | {
+        readonly kind: "pinned-request-model";
+        readonly requestModelIsImmutableVersion: true;
+      };
+  readonly staticallyKnownEffectiveIdentity:
+    EffectiveReviewerIdentityRefV1 | null;
+}
+
 interface GateARepositoryReviewMechanicalFactV1 {
   readonly reviewId: ReviewCampaignId;
   readonly sourceRecord: ArtifactRef;
@@ -4110,6 +4183,8 @@ interface GateAReviewAuthorityMechanicalProjectionV1 {
   readonly minimumIndependentReviewers: number;
   readonly reviewerProfiles:
     readonly GateAReviewerProfileMechanicalFactV1[];
+  readonly reviewerAcquisition:
+    GateAReviewerAcquisitionPolicyMechanicalFactV1;
   readonly repositoryReviews:
     readonly GateARepositoryReviewMechanicalFactV1[];
   readonly evidence: readonly ArtifactRef[];
@@ -4128,6 +4203,8 @@ type CandidateReviewAuthorityMechanicalProjectionResult =
       readonly minimumIndependentReviewers: number;
       readonly reviewerProfiles:
         readonly GateAReviewerProfileMechanicalFactV1[];
+      readonly reviewerAcquisition:
+        GateAReviewerAcquisitionPolicyMechanicalFactV1;
       readonly repositoryReviews:
         readonly GateARepositoryReviewMechanicalFactV1[];
       readonly projection: ArtifactRef;
@@ -7280,14 +7357,26 @@ run(command):
                 ),
                 provenance = exact current candidate plus exact current full
                     repository authority,
+                prerequisites.minimumIndependentReviewers,
+                prerequisites.acquisitionMode,
                 prerequisites.qualifyingReviewerProfileIds,
+                prerequisites.reviewerAcquisitionCandidates,
                 prerequisites.evidence
             )
 
             derive:
-                all protocol-required current-P campaign obligations and WorkItems
+                the first deterministic initial-reviewer acquisition round from
+                    exact M3 reviewer acquisition basis
+                all selected first-round WorkItems as required campaign work
+                all other protocol-required current-P campaign obligations and
+                    non-reviewer WorkItems
                 all required current-P re-adjudication obligations and WorkItems
                 for stale-protocol findings over the same S
+
+            require later initial-reviewer acquisition WorkItems are added only
+                through M5 assurance-ledger deltas after every selected WorkItem
+                in the prior round has qualified or entered an existing
+                operational/recovery blocker path
 
             commit campaign + complete derived ledger products through M2
 
@@ -8420,6 +8509,21 @@ GI-93  Candidate review readiness is null while the current candidate has an
 GI-94  M5 and M7 non-recovery causes become OperationalBlockers only through
        M8-B; M2 alone admits them.
 GI-95  Combined repair/projection path sets are disjoint.
+GI-96  Reviewer-profile registry membership is eligibility, not execute-all
+       authority. Initial-reviewer WorkItems are derived only through the
+       current P acquisition policy.
+GI-97  Reviewer acquisition is independent of finding content, semantic
+       favorability, execution latency, and scheduler completion order.
+GI-98  A qualified reviewer whose effective identity duplicates an already-
+       counted identity remains complete evidence but adds no independent-
+       reviewer count.
+GI-99  Automatic profile expansion is permitted after qualified identity
+       collision but never as a substitute for operational retry exhaustion of
+       an already-selected WorkItem.
+GI-100 If the current P eligible pool is exhausted after qualified reviews and
+       the effective independent-reviewer minimum remains unmet, M5 emits exact
+       assurance-domain non-recovery cause material for M8-B; no
+       DECISION-REQUIRED meaning is invented.
 ```
 
 ## 40. Cross-cutting policies
@@ -8532,6 +8636,27 @@ executed.
 After Arm, it is conservatively unresolved until exact terminal disposition,
 and restart may not depend on whether the executor managed to return an
 uncertainty object before process interruption.
+
+### CP-15 — Deterministic minimum-effective reviewer acquisition
+
+Current P owns the sole total profile acquisition order. M3 proves optimistic
+static feasibility and returns the exact ordered qualifying candidate basis.
+M1 uses that basis for the first round; M5 derives later rounds only after a
+successful prior round establishes exact qualified receipt identities.
+
+Each round selects at most the current effective-identity deficit. Statically
+known duplicate pinned identities are skipped within the round or against
+already counted identities. Provider-reported identities are never guessed or
+pre-collapsed. Every selected WorkItem becomes required campaign work, and its
+retry exhaustion never authorizes automatic profile substitution.
+
+Qualified duplicate effective identities remain complete evidence. They may
+cause expansion to the next protocol-ordered eligible profile. Acquisition is
+independent of findings, semantic favorability, execution timing, and scheduler
+completion order. Once the effective minimum is established, no extra initial
+reviewer is acquired. Pool exhaustion below the minimum routes exact M5
+non-recovery cause material to M8-B and `OPERATOR-ACTION-REQUIRED`, with no
+same-run resolution contract.
 
 ## 41. NIB-M decomposition required by this System Brief
 

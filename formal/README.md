@@ -178,24 +178,34 @@ prevent Gate A subject derivation.
 state. Focused configurations may restrict the integrated semantics; they must
 never become independent mini-semantics.
 
-## Hostile-review protocol v4
+## Hostile-review protocol v5
 
 The current hostile-review protocol identity `P` is
-`gate-a-campaign-protocol-v4`, and review evidence is schema `5.0`. The protocol
-history is `v4 -> v3 -> v2 -> v1`; v1, v2, and v3 are immutable historical
-bundles. Protocol v4 binds the exact content-addressed protocol-bundle
-meta-schema and the exact content-addressed review-evidence meta-schema into
-`P`, and protocol bundles v1-v3 are interpreted with the immutable v1-v3 bundle
-meta-schema snapshot. The unversioned schema files are frozen legacy aliases and
-are never edited. Challenge evidence is bound to an exact canonical
-self-contained challenge packet embedding the reviewed Gate A packet and
-challenged candidate. Retry admissibility is checker-derived from sealed output;
-`protocol-invalid` is permitted only for the deterministically validated roles
-`initial-reviewer` and `challenge`. For the seven cognitive roles without a
-deterministic output validator, `protocol-invalid` is forbidden and the first
-completed response is the terminal `qualified` completion, meaning only the
-unique admitted completion of that execution. Generated readiness projections
-are produced only from a full successful traceability and evidence validation
-pass, so malformed review evidence cannot be projected as
-`Formal-Architecture-Ready: READY`. These assurance changes do not change
-TURNLOCK semantics or the Gate A semantic subject.
+`gate-a-campaign-protocol-v5`, and review evidence remains schema `5.0`. The
+protocol history is `v5 -> v4 -> v3 -> v2 -> v1`; v1-v4 remain immutable
+history. Protocol v5's exact predecessor is v4, and v5 binds the exact
+content-addressed v5 protocol-bundle meta-schema plus the unchanged
+content-addressed review-evidence-v5 meta-schema into P. Execution receipts
+remain schema `3.0`. Protocol bundles v1-v3 remain interpreted with the
+immutable v1-v3 bundle meta-schema snapshot, while v4 retains its exact
+immutable v4 meta-schema. The unversioned schema files are frozen legacy aliases
+and are never edited.
+
+Protocol v5 acquisition is minimum-effective, deterministic,
+content-independent, round-based, and ordered only by the protocol-owned
+`profile_order`. Reviewer-profile registry membership is eligibility rather
+than execute-all authority. Statically duplicate pinned identities may be
+skipped before execution; provider-reported identities are never guessed or
+pre-collapsed; and qualified effective-identity collision may acquire the next
+ordered eligible profile. Selected-WorkItem retry exhaustion never triggers
+profile substitution. Pool exhaustion below the effective minimum routes to
+`OPERATOR-ACTION-REQUIRED`. The numeric `minimum_independent_reviewers` remains
+formal-assurance policy in `formal/verification.yaml` outside P.
+
+Challenge evidence remains bound to exact canonical self-contained packets.
+Retry admissibility remains checker-derived from sealed output;
+`protocol-invalid` is permitted only for `initial-reviewer` and `challenge`.
+For the seven roles without a deterministic output validator, the first
+completed response remains terminal. Generated readiness projections still
+require full successful traceability and evidence validation. These assurance
+changes do not change TURNLOCK semantics or the Gate A semantic subject.
