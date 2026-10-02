@@ -313,6 +313,20 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   retained projection history/consumption integrity, generalized candidate
   provenance integrity, and provenance-root materialization.
 
+M3 `campaign-authority` is covered by one active Module Brief:
+[`nib-m-gate-a-campaign-authority.md`](nib-m-gate-a-campaign-authority.md).
+It owns deterministic preflight authority interpretation, exact `(S,P)`
+currentness, repository review observation/import merge including exact
+M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
+interpretation, campaign-authority operational causes and blocking obligations,
+`GateACampaignAuthorityEvaluationV1` sealing, and `ReviewContext` construction.
+
+M3 consumes NIB-S `8.0.0`.
+
+M3 requires no external Dependency Contract.
+
+M3 performs no Python/Git/provider invocation and no authoritative state write.
+
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
 
