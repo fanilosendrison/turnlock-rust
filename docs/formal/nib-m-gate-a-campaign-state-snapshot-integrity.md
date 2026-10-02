@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "2.0.3"
+version: "2.0.4"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.3`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -1469,6 +1469,11 @@ I73  Runner-produced campaign provenance has non-null originating run,
      candidate, and full RepositoryAuthorityRef, while repository-imported
      provenance has null originating run/candidate and only the exact
      repositoryCommitSha supplied by the validated review record.
+
+I74  Every ObligationRef introduced through EstablishOperationalBlockersV1 is
+     referenced by at least one OperationalBlocker co-admitted in that same
+     mutation; every such blocker references either an already-admitted
+     obligation or exactly one obligation co-admitted by that mutation.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -1503,6 +1508,7 @@ reconstructSnapshot(runId):
     verify one-shot RepairIntent consumption
     verify ReviewCampaignId payload uniqueness and provenance variant bindings
     verify obligation/disposition graph
+    verify EstablishOperationalBlockersV1 co-admitted obligation/blocker closure
     verify WorkItem source closure
     verify Execution chains and creation bases
     verify Execution progression-supersession consistency
