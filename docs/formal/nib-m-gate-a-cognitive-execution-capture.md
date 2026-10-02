@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.0.0"
+version: "1.0.1"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -16,6 +16,25 @@ superseded_by: []
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
 It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
+
+Version `1.0.1` closes three implementation-construction completeness gaps in
+version `1.0.0` without changing TURNLOCK product semantics, hostile-review
+protocol semantics, system-level module decomposition, recovery
+classifications, or dependency selection.
+
+It closes:
+
+1. caller execution-authority revocation projection onto the execution-owned
+   `AbortSignal` and the final pre-dependency signal fence;
+2. deterministic prepare replay while credential availability remains a
+   freshly observed operational condition;
+3. exact handling of atomic journal-marker create-if-absent collisions.
+
+It also makes explicit that, for selected v1, a `TechnicalExecutionFailure`
+that can become a schema-v3 receipt attempt must carry
+`transportAttemptCount == 1`.
+
+No product ADR is created.
 
 ## 1. Status, authority, and responsibility boundary
 
@@ -260,7 +279,36 @@ interface CognitiveExecutionControlV1 {
   readonly signal: AbortSignal;
   readonly runnerSessionId: RunnerSessionId;
 }
+```
 
+`control.signal` is the sole M4-A live projection of caller-owned execution
+control.
+
+M4-A does not query M2, poll campaign state, infer ownership from time, or
+interpret `ExecutionProgressionSupersessionRef` itself.
+
+The caller/orchestrator owns the `AbortController`.
+
+For each live armed cognitive Execution, M1 must pass the exact execution-owned
+`AbortSignal` and must abort that controller immediately when M1 observes that
+the caller's authority to begin or continue new external work for that exact
+Execution has been revoked.
+
+This includes an authoritative progression supersession naming that Execution
+as the prior Execution and any other caller/orchestration event that, under the
+accepted system contract, revokes that exact Execution's future external-work
+authority.
+
+Explicit shutdown or cancellation also uses the same signal.
+
+Abort is control only. It never establishes provider, transport, execution,
+recovery, or rollback truth.
+
+Exact detection and orchestration of caller-side revocation belongs to the
+future M1 construction contract. M4-A's contract is that every such revocation
+is projected through the exact signal it receives.
+
+```ts
 interface CognitiveExecutionCaptureModule {
   sealOperation(
     operation: CognitiveExecutionOperationV1
@@ -399,54 +447,140 @@ Provider, model, and request identity do not enter callId derivation.
 
 2. Verify every referenced immutable input artifact.
 
-3. Derive exact callId.
+3. Derive exact callId and exact journalKey.
 
-4. Request from the Issue #31 Dependency Contract the exact
-   credential-free dependency execution plan for:
-       exact operation
-       exact callId
+4. Inspect the exact call journal before constructing new preparation.
 
-5. Seal/verify the exact dependencyExecutionPlan ArtifactRef according
-   to the Dependency Contract representation.
+5. If MAYBE-SENT or TERMINAL already exists:
+       validate the observed marker enough to bind it to this exact call;
+       do not construct another preparation;
+       fail this prepare invocation as PREPARATION-STATE-CONFLICT.
 
-6. Obtain from that plan exactly:
-       provider
-       request model
-       runtime identity
-       credentialRequirementId
+6. If PREPARED already exists:
+       runtime-validate prepared.json;
+       require exact:
+           executionId
+           workItemId
+           callId;
 
-7. Check required credential availability through the injected runtime
-   credential boundary.
+       verify its preparation and reconciliationOperation ArtifactRefs;
 
-8. If the credential boundary legitimately establishes
-   required credential unavailable:
-       construct the exact Section 19 operational cause
-       return exactly:
-           {
-             kind: "operationally-blocked",
-             blockingObligationId: W.sourceObligationIds[0],
-             cause: exact cognitive-execution cause,
-           }
-       create no PREPARED journal marker
-       do not Arm
-       do not call provider
+       read/validate the exact existing CognitiveExecutionPreparationArtifactV1;
 
-9. If credential boundary invocation itself fails, rejects unexpectedly,
-   returns malformed material, or violates its contract:
-       fail invocation with CREDENTIAL-BOUNDARY-FAILURE
+       require:
+           preparation.execution == E
+           preparation.workItemId == W.workItemId
+           preparation.operation == W.operation
+           preparation.callId == callId;
 
-10. Construct and seal preparation artifact.
+       read/validate the exact existing
+       CognitiveReconciliationOperationV1;
 
-11. Construct and seal reconciliation-operation artifact.
+       require exact binding to:
+           E
+           W
+           callId
+           preparation
+           journalKey;
 
-12. Durably publish PREPARED journal marker.
+       use the EXISTING dependencyExecutionPlan referenced by the existing
+       preparation;
 
-13. Return PreparedCognitiveExecutionV1.
+       do NOT derive or seal another dependencyExecutionPlan;
+       do NOT construct another preparation artifact;
+       do NOT construct another reconciliation operation;
+       do NOT publish another PREPARED marker;
+
+       obtain from the existing plan exactly:
+           provider
+           request model
+           runtime identity
+           credentialRequirementId;
+
+       check credential availability NOW through the runtime credential
+       boundary;
+
+       if currently unavailable:
+           construct the exact Section 19 operational cause using the existing
+           dependencyExecutionPlan;
+           return operationally-blocked with:
+               blockingObligationId = W.sourceObligationIds[0];
+           retain the existing PREPARED material unchanged;
+           do not Arm;
+           do not call provider;
+
+       if credential-boundary contract failure:
+           CREDENTIAL-BOUNDARY-FAILURE;
+
+       otherwise:
+           reconstruct and return the exact same logical
+           PreparedCognitiveExecutionV1 from the already-sealed preparation,
+           reconciliation operation, request template, dispatchEvidence, and
+           RecoveryCapabilityRef.
+
+7. Otherwise PREPARED does not exist:
+       request from Dependency Contract #31 the exact credential-free
+       dependency execution plan for exact operation + exact callId;
+
+       seal/verify that plan;
+
+       obtain:
+           provider
+           request model
+           runtime identity
+           credentialRequirementId;
+
+       check current credential availability;
+
+       if unavailable:
+           construct Section 19 cause;
+           return operationally-blocked;
+           create no PREPARED marker;
+           do not Arm;
+           do not call provider;
+
+       credential-boundary contract failure
+           → CREDENTIAL-BOUNDARY-FAILURE;
+
+       construct/seal preparation artifact;
+
+       construct/seal reconciliation-operation artifact;
+
+       publish PREPARED using the Section 10 exact create-if-absent rules;
+
+       if PREPARED publication succeeds:
+           return PreparedCognitiveExecutionV1;
+
+       if PREPARED publication reports already-exists:
+           re-read the winner's PREPARED marker and exact referenced artifacts;
+
+           if they are valid and describe the exact same logical preparation
+           for E/W/callId/operation:
+               treat the race as idempotent prepare convergence;
+               return that exact existing PreparedCognitiveExecutionV1;
+
+           if the existing valid marker represents divergent preparation
+           material for the same Execution/call:
+               PREPARATION-STATE-CONFLICT;
+
+           if the existing marker/artifacts are malformed, corrupt, or
+           identity-mismatched:
+               JOURNAL-INTEGRITY-FAILURE;
+
+       genuine filesystem/storage publication failure
+           → JOURNAL-IO-FAILURE.
 ```
 
-Credential secret values are not retained by preparation. Preparation
-establishes availability only at that moment. Execution resolves and injects
-the credential again immediately before the external-call fence.
+Preparation material is immutable and idempotent.
+
+Credential availability is not preparation identity and is re-observed on every
+prepare occurrence before Arm.
+
+An existing `PREPARED` marker does not authorize skipping current credential
+availability checking.
+
+Credential secret values are not retained by preparation. Execution resolves
+and injects the credential again immediately before the external-call fence.
 
 ## 9. Preparation and reconciliation artifacts
 
@@ -606,6 +740,72 @@ publication semantics, fail the invocation. Never weaken this to overwrite or
 last-writer-wins. Temporary orphan files after crash are non-authoritative
 operational garbage.
 
+Every atomic no-replace marker publication has exactly one conceptual outcome:
+
+```text
+CREATED
+ALREADY-EXISTS
+IO-FAILURE
+```
+
+`ALREADY-EXISTS` is not itself an I/O failure.
+
+For a `PREPARED` target that already exists:
+
+```text
+re-read winner marker and referenced artifacts
+
+same exact logical E/W/callId/operation preparation
+→ idempotent prepare convergence
+→ use existing prepared result
+
+valid but divergent preparation for same Execution/call
+→ PREPARATION-STATE-CONFLICT
+
+malformed/corrupt/identity-mismatched marker or referenced artifact
+→ JOURNAL-INTEGRITY-FAILURE
+```
+
+For a `MAYBE-SENT` target that already exists during `execute()`:
+
+```text
+re-read winner marker
+
+valid marker bound to the same E/W/callId
+→ another invocation already won the external-effect fence
+→ current invocation MUST NOT invoke dependency
+→ PREPARATION-STATE-CONFLICT
+
+malformed/corrupt/wrong E/W/call binding
+→ JOURNAL-INTEGRITY-FAILURE
+```
+
+Even when the existing `MAYBE-SENT` bytes equal the local candidate bytes, the
+losing invocation must not treat this as permission to call the dependency.
+Only the invocation that successfully performs the create-if-absent transition
+may proceed toward the provider call.
+
+If `TERMINAL` publication encounters an existing target:
+
+```text
+re-read marker + referenced terminal evidence
+
+exact same valid terminalEvidence as the terminal fact currently being
+published
+→ treat terminal-marker publication as already durably complete
+→ do not invoke provider again
+→ continue constructing the corresponding return value
+
+valid same-call terminal marker naming a DIFFERENT terminalEvidence
+→ JOURNAL-INTEGRITY-FAILURE
+
+malformed/corrupt/wrong-binding marker
+→ JOURNAL-INTEGRITY-FAILURE
+```
+
+Genuine storage failures other than the classified target-exists condition are
+`JOURNAL-IO-FAILURE`.
+
 ## 11. Armed execution algorithm
 
 `execute()` requires an already-valid `ArmedExecutionDispatchRef` and performs
@@ -655,34 +855,61 @@ exactly:
        do not publish MAYBE-SENT
        do not invoke provider
 
-13. Durably publish MAYBE-SENT marker.
+13. Attempt durable create-if-absent MAYBE-SENT publication.
 
-14. Only after successful durable MAYBE-SENT publication may the direct
-    dependency cognitive invocation become reachable.
+14. If MAYBE-SENT publication reports ALREADY-EXISTS:
+        apply exact Section 10 collision classification;
+        current invocation never calls dependency.
 
-15. Invoke the Issue #31 dependency adapter exactly once.
+15. Require this invocation successfully created MAYBE-SENT.
 
-16. While the call is live:
-       propagate control.signal
-       emit best-effort heartbeat
-       update best-effort provider-activity telemetry when provider activity
-       is observed
+16. Re-check control.signal immediately after durable MAYBE-SENT publication.
 
-17. Classify only from trustworthy dependency facts:
+17. If aborted:
+        do NOT invoke dependency;
+        return uncertain using exact Arm evidence plus callStartEvidence as
+        same-execution dispatch evidence;
+        preserve MAYBE-SENT;
+        do not claim nonexecution;
+        later recovery remains conservative because MAYBE-SENT exists.
 
-       completed provider-semantic textual response
-       → completed-response terminal path
+18. If not aborted:
+        invoke the Issue #31 dependency adapter exactly once.
 
-       positively established terminal no-completed-response failure
-       → technical-failure terminal path
+        There MUST be no await, timer, I/O operation, event-loop yield, or other
+        asynchronous boundary between the final signal check and initiating the
+        dependency adapter call.
 
-       anything else where external truth is not positively terminal
-       → uncertain path
+19. Pass the same exact control.signal into the dependency adapter.
 
-18. Never retry inside M4-A v1.
+20. While live:
+        propagate signal
+        heartbeat best-effort
+        provider activity best-effort
+
+21. Classify only from trustworthy dependency facts:
+
+        completed provider-semantic textual response
+        → completed-response terminal path
+
+        positively established terminal no-completed-response failure
+        → technical-failure terminal path
+
+        anything else where external truth is not positively terminal
+        → uncertain path
+
+22. Never retry inside M4-A v1.
 ```
 
 There is no automatic duration-based abort.
+
+The final post-`MAYBE-SENT` check closes the local race where execution
+authority is revoked while `MAYBE-SENT` is being durably published. If
+revocation is observed before dependency invocation, no new provider attempt
+may begin.
+
+Because `MAYBE-SENT` is already durable, M4 does not upgrade this fact to
+positive nonexecution; it returns uncertainty and leaves recovery conservative.
 
 ## 12. Dependency-consumer requirements
 
@@ -750,8 +977,53 @@ transportAttemptCount == 1
 ```
 
 Pre-call paths with no transport attempt do not become receipt technical-failure
-attempts. Pi source and API details beyond these M4 consumer requirements remain
-owned by Issue #31.
+attempts.
+
+The Issue #31 contract must additionally require:
+
+```text
+the adapter receives the exact same execution-owned AbortSignal
+
+if that signal is already aborted when the direct dependency invocation begins,
+the adapter starts zero new provider attempts
+
+after signal abort is observed, the adapter starts no later provider attempt
+
+an already-started provider attempt may only be cancelled according to the
+dependency's actual cancellation guarantees and remains reconciliation-relevant
+
+with maxRetries = 0, selected v1 never starts a second transport/provider
+attempt for the same M4 call
+```
+
+For selected v1, every terminal `TechnicalExecutionFailure` eligible to be
+projected later as a schema-v3 receipt attempt must satisfy:
+
+```text
+transportAttemptCount == 1
+```
+
+A zero-transport local or pre-transport condition must not be silently mapped
+to a receipt-admissible `TechnicalExecutionFailure`.
+
+The Dependency Contract must establish that the selected realization either:
+
+```text
+A. guarantees every accepted terminal no-completed-response technical failure
+   has transportAttemptCount == 1;
+
+or
+
+B. exposes any zero-transport outcome distinctly so it cannot be mislabeled as
+   a receipt technical-failure attempt.
+```
+
+If the pinned Pi/provider realization cannot satisfy A or B under the existing
+M4/NIB-S result language, Dependency Contract authoring must stop and route the
+construction gap rather than invent a mapping.
+
+Pi source and API details beyond these M4 consumer requirements remain owned by
+Issue #31.
 
 ## 13. Raw completion and terminal evidence
 
@@ -1040,6 +1312,29 @@ abort == rollback
 
 No new provider attempt may begin after the caller signal is observed aborted.
 
+```text
+caller authority revocation observed before MAYBE-SENT
+→ caller AbortController aborts
+→ M4 sees signal
+→ no cognitive call
+→ uncertain direct return after Arm
+
+caller authority revocation observed after MAYBE-SENT but before dependency
+invocation
+→ final signal check prevents dependency invocation
+→ uncertain
+→ MAYBE-SENT remains conservative recovery truth
+
+caller authority revocation observed after dependency invocation has begun
+→ same signal is propagated to dependency
+→ no additional provider attempt may start
+→ already-started attempt remains reconciliation concern
+→ outcome classification still depends only on durable evidence
+```
+
+Abort or revocation never proves nonexecution, provider cancellation, technical
+failure, or rollback.
+
 ## 16. Crash, interruption, and restart table
 
 ```text
@@ -1123,10 +1418,27 @@ nonexecution, completion, failure, or unknown.
 
 `sealOperation` is content-addressed and replay-safe.
 
-`prepare(E,W)` is idempotent only for the exact same preparation. If the exact
-valid preparation and journal already exist and all bindings match, return the
-same logical preparation. If the same Execution maps to divergent preparation
-material, fail with `PREPARATION-STATE-CONFLICT`.
+`prepare(E,W)` has one immutable logical preparation per exact Execution. Once
+`PREPARED` exists, every later prepare occurrence must reuse the exact existing
+preparation, dependency plan, and reconciliation operation. It must never derive
+divergent preparation material.
+
+Credential availability is an operational observation, not immutable
+preparation identity. Every prepare occurrence rechecks the required credential
+before returning `kind = "prepared"`.
+
+```text
+existing PREPARED + credential available now
+→ return exact existing prepared result
+
+existing PREPARED + credential unavailable now
+→ operationally-blocked
+→ preserve PREPARED unchanged
+→ no Arm
+
+existing PREPARED + credential-boundary failure
+→ CREDENTIAL-BOUNDARY-FAILURE
+```
 
 `execute()` is not replayable. For one `callId`:
 
@@ -1232,13 +1544,16 @@ armed request contradicts exact prepared bindings
 missing/corrupt immutable artifact
 → ARTIFACT-INTEGRITY-FAILURE
 
-same call has divergent or already-crossed lifecycle
+valid lifecycle state proving another invocation/preparation already owns or
+crossed an incompatible one-call transition
 → PREPARATION-STATE-CONFLICT
 
-malformed/impossible journal state
+marker or referenced journal material exists but is malformed, corrupt,
+identity-mismatched, or represents contradictory terminal truth
 → JOURNAL-INTEGRITY-FAILURE
 
-filesystem persistence/publication failure
+filesystem/storage operation failed for a reason other than the separately
+classified atomic target-already-exists result
 → JOURNAL-IO-FAILURE
 
 CampaignArtifactStore sealing failure
@@ -1369,6 +1684,30 @@ effect and is routed through the armed unresolved recovery lifecycle.
 
 M4A-25
 An invocation/process/integrity failure is never disguised as an execution-domain result.
+
+M4A-26
+Caller execution-authority revocation is projected to M4-A only through the
+exact execution-owned AbortSignal; M4-A never independently infers revocation
+from time, heartbeat, or campaign-state polling.
+
+M4A-27
+After this invocation durably creates MAYBE-SENT, M4-A rechecks the exact
+AbortSignal immediately before dependency invocation and performs no
+asynchronous operation between that check and initiating the dependency call.
+
+M4A-28
+PREPARED material is immutable and replay-stable, but credential availability
+is freshly re-observed on every prepare occurrence before Arm.
+
+M4A-29
+An atomic truth-marker target-already-exists result is classified by exact
+marker identity/lifecycle rules and is never automatically treated as generic
+journal I/O failure.
+
+M4A-30
+For selected v1, a TechnicalExecutionFailure eligible to become a schema-v3
+receipt attempt has transportAttemptCount == 1; zero-transport outcomes may not
+be mislabeled as such an attempt.
 ```
 
 ## 23. Forbidden behavior
@@ -1446,6 +1785,24 @@ M8
 → owns recovery classification/operator boundary
 → never reimplements M4 journal/domain proof meaning
 ```
+
+For every live armed cognitive Execution, M1 owns exactly one `AbortController`
+used for the execution-owned M4 control signal.
+
+M1 passes `controller.signal` as `CognitiveExecutionControlV1.signal`.
+
+M1 aborts that exact controller whenever it observes caller execution authority
+for that exact Execution has been revoked.
+
+At minimum, an authoritative `ExecutionProgressionSupersessionRef` naming the
+Execution as `priorExecutionId` is such a revocation of future progression and
+recovery authority and must not permit a new provider attempt.
+
+M1 also uses that signal for explicit caller shutdown or cancellation.
+
+M4-A does not inspect campaign state to discover revocation itself. The future
+M1 Module Brief owns the exact orchestration mechanisms by which these authority
+events are observed and translated into `AbortController.abort()`.
 
 For the pre-Arm credential-blocker occurrence, let:
 
@@ -1573,6 +1930,36 @@ exact ambiguous failure mapping
 known provider-normalization limitations
 selected backend recovery limitation
 ```
+
+The contract must also close exactly:
+
+```text
+the adapter receives the exact same execution-owned AbortSignal
+
+if that signal is already aborted when the direct dependency invocation begins,
+the adapter starts zero new provider attempts
+
+after signal abort is observed, the adapter starts no later provider attempt
+
+an already-started provider attempt may only be cancelled according to the
+dependency's actual cancellation guarantees and remains reconciliation-relevant
+
+with maxRetries = 0, selected v1 never starts a second transport/provider
+attempt for the same M4 call
+```
+
+For selected v1, every terminal `TechnicalExecutionFailure` eligible for later
+schema-v3 receipt projection must have `transportAttemptCount == 1`. A
+zero-transport local or pre-transport condition must not be silently mapped to
+a receipt-admissible `TechnicalExecutionFailure`.
+
+The contract must establish either that every accepted terminal
+no-completed-response technical failure has `transportAttemptCount == 1`, or
+that every zero-transport outcome is exposed distinctly so it cannot be
+mislabeled as a receipt technical-failure attempt. If the pinned realization
+can establish neither under the existing M4/NIB-S result language, Dependency
+Contract authoring must stop and route the construction gap rather than invent a
+mapping.
 
 The M4 NIB does not implement those Pi facts itself. GREEN for M4-A remains
 blocked until the accepted Dependency Contract exists.
