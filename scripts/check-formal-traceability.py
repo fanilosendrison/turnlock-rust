@@ -14,6 +14,17 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
+from proto_ring import (
+    evidence_requirements,
+    governance_authority,
+    governed_objects,
+    repository_governance_model,
+)
+from proto_ring.evidence_requirements import (
+    EvidenceClassKind,
+    InstantiationKind,
+    PersistentEvidenceRequirement,
+)
 from proto_ring.exact_evidence_binding import (
     BindingStatus,
     EvidenceBinding,
@@ -2783,29 +2794,97 @@ def _challenge_output_objections(root: Path, reference: object) -> list | None:
     return _sequence(output.get("objections"))
 
 
-def _gate_a_binding_status(
-    *,
+GATE_A_SUBJECT_REQUIREMENT_ID = "gate_a_subject_binding"
+GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID = "gate_a_current_protocol_binding"
+
+
+def _load_gate_a_requirements(
+    root: Path,
+) -> tuple[PersistentEvidenceRequirement, PersistentEvidenceRequirement]:
+    model = repository_governance_model.load(root)
+    authority_route = model.capabilities["governance_authority"].routes["profile"]
+    authority = governance_authority.load(root, authority_route)
+    objects_route = model.capabilities["governed_objects"].routes["profile"]
+    objects = governed_objects.load(root, objects_route, authority)
+    registry_route = model.capabilities["evidence_requirements"].routes["registry"]
+    registry = evidence_requirements.load(root, registry_route, authority, objects)
+    try:
+        subject = registry.requirements[GATE_A_SUBJECT_REQUIREMENT_ID]
+        current_protocol = registry.requirements[
+            GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID
+        ]
+    except KeyError as error:
+        raise evidence_requirements.EvidenceRequirementsError(
+            f"required Gate A EvidenceRequirementId is missing: {error.args[0]}"
+        ) from error
+    _validate_gate_a_requirement(subject)
+    _validate_gate_a_requirement(current_protocol)
+    return subject, current_protocol
+
+
+def _validate_gate_a_requirement(
+    requirement: PersistentEvidenceRequirement,
+) -> None:
+    classes = requirement.evidence_classes
+    if (
+        requirement.instances.kind is not InstantiationKind.SINGLE
+        or classes.kind is not EvidenceClassKind.EXPLICIT
+        or not classes.explicit_classes
+        or requirement.subject_source_id != "gate_a_current_subject"
+        or requirement.candidate_source_id != "gate_a_review_candidates"
+        or (
+            requirement.context.required
+            and requirement.context.source_id != "gate_a_current_protocol_context"
+        )
+        or (
+            not requirement.context.required
+            and requirement.context.source_id is not None
+        )
+    ):
+        raise evidence_requirements.EvidenceRequirementsError(
+            f"unsupported Gate A evidence requirement declaration: {requirement.id}"
+        )
+
+
+def _runtime_gate_a_requirement(
+    requirement: PersistentEvidenceRequirement,
     current_subject: dict | None,
     current_bundle_sha256: object,
-    record: dict,
-    gate_a_subject: dict,
-    context_required: bool,
-) -> BindingStatus:
-    requirement = EvidenceRequirement(
-        admitted_classes=frozenset({GATE_A_REVIEW_CLASS}),
+) -> EvidenceRequirement:
+    explicit_classes = requirement.evidence_classes.explicit_classes
+    if explicit_classes is None:
+        raise evidence_requirements.EvidenceRequirementsError(
+            f"Gate A evidence classes are not explicit: {requirement.id}"
+        )
+    requires_context = requirement.context.required
+    return EvidenceRequirement(
+        admitted_classes=explicit_classes,
         subject_identity=(
             _canonical_json_bytes(current_subject)
             if isinstance(current_subject, dict)
             else None
         ),
-        context_required=context_required,
+        context_required=requires_context,
         context_identity=(
             current_bundle_sha256.encode("utf-8")
-            if context_required
+            if requires_context
             and isinstance(current_bundle_sha256, str)
             and current_bundle_sha256
             else None
         ),
+    )
+
+
+def _gate_a_binding_status(
+    *,
+    requirement: PersistentEvidenceRequirement,
+    current_subject: dict | None,
+    current_bundle_sha256: object,
+    record: dict,
+    gate_a_subject: dict,
+) -> BindingStatus:
+    runtime_requirement = _runtime_gate_a_requirement(
+        requirement, current_subject, current_bundle_sha256
     )
     record_review_class = record.get("review_class")
     record_bundle_sha256 = _mapping(
@@ -2813,20 +2892,18 @@ def _gate_a_binding_status(
     ).get("sha256")
     evidence = EvidenceBinding(
         evidence_class=(
-            record_review_class
-            if isinstance(record_review_class, str)
-            else None
+            record_review_class if isinstance(record_review_class, str) else None
         ),
         subject_identity=_canonical_json_bytes(gate_a_subject),
         context_identity=(
             record_bundle_sha256.encode("utf-8")
-            if context_required
+            if requirement.context.required
             and isinstance(record_bundle_sha256, str)
             and record_bundle_sha256
             else None
         ),
     )
-    return evaluate_evidence_binding(requirement, evidence)
+    return evaluate_evidence_binding(runtime_requirement, evidence)
 
 
 def derive_gate_a(
@@ -2834,6 +2911,8 @@ def derive_gate_a(
     manifest: dict,
     current_subject: dict | None,
     records: list[tuple[Path, dict]],
+    subject_requirement: PersistentEvidenceRequirement,
+    current_protocol_requirement: PersistentEvidenceRequirement,
 ) -> dict:
     """Derive Formal-Architecture-Ready from current review evidence."""
     hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
@@ -2849,20 +2928,20 @@ def derive_gate_a(
         if len(gate_a_subjects) != 1:
             continue
         subject_binding = _gate_a_binding_status(
+            requirement=subject_requirement,
             current_subject=current_subject,
             current_bundle_sha256=current_bundle_sha256,
             record=record,
             gate_a_subject=gate_a_subjects[0],
-            context_required=False,
         )
         if subject_binding is not BindingStatus.MATCH:
             continue
         current_binding = _gate_a_binding_status(
+            requirement=current_protocol_requirement,
             current_subject=current_subject,
             current_bundle_sha256=current_bundle_sha256,
             record=record,
             gate_a_subject=gate_a_subjects[0],
-            context_required=True,
         )
         if current_binding is BindingStatus.MATCH:
             current.append(record)
@@ -3116,7 +3195,10 @@ def _realization_errors(
 
 
 def collect_errors(
-    root: Path, *, check_generated: bool = True
+    root: Path,
+    *,
+    check_generated: bool = True,
+    load_governance: bool = True,
 ) -> tuple[list[str], dict]:
     root = root.resolve()
     errors: list[str] = []
@@ -3319,13 +3401,40 @@ def collect_errors(
     errors.extend(review_load_errors)
     errors.extend(review_validation_errors)
 
+    gate_a_requirements = None
+    if load_governance:
+        try:
+            gate_a_requirements = _load_gate_a_requirements(root)
+        except (
+            evidence_requirements.EvidenceRequirementsError,
+            governance_authority.GovernanceAuthorityError,
+            governed_objects.GovernedObjectsError,
+            repository_governance_model.RepositoryGovernanceModelError,
+            KeyError,
+        ) as error:
+            errors.append(f"Gate A evidence requirements: {error}")
+
     if review_load_errors or review_validation_errors:
         gate_a = {
             "ready": False,
             "reason": "hostile review evidence integrity failure",
         }
+    elif not load_governance:
+        gate_a = summary["gate_a"]
+    elif gate_a_requirements is None:
+        gate_a = {
+            "ready": False,
+            "reason": "Gate A evidence requirements integrity failure",
+        }
     else:
-        gate_a = derive_gate_a(root, manifest, current_subject, review_records)
+        gate_a = derive_gate_a(
+            root,
+            manifest,
+            current_subject,
+            review_records,
+            gate_a_requirements[0],
+            gate_a_requirements[1],
+        )
     summary["gate_a"] = gate_a
 
     if (root / MODEL_RELATIVE).exists() and not gate_a["ready"]:
@@ -3336,27 +3445,28 @@ def collect_errors(
     if check_generated:
         renderer = root / "scripts" / "render-formal-mapping.py"
         mapping_path = root / MAPPING_RELATIVE
-        result = subprocess.run(
-            [sys.executable, str(renderer), "--stdout"],
-            cwd=root,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            errors.append(
-                "generated formal invariant mapping could not be rendered: "
-                + concise_subprocess_failure(result.stderr, result.returncode)
-            )
-        elif not mapping_path.exists():
+        if not mapping_path.exists():
             errors.append(
                 "generated formal invariant mapping is missing; "
                 "run python scripts/render-formal-mapping.py"
             )
-        elif mapping_path.read_bytes() != result.stdout:
-            errors.append(
-                "generated formal invariant mapping is stale; "
-                "run python scripts/render-formal-mapping.py"
+        else:
+            result = subprocess.run(
+                [sys.executable, str(renderer), "--stdout"],
+                cwd=root,
+                capture_output=True,
+                check=False,
             )
+            if result.returncode != 0:
+                errors.append(
+                    "generated formal invariant mapping could not be rendered: "
+                    + concise_subprocess_failure(result.stderr, result.returncode)
+                )
+            elif mapping_path.read_bytes() != result.stdout:
+                errors.append(
+                    "generated formal invariant mapping is stale; "
+                    "run python scripts/render-formal-mapping.py"
+                )
 
     return errors, summary
 
