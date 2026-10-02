@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "1.0.2"
+version: "1.0.3"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,7 @@ superseded_by: []
 
 # NIB-M — Gate A Repository Control — Materialization and Candidate Construction
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.3`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
 
 This Module Brief is implementation-construction authority only. It creates no
 TURNLOCK product semantics, hostile-review protocol semantics, canonical formal
