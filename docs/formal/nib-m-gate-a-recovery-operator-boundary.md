@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY
-version: "2.0.4"
+version: "2.0.5"
 scope: gate-a-campaign-runner/recovery-operator/operator-boundary
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,7 @@ superseded_by: []
 
 # NIB-M — Gate A Recovery Operator — Operator Boundary
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
 
 This Module Brief is implementation-construction authority only. It does not
 create TURNLOCK product semantics, hostile-review protocol semantics, canonical
@@ -238,6 +238,12 @@ resolution artifact available.
 
 M8-B does not inspect producer-domain cause-descriptor semantics beyond the
 accepted producer contract and common `ArtifactRef` integrity.
+
+NIB-S 8.0.0 adds M5 and the remaining M7 non-recovery producer usage of this
+already-existing producer-occurrence boundary. `resolutionContracts` retains
+the NIB-S 7.0.4 rule: it may be empty exactly when the accepted producer
+contract declares no lawful same-run resolution. No blocker identity formula,
+Operator Action Request schema, or operator-resolution kind changes.
 
 ## 5. Recovery causal blocker materialization
 
