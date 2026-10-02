@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "2.0.1"
+version: "2.0.2"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.2`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -133,6 +133,9 @@ interface EstablishPreflightV1 {
   readonly baselineAuthority: RepositoryAuthorityRef;
   readonly publicationTarget: RepositoryPublicationTargetRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly baselineSemanticSubject: SemanticSubjectRef;
+  readonly subjectProjection: ArtifactRef;
+  readonly reviewAuthorityProjection: ArtifactRef;
   readonly preflightEvidence: readonly ArtifactRef[];
   readonly rootObligationDisposition: Extract<
     ObligationDispositionRef,
@@ -154,12 +157,27 @@ baselineAuthority ==
 publicationTarget ==
     repositoryInspection.publicationTarget
 
+baselineSemanticSubject ==
+    exact established PreflightResolution.baselineSemanticSubject
+
+subjectProjection ==
+    exact established PreflightResolution.subjectProjection
+
+reviewAuthorityProjection ==
+    exact established PreflightResolution.reviewAuthorityProjection
+
+subjectProjection intact
+reviewAuthorityProjection intact
+
 repositoryInspection sealed-baseline bindings pass NIB-S
 
 every RepositoryInspectionRef ArtifactRef exists and is intact
 
 preflightEvidence duplicate-free
 every preflightEvidence ArtifactRef intact
+
+subjectProjection is not duplicated inside preflightEvidence
+reviewAuthorityProjection is not duplicated inside preflightEvidence
 
 rootObligationDisposition names exact bootstrap root obligation
 
@@ -174,6 +192,8 @@ duplicate-free first-occurrence sequence:
     repositoryInspection.sealedBaselineCandidate.materialization,
     ...repositoryInspection.sealedBaselineCandidate.materializationEvidence,
     ...repositoryInspection.evidence,
+    subjectProjection,
+    reviewAuthorityProjection,
     ...preflightEvidence
 ]
 ```
@@ -185,6 +205,18 @@ After successful admission of `EstablishPreflightV1`, the returned
 snapshot.repositoryInspection ==
     mutation.repositoryInspection
 
+snapshot.preflightSemanticSubject ==
+    mutation.baselineSemanticSubject
+
+snapshot.preflightProtocolBundle ==
+    mutation.protocolBundle
+
+snapshot.preflightSubjectProjection ==
+    mutation.subjectProjection
+
+snapshot.preflightReviewAuthorityProjection ==
+    mutation.reviewAuthorityProjection
+
 snapshot.run.initialRepositoryAuthority ==
     mutation.baselineAuthority
 
@@ -193,6 +225,24 @@ snapshot.run.publicationTarget ==
 ```
 
 This is a projection requirement only. It adds no persisted fact or write path.
+
+The following is a legal resumable state:
+
+```text
+unique EstablishPreflightV1 exists
+root preflight obligation satisfied
+repositoryInspection != null
+preflightSemanticSubject != null
+preflightProtocolBundle != null
+preflightSubjectProjection != null
+preflightReviewAuthorityProjection != null
+candidates == []
+currentCandidate == null
+```
+
+It represents interruption after `EstablishPreflightV1` and before
+`AdmitCandidateV1(C0)`. Admission of C0 after restart uses only the exact
+retained preflight facts and exact sealed baseline candidate.
 
 ### 5.2 Candidate
 
@@ -248,9 +298,18 @@ exact EstablishPreflightV1 exists
 
 sealedCandidate ==
     EstablishPreflightV1.repositoryInspection.sealedBaselineCandidate
+
+candidate.semanticSubject ==
+    EstablishPreflightV1.baselineSemanticSubject
+
+candidate.semanticSubject ==
+    snapshot.preflightSemanticSubject
+
+EstablishPreflightV1.subjectProjection exists and is intact
 ```
 
-C0 may not substitute another materialization after baseline establishment.
+C0 does not require a second subject derivation and may not substitute another
+materialization after baseline establishment.
 
 For every non-C0 `AdmitCandidateV1`:
 
@@ -411,8 +470,44 @@ interface EstablishReviewCampaignBundleV1 {
 }
 ```
 
-The campaign and all initial obligations/work items are committed in the same
-revision.
+For every `EstablishReviewCampaignBundleV1`, require exactly:
+
+```text
+campaign.provenance.kind == runner-produced
+
+campaign.provenance.originatingRunId ==
+    exact GateARun runId
+
+campaign.provenance.candidateId ==
+    prerequisiteBasis.candidateId
+
+campaign.semanticSubject ==
+    prerequisiteBasis.semanticSubject
+
+campaign.protocolBundle ==
+    prerequisiteBasis.protocolBundle
+```
+
+M2 recomputes and requires:
+
+```text
+campaign.reviewCampaignId ==
+deriveReviewCampaignId(
+    "review-campaign.v1",
+    runId,
+    campaign.semanticSubject.selector,
+    campaign.semanticSubject.sha256,
+    campaign.protocolBundle.protocolId,
+    campaign.protocolBundle.sha256
+)
+```
+
+The same logical `ReviewCampaignId` with a different payload is
+`INVALID_MUTATION`. An exact duplicate already-present campaign is not inserted
+a second time.
+
+The campaign and all initial obligations/work items are committed atomically in
+the same revision.
 
 No runner-created executable campaign may become visible before its complete
 initial bundle is admitted.
@@ -664,7 +759,33 @@ Require:
 
 ```text
 delta.expectedStateRevision == mutation.baseStateRevision
+
+evaluationContext.authorityEvaluation ArtifactRef exists and is intact
+
+its runner-owned runtime shape is valid
+
+its run/state/candidate/S/P/current/stale campaign-ID bindings equal the exact
+evaluationContext
 ```
+
+Repository-selected/imported campaigns may be registered only from exact
+campaigns present in the validated `GateAEvaluationContext`.
+
+For a newly registered imported campaign require:
+
+```text
+provenance.kind == repository-imported
+originatingRunId == null
+candidateId == null
+repositoryCommitSha is exact projected repository_commit
+```
+
+The same `ReviewCampaignId` plus the same exact campaign payload creates no
+duplicate logical fact. The same `ReviewCampaignId` plus an incompatible payload
+is `INVALID_MUTATION`.
+
+M2 does not infer currentness. M2 does not construct imported campaigns. M2
+validates and adopts the exact M3 result only.
 
 This mutation may atomically establish:
 

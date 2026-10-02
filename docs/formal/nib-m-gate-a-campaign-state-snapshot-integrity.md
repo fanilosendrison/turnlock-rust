@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "2.0.1"
+version: "2.0.2"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.2`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -183,7 +183,7 @@ If a contradiction is already present in committed history, this is
 
 ## 5. Snapshot field projection
 
-### 5.1 `run` and `repositoryInspection`
+### 5.1 `run` and retained preflight projections
 
 Derived from:
 
@@ -218,15 +218,24 @@ inspection.publicationTarget == run.publicationTarget
 
 exact preflightEvidence ArtifactRefs are intact
 
+baselineSemanticSubject equals the exact established preflight subject
+
+subjectProjection and reviewAuthorityProjection are intact
+
+neither projection is duplicated inside preflightEvidence
+
 root disposition basisArtifacts equal the required ordered provenance closure
 
 sealed baseline candidate and every referenced artifact are intact
 ```
 
-After successful preflight both authority values become non-null together and
-never change. The exact `RepositoryInspectionRef` provenance remains retained;
-there is no authoritative revision with baseline authority but without its
-already-sealed reconstructible repository basis.
+After successful preflight both authority values and all four retained
+preflight projections become non-null together and never change. The exact
+`RepositoryInspectionRef`, `baselineSemanticSubject`, `protocolBundle`,
+`subjectProjection`, and `reviewAuthorityProjection` provenance remains
+retained; there is no authoritative revision with baseline authority but
+without its already-sealed reconstructible repository basis and mechanical
+preflight witnesses.
 
 `repositoryInspection` is derived only from the exact unique
 `EstablishPreflightV1` mutation.
@@ -235,6 +244,10 @@ If preflight establishment is absent:
 
 ```text
 repositoryInspection = null
+preflightSemanticSubject = null
+preflightProtocolBundle = null
+preflightSubjectProjection = null
+preflightReviewAuthorityProjection = null
 ```
 
 If preflight establishment exists:
@@ -242,6 +255,18 @@ If preflight establishment exists:
 ```text
 repositoryInspection =
     exact EstablishPreflightV1.repositoryInspection
+
+preflightSemanticSubject =
+    exact EstablishPreflightV1.baselineSemanticSubject
+
+preflightProtocolBundle =
+    exact EstablishPreflightV1.protocolBundle
+
+preflightSubjectProjection =
+    exact EstablishPreflightV1.subjectProjection
+
+preflightReviewAuthorityProjection =
+    exact EstablishPreflightV1.reviewAuthorityProjection
 
 repositoryInspection.runId ==
     run.runId
@@ -254,16 +279,25 @@ repositoryInspection.publicationTarget ==
 ```
 
 The snapshot implementation returns the exact retained
-`RepositoryInspectionRef` value.
+`RepositoryInspectionRef` and four exact retained preflight projection values.
 
-It does not reconstruct an equivalent replacement from normalized database
-columns, root-obligation `basisArtifacts`, CAS contents, `repositoryPath`,
-current Git state, or any other source.
+It does not reconstruct equivalent replacements from normalized database
+columns without exact mutation provenance, root-obligation `basisArtifacts`,
+CAS guesses, candidate files, another M6 invocation, `repositoryPath`, current
+Git state, or any other source.
 
 Require:
 
 ```text
 repositoryInspection == null
+iff
+preflightSemanticSubject == null
+AND
+preflightProtocolBundle == null
+AND
+preflightSubjectProjection == null
+AND
+preflightReviewAuthorityProjection == null
 iff
 preflight establishment absent
 iff
@@ -282,24 +316,29 @@ INTEGRITY_FAILURE
 
 Canonical decimal string for exact maximum revision `R`.
 
-### 5.3 `currentCandidate`
+### 5.3 `candidates` and `currentCandidate`
 
-If no candidate exists:
-
-```text
-null
-```
-
-Otherwise:
+Project:
 
 ```text
-candidate with maximum ordinal
+candidates =
+    all admitted CandidateRevisionRef values
+    ordered by ordinal ascending
+
+candidate ordinals are contiguous from 0
+
+currentCandidate == null
+iff
+candidates is empty
+
+otherwise:
+currentCandidate == candidates[candidates.length - 1]
 ```
 
-Integrity validation must independently prove the candidate lineage is a single
-linear chain.
-
-`MAX(ordinal)` is not used to hide branching or duplicate candidates.
+The candidate lineage contains every candidate exactly once in ordinal order.
+Integrity validation independently proves the candidate lineage is one linear
+chain. `MAX(ordinal)` is not used to hide branching, omissions, or duplicate
+candidates.
 
 ### 5.4 `reviewCampaigns`
 
@@ -747,12 +786,22 @@ when present:
 
     exact preflightEvidence intact
 
+    exact baselineSemanticSubject retained
+
+    exact subjectProjection intact
+
+    exact reviewAuthorityProjection intact
+
+    neither projection duplicated inside preflightEvidence
+
     exact root disposition basisArtifacts equal exactly the ordered
     duplicate-free first-occurrence sequence:
         repositoryInspection.baselineGitBasis,
         repositoryInspection.sealedBaselineCandidate.materialization,
         ...repositoryInspection.sealedBaselineCandidate.materializationEvidence,
         ...repositoryInspection.evidence,
+        subjectProjection,
+        reviewAuthorityProjection,
         ...preflightEvidence
 
     sealed baseline candidate/artifacts intact
@@ -763,13 +812,19 @@ Before preflight:
 ```text
 initialRepositoryAuthority == null
 publicationTarget == null
+repositoryInspection == null
+preflightSemanticSubject == null
+preflightProtocolBundle == null
+preflightSubjectProjection == null
+preflightReviewAuthorityProjection == null
 ```
 
 After preflight:
 
 ```text
-both non-null
-and exact RepositoryInspectionRef provenance is retained
+both authority values are non-null
+all four preflight projected values are non-null together
+exact RepositoryInspectionRef and projection provenance is retained
 ```
 
 Require exactly:
@@ -786,9 +841,25 @@ snapshot.repositoryInspection.baselineAuthority ==
 snapshot.repositoryInspection.publicationTarget ==
     snapshot.run.publicationTarget
 
+snapshot.preflightSemanticSubject ==
+    exact EstablishPreflightV1.baselineSemanticSubject
+
+snapshot.preflightProtocolBundle ==
+    exact EstablishPreflightV1.protocolBundle
+
+snapshot.preflightSubjectProjection ==
+    exact EstablishPreflightV1.subjectProjection
+
+snapshot.preflightReviewAuthorityProjection ==
+    exact EstablishPreflightV1.reviewAuthorityProjection
+
 when preflight establishment does not exist:
 
 snapshot.repositoryInspection == null
+snapshot.preflightSemanticSubject == null
+snapshot.preflightProtocolBundle == null
+snapshot.preflightSubjectProjection == null
+snapshot.preflightReviewAuthorityProjection == null
 ```
 
 If C0 exists:
@@ -796,9 +867,43 @@ If C0 exists:
 ```text
 C0's admitted sealedCandidate ==
     exact preflight RepositoryInspectionRef.sealedBaselineCandidate
+
+C0.semanticSubject ==
+    exact retained preflightSemanticSubject
+
+preflightSubjectProjection is intact
 ```
 
-A C0 using another sealed materialization is integrity failure.
+A C0 using another sealed materialization or subject is integrity failure. C0
+does not require a second subject derivation.
+
+The following is a legal resumable incomplete-bootstrap state:
+
+```text
+unique EstablishPreflightV1 exists
+root preflight obligation satisfied
+repositoryInspection != null
+preflightSemanticSubject != null
+preflightProtocolBundle != null
+preflightSubjectProjection != null
+preflightReviewAuthorityProjection != null
+candidates == []
+currentCandidate == null
+```
+
+It represents crash/interruption after `EstablishPreflightV1` and before
+`AdmitCandidateV1(C0)`. On resume M1 loads the exact retained
+`RepositoryInspectionRef`, verifies the retained preflight projection fields and
+`ArtifactRef` values, constructs C0 from the exact sealed baseline candidate and
+exact `preflightSemanticSubject`, and commits exact `AdmitCandidateV1`.
+
+M1 must not rerun repository inspection, reread mutable `repositoryPath`, select
+another baseline, rederive `S` from mutable state, select another protocol, or
+replace `sealedBaselineCandidate`.
+
+A missing, corrupt, or contradictory retained preflight subject/review
+projection is retained-authority integrity failure and produces no normal
+`RunnerResult`.
 
 For every admitted candidate and its exact `AdmitCandidateV1` basis require:
 
@@ -816,6 +921,9 @@ candidate.materialization ==
 For C0 retain the existing preflight binding and require:
 
 ```text
+candidate.semanticSubject ==
+    preflightSemanticSubject
+
 candidate.parentCandidateId == null
 
 candidate.producedByRepairIntentId == null
@@ -1336,6 +1444,31 @@ I66  The projected repositoryInspection is null exactly before preflight and,
      after preflight, equals the exact RepositoryInspectionRef retained by the
      unique EstablishPreflightV1 and binds the exact run baseline authority and
      publication target.
+
+I67  Candidate lineage projection contains every CandidateRevisionRef exactly
+     once in contiguous ordinal order.
+
+I68  currentCandidate is null exactly when candidates is empty; otherwise it
+     equals the final candidate-lineage item.
+
+I69  Preflight subject, protocol, subject-projection, and review-authority-
+     projection values are all null before preflight and all exact, intact, and
+     non-null after preflight, reconstructed only from the unique retained
+     EstablishPreflightV1.
+
+I70  C0 semanticSubject equals the exact retained preflightSemanticSubject and
+     the exact retained preflightSubjectProjection remains intact.
+
+I71  Established preflight with zero candidates is a legal incomplete-bootstrap
+     state and is not repaired by rereading mutable repository state.
+
+I72  One ReviewCampaignId cannot retain incompatible immutable campaign
+     payloads; an exact duplicate is one logical campaign fact.
+
+I73  Runner-produced campaign provenance has non-null originating run,
+     candidate, and full RepositoryAuthorityRef, while repository-imported
+     provenance has null originating run/candidate and only the exact
+     repositoryCommitSha supplied by the validated review record.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -1358,12 +1491,17 @@ reconstructSnapshot(runId):
     verify referential closure
 
     verify preflight establishment and RepositoryInspectionRef provenance
+    verify exact retained preflight subject/protocol/projection provenance
     verify sealed baseline candidate integrity
-    verify C0 sealedCandidate binding
+    verify candidate lineage contains every candidate exactly once in ordinal order
+    verify currentCandidate equals the final lineage item or null for empty lineage
+    verify legal established-preflight/zero-candidate state when applicable
+    verify C0 sealedCandidate and preflightSemanticSubject binding
     verify candidate/sealed-materialization exact binding
     verify every non-C0 candidate's exact parent RepairIntent binding
     verify repaired sealed-candidate source/approvedPatch provenance
     verify one-shot RepairIntent consumption
+    verify ReviewCampaignId payload uniqueness and provenance variant bindings
     verify obligation/disposition graph
     verify WorkItem source closure
     verify Execution chains and creation bases
@@ -1379,6 +1517,12 @@ reconstructSnapshot(runId):
 
     derive:
         run
+        repositoryInspection
+        preflightSemanticSubject
+        preflightProtocolBundle
+        preflightSubjectProjection
+        preflightReviewAuthorityProjection
+        candidates
         currentCandidate
         historical arrays
         executionProgressionSupersessions
@@ -1499,7 +1643,9 @@ Algorithm:
 require requested revision exists
 
 enumerate every authoritative revision/fact/artifact reachable from the exact
-normal-result projection at that revision
+normal-result projection at that revision, including the exact retained
+preflight subject/protocol/mechanical projection facts and every candidate in
+the candidate-lineage projection
 
 construct deterministic manifest ordered by:
     revision
