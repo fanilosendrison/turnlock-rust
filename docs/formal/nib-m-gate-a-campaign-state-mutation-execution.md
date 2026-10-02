@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "2.0.3"
+version: "2.0.4"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.3`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -521,14 +521,67 @@ registered from exact M3 evaluation context during
 ```ts
 interface EstablishOperationalBlockersV1 {
   readonly kind: "establish-operational-blockers";
+  readonly obligationsToAdd: readonly ObligationRef[];
   readonly blockers: readonly OperationalBlocker[];
   readonly basisArtifacts: readonly ArtifactRef[];
 }
 ```
 
-`blockers` must be non-empty.
+Require exactly:
 
-Every blocker must reference an exact admitted or co-admitted obligation.
+```text
+blockers is non-empty
+
+obligationsToAdd is duplicate-free by obligationId
+
+obligationsToAdd is ordered by obligationId unsigned ASCII ascending
+
+every obligationsToAdd ObligationRef:
+    belongs to exact GateARun
+    has an intact definition ArtifactRef
+    has no already-admitted incompatible logical payload
+
+every obligation in obligationsToAdd is referenced by at least one blocker
+co-admitted in the same EstablishOperationalBlockersV1
+
+every blocker.obligationId names exactly one:
+    already-admitted obligation
+    OR
+    obligation in obligationsToAdd
+```
+
+An obligation supplied in `obligationsToAdd` must not be an unrelated generic
+obligation. This mutation is not a generic arbitrary-obligation insertion path.
+
+If an obligation with the same exact logical identity is already admitted, the
+caller must omit it from `obligationsToAdd`. Every existing producer path whose
+obligation is already admitted uses `obligationsToAdd = []` when invoking
+`EstablishOperationalBlockersV1`, including repository-control preflight and any
+existing recovery or publication path that invokes this mutation. Existing
+cause semantics do not change.
+
+The same obligation ID with incompatible payload is:
+
+```text
+INVALID_MUTATION
+```
+
+No `WorkItem` is automatically created by this mutation. No obligation is
+automatically satisfied by blocker disposition.
+
+For a blocking condition requiring a new obligation, the new `ObligationRef`
+and materialized `OperationalBlocker` must become authoritative in the same
+`StateRevision`. There must be no authoritative intermediate state where:
+
+```text
+a new blocking obligation exists but its corresponding blocker does not
+```
+
+or:
+
+```text
+a blocker references a not-yet-admitted obligation
+```
 
 Every admitted `OperationalBlocker` must satisfy the accepted M8-B
 operational-boundary identity and Operator Action Request contract.
