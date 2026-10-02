@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "2.0.4"
+version: "3.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -275,163 +275,129 @@ A mismatch is:
 INVALID_MUTATION
 ```
 
-For `C0`, retain all existing requirements and additionally require:
+For `C0`, retain every accepted preflight requirement and require:
 
 ```text
 ordinal = 0
 parentCandidateId = null
 producedByRepairIntentId = null
+producedByAssuranceProjectionId = null
 
 sealedCandidate.parentCandidateId == null
-
 sealedCandidate.producedByRepairIntentId == null
+sealedCandidate.producedByAssuranceProjectionId == null
 
 candidate.parentCandidateId == null
-
 candidate.producedByRepairIntentId == null
+candidate.producedByAssuranceProjectionId == null
 ```
 
 For `AdmitCandidateV1` when `ordinal = 0`:
 
 ```text
 exact EstablishPreflightV1 exists
-
 sealedCandidate ==
     EstablishPreflightV1.repositoryInspection.sealedBaselineCandidate
-
 candidate.semanticSubject ==
-    EstablishPreflightV1.baselineSemanticSubject
-
-candidate.semanticSubject ==
+    EstablishPreflightV1.baselineSemanticSubject ==
     snapshot.preflightSemanticSubject
-
 EstablishPreflightV1.subjectProjection exists and is intact
+EstablishPreflightV1.reviewAuthorityProjection exists and is intact
 ```
 
-C0 does not require a second subject derivation and may not substitute another
-materialization after baseline establishment.
+C0 does not require another subject derivation and cannot replace any retained
+preflight fact. The legal crash state between preflight and C0 remains intact.
 
-For every non-C0 `AdmitCandidateV1`:
-
-Let:
+For every non-C0 admission, let:
 
 ```text
 P = exact currentCandidate before mutation
-
-R = exact admitted RepairIntentRef whose repairIntentId ==
-    candidate.producedByRepairIntentId
+R = exact retained RepairIntentRef named by
+    candidate.producedByRepairIntentId, or null
+A = exact retained AssuranceRepositoryProjectionRef named by
+    candidate.producedByAssuranceProjectionId, or null
 ```
-
-Require exactly one such `R`.
 
 Require:
 
 ```text
-candidate.ordinal ==
-    P.ordinal + 1
-
-candidate.parentCandidateId ==
-    P.candidateId
-
+R != null OR A != null
+candidate.ordinal == P.ordinal + 1
+candidate.parentCandidateId == P.candidateId
+sealedCandidate.parentCandidateId == P.candidateId
 candidate.producedByRepairIntentId ==
-    R.repairIntentId
-
-R.runId ==
-    exact GateARun runId
-
-R.candidateId ==
-    P.candidateId
+    sealedCandidate.producedByRepairIntentId
+candidate.producedByAssuranceProjectionId ==
+    sealedCandidate.producedByAssuranceProjectionId
+candidate.materialization == sealedCandidate.materialization
 ```
 
-Require exact sealed-candidate provenance:
+If `R != null`, require exactly one such retained value and:
 
 ```text
-sealedCandidate.runId ==
-    exact GateARun runId
-
-sealedCandidate.parentCandidateId ==
-    P.candidateId
-
-sealedCandidate.producedByRepairIntentId ==
-    R.repairIntentId
-
-candidate.materialization ==
-    sealedCandidate.materialization
+R.runId == exact GateARun runId
+R.candidateId == P.candidateId
+candidate.producedByRepairIntentId == R.repairIntentId
+sealedCandidate.materializationEvidence contains exact R.approvedPatch
 ```
 
-Require construction provenance retains the exact source and patch:
+If `R == null`, both repair provenance fields are null.
+
+If `A != null`, require exactly one such retained value and:
 
 ```text
-sealedCandidate.materializationEvidence contains exactly the ArtifactRef:
-    P.materialization
-
-sealedCandidate.materializationEvidence contains exactly the ArtifactRef:
-    R.approvedPatch
+A.runId == exact GateARun runId
+A.sourceCandidateId == P.candidateId
+A.semanticSubject == P.semanticSubject
+A.projection exists and is intact
+candidate.producedByAssuranceProjectionId == A.projectionId
+sealedCandidate.materializationEvidence contains exact A.projection
 ```
 
-`contains exactly` here means exact `ArtifactRef` structural equality.
+If `A == null`, both assurance-projection provenance fields are null.
 
-Do not define the complete ordering/content of
-`materializationEvidence` in this patch; future M7-A owns its full deterministic
-closure.
+Every non-C0 sealed candidate retains exact `P.materialization`. Every required
+artifact exists and is intact. `contains exact` means exact `ArtifactRef`
+structural equality.
 
-Require every retained evidence ArtifactRef used by the admission to exist and
-be intact under the existing artifact-store rules.
+For assurance-only (`R == null`, `A != null`), require:
 
-Identity:
+```text
+candidate.semanticSubject == P.semanticSubject == A.semanticSubject
+```
+
+Failure is `INVALID_MUTATION`; M2 makes no campaign interpretation.
+
+Identity is exactly:
 
 ```text
 deriveId(
-  "candidate-revision.v1",
+  "candidate-revision.v2",
   runId,
   decimal ordinal,
   parentCandidateId or "-",
-  producedByRepairIntentId or "-"
+  producedByRepairIntentId or "-",
+  producedByAssuranceProjectionId or "-"
 )
 ```
 
-`materialization` and `semanticSubject` are payload bound to the logical slot.
+The materialization and semantic subject are payload bound to that slot. A
+second incompatible payload is `INVALID_MUTATION`.
 
-A second different payload for the same slot is `INVALID_MUTATION`.
-
-Before admitting Cn+1 require:
-
-```text
-zero previously admitted CandidateRevision exists where:
-    producedByRepairIntentId ==
-        R.repairIntentId
-```
-
-If one already exists:
+Before admission require independently:
 
 ```text
-INVALID_MUTATION
+if R != null:
+    zero prior CandidateRevision names R.repairIntentId
+
+if A != null:
+    zero prior CandidateRevision names A.projectionId
 ```
 
-Do not add:
-
-```text
-repairIntent.consumed
-consumedAtRevision
-consumed boolean
-```
-
-or any mutable consumption marker.
-
-The historical successor candidate is the consumption fact.
-
-`R.candidateId` must equal the exact current parent candidate `P.candidateId` at
-admission time.
-
-Therefore an old RepairIntent for Cn may not be applied to Cn+k even when:
-
-```text
-Cn.materialization ==
-Cn+k.materialization
-```
-
-The material patch may be content-identical, but RepairIntent authority is
-candidate-occurrence-specific.
+A second consumer is `INVALID_MUTATION`. No mutable repair/projection consumed
+flag or consumed revision exists. Candidate existence is the append-only
+consumption fact. Repair and projection authority are exact parent-occurrence
+specific.
 
 Replay semantics:
 
@@ -852,6 +818,7 @@ ReAdjudicationRefs
 ObligationDispositionRefs
 RepairIntentRefs
 DecisionRequestRefs
+zero or one AssuranceRepositoryProjectionRef
 ObligationRefs
 WorkItemRefs
 ExecutionRetryAuthorizationRefs
@@ -861,6 +828,49 @@ CandidateReviewReadiness designation
 ```
 
 M5 remains producer of its ledger semantics.
+
+The validated `authorityEvaluation` preserves every exact
+`RepositoryReviewObservationV1`, including each `sourceRecord` and complete
+ordered `referencedArtifacts` closure. M2 validates artifact existence and
+shape but does not reinterpret M6 mechanical validity or M5 finding semantics.
+
+If `delta.assuranceRepositoryProjectionToEstablish != null`, require:
+
+```text
+projection.runId == exact GateARun runId
+currentCandidate != null
+projection.sourceCandidateId == currentCandidate.candidateId
+projection.semanticSubject == currentCandidate.semanticSubject
+projection.protocolBundle == evaluationContext.protocolBundle
+projection.projection exists and is intact
+projection.projection.mediaType == application/json
+basisArtifacts is duplicate-free and every item is intact
+projectionId recomputes under the exact NIB-S formula
+runner-owned projection structure is valid
+no other unconsumed projection exists whose sourceCandidateId ==
+    projection.sourceCandidateId
+```
+
+M2 admits the projection append-only in the same atomic delta revision. An exact
+existing value is idempotent; incompatible same identity or a competing second
+unconsumed projection is `INVALID_MUTATION`. M2 interprets no hostile-review
+finding semantics.
+
+If `delta.candidateReviewReadiness != null`, require no unconsumed assurance
+projection exists for its candidate. Readiness cannot precede exact evidence
+materialization into the successor candidate.
+
+Every `OperationalBlocker` in final `delta.blockersToAdd` passes existing M8-B
+identity/OAR validation. For an M5 operational blocker require:
+
+```text
+source.kind == producer-occurrence
+source.producer == assurance-ledger
+source.baseStateRevision == delta.expectedStateRevision
+```
+
+M2 invents neither producer cause nor blocker. Semantic blockers remain M5-owned
+semantic products.
 
 ### 5.11 Non-cognitive mechanical validation
 
@@ -1362,16 +1372,16 @@ For:
 result.kind = "blocked"
 ```
 
-M2 retains the current blocker ownership shape:
-
-```text
-result.blocker.kind == "operational"
-result.blocker.executionId == E.executionId
-result.blocker references one exact applicable publication obligation
-```
-
-M2 atomically appends the exact request/result basis and blocker, and appends
-no confirmation or published view.
+M1 does not submit this blocked result through
+`AdmitPublicationObservationQualificationV1`. It requires
+`result.cause.producer == "repository-control"`, binds only the exact already-
+determined publication obligation, WorkItem, and optional Execution occurrence
+anchors, and asks M8-B to materialize the blocker. M1 then commits that exact
+blocker through `EstablishOperationalBlockersV1` with `obligationsToAdd = []`
+because the publication obligation is already authoritative. M2 applies its
+ordinary M8-B identity/OAR validation and appends no confirmation or published
+view. M2 does not interpret the repository-control cause or construct another
+blocker.
 
 #### Already-current branch
 
@@ -2449,6 +2459,17 @@ Its runner history remains authoritative.
 * Repaired sealed-candidate `materializationEvidence` does not retain exact
   RepairIntent.approvedPatch: `INVALID_MUTATION`.
 
+* Non-C0 candidate has both provenance IDs null: `INVALID_MUTATION`.
+* Candidate/sealed-candidate repair or projection provenance differs:
+  `INVALID_MUTATION`.
+* Candidate names a missing or wrong-parent repair/projection:
+  `INVALID_MUTATION`.
+* Assurance-only subject differs from parent/projection: `INVALID_MUTATION`.
+* RepairIntent or projection already produced a candidate: `INVALID_MUTATION`.
+* A second unconsumed projection for one source candidate: `INVALID_MUTATION`.
+* Readiness is non-null while its candidate has an unconsumed projection:
+  `INVALID_MUTATION`.
+
 ## 21. Constraints
 
 * One successful mutation equals one StateRevision.
@@ -2530,7 +2551,9 @@ if not-applied:
     PublicationNonApplicationRef only
     + no confirmation/view/disposition
 if blocked:
-    exact OperationalBlocker
+    no publication-observation qualification mutation;
+    exact repository-control cause → M8-B materialization
+    → EstablishOperationalBlockersV1
 ```
 
 A `not-applied` result is valid only for the executed-publication request kind.
