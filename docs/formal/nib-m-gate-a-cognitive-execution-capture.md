@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.0.1"
+version: "1.0.2"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,16 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+
+Version 1.0.2 synchronizes this Module Brief with
+NIB-S-GATE-A-CAMPAIGN-RUNNER 9.0.0.
+
+The reviewer-acquisition System Brief change does not alter M4-A execution,
+capture, AbortSignal, journal, credential, dependency-call, technical-failure,
+uncertainty, or receipt-attempt material semantics.
+
+All behavior introduced by version 1.0.1 remains unchanged.
 
 Version `1.0.1` closes three implementation-construction completeness gaps in
 version `1.0.0` without changing TURNLOCK product semantics, hostile-review

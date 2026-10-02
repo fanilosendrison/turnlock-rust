@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "3.0.1"
+version: "4.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,13 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+
+Version `4.0.0` is a breaking construction-contract revision only because the
+persisted reviewer-prerequisite admission basis shape changes under ADR-053.
+M2 remains the sole authoritative state writer and acquires no reviewer-
+acquisition selection, round-construction, identity-resolution, finding-
+interpretation, or assurance-cause semantics.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -439,7 +445,11 @@ interface ReviewerPrerequisiteAdmissionBasis {
   readonly candidateId: CandidateRevisionId;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly minimumIndependentReviewers: number;
+  readonly acquisitionMode: "minimum-effective-independent-v1";
   readonly qualifyingReviewerProfileIds: readonly string[];
+  readonly reviewerAcquisitionCandidates:
+    readonly GateAReviewerAcquisitionCandidateV1[];
   readonly evidence: readonly ArtifactRef[];
 }
 
@@ -489,7 +499,18 @@ The same logical `ReviewCampaignId` with a different payload is
 a second time.
 
 The campaign and all initial obligations/work items are committed atomically in
-the same revision.
+the same revision. M2 preserves the exact complete supplied prerequisite basis.
+The first reviewer-acquisition round is part of the complete initial
+obligations/workItems supplied for the campaign under M5 semantics.
+
+Later reviewer-acquisition WorkItems may be added only through the existing
+`AdmitAssuranceLedgerDeltaV1` path. No new mutation kind and no additional state
+writer are introduced.
+
+M2 validates only exact structural and binding integrity. It MUST NOT choose
+reviewer profiles, compute acquisition rounds, interpret finding content, guess
+provider-reported identities, decide pool-exhaustion semantics, or create M5
+operational causes.
 
 No runner-created executable campaign may become visible before its complete
 initial bundle is admitted.

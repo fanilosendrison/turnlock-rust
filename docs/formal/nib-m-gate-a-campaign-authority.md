@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-AUTHORITY
-version: "1.0.1"
+version: "2.0.0"
 scope: gate-a-campaign-runner/campaign-authority
 status: active
 consumers: [architect, coding-agent]
@@ -19,7 +19,12 @@ superseded_by: []
 
 Implement M3 `campaign-authority` according to this active Module Brief.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+
+Version `2.0.0` is a breaking Module Brief revision because
+`ReviewerPrerequisiteResolution` and static reviewer-feasibility semantics
+change under ADR-053 and protocol v5. M3 preserves its existing authority,
+currentness, operational-cause, and no-execution ownership boundaries.
 
 Treat this brief as implementation-construction authority only. It creates no:
 
@@ -106,7 +111,7 @@ publication
 
 ## 3. Candidate-provenance boundary
 
-NIB-S `8.0.0` candidates include:
+NIB-S `9.0.0` candidates include:
 
 ```text
 producedByRepairIntentId
@@ -166,7 +171,7 @@ randomness
 environment-selected campaign authority
 ```
 
-Consume the following NIB-S `8.0.0` cross-module types unchanged:
+Consume the following NIB-S `9.0.0` cross-module types unchanged:
 
 ```text
 ArtifactRef
@@ -196,6 +201,9 @@ GateAEvaluationContext
 CandidateSubjectMechanicalDerivationResult
 CandidateReviewAuthorityMechanicalProjectionResult
 GateAReviewerProfileMechanicalFactV1
+GateAReviewerAcquisitionPolicyMechanicalFactV1
+EffectiveReviewerIdentityRefV1
+GateAReviewerAcquisitionCandidateV1
 GateARepositoryReviewMechanicalFactV1
 CampaignAuthorityOperationalCauseRefV1
 GateACampaignAuthorityOperationalCauseV1
@@ -441,6 +449,9 @@ Reject structurally impossible dependency results, including:
 minimumIndependentReviewers < 1
 duplicate reviewer profile IDs
 reviewerProfiles not ordered by profileId unsigned ASCII
+reviewerAcquisition.mode != minimum-effective-independent-v1
+reviewerAcquisition.profileOrder is not an exact permutation of every
+    reviewerProfiles.profileId with each ID exactly once
 duplicate repository review IDs
 repositoryReviews not ordered by reviewId unsigned ASCII
 review.referencedArtifacts violates the declared M6 structural contract
@@ -675,6 +686,9 @@ When `reviewAuthority.kind == "established"`, require:
 minimumIndependentReviewers is integer >= 1
 reviewerProfiles ordered by profileId unsigned ASCII ascending
 reviewerProfiles profileId values unique
+reviewerAcquisition.mode == minimum-effective-independent-v1
+reviewerAcquisition.profileOrder contains every reviewerProfiles.profileId
+    exactly once and no other ID
 repositoryReviews ordered by reviewId unsigned ASCII ascending
 repositoryReviews reviewId values unique
 ```
@@ -1012,7 +1026,13 @@ reviewAuthority.protocolBundle == protocolBundle
 minimumIndependentReviewers is integer >= 1
 reviewerProfiles ordered by profileId unsigned ASCII ascending
 reviewerProfiles profile IDs unique
+reviewerAcquisition.mode == minimum-effective-independent-v1
+reviewerAcquisition.profileOrder contains every reviewerProfiles.profileId
+    exactly once and no other ID
 ```
+
+Any acquisition-policy contradiction is
+`MECHANICAL-AUTHORITY-CONTRACT-FAILURE`, not a normal blocker.
 
 Verify the exact projection and evidence `ArtifactRef` values.
 
@@ -1042,6 +1062,23 @@ AND
 Construct `qualifyingReviewerProfileIds` as the complete qualifying set, sorted
 by `profileId` unsigned ASCII ascending. Never select an arbitrary subset.
 
+Separately construct `reviewerAcquisitionCandidates` by traversing exact
+`reviewAuthority.reviewerAcquisition.profileOrder` and retaining only
+statically qualifying profiles. Never sort that sequence lexically.
+
+For every retained candidate construct exact static identity:
+
+```text
+provider-reported
+→ staticallyKnownEffectiveIdentity = null
+
+pinned-request-model with immutable version
+→ {
+    provider: profile.provider,
+    modelVersion: profile.requestModel
+  }
+```
+
 M3 does not establish final execution independence and does not know future
 provider-reported `model_version`. Do not:
 
@@ -1054,18 +1091,33 @@ claim final distinct (provider, model, model_version) count
 claim final distinct (provider, model_version) count
 ```
 
-Those identities are evidence-derived downstream. Determine only whether the
-static registry contains enough eligible profile slots to instantiate the
-required campaign.
+Those identities are evidence-derived downstream.
+
+Compute exactly:
+
+```text
+knownPinned =
+set of staticallyKnownEffectiveIdentity
+for qualifying pinned candidates
+
+unknownProviderReportedCount =
+count qualifying provider-reported candidates
+
+maximumStaticallyPossibleIndependentReviewers =
+len(knownPinned) + unknownProviderReportedCount
+```
+
+Never deduplicate two provider-reported profiles before execution.
 
 Static prerequisites are established if and only if:
 
 ```text
-qualifyingReviewerProfileIds.length >=
+maximumStaticallyPossibleIndependentReviewers >=
     reviewAuthority.minimumIndependentReviewers
 ```
 
-This is not final Gate A reviewer-independence qualification.
+This is an optimistic maximum only, not final Gate A reviewer-independence
+qualification.
 
 ### 13.3 Established result
 
@@ -1083,7 +1135,12 @@ Return exactly:
 ```ts
 {
   kind: "established",
+  minimumIndependentReviewers:
+    reviewAuthority.minimumIndependentReviewers,
+  acquisitionMode:
+    "minimum-effective-independent-v1",
   qualifyingReviewerProfileIds,
+  reviewerAcquisitionCandidates,
   evidence
 }
 ```
@@ -1143,6 +1200,11 @@ ReviewerPrerequisitesUnavailableCauseV1 {
     reviewAuthority.minimumIndependentReviewers,
 
   qualifyingReviewerProfileIds,
+
+  maximumStaticallyPossibleIndependentReviewers,
+
+  reviewerAcquisitionProfileIds:
+    reviewerAcquisitionCandidates.map(candidate => candidate.profileId),
 
   reviewAuthorityProjection:
     reviewAuthority.projection
@@ -1417,11 +1479,20 @@ provider-reported + frontierEligible=true
 → statically eligible
 → M3 does not invent model_version
 
-exactly minimum qualifying profiles
+exactly minimum statically possible effective identities
 → established
 
 more than minimum qualifying profiles
 → ALL qualifying profile IDs returned
+→ acquisition candidates remain exact P order, not lexical order
+
+duplicate immutable pinned effective identities
+→ counted once in maximum static capacity
+→ later duplicate pinned candidate remains absent from an acquisition round
+
+provider-reported profiles with similar request metadata
+→ each contributes one optimistic unknown capacity
+→ never pre-collapsed
 
 same registered/repository ReviewCampaignId compatible
 → one logical campaign, existing provenance preserved
@@ -1593,7 +1664,13 @@ exact M6-projected sequence without modification.
 ### M3-20
 
 `qualifyingReviewerProfileIds` is the complete statically qualifying profile-ID
-set and never an arbitrary subset.
+set and never an arbitrary subset. `reviewerAcquisitionCandidates` contains
+that same qualifying set in exact P acquisition order.
+
+### M3-20A
+
+M3 static capacity equals distinct known pinned effective identities plus the
+count of qualifying provider-reported profiles.
 
 ### M3-21
 

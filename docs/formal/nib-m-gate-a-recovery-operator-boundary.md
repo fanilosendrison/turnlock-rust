@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY
-version: "2.0.6"
+version: "2.0.7"
 scope: gate-a-campaign-runner/recovery-operator/operator-boundary
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,12 @@ superseded_by: []
 
 # NIB-M — Gate A Recovery Operator — Operator Boundary
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+
+Version `2.0.7` is dependency-only compatibility synchronization with
+NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`. The reviewer-acquisition System Brief
+change does not alter M8-B blocker identity, Operator Action Request,
+resolution-contract, blocker-disposition, or operator-resolution behavior.
 
 This Module Brief is implementation-construction authority only. It does not
 create TURNLOCK product semantics, hostile-review protocol semantics, canonical
