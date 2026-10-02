@@ -68,6 +68,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | Clarify hostile-review execution receipt attempt mapping | accepted | 2026-09-20 | complete | Hostile-review execution receipt identity<br>Protocol-attempt aggregation in execution receipts<br>Protocol retry to receipt-attempt mapping<br>LLM call and transport-attempt separation |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | Allow shared governance implementation without transferring repository authority | accepted | 2026-09-22 | complete | Ownership boundary between repository authority and shared governance implementation<br>Use of proto-ring as a reusable governance implementation provider<br>Immutable pinning and local bindings for shared governance tooling |
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | Require proto-ring for applicable generic repository governance | accepted | 2026-09-27 | complete | Mandatory use of proto-ring for applicable generic repository governance<br>Classification boundary between generic and Turnlock-specific repository governance<br>Immutable local adoption of the proto-ring Shared Governance Provider contract |
+| [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | Adopt structured proto-ring repository governance | accepted | 2026-10-02 | complete | Repository Governance Model version 2 adoption<br>Structured proto-ring governance registries and profiles<br>Authority migration for active governance bindings and validation membership |
 
 ## Recorded outgoing relations
 
@@ -188,6 +189,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | confirms | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | amends | [ADR-017](adr-017-adopt-validated-okf-architecture-decision-record-metadata.md) |
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | amends | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) |
+| [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | amends | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
+| [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | confirms | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) |
 
 ## Derived incoming relations
 
@@ -308,3 +311,5 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | confirmed by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | amended by | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
+| [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | confirmed by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
+| [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | amended by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
