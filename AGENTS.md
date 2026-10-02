@@ -6,22 +6,17 @@ domain: "turnlock-rust"
 severity: "strict"
 name: "Turnlock-Rust repository agent directives"
 repository_governance:
-  model_version: 1
+  model_version: 2
   provider:
     id: "proto-ring"
     binding:
       capability: "shared_governance_provider"
-      route: "binding"
+      route: "registry"
   capabilities:
     architecture_decisions:
       configuration: {}
       routes:
         profile: "docs/adr/adr-profile.yaml"
-    shared_governance_provider:
-      configuration:
-        required: true
-      routes:
-        binding: "docs/repository-governance/turnlock-rust-shared-governance-provider.md"
     governance_authority:
       configuration: {}
       routes:
@@ -30,6 +25,26 @@ repository_governance:
       configuration: {}
       routes:
         profile: "docs/repository-governance/turnlock-rust-governed-objects.md"
+    shared_governance_provider:
+      configuration: {}
+      routes:
+        registry: "docs/repository-governance/turnlock-rust-governance-bindings.md"
+    projection_integrity:
+      configuration: {}
+      routes:
+        registry: "docs/repository-governance/turnlock-rust-projection-integrity.md"
+    repository_integrity:
+      configuration: {}
+      routes:
+        profile: "docs/repository-governance/turnlock-rust-repository-integrity.md"
+    evidence_requirements:
+      configuration: {}
+      routes:
+        registry: "docs/repository-governance/turnlock-rust-evidence-requirements.md"
+    authoritative_ref_monotonicity:
+      configuration: {}
+      routes:
+        binding: "docs/repository-governance/turnlock-rust-authoritative-ref-monotonicity.md"
 ---
 
 # Turnlock-Rust repository directives
@@ -65,8 +80,8 @@ parent permission, security, formatting, naming, or implementation rule.
   then read
   `docs/repository-governance/turnlock-rust-engineering.md` before acting.
 - Before adding, modifying, replacing, or designing any repository-governance
-  mechanism, read and apply
-  `docs/repository-governance/turnlock-rust-shared-governance-provider.md`.
+  mechanism, load the routed Governance Binding Registry and apply its immutable
+  Shared Governance Provider contract binding.
 
 ## Authority by responsibility
 
@@ -608,8 +623,10 @@ After every intentional repository change, run the canonical validation suite:
 .venv/bin/python scripts/check-repository-integrity.py
 ```
 
-`scripts/check-repository-integrity.py` owns the mandatory repository-validation
-suite and execution order. Do not duplicate its member commands here or in CI.
+The routed persistent Repository Integrity profile owns mandatory validation
+membership and order. `scripts/check-repository-integrity.py` is its canonical
+thin evaluation entry point. Do not duplicate member commands here, in Python,
+or in CI.
 
 Inspect generated differences and confirm they follow directly from canonical
 sources. Diagnostic checks are side-effect free; only the explicit render
@@ -648,10 +665,14 @@ change.
   `docs/repository-governance/turnlock-rust-discovery-classification.md`
 - Projection-integrity policy:
   `docs/repository-governance/turnlock-rust-projection-integrity.md`
-- Shared Governance Provider binding:
-  `docs/repository-governance/turnlock-rust-shared-governance-provider.md`
-- Exact Evidence Binding:
-  `docs/repository-governance/turnlock-rust-exact-evidence-binding.md`
+- Governance Binding Registry:
+  `docs/repository-governance/turnlock-rust-governance-bindings.md`
+- Persistent Repository Integrity profile:
+  `docs/repository-governance/turnlock-rust-repository-integrity.md`
+- Projection Registry:
+  `docs/repository-governance/turnlock-rust-projection-integrity.md`
+- Evidence Requirements Registry:
+  `docs/repository-governance/turnlock-rust-evidence-requirements.md`
 - Engineering Project profile:
   `docs/repository-governance/turnlock-rust-engineering.md`
 - Worktree management policy:

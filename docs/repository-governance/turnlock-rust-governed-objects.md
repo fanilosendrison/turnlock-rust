@@ -5,10 +5,6 @@ asset_type: governed-object-profile
 domain: turnlock-rust-repository-governance
 severity: strict
 name: Turnlock-Rust Governed Objects profile
-governed_objects_contract:
-  repository: fanilosendrison/proto-ring
-  commit: 275a92523e37b30fabd060ec92df2706bb70ef80
-  path: docs/contracts/governed-objects.md
 governed_objects:
   model_version: 1
   interfaces:
@@ -315,6 +311,12 @@ governed_objects:
           - accepted_decisions
           relations: []
         ADR-051:
+          responsibilities:
+          - adr_metadata
+          - product_semantics
+          - accepted_decisions
+          relations: []
+        ADR-052:
           responsibilities:
           - adr_metadata
           - product_semantics

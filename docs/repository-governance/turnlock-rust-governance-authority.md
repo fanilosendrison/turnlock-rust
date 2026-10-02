@@ -6,11 +6,6 @@ domain: "turnlock-rust-repository-governance"
 severity: "strict"
 name: "Turnlock-Rust Governance Authority profile"
 
-governance_authority_contract:
-  repository: "fanilosendrison/proto-ring"
-  commit: "22965fb97be23d7b43b8517b6786d65f5b8a41db"
-  path: "docs/contracts/governance-authority.md"
-
 governance_authority:
   model_version: 1
   sources:
@@ -26,10 +21,12 @@ governance_authority:
       repository_target: "docs/adr/index.md"
     adr_history:
       repository_target: "docs/adr/README.md"
+    adr_index_generator: {}
     formal_assurance_manifest:
       repository_target: "formal/verification.yaml"
     formal_assurance_mapping:
       repository_target: "docs/formal/invariant-mapping.md"
+    formal_mapping_generator: {}
     hostile_review_records:
       repository_target: "formal/reviews"
     bounded_verification_results:
@@ -40,8 +37,23 @@ governance_authority:
       repository_target: "docs/vision/turnlock-vision.md"
     discovery_classification_profile:
       repository_target: "docs/repository-governance/turnlock-rust-discovery-classification.md"
-    shared_governance_provider_binding:
-      repository_target: "docs/repository-governance/turnlock-rust-shared-governance-provider.md"
+    governance_binding_registry:
+      repository_target: "docs/repository-governance/turnlock-rust-governance-bindings.md"
+    executable_dependency_manifest:
+      repository_target: "requirements.txt"
+    projection_registry:
+      repository_target: "docs/repository-governance/turnlock-rust-projection-integrity.md"
+    repository_integrity_profile:
+      repository_target: "docs/repository-governance/turnlock-rust-repository-integrity.md"
+    evidence_requirement_registry:
+      repository_target: "docs/repository-governance/turnlock-rust-evidence-requirements.md"
+    governed_objects_profile:
+      repository_target: "docs/repository-governance/turnlock-rust-governed-objects.md"
+    effective_proto_ring_provider: {}
+    proto_ring_environment: {}
+    gate_a_current_subject: {}
+    gate_a_current_protocol_context: {}
+    gate_a_review_candidates: {}
     agents_governance_frontmatter:
       repository_target: "AGENTS.md"
     agents_directives:
@@ -65,6 +77,7 @@ governance_authority:
     stable_invariant_definitions:
       roles:
         turnlock_spec: authority
+        governed_objects_profile: secondary_representation
       precedence: []
     canonical_terminology:
       roles:
@@ -74,12 +87,14 @@ governance_authority:
     accepted_decisions:
       roles:
         accepted_adrs: authority
+        governed_objects_profile: secondary_representation
       precedence: []
     adr_metadata:
       roles:
         canonical_adr_records: authority
         adr_index: secondary_representation
         adr_history: secondary_representation
+        adr_index_generator: non_authoritative
       precedence: []
     adr_history_narrative:
       roles:
@@ -93,6 +108,10 @@ governance_authority:
       roles:
         formal_assurance_manifest: authority
         formal_assurance_mapping: secondary_representation
+        governed_objects_profile: secondary_representation
+        formal_mapping_generator: non_authoritative
+        gate_a_current_subject: non_authoritative
+        gate_a_current_protocol_context: non_authoritative
       precedence: []
     canonical_formal_semantics:
       roles: {}
@@ -100,6 +119,7 @@ governance_authority:
     hostile_review_evidence:
       roles:
         hostile_review_records: authority
+        gate_a_review_candidates: non_authoritative
       precedence: []
     bounded_verification_evidence:
       roles:
@@ -112,7 +132,39 @@ governance_authority:
     shared_governance_provider_adoption:
       roles:
         accepted_adrs: authority
-        shared_governance_provider_binding: secondary_representation
+        governance_binding_registry: secondary_representation
+      precedence: []
+    governance_contract_bindings:
+      roles:
+        governance_binding_registry: authority
+      precedence: []
+    executable_provider_binding:
+      roles:
+        executable_dependency_manifest: authority
+        governance_binding_registry: secondary_representation
+        effective_proto_ring_provider: secondary_representation
+        proto_ring_environment: non_authoritative
+      precedence: []
+    projection_registry_profile:
+      roles:
+        projection_registry: authority
+      precedence: []
+    repository_integrity_profile:
+      roles:
+        repository_integrity_profile: authority
+      precedence: []
+    repository_validation_membership_order:
+      roles:
+        repository_integrity_profile: authority
+        repository_validation_entrypoint: secondary_representation
+      precedence: []
+    repository_validation:
+      roles:
+        repository_integrity_profile: authority
+      precedence: []
+    evidence_requirement_registry:
+      roles:
+        evidence_requirement_registry: authority
       precedence: []
     adr_profile_route:
       roles:
@@ -129,10 +181,6 @@ governance_authority:
     repository_agent_guardrails:
       roles:
         agents_directives: authority
-      precedence: []
-    repository_validation_membership_order:
-      roles:
-        repository_validation_entrypoint: authority
       precedence: []
     repository_ci_bootstrap:
       roles:
@@ -155,6 +203,6 @@ governance_authority:
 # Turnlock-Rust Governance Authority profile
 
 This profile is the canonical machine-readable mapping of Turnlock-Rust
-governance authority roles. Underlying Turnlock semantic authority remains in
-the sources identified here. The immutable proto-ring contract pin governs only
-the generic representation. Body prose does not replace the structured mapping.
+repository-governance roles. Underlying TURNLOCK semantic, formal, review, and
+evidence authority remains in the sources identified here. Contract identities
+are owned by the routed Governance Binding Registry.

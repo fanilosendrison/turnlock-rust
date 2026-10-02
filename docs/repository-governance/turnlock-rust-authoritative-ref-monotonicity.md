@@ -6,10 +6,6 @@ domain: "turnlock-rust-repository-governance"
 severity: "strict"
 name: "Turnlock-Rust Authoritative Ref Monotonicity binding"
 authoritative_ref_monotonicity:
-  contract:
-    repository: "fanilosendrison/proto-ring"
-    commit: "650a481b7dfa7c4d3671bd053c63642a5dab1087"
-    path: "docs/contracts/authoritative-ref-monotonicity.md"
   repository:
     provider: "github"
     owner: "fanilosendrison"
@@ -24,14 +20,8 @@ authoritative_ref_monotonicity:
 
 ## Shared contract
 
-Apply the proto-ring Authoritative Ref Monotonicity contract at this immutable
-identity:
-
-```text
-fanilosendrison/proto-ring
-650a481b7dfa7c4d3671bd053c63642a5dab1087
-docs/contracts/authoritative-ref-monotonicity.md
-```
+The routed Governance Binding Registry owns the immutable Authoritative Ref
+Monotonicity contract identity. This carrier owns only the local realization.
 
 ## Local realization
 

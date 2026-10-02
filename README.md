@@ -102,15 +102,16 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Discovery classification profile](docs/repository-governance/turnlock-rust-discovery-classification.md)
   binds the shared engineering-discovery process to Turnlock-Rust authority,
   artifacts, and validation.
-- [Projection-integrity policy](docs/repository-governance/turnlock-rust-projection-integrity.md)
-  defines repository policy for mutable derived state and documentation
-  projections.
-- [Shared Governance Provider binding](docs/repository-governance/turnlock-rust-shared-governance-provider.md)
-  binds Turnlock-Rust to the immutable proto-ring provider-selection contract
-  for generic repository governance while keeping Turnlock-specific authority
-  local.
-- [Exact Evidence Binding](docs/repository-governance/turnlock-rust-exact-evidence-binding.md)
-  is the local consumer binding to proto-ring Exact Evidence Binding.
+- [Projection Registry](docs/repository-governance/turnlock-rust-projection-integrity.md)
+  records direct authority-to-secondary relationships and their currentness
+  validations.
+- [Governance Binding Registry](docs/repository-governance/turnlock-rust-governance-bindings.md)
+  owns immutable proto-ring executable and governance-contract identities.
+- [Repository Integrity profile](docs/repository-governance/turnlock-rust-repository-integrity.md)
+  owns mandatory validation membership and order.
+- [Evidence Requirements Registry](docs/repository-governance/turnlock-rust-evidence-requirements.md)
+  declares the two Gate A Exact Evidence Binding requirements while retaining
+  Gate A semantics locally.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, canonical terminology, promises, invariants, boundaries, and
   architectural implications.

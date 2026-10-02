@@ -1,169 +1,74 @@
 ---
 okf_version: "1.0"
 kind: "KnowledgeAsset"
-asset_type: "agent-directives"
+asset_type: "projection-registry"
 domain: "turnlock-rust-repository-governance"
 severity: "strict"
-name: "Turnlock-Rust Projection Integrity binding"
+name: "Turnlock-Rust Projection Registry"
+
+projection_registry:
+  model_version: 1
+  authority:
+    responsibility: projection_registry_profile
+    source: projection_registry
+  projections:
+    adr_index:
+      responsibility: adr_metadata
+      canonical_source: canonical_adr_records
+      secondary_source: adr_index
+      mode: generated
+      validation: adr_metadata_generated_index_tests
+      generator_source: adr_index_generator
+    adr_annotated_history:
+      responsibility: adr_metadata
+      canonical_source: canonical_adr_records
+      secondary_source: adr_history
+      mode: mechanically_validated_maintained
+      validation: adr_metadata_annotated_history_tests
+    formal_invariant_mapping:
+      responsibility: formal_assurance_graph
+      canonical_source: formal_assurance_manifest
+      secondary_source: formal_assurance_mapping
+      mode: generated
+      validation: formal_traceability_check
+      generator_source: formal_mapping_generator
+    governed_adr_catalog:
+      responsibility: accepted_decisions
+      canonical_source: accepted_adrs
+      secondary_source: governed_objects_profile
+      mode: mechanically_validated_maintained
+      validation: governed_objects_profile
+    governed_invariant_catalog:
+      responsibility: stable_invariant_definitions
+      canonical_source: turnlock_spec
+      secondary_source: governed_objects_profile
+      mode: mechanically_validated_maintained
+      validation: governed_objects_profile
+    governed_formal_claim_catalog:
+      responsibility: formal_assurance_graph
+      canonical_source: formal_assurance_manifest
+      secondary_source: governed_objects_profile
+      mode: mechanically_validated_maintained
+      validation: governed_objects_profile
+    executable_binding_registry_representation:
+      responsibility: executable_provider_binding
+      canonical_source: executable_dependency_manifest
+      secondary_source: governance_binding_registry
+      mode: mechanically_validated_maintained
+      validation: proto_ring_binding_registry_currentness
+      binding: proto_ring_executable
+    effective_proto_ring_realization:
+      responsibility: executable_provider_binding
+      canonical_source: executable_dependency_manifest
+      secondary_source: effective_proto_ring_provider
+      mode: generated
+      validation: proto_ring_provider_currentness
+      generator_source: proto_ring_environment
+      binding: proto_ring_executable
 ---
 
-# Turnlock-Rust Projection Integrity binding
+# Turnlock-Rust Projection Registry
 
-## Shared contract
-
-Apply the canonical proto-ring Projection Integrity contract at this immutable
-identity:
-
-```text
-fanilosendrison/proto-ring
-ae8d05935553086b68d5d832dc9d3317328f0c89
-docs/contracts/projection-integrity.md
-```
-
-The Projection Integrity contract is bound to the exact immutable proto-ring
-commit above. This contract identity identifies only the governance contract
-adopted by Turnlock-Rust.
-
-Turnlock-Rust's executable proto-ring package dependency is pinned independently
-to the immutable provider revision required by the shared implementations it
-consumes. That package identity identifies the executable shared implementation
-being imported. The package dependency pin and this governance-contract
-authority pin need not be identical when they govern different responsibilities;
-neither pin automatically authorizes or determines the other.
-
-Neither mutable proto-ring state nor an unpinned provider reference is authority
-for either binding.
-
-The shared contract owns generic canonical-owner, projection-mode,
-direct-source, currentness, validation-ownership, synchronization, and
-completion rules. This profile owns only the Turnlock-Rust mappings and local
-extensions below.
-
-## Local scope
-
-Apply the shared contract whenever a Turnlock-Rust artifact states mechanically
-derivable mutable repository state, including current ADR metadata, governed
-artifact presence, formal lifecycle and traceability state, generated mappings,
-validation membership, and live engineering work state.
-
-Ordinary explanatory prose and vision documents are not required to receive a
-mechanical semantic-equivalence proof. Existing authority and discovery
-classification continue to govern semantic paraphrases.
-
-## Turnlock-Rust owner mappings
-
-Use these local bindings:
-
-```text
-ADR frontmatter and canonical ADR files
-    → own current ADR identity, name, lifecycle status, path, and relations
-
-docs/adr/index.md
-    → generated projection from canonical ADR frontmatter
-
-docs/adr/README.md chronological trace
-    → mechanically validated maintained projection for derivable ADR fields
-    → independently authored narrative remains maintained content
-
-formal/verification.yaml
-    → owns formal-model lifecycle, intended formal traceability, and profile state
-
-docs/formal/invariant-mapping.md
-    → generated projection from formal/verification.yaml
-
-formal/results/
-    → owns concrete bounded execution evidence for each recorded run
-
-repository filesystem and Git tree
-    → own current governed artifact presence or absence
-
-accepted ADRs and other declared repository authority
-    → own accepted implementation and architecture commitments
-
-AGENTS.md frontmatter.repository_governance.capabilities.architecture_decisions.routes.profile
-    → owns repository-operational routing to the canonical ADR profile
-
-docs/adr/adr-profile.yaml
-    → owns Turnlock ADR corpus location and ADR representation rules
-
-ADR-051
-    → owns accepted Shared Governance Provider adoption and exact contract
-      identity
-
-docs/repository-governance/turnlock-rust-shared-governance-provider.md
-    → mechanically validated projection of ADR-051 for mandatory adoption and
-      Shared Governance Provider contract identity
-
-AGENTS.md frontmatter.repository_governance.capabilities.shared_governance_provider.routes.binding
-    → owns repository-operational routing to the local Shared Governance
-      Provider binding
-
-AGENTS.md frontmatter.repository_governance.capabilities.governance_authority.routes.profile
-    → owns repository-operational routing to the governance-authority profile
-
-docs/repository-governance/turnlock-rust-governance-authority.md
-    → owns the structured repository-governance source, responsibility, role,
-      and precedence declaration
-    → does not become Turnlock product semantic authority or replace the
-      underlying authorities it identifies
-
-AGENTS.md
-    → owns repository authorization and execution guardrails
-
-scripts/check-repository-integrity.py
-    → owns mandatory repository-validation membership and order
-
-.github/workflows/repository-integrity.yml
-    → references the canonical validation entry point and owns CI bootstrap
-
-GitHub Issues, Project fields, and native relationships
-    → own current engineering work state
-```
-
-README files remain explanatory consumers unless a more specific mapping above
-assigns maintained or generated projection responsibility.
-
-## Local extensions
-
-The maintained ADR history must validate every duplicated derivable identity,
-name, lifecycle status, path, order, and coverage field directly against
-canonical ADR records. Narrative annotations remain independently authored and
-are not generated.
-
-Formal readiness projections may be generated only after the complete local
-traceability and evidence validation succeeds. A focused checker or partial
-traceability result is not a canonical source for those projections.
-
-Generated ADR and formal mappings are produced only through their declared local
-render commands. Repository Integrity remains diagnostic and must reject stale
-output rather than silently repairing it into a passing state.
-
-Historical migration ranges and sealed formal evidence must retain their exact
-revision-, protocol-, subject-, or run-bounded scope. They must not be presented
-as current mutable state.
-
-Live engineering work state must be referenced through GitHub's native owners.
-Repository prose must not maintain a manual status, classification, dependency,
-parentage, or linked-change dashboard.
-
-## Change procedure
-
-For a new or changed Turnlock-Rust projection, apply the shared contract first,
-then add or update the concrete owner mapping and local generator or validator in
-the same change. Keep product semantics, formal semantics, accepted decisions,
-evidence, paths, commands, and Project coordinates local.
-
-Do not duplicate the generic contract in this profile. Do not treat a local
-mapping as proto-ring authority. Run the canonical Repository Integrity suite
-and refresh every affected generated projection before completing the change.
-
-## Authority boundary
-
-This binding changes repository governance only. It does not change TURNLOCK
-product meaning, formal-assurance semantics, hostile-review claims, bounded
-verification evidence, accepted ADR content, or the authority order in
-`AGENTS.md`.
-
-The separate governed-identity finding remains outside this binding. Projection
-Integrity does not resolve identity or canonicalization semantics that current
-Turnlock-Rust authority has not accepted.
+The registry contains only direct authority-to-secondary relationships. Commands,
+installation mechanics, qualification truth, and TURNLOCK semantics remain
+outside Projection Integrity.
