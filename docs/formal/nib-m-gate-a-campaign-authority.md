@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-AUTHORITY
-version: "1.0.0"
+version: "1.0.1"
 scope: gate-a-campaign-runner/campaign-authority
 status: active
 consumers: [architect, coding-agent]
@@ -19,7 +19,7 @@ superseded_by: []
 
 Implement M3 `campaign-authority` according to this active Module Brief.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
 
 Treat this brief as implementation-construction authority only. It creates no:
 

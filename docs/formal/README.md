@@ -321,7 +321,7 @@ M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
 interpretation, campaign-authority operational causes and blocking obligations,
 `GateACampaignAuthorityEvaluationV1` sealing, and `ReviewContext` construction.
 
-M3 consumes NIB-S `8.0.0`.
+M3 consumes NIB-S `8.0.1`.
 
 M3 requires no external Dependency Contract.
 
