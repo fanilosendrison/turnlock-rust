@@ -480,17 +480,42 @@ def bundle_document(fixture_root: Path) -> dict:
     )
 
 
+def select_protocol_v4(fixture_root: Path) -> None:
+    manifest = load_manifest(fixture_root)
+    manifest["policy"]["hostile_review"]["current_protocol_bundle"] = {
+        "path": "formal/reviews/protocols/gate-a-campaign-protocol-v4.json",
+        "sha256": "f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac",
+    }
+    save_manifest(fixture_root, manifest)
+
+
 def install_protocol_bundle(
     fixture_root: Path, profiles: list[dict]
 ) -> tuple[dict, dict]:
     payload = bundle_document(fixture_root)
     existing: dict[str, dict] = {}
+    acquisition_order: list[str] = []
+    for profile_id in (
+        payload.get("policies", {})
+        .get("reviewer_acquisition", {})
+        .get("profile_order", [])
+    ):
+        if isinstance(profile_id, str) and profile_id not in acquisition_order:
+            acquisition_order.append(profile_id)
     for profile in payload.get("reviewer_profiles", []):
         if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str):
             existing[profile["profile_id"]] = profile
+            if profile["profile_id"] not in acquisition_order:
+                acquisition_order.append(profile["profile_id"])
     for profile in profiles:
         existing[profile["profile_id"]] = profile
+        if profile["profile_id"] not in acquisition_order:
+            acquisition_order.append(profile["profile_id"])
     payload["reviewer_profiles"] = [existing[key] for key in sorted(existing)]
+    if payload.get("protocol_bundle_schema_version") == 5:
+        payload["policies"]["reviewer_acquisition"]["profile_order"] = (
+            acquisition_order
+        )
     data = checker._canonical_json_document_bytes(payload)
     sha256 = checker.sha256_hex(data)
     path = fixture_root / PROTOCOL_BUNDLE_RELATIVE
@@ -3030,6 +3055,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_same_model_identity_twice_counts_as_one_independent_reviewer(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             packet = write_gate_a_review_packet(fixture_root)
             prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
             executions = [
@@ -3066,6 +3092,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             packet = write_gate_a_review_packet(fixture_root)
             prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
             executions = [
@@ -3340,6 +3367,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             packet = write_gate_a_review_packet(fixture_root)
             prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
             executions = [
@@ -4164,6 +4192,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_manifest_reviewer_minimum_is_enforced(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             manifest = load_manifest(fixture_root)
             manifest["policy"]["hostile_review"]["minimum_independent_reviewers"] = 3
             save_manifest(fixture_root, manifest)
@@ -4193,6 +4222,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_clean_review_cannot_override_another_current_open_finding(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             write_review(
                 fixture_root,
                 make_review(
@@ -4235,6 +4265,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     def test_clean_review_cannot_override_a_routed_material_finding(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             write_review(
                 fixture_root,
                 make_review(
@@ -4280,6 +4311,7 @@ class FormalTraceabilityTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             write_review(
                 fixture_root,
                 make_review(
@@ -6283,6 +6315,7 @@ class GateAProtocolV4Tests(unittest.TestCase):
     def test_valid_current_protocol_re_adjudication_recognized(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             self._re_adjudicated_fixture(fixture_root, material=False)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
@@ -6293,6 +6326,7 @@ class GateAProtocolV4Tests(unittest.TestCase):
     def test_re_adjudicated_material_open_finding_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            select_protocol_v4(fixture_root)
             self._re_adjudicated_fixture(fixture_root, material=True)
             errors, summary = checker.collect_errors(
                 fixture_root, check_generated=False
@@ -8043,9 +8077,18 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
     def _load_protocol(self, relative: str) -> dict:
         return json.loads((ROOT / relative).read_text(encoding="utf-8"))
 
+    def _select_protocol_v4(self, fixture_root: Path) -> None:
+        manifest = load_manifest(fixture_root)
+        manifest["policy"]["hostile_review"]["current_protocol_bundle"] = {
+            "path": self.PROTOCOL_V4,
+            "sha256": self.PROTOCOL_V4_SHA,
+        }
+        save_manifest(fixture_root, manifest)
+
     def _baseline_valid_fixture(
         self, fixture_root: Path
     ) -> tuple[list, dict]:
+        self._select_protocol_v4(fixture_root)
         record = make_review(fixture_root)
         write_review(fixture_root, record)
         errors, summary = checker.collect_errors(
@@ -8105,16 +8148,12 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
                 relative,
             )
 
-    def test_current_protocol_is_v4_and_predecessor_is_exact_v3(self) -> None:
-        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
-        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
-        self.assertEqual(self.PROTOCOL_V4, reference["path"])
-        self.assertEqual(self.PROTOCOL_V4_SHA, reference["sha256"])
+    def test_published_protocol_v4_predecessor_is_exact_v3(self) -> None:
         self.assertEqual(
             self.PROTOCOL_V4_SHA,
-            checker.sha256_hex((ROOT / reference["path"]).read_bytes()),
+            checker.sha256_hex((ROOT / self.PROTOCOL_V4).read_bytes()),
         )
-        bundle = self._load_protocol(reference["path"])
+        bundle = self._load_protocol(self.PROTOCOL_V4)
         self.assertEqual("gate-a-campaign-protocol-v4", bundle["protocol_id"])
         self.assertEqual(4, bundle["protocol_bundle_schema_version"])
         self.assertEqual(
@@ -8176,6 +8215,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
     def test_protocol_v4_missing_meta_schemas_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            self._select_protocol_v4(fixture_root)
             payload = bundle_document(fixture_root)
             payload.pop("meta_schemas", None)
             _install_manifest_bundle(
@@ -8206,6 +8246,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
     def test_protocol_v4_wrong_protocol_bundle_meta_schema_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            self._select_protocol_v4(fixture_root)
             payload = bundle_document(fixture_root)
             payload["meta_schemas"]["protocol-bundle"] = {
                 "path": self.META_BUNDLE_V1_V3,
@@ -8231,6 +8272,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
     def test_protocol_v4_wrong_review_evidence_meta_schema_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            self._select_protocol_v4(fixture_root)
             payload = bundle_document(fixture_root)
             payload["meta_schemas"]["review-evidence"] = {
                 "path": self.META_BUNDLE_V1_V3,
@@ -8256,6 +8298,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
     def test_protocol_v4_wrong_predecessor_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            self._select_protocol_v4(fixture_root)
             payload = bundle_document(fixture_root)
             payload["predecessor"] = {
                 "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
@@ -8455,6 +8498,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
+            self._select_protocol_v4(fixture_root)
             record = make_review(fixture_root)
             reference = record["protocol"]["protocol_bundle"]
             bundle = json.loads(
@@ -8536,14 +8580,14 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
             checker.LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE,
         )
 
-    def test_manifest_evidence_schema_path_matches_protocol_v4_binding(
+    def test_manifest_evidence_schema_path_matches_current_protocol_binding(
         self,
     ) -> None:
         manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
         hostile_review = manifest["policy"]["hostile_review"]
         reference = hostile_review["current_protocol_bundle"]
         bundle = self._load_protocol(reference["path"])
-        self.assertEqual(4, bundle["protocol_bundle_schema_version"])
+        self.assertEqual(5, bundle["protocol_bundle_schema_version"])
         self.assertEqual(
             hostile_review["evidence_schema"],
             bundle["meta_schemas"]["review-evidence"]["path"],
@@ -8629,6 +8673,362 @@ def _mutated_challenge_packet(
     return write_json_artifact(
         fixture_root, f"formal/reviews/challenge-packets/{name}.json", payload
     )
+
+class GateAProtocolV5ReviewerAcquisitionTests(unittest.TestCase):
+    PROTOCOL_V5 = "formal/reviews/protocols/gate-a-campaign-protocol-v5.json"
+    PROTOCOL_V5_SHA = (
+        "b9dc015188b89f605bf8252bf47ff5497be54668cc274e953146577f1a76e091"
+    )
+    META_BUNDLE_V5 = (
+        "formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json"
+    )
+    META_BUNDLE_V5_SHA = (
+        "96ff941defb59687f77593fb60b7dda460da06250b718e9ce082f78e94407327"
+    )
+    PROTOCOL_V4 = "formal/reviews/protocols/gate-a-campaign-protocol-v4.json"
+    PROTOCOL_V4_SHA = (
+        "f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac"
+    )
+    META_BUNDLE_V4_SHA = (
+        "4604ad8aa1868c0f13bad5a173af5c7df1cb4343a9cd7b3b48d3000e2fb6cb43"
+    )
+    REVIEW_EVIDENCE_V5_SHA = (
+        "0f66a468c5afc0909389bf3bece221cc083e05a52f9e19be8b41c7e24d3e01bc"
+    )
+    EXECUTION_RECEIPT_V3_SHA = (
+        "7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72"
+    )
+
+    def _root_bundle(self) -> dict:
+        return json.loads((ROOT / self.PROTOCOL_V5).read_text(encoding="utf-8"))
+
+    def _install_profiles(self, fixture_root: Path, profiles: list[dict]) -> dict:
+        payload, _reference = install_protocol_bundle(fixture_root, profiles)
+        return payload
+
+    def _mutate_current_bundle(
+        self, fixture_root: Path, mutate, name: str
+    ) -> list[str]:
+        payload = bundle_document(fixture_root)
+        mutate(payload)
+        _install_manifest_bundle(
+            fixture_root,
+            payload,
+            f"formal/reviews/protocols/{name}.json",
+        )
+        errors, _summary = checker.collect_errors(
+            fixture_root, check_generated=False
+        )
+        return errors
+
+    def test_protocol_v5_happy_path_validates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(fixture_root, make_review(fixture_root))
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_protocol_v5_binds_exact_v5_protocol_bundle_meta_schema(self) -> None:
+        reference = self._root_bundle()["meta_schemas"]["protocol-bundle"]
+        self.assertEqual(
+            {"path": self.META_BUNDLE_V5, "sha256": self.META_BUNDLE_V5_SHA},
+            reference,
+        )
+        self.assertEqual(
+            reference["sha256"], checker.sha256_hex((ROOT / reference["path"]).read_bytes())
+        )
+
+    def test_protocol_v5_binds_exact_existing_review_evidence_v5(self) -> None:
+        reference = self._root_bundle()["meta_schemas"]["review-evidence"]
+        self.assertEqual(
+            {
+                "path": "formal/reviews/meta-schemas/review-evidence-v5.schema.json",
+                "sha256": self.REVIEW_EVIDENCE_V5_SHA,
+            },
+            reference,
+        )
+
+    def test_protocol_v5_predecessor_is_exact_published_v4(self) -> None:
+        bundle = self._root_bundle()
+        self.assertEqual(
+            {"path": self.PROTOCOL_V4, "sha256": self.PROTOCOL_V4_SHA},
+            bundle["predecessor"],
+        )
+        self.assertEqual(
+            self.PROTOCOL_V5_SHA,
+            checker.sha256_hex((ROOT / self.PROTOCOL_V5).read_bytes()),
+        )
+
+    def test_protocol_v5_missing_reviewer_acquisition_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            errors = self._mutate_current_bundle(
+                fixture_root,
+                lambda payload: payload["policies"].pop("reviewer_acquisition"),
+                "v5-missing-reviewer-acquisition",
+            )
+            self.assertTrue(any("reviewer_acquisition" in error for error in errors), errors)
+
+    def test_protocol_v5_wrong_reviewer_acquisition_mode_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            errors = self._mutate_current_bundle(
+                fixture_root,
+                lambda payload: payload["policies"]["reviewer_acquisition"].update(
+                    {"mode": "wrong-mode"}
+                ),
+                "v5-wrong-acquisition-mode",
+            )
+            self.assertTrue(any("acquisition mode" in error for error in errors), errors)
+
+    def test_protocol_v5_duplicate_profile_order_id_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self._install_profiles(fixture_root, [default_profile("EXEC-A")])
+            errors = self._mutate_current_bundle(
+                fixture_root,
+                lambda payload: payload["policies"]["reviewer_acquisition"].update(
+                    {"profile_order": ["profile-a", "profile-a"]}
+                ),
+                "v5-duplicate-profile-order",
+            )
+            self.assertTrue(any("profile_order contains duplicates" in error for error in errors), errors)
+
+    def test_protocol_v5_profile_order_missing_profile_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self._install_profiles(
+                fixture_root, [default_profile("EXEC-A"), default_profile("EXEC-B")]
+            )
+            errors = self._mutate_current_bundle(
+                fixture_root,
+                lambda payload: payload["policies"]["reviewer_acquisition"].update(
+                    {"profile_order": ["profile-a"]}
+                ),
+                "v5-missing-profile-order-member",
+            )
+            self.assertTrue(any("exact permutation" in error for error in errors), errors)
+
+    def test_protocol_v5_profile_order_unknown_profile_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            self._install_profiles(fixture_root, [default_profile("EXEC-A")])
+            errors = self._mutate_current_bundle(
+                fixture_root,
+                lambda payload: payload["policies"]["reviewer_acquisition"].update(
+                    {"profile_order": ["profile-a", "profile-unknown"]}
+                ),
+                "v5-unknown-profile-order-member",
+            )
+            self.assertTrue(any("exact permutation" in error for error in errors), errors)
+
+    def test_protocol_v5_acquisition_order_need_not_be_lexical(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(fixture_root, "EXEC-Z", packet=packet, prompt=prompt),
+                execution(fixture_root, "EXEC-A", packet=packet, prompt=prompt),
+            ]
+            record = make_review(fixture_root, executions=executions)
+            bundle = json.loads(
+                (fixture_root / record["protocol"]["protocol_bundle"]["path"]).read_text()
+            )
+            order = bundle["policies"]["reviewer_acquisition"]["profile_order"]
+            self.assertEqual(["profile-z", "profile-a"], order[:2])
+            self.assertNotEqual(sorted(order), order)
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+
+    def test_protocol_v1_through_v4_historical_interpretation_is_unchanged(self) -> None:
+        references = {
+            1: ("formal/reviews/protocols/gate-a-campaign-protocol-v1.json", "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1"),
+            2: ("formal/reviews/protocols/gate-a-campaign-protocol-v2.json", "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9"),
+            3: ("formal/reviews/protocols/gate-a-campaign-protocol-v3.json", "cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6"),
+            4: (self.PROTOCOL_V4, self.PROTOCOL_V4_SHA),
+        }
+        for version, (path, sha256) in references.items():
+            with self.subTest(version=version):
+                bundle, errors = checker._load_protocol_bundle_document(
+                    ROOT, {"path": path, "sha256": sha256}, f"protocol-v{version}", {}
+                )
+                self.assertEqual([], errors)
+                self.assertEqual(version, bundle["protocol_bundle_schema_version"])
+
+    def test_protocol_v5_rejects_unnecessary_third_reviewer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                executions=executions_for(
+                    fixture_root, ["EXEC-A", "EXEC-B", "EXEC-C"]
+                ),
+            )
+            write_review(fixture_root, record)
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(any("actual initial-reviewer profiles" in error for error in errors), errors)
+
+    def test_protocol_v5_identity_collision_requires_next_ordered_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(fixture_root, "EXEC-A", packet=packet, prompt=prompt, provider="provider", model="model-a", model_version="1"),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt, provider="provider", model="model-b", model_version="1"),
+                execution(fixture_root, "EXEC-C", packet=packet, prompt=prompt, provider="provider-c", model="model-c", model_version="2"),
+            ]
+            write_review(fixture_root, make_review(fixture_root, executions=executions))
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_protocol_v5_skips_statically_duplicate_pinned_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            profiles = [
+                default_profile("EXEC-A", "provider", "version-1", kind="pinned-request-model", immutable=True),
+                default_profile("EXEC-B", "provider", "version-1", kind="pinned-request-model", immutable=True),
+                default_profile("EXEC-C", "provider-c", "version-2", kind="pinned-request-model", immutable=True),
+            ]
+            executions = [
+                execution(fixture_root, "EXEC-A", packet=packet, prompt=prompt, provider="provider", model="version-1", model_version="version-1"),
+                execution(fixture_root, "EXEC-C", packet=packet, prompt=prompt, provider="provider-c", model="version-2", model_version="version-2"),
+            ]
+            write_review(
+                fixture_root,
+                make_review(fixture_root, executions=executions, profiles=profiles),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_protocol_v5_does_not_precollapse_provider_reported_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            profiles = [
+                default_profile("EXEC-A", "provider", "alias"),
+                default_profile("EXEC-B", "provider", "alias"),
+            ]
+            executions = [
+                execution(fixture_root, "EXEC-A", packet=packet, prompt=prompt, provider="provider", model="alias", model_version="version-1"),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt, provider="provider", model="alias", model_version="version-2"),
+            ]
+            write_review(
+                fixture_root,
+                make_review(fixture_root, executions=executions, profiles=profiles),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_protocol_v5_duplicate_logical_profile_execution_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(fixture_root, "EXEC-A", packet=packet, prompt=prompt, provider="provider", model="model", model_version="1", reviewer_profile_id="profile-a"),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt, provider="provider", model="model", model_version="2", reviewer_profile_id="profile-a"),
+            ]
+            write_review(
+                fixture_root,
+                make_review(
+                    fixture_root,
+                    executions=executions,
+                    profiles=[default_profile("EXEC-A", "provider", "model")],
+                ),
+            )
+            errors, _summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(any("at most one logical" in error for error in errors), errors)
+
+    def test_protocol_v5_selection_is_independent_of_finding_content(self) -> None:
+        bundle = self._root_bundle()
+        bundle["reviewer_profiles"] = [
+            default_profile("EXEC-A"),
+            default_profile("EXEC-B"),
+        ]
+        bundle["policies"]["reviewer_acquisition"]["profile_order"] = [
+            "profile-a",
+            "profile-b",
+        ]
+        executions = [
+            {"reviewer_profile_id": "profile-a", "provider": "provider-a", "model_version": "1"},
+            {"reviewer_profile_id": "profile-b", "provider": "provider-b", "model_version": "1"},
+        ]
+        before = checker._reviewer_acquisition_conformance_errors(
+            bundle, executions, 2, "record"
+        )
+        unrelated_finding_content = {"statement": "changed", "materiality": True}
+        self.assertEqual("changed", unrelated_finding_content["statement"])
+        after = checker._reviewer_acquisition_conformance_errors(
+            bundle, executions, 2, "record"
+        )
+        self.assertEqual(before, after)
+        self.assertEqual([], after)
+
+    def test_protocol_v5_selection_ignores_execution_order_and_timestamps(self) -> None:
+        bundle = self._root_bundle()
+        bundle["reviewer_profiles"] = [
+            default_profile("EXEC-A"),
+            default_profile("EXEC-B"),
+        ]
+        bundle["policies"]["reviewer_acquisition"]["profile_order"] = [
+            "profile-a",
+            "profile-b",
+        ]
+        executions = [
+            {"reviewer_profile_id": "profile-a", "provider": "provider-a", "model_version": "1", "completed_at": "later"},
+            {"reviewer_profile_id": "profile-b", "provider": "provider-b", "model_version": "1", "completed_at": "earlier"},
+        ]
+        forward = checker._reviewer_acquisition_conformance_errors(
+            bundle, executions, 2, "record"
+        )
+        reverse = checker._reviewer_acquisition_conformance_errors(
+            bundle, list(reversed(executions)), 2, "record"
+        )
+        self.assertEqual([], forward)
+        self.assertEqual(forward, reverse)
+
+    def test_review_evidence_v5_sha_is_unchanged(self) -> None:
+        path = ROOT / "formal/reviews/meta-schemas/review-evidence-v5.schema.json"
+        self.assertEqual(self.REVIEW_EVIDENCE_V5_SHA, checker.sha256_hex(path.read_bytes()))
+
+    def test_execution_receipt_v3_sha_is_unchanged(self) -> None:
+        path = ROOT / "formal/reviews/schemas/execution-receipt-v3.schema.json"
+        self.assertEqual(self.EXECUTION_RECEIPT_V3_SHA, checker.sha256_hex(path.read_bytes()))
+
+    def test_protocol_v4_sha_is_unchanged(self) -> None:
+        self.assertEqual(
+            self.PROTOCOL_V4_SHA,
+            checker.sha256_hex((ROOT / self.PROTOCOL_V4).read_bytes()),
+        )
+
+    def test_protocol_v4_meta_schema_sha_is_unchanged(self) -> None:
+        path = ROOT / "formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json"
+        self.assertEqual(self.META_BUNDLE_V4_SHA, checker.sha256_hex(path.read_bytes()))
+
 
 class EvidenceRequirementsGovernanceFailureTests(unittest.TestCase):
     def test_missing_routed_registry_blocks_gate_a_without_fallback(self) -> None:
