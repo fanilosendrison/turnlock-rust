@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "1.0.3"
+version: "2.0.0"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,7 @@ superseded_by: []
 
 # NIB-M — Gate A Repository Control — Materialization and Candidate Construction
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
 
 This Module Brief is implementation-construction authority only. It creates no
 TURNLOCK product semantics, hostile-review protocol semantics, canonical formal
@@ -49,7 +49,11 @@ Git path admissibility
 candidate-to-tree projection
 tree round-trip verification
 exact RepairIntent approved-patch application
-repaired candidate sealing/evidence
+exact AssuranceRepositoryProjection mechanical application
+assurance-only successor materialization
+combined repair-plus-assurance successor materialization
+assurance projection construction provenance
+candidate sealing/evidence
 deterministic publication-successor projection T
 restart-safe local materialization of exact projected T
 repository-inspection producer cause descriptors
@@ -61,7 +65,12 @@ M7-A does not own:
 Python validator invocation
 Gate A semantic-subject mechanical derivation
 hostile-review protocol/review-authority mechanical projection
+M6 subject derivation
+M6 review-authority projection
 campaign currentness
+assurance semantic interpretation
+review finding interpretation
+projection semantic selection
 protocol selection
 repair semantic sufficiency
 RepairIntent qualification
@@ -843,6 +852,7 @@ construct SealedCandidateMaterializationRef:
     runId = inspection runId
     parentCandidateId = null
     producedByRepairIntentId = null
+    producedByAssuranceProjectionId = null
 ```
 
 Never derive `C0` from mutable worktree bytes.
@@ -922,66 +932,61 @@ chmod/type change = single replacement
 Patch `after` content is already sealed by exact `ArtifactRef`. Permit no inline
 arbitrary file bytes.
 
-### 11.2 CandidateConstructionRequest algorithm
+### 11.2 Assurance projection validation
 
-Consume exactly:
-
-```text
-request.runId
-request.sourceCandidate
-request.repairIntent
-```
-
-Require:
+M7-A reads exact `A.projection` bytes from `CampaignArtifactStore` and validates
+mechanically:
 
 ```text
-request.runId ==
-request.sourceCandidate.runId ==
-request.repairIntent.runId
-
-request.repairIntent.candidateId ==
-request.sourceCandidate.candidateId
+projection ArtifactRef exact and intact
+canonical runner JSON
+schema == gate-a-assurance-repository-projection.v1
+sourceCandidateId == exact source candidate
+semanticSubject == exact parent subject
+protocolBundle == exact bound protocol
+entries non-empty, strictly path-ordered, and path-unique
+allowed path namespace only
+content ArtifactRefs intact and application/json
+exact source-candidate path state
 ```
 
-Use exactly:
+For each entry M7-A adds an absent path as an exact `100644` blob, or retains an
+existing `100644` blob only when bytes are exactly equal. Different bytes,
+mode/type mismatch, directory, symlink, gitlink, forbidden namespace, or a
+completely no-op projection fails closed. M7-A does not inspect hostile-review
+semantic content, rewrite JSON, select another path, or overwrite evidence.
+
+### 11.3 Exact candidate-change construction
+
+Consume exactly one `CandidateConstructionRequest` with nullable repair and
+projection authorities. Require the run/source binding and at least one non-null
+authority.
+
+For repair, validate and use only exact `repairIntent.approvedPatch`. For
+projection, validate and use only exact `assuranceProjection.projection`.
+Collect both exact path sets before mutation and require empty intersection.
+
+Execute one deterministic algorithm:
 
 ```text
-request.repairIntent.approvedPatch
+1. read exact source candidate
+2. validate/apply exact repair if non-null
+3. validate/apply exact assurance projection if non-null
+4. validate complete result
+5. construct canonical materialization
+6. project to Git tree
+7. round-trip verify
+8. seal
 ```
 
-Accept no separately supplied patch, override, or fallback.
+There is no second mutation engine, precedence rule, merge, or conflict
+resolver. Successful sealed-candidate provenance equals the exact nullable IDs
+from the request. M7-A does not derive the successor subject; M1 invokes the
+existing M6 mechanical subject-derivation boundary after sealing. Assurance-only
+M6 subject mismatch fails before M2 admission.
 
-Execute exactly:
-
-```text
-read exact source candidate materialization
-read exact RepairIntent approved patch
-validate source binding
-validate all operations/preimages
-apply all replacements simultaneously to immutable source copy
-validate resulting candidate path/type invariants
-construct canonical result materialization
-seal resulting content refs as already required
-project result to Git tree
-round-trip verify
-seal result materialization and verification
-construct CandidateSealResult
-```
-
-Require successful result bindings:
-
-```text
-sealedCandidate.runId == request.runId
-
-sealedCandidate.parentCandidateId ==
-    request.sourceCandidate.candidateId
-
-sealedCandidate.producedByRepairIntentId ==
-    request.repairIntent.repairIntentId
-```
-
-One `RepairIntent` may produce at most one admitted `CandidateRevision`. M2
-remains the authoritative enforcement boundary.
+One repair and one projection each produce at most one admitted candidate; M2
+is the authoritative consumption enforcer.
 
 ## 12. Evidence ordering
 
@@ -1049,23 +1054,23 @@ baselineGitBasis.verification ==
 RepositoryInspectionRef.evidence[2]
 ```
 
-For source candidate `P`, `RepairIntent R`, resulting materialization `M`, and
-projection verification `V`, require:
+For source `P`, nullable repair `R`, nullable assurance projection `A`, result
+`M`, and tree verification `V`, require:
 
 ```text
 sealedCandidate.materializationEvidence =
 [
   P.materialization,
-  R.approvedPatch,
+  R.approvedPatch if R != null,
+  A.projection if A != null,
   ...candidateContentArtifacts(M),
   V
 ]
 ```
 
-Then apply exact-`ArtifactRef` first-occurrence deduplication. Do not recursively
-include `P.materializationEvidence`. Do not separately add patch `after` content
-references; resulting candidate content ordering is authoritative for result
-content evidence.
+Apply exact-`ArtifactRef` first-occurrence deduplication. Do not recursively
+include parent `materializationEvidence`, separately add `A.basisArtifacts`, or
+separately add repair after-content references.
 
 ## 13. Publication-successor projection
 
@@ -1781,6 +1786,11 @@ M7A-07 candidate paths preserve exact Git path bytes.
 M7A-08 gitlink target objects are never required for candidate closure.
 
 M7A-09 RepairIntent approvedPatch is the only accepted repair patch.
+M7A-09A AssuranceRepositoryProjection.projection is the only accepted assurance
+         projection artifact.
+M7A-09B Repair and projection path sets are disjoint.
+M7A-09C M7-A interprets no assurance semantics and performs no subject
+         derivation.
 
 M7A-10 all patch preimages are validated against one immutable source before
         any replacement is applied.
@@ -1800,6 +1810,10 @@ M7A-16 blocked inspection returns exactly one producer cause and exactly
         request-operational-recheck.
 
 M7A-17 M7-A never creates OperationalBlocker identity.
+M7A-17A Every non-C0 sealed candidate names repair provenance, assurance
+         provenance, or both.
+M7A-17B Assurance projection cannot mutate judging authority or overwrite
+         different evidence bytes.
 
 M7A-18 no mutable repository path/config/ref forms retained baseline authority.
 
@@ -1847,9 +1861,38 @@ remote push refspec with force/wildcard/delete
 push.default current/simple/upstream/tracking/matching/nothing
 simple upstream-name mismatch
 upstream push-remote mismatch
+C0 both provenance IDs null
+assurance-only success
+repair-only success
+repair + assurance success
+both null for non-C0 request
+projection source mismatch
+projection S mismatch
+projection P mismatch
+empty projection
+unordered projection
+duplicate path
+forbidden namespace
+existing identical file
+existing different file
+existing wrong mode/type
+repair/projection path overlap
+assurance-only M6-derived S mismatch
+crash after projection admission before M7
+crash after M7 sealing before candidate admission
+already-consumed projection
 restart before candidate admission
 restart after successor projection artifact exists
 ```
+
+Exact identical projected evidence is retained idempotently. Conflicting bytes,
+wrong mode/type, forbidden namespace, empty/unordered/duplicate projection, or
+repair/projection overlap fails as implementation/process/integrity failure.
+An assurance-only M6-derived subject mismatch is rejected before M2 admission.
+After projection admission but before M7, the projection remains unconsumed.
+After sealing but before candidate admission, replay from the same immutable
+inputs reproduces the same successor. An already-consumed projection is rejected
+by M2, which remains the authoritative consumption enforcer.
 
 ## 20. Construction boundary
 
