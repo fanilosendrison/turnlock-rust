@@ -2,59 +2,47 @@
 from __future__ import annotations
 
 import importlib
-import os
+from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 
 fixture = importlib.import_module("repository-integrity-test-fixture")
 ROOT = fixture.ROOT
-checker = fixture.checker
-make_committed_git_fixture = fixture.make_committed_git_fixture
+make_repository = fixture.make_committed_git_fixture
 
 
-class RepositoryIntegrityBindingTests(unittest.TestCase):
-    def test_whitespace_checker_is_non_mutating_under_shared_binding(
-        self,
-    ) -> None:
+class RepositoryIntegrityValidatorPurityTests(unittest.TestCase):
+    def test_whitespace_checker_is_non_mutating(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
-
-            scripts_dir = fixture / "scripts"
-            scripts_dir.mkdir()
-
-            whitespace_checker = scripts_dir / "check-git-whitespace.py"
-
-            shutil.copyfile(
-                ROOT / "scripts" / "check-git-whitespace.py",
-                whitespace_checker,
+            root = make_repository(temporary)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            checker = scripts / "check-git-whitespace.py"
+            shutil.copyfile(ROOT / "scripts/check-git-whitespace.py", checker)
+            before = subprocess.run(
+                ["git", "-C", str(root), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            result = subprocess.run(
+                [sys.executable, str(checker)],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
             )
-
-            saved = {
-                key: os.environ.pop(key)
-                for key in ("GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH")
-                if key in os.environ
-            }
-
-            try:
-                errors, failed = checker.run_validation(
-                    fixture,
-                    [
-                        (
-                            "whitespace",
-                            [
-                                sys.executable,
-                                str(whitespace_checker),
-                            ],
-                        )
-                    ],
-                )
-            finally:
-                os.environ.update(saved)
-
-            self.assertEqual([], errors)
-            self.assertEqual([], failed)
+            after = subprocess.run(
+                ["git", "-C", str(root), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(before, after)
 
 
 if __name__ == "__main__":

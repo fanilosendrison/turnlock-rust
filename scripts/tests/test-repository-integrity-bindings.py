@@ -5,249 +5,120 @@ import importlib
 import sys
 import unittest
 
-import yaml
-
 fixture = importlib.import_module("repository-integrity-test-fixture")
 ROOT = fixture.ROOT
 checker = fixture.checker
 
+LEGACY_ARGUMENTS = (
+    ("scripts/tests/test-adr-metadata-provider-binding.py",),
+    ("scripts/tests/test-adr-metadata-profile-validation.py",),
+    ("scripts/tests/test-adr-metadata-migration-evidence.py",),
+    ("scripts/tests/test-adr-metadata-generated-index.py",),
+    ("scripts/tests/test-adr-metadata-annotated-history.py",),
+    ("scripts/tests/test-formal-traceability.py",),
+    ("scripts/tests/test-exact-evidence-binding.py",),
+    ("scripts/tests/test-governed-objects.py",),
+    ("scripts/tests/test-normative-terminology.py",),
+    ("scripts/tests/test-repository-integrity-bindings.py",),
+    ("scripts/tests/test-repository-integrity-evaluator.py",),
+    ("scripts/tests/test-repository-integrity-cli.py",),
+    ("scripts/tests/test-repository-integrity-validator-purity.py",),
+    ("scripts/tests/test-governance-test-module-size.py",),
+    ("scripts/tests/test-git-whitespace.py",),
+    ("scripts/adr-metadata.py", "check"),
+    ("-m", "proto_ring.accepted_adr_body"),
+    ("scripts/check-governance-authority.py",),
+    ("scripts/check-governed-objects.py",),
+    ("scripts/check-authoritative-ref-monotonicity.py",),
+    ("scripts/check-normative-terminology.py",),
+    ("scripts/check-formal-traceability.py",),
+    ("scripts/check-git-whitespace.py",),
+)
+
 
 class RepositoryIntegrityBindingTests(unittest.TestCase):
-    def test_canonical_validation_membership_and_order(self) -> None:
-        expected = [
-            (
-                "ADR metadata provider binding tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-adr-metadata-provider-binding.py",
-                ],
-            ),
-            (
-                "ADR metadata profile validation tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-adr-metadata-profile-validation.py",
-                ],
-            ),
-            (
-                "ADR metadata migration evidence tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-adr-metadata-migration-evidence.py",
-                ],
-            ),
-            (
-                "ADR metadata generated index tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-adr-metadata-generated-index.py",
-                ],
-            ),
-            (
-                "ADR metadata annotated history tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-adr-metadata-annotated-history.py",
-                ],
-            ),
-            (
-                "Formal traceability tests",
-                [sys.executable, "scripts/tests/test-formal-traceability.py"],
-            ),
-            (
-                "Exact Evidence Binding tests",
-                [sys.executable, "scripts/tests/test-exact-evidence-binding.py"],
-            ),
-            (
-                "Governed Objects profile tests",
-                [sys.executable, "scripts/tests/test-governed-objects.py"],
-            ),
-            (
-                "Normative terminology tests",
-                [sys.executable, "scripts/tests/test-normative-terminology.py"],
-            ),
-            (
-                "Repository integrity binding tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-repository-integrity-bindings.py",
-                ],
-            ),
-            (
-                "Repository integrity evaluator tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-repository-integrity-evaluator.py",
-                ],
-            ),
-            (
-                "Repository integrity CLI tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-repository-integrity-cli.py",
-                ],
-            ),
-            (
-                "Repository integrity validator purity tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-repository-integrity-validator-purity.py",
-                ],
-            ),
-            (
-                "Governance test module size tests",
-                [
-                    sys.executable,
-                    "scripts/tests/test-governance-test-module-size.py",
-                ],
-            ),
-            (
-                "Git whitespace tests",
-                [sys.executable, "scripts/tests/test-git-whitespace.py"],
-            ),
-            (
-                "ADR metadata check",
-                [sys.executable, "scripts/adr-metadata.py", "check"],
-            ),
-            (
-                "Accepted ADR body immutability",
-                [
-                    sys.executable,
-                    "-m",
-                    "proto_ring.accepted_adr_body",
-                ],
-            ),
-            (
-                "Shared Governance Provider binding",
-                [
-                    sys.executable,
-                    "-m",
-                    "proto_ring.shared_governance_provider",
-                ],
-            ),
-            (
-                "Governance Authority profile",
-                [
-                    sys.executable,
-                    "scripts/check-governance-authority.py",
-                ],
-            ),
-            (
-                "Governed Objects profile",
-                [
-                    sys.executable,
-                    "scripts/check-governed-objects.py",
-                ],
-            ),
-            (
-                "Authoritative Ref Monotonicity effective rules",
-                [
-                    sys.executable,
-                    "scripts/check-authoritative-ref-monotonicity.py",
-                ],
-            ),
-            (
-                "Normative terminology check",
-                [sys.executable, "scripts/check-normative-terminology.py"],
-            ),
-            (
-                "Formal traceability check",
-                [sys.executable, "scripts/check-formal-traceability.py"],
-            ),
-            (
-                "Git whitespace check",
-                [sys.executable, "scripts/check-git-whitespace.py"],
-            ),
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.profile = checker.load_profile(ROOT)
+
+    def test_persistent_profile_is_sole_membership_and_order_authority(self) -> None:
+        self.assertEqual(set(self.profile.validations), set(self.profile.order))
+        self.assertEqual(29, len(self.profile.order))
+        self.assertTrue(self.profile.continue_after_non_satisfied)
+        self.assertNotIn("canonical_steps", checker.__dict__)
+        self.assertNotIn("UNDETERMINED_EXIT_CODES_BY_STEP", checker.__dict__)
+
+    def test_every_legacy_command_remains_in_original_relative_order(self) -> None:
+        ordered_arguments = [
+            self.profile.validations[validation_id].command.arguments
+            for validation_id in self.profile.order
         ]
+        cursor = 0
+        for arguments in LEGACY_ARGUMENTS:
+            cursor = ordered_arguments.index(arguments, cursor) + 1
 
+    def test_additive_migration_validations_are_mandatory(self) -> None:
+        for validation_id in (
+            "structured_governance_tests",
+            "proto_ring_binding_registry_tests",
+            "proto_ring_provider_tests",
+            "proto_ring_binding_registry_currentness",
+            "proto_ring_provider_currentness",
+            "structured_governance_check",
+        ):
+            self.assertIn(validation_id, self.profile.validations)
+
+    def test_provider_currentness_validations_are_adjacent_and_distinct(self) -> None:
+        binding_index = self.profile.order.index(
+            "proto_ring_binding_registry_currentness"
+        )
         self.assertEqual(
-            expected,
-            checker.canonical_steps(),
+            "proto_ring_provider_currentness",
+            self.profile.order[binding_index + 1],
         )
-
-    def test_shared_profile_preserves_membership_order_and_continuation(
-        self,
-    ) -> None:
-        steps = checker.canonical_steps()
-        profile = checker._integrity_profile(steps)
-
-        self.assertTrue(
-            profile.continue_after_non_satisfied
-        )
-
         self.assertEqual(
-            [name for name, _argv in steps],
-            [
-                obligation.name
-                for obligation in profile.obligations
-            ],
+            ("scripts/check-proto-ring-binding-registry.py",),
+            self.profile.validations[
+                "proto_ring_binding_registry_currentness"
+            ].command.arguments,
         )
-
         self.assertEqual(
-            [tuple(argv) for _name, argv in steps],
-            [
-                obligation.argv
-                for obligation in profile.obligations
-            ],
+            ("scripts/check-proto-ring-provider.py",),
+            self.profile.validations[
+                "proto_ring_provider_currentness"
+            ].command.arguments,
         )
 
-        for obligation in profile.obligations:
+    def test_arm_exit_two_is_the_only_undetermined_exit(self) -> None:
+        for validation_id, definition in self.profile.validations.items():
             expected = (
                 frozenset({2})
-                if obligation.name
-                == "Authoritative Ref Monotonicity effective rules"
+                if validation_id == "authoritative_ref_monotonicity_effective_rules"
                 else frozenset()
             )
-            self.assertEqual(
-                expected,
-                obligation.undetermined_exit_codes,
-            )
+            self.assertEqual(expected, definition.command.undetermined_exit_codes)
 
-    def test_requirements_pin_exact_current_provider(self) -> None:
-        requirements = (ROOT / "requirements.txt").read_text(
-            encoding="utf-8"
-        )
+    def test_runtime_environment_path_is_not_persistent_identity(self) -> None:
+        self.assertEqual(frozenset({"turnlock_python"}), self.profile.environments)
+        carrier = self.profile.carrier.read_text(encoding="utf-8")
+        self.assertNotIn(sys.executable, carrier)
+        self.assertNotIn(".venv/bin/python", carrier)
 
+    def test_requirements_pins_final_exact_provider(self) -> None:
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/proto-ring.git@bef7d3c0a5d1ef170d95f3eb9c8114e11149f85d",
+            "proto-ring @ git+https://github.com/fanilosendrison/"
+            "proto-ring.git@890ed560e61e205067bdf3628e419302613ef06e",
             requirements.splitlines(),
         )
 
-        self.assertNotIn(
-            "proto-ring.git@5b0d3a3493e01a4b9569ded7665d7a44a444bf35",
-            requirements,
-        )
-
-    def test_authoritative_ref_monotonicity_binding(self) -> None:
+    def test_arm_local_binding_no_longer_duplicates_contract_pin(self) -> None:
         binding = (
             ROOT
             / "docs/repository-governance/turnlock-rust-authoritative-ref-monotonicity.md"
         ).read_text(encoding="utf-8")
-        _prefix, frontmatter, _body = binding.split("---", 2)
-        metadata = yaml.safe_load(frontmatter)
-        configuration = metadata["authoritative_ref_monotonicity"]
-
-        self.assertEqual(
-            {
-                "repository": "fanilosendrison/proto-ring",
-                "commit": "650a481b7dfa7c4d3671bd053c63642a5dab1087",
-                "path": "docs/contracts/authoritative-ref-monotonicity.md",
-            },
-            configuration["contract"],
-        )
-        self.assertEqual(
-            {
-                "provider": "github",
-                "owner": "fanilosendrison",
-                "name": "turnlock-rust",
-            },
-            configuration["repository"],
-        )
-        self.assertEqual("refs/heads/main", configuration["authoritative_ref"])
-        protection = configuration["protection"]
-        self.assertEqual("github-repository-ruleset", protection["mechanism"])
-        self.assertIs(type(protection["ruleset_id"]), int)
-        self.assertGreater(protection["ruleset_id"], 0)
+        self.assertNotIn("contract:", binding)
+        self.assertIn("ruleset_id: 24106121", binding)
 
 
 if __name__ == "__main__":

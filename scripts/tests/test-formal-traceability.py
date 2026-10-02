@@ -298,6 +298,11 @@ def make_fixture(temporary: str) -> Path:
     fixture_root = Path(temporary)
     shutil.copytree(ROOT / "docs", fixture_root / "docs")
     shutil.copytree(ROOT / "formal", fixture_root / "formal")
+    shutil.copyfile(ROOT / "AGENTS.md", fixture_root / "AGENTS.md")
+    shutil.copyfile(ROOT / "requirements.txt", fixture_root / "requirements.txt")
+    workflow = fixture_root / ".github" / "workflows" / "repository-integrity.yml"
+    workflow.parent.mkdir(parents=True)
+    shutil.copyfile(ROOT / workflow.relative_to(fixture_root), workflow)
     scripts_dir = fixture_root / "scripts"
     scripts_dir.mkdir()
     shutil.copyfile(
@@ -307,6 +312,10 @@ def make_fixture(temporary: str) -> Path:
     shutil.copyfile(
         ROOT / "scripts" / "check-formal-traceability.py",
         scripts_dir / "check-formal-traceability.py",
+    )
+    shutil.copyfile(
+        ROOT / "scripts" / "check-repository-integrity.py",
+        scripts_dir / "check-repository-integrity.py",
     )
     return fixture_root
 
@@ -3794,11 +3803,14 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertIsNotNone(current_subject)
             _fake_payload, fake_subject = fake_gate_a_subject()
             record["subjects"] = [current_subject, fake_subject]
+            requirements = checker._load_gate_a_requirements(fixture_root)
             summary = checker.derive_gate_a(
                 fixture_root,
                 manifest,
                 current_subject,
                 [(Path("formal/reviews/REVIEW-CONFUSED.yaml"), record)],
+                requirements[0],
+                requirements[1],
             )
             self.assertFalse(summary["ready"])
             self.assertEqual(
@@ -7895,6 +7907,32 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
                 errors,
             )
 
+    def test_renderer_projects_ready_from_valid_governance_requirements(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            write_review(fixture_root, make_review(fixture_root))
+
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(fixture_root / "scripts" / "render-formal-mapping.py"),
+                    "--stdout",
+                ],
+                cwd=fixture_root,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("Formal-Architecture-Ready: READY", result.stdout)
+
     def test_renderer_refuses_ready_projection_when_review_evidence_is_invalid(
         self,
     ) -> None:
@@ -7935,7 +7973,11 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
             self.assertIs(
                 True,
                 checker.derive_gate_a(
-                    fixture_root, manifest, current_subject, review_records
+                    fixture_root,
+                    manifest,
+                    current_subject,
+                    review_records,
+                    *checker._load_gate_a_requirements(fixture_root),
                 )["ready"],
             )
 
@@ -8587,6 +8629,28 @@ def _mutated_challenge_packet(
     return write_json_artifact(
         fixture_root, f"formal/reviews/challenge-packets/{name}.json", payload
     )
+
+class EvidenceRequirementsGovernanceFailureTests(unittest.TestCase):
+    def test_missing_routed_registry_blocks_gate_a_without_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            (
+                fixture_root
+                / "docs/repository-governance/turnlock-rust-evidence-requirements.md"
+            ).unlink()
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+        self.assertTrue(
+            any(error.startswith("Gate A evidence requirements:") for error in errors),
+            errors,
+        )
+        self.assertFalse(summary["gate_a"]["ready"])
+        self.assertEqual(
+            "Gate A evidence requirements integrity failure",
+            summary["gate_a"]["reason"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

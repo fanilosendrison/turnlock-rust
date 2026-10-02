@@ -11,131 +11,57 @@ import unittest
 fixture = importlib.import_module("repository-integrity-test-fixture")
 
 
-def make_runner_fixture(
+def run_fixture(
     temporary: str,
-    *,
     child_sources: dict[str, str] | None = None,
-) -> Path:
-    return fixture.make_runner_fixture(
-        temporary,
-        support_paths=(
-            "AGENTS.md",
-            "docs/repository-governance/turnlock-rust-shared-governance-provider.md",
-            "docs/repository-governance/turnlock-rust-governance-authority.md",
-            "docs/repository-governance/turnlock-rust-governed-objects.md",
-            "docs/adr/adr-profile.yaml",
-            "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md",
-        ),
-        child_sources=child_sources,
+) -> subprocess.CompletedProcess[str]:
+    root = fixture.make_runner_fixture(temporary, child_sources=child_sources)
+    return subprocess.run(
+        [sys.executable, "scripts/check-repository-integrity.py"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
 
-class RepositoryIntegrityBindingTests(unittest.TestCase):
-    def test_cli_returns_zero_when_all_canonical_children_pass(self) -> None:
+class RepositoryIntegrityCliTests(unittest.TestCase):
+    def test_cli_returns_zero_when_all_profile_commands_pass(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_runner_fixture(temporary)
+            result = run_fixture(temporary)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("repository integrity: OK", result.stdout)
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "scripts/check-repository-integrity.py",
-                ],
-                cwd=fixture,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            self.assertEqual(0, result.returncode)
-            self.assertIn("repository integrity: OK", result.stdout)
-
-    def test_cli_returns_nonzero_when_canonical_child_fails(self) -> None:
+    def test_cli_returns_nonzero_when_profile_command_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_runner_fixture(
+            result = run_fixture(
                 temporary,
-                child_sources={
-                    "scripts/check-formal-traceability.py":
-                        "import sys\nsys.exit(7)\n",
-                },
+                {"scripts/check-formal-traceability.py": "raise SystemExit(7)\n"},
             )
+        combined = result.stdout + result.stderr
+        self.assertEqual(1, result.returncode)
+        self.assertIn("formal_traceability_check", combined)
+        self.assertIn("command exited with 7", combined)
+        self.assertIn("repository integrity: FAILED", combined)
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "scripts/check-repository-integrity.py",
-                ],
-                cwd=fixture,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            combined = result.stdout + result.stderr
-            self.assertEqual(1, result.returncode)
-            self.assertIn("Formal traceability check", combined)
-            self.assertIn("exit 7", combined)
-            self.assertIn("repository integrity: FAILED", combined)
-
-    def test_cli_preserves_undetermined_diagnostic_and_fails_closed(self) -> None:
+    def test_cli_preserves_undetermined_and_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_runner_fixture(
+            result = run_fixture(
                 temporary,
-                child_sources={
-                    "scripts/check-authoritative-ref-monotonicity.py":
-                        "raise SystemExit(2)\n",
-                },
+                {"scripts/check-authoritative-ref-monotonicity.py": "raise SystemExit(2)\n"},
             )
+        combined = result.stdout + result.stderr
+        self.assertEqual(1, result.returncode)
+        self.assertIn("authoritative_ref_monotonicity_effective_rules", combined)
+        self.assertIn("UNDETERMINED", combined)
+        self.assertIn("repository integrity: FAILED", combined)
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "scripts/check-repository-integrity.py",
-                ],
-                cwd=fixture,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            combined = result.stdout + result.stderr
-            name = "Authoritative Ref Monotonicity effective rules"
-            self.assertEqual(1, result.returncode)
-            self.assertIn(
-                f"validation step undetermined: {name}: command exited with 2",
-                combined,
-            )
-            self.assertNotIn(f"validation step failed: {name}", combined)
-            self.assertIn("repository integrity: FAILED", combined)
-
-    def test_cli_preserves_child_stdout_and_stderr(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_runner_fixture(
-                temporary,
-                child_sources={
-                    "scripts/tests/test-adr-metadata-provider-binding.py":
-                        (
-                            "import sys\n"
-                            "print('TURNLOCK-CHILD-STDOUT', flush=True)\n"
-                            "print('TURNLOCK-CHILD-STDERR', file=sys.stderr, flush=True)\n"
-                            "sys.exit(0)\n"
-                        ),
-                },
-            )
-
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "scripts/check-repository-integrity.py",
-                ],
-                cwd=fixture,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            self.assertEqual(0, result.returncode)
-            self.assertIn("TURNLOCK-CHILD-STDOUT", result.stdout)
-            self.assertIn("TURNLOCK-CHILD-STDERR", result.stderr)
+    def test_runner_contains_no_validation_membership(self) -> None:
+        source = (fixture.SCRIPT).read_text(encoding="utf-8")
+        self.assertNotIn("canonical_steps", source)
+        self.assertNotIn("scripts/tests/test-", source)
+        self.assertIn("repository_integrity.load", source)
+        self.assertIn("evaluate_consumer_profile", source)
 
 
 if __name__ == "__main__":

@@ -3,278 +3,119 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
-import subprocess
+import sys
 import tempfile
 import unittest
 
+from proto_ring.repository_integrity import (
+    CommandBinding,
+    ConsumerIntegrityProfile,
+    EvaluationContext,
+    ObligationStatus,
+    ProfileAuthority,
+    ValidationDefinition,
+    ValidationEnvironmentRealization,
+    ValidationInstances,
+    evaluate_consumer_profile,
+)
+
 fixture = importlib.import_module("repository-integrity-test-fixture")
-checker = fixture.checker
-make_committed_git_fixture = fixture.make_committed_git_fixture
-python_command = fixture.python_command
+make_repository = fixture.make_committed_git_fixture
 
 
-class RepositoryIntegrityBindingTests(unittest.TestCase):
-    def test_non_mutating_pass_maps_to_no_local_error(self) -> None:
+def evaluate_steps(root: Path, steps: list[tuple[str, str, frozenset[int]]]):
+    validations = {}
+    order = []
+    for validation_id, source, undetermined in steps:
+        order.append(validation_id)
+        validations[validation_id] = ValidationDefinition(
+            validation_id,
+            "repository_validation",
+            (),
+            None,
+            ValidationInstances("single"),
+            CommandBinding("python", ("-c", source), undetermined),
+        )
+    profile = ConsumerIntegrityProfile(
+        root,
+        root / "profile.md",
+        1,
+        ProfileAuthority("repository_integrity_profile", "profile"),
+        frozenset({"python"}),
+        True,
+        validations,
+        tuple(order),
+        "test-profile",
+    )
+    realization = ValidationEnvironmentRealization(
+        "python", "test-python", (sys.executable,), {}
+    )
+    return evaluate_consumer_profile(
+        root, profile, EvaluationContext({"python": realization})
+    )
+
+
+class RepositoryIntegrityEvaluatorTests(unittest.TestCase):
+    def test_non_mutating_pass_is_satisfied(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
+            root = make_repository(temporary)
+            result = evaluate_steps(root, [("noop", "pass", frozenset())])
+            self.assertIs(ObligationStatus.SATISFIED, result.validations[0].status)
+            self.assertEqual((), result.errors)
 
-            errors, failed = checker.run_validation(
-                fixture,
-                [("noop", python_command("pass"))],
-            )
-
-            self.assertEqual([], errors)
-            self.assertEqual([], failed)
-
-    def test_multiple_non_mutating_failures_are_both_reported(self) -> None:
+    def test_multiple_failures_are_both_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
-
-            errors, failed = checker.run_validation(
-                fixture,
+            root = make_repository(temporary)
+            result = evaluate_steps(
+                root,
                 [
-                    (
-                        "first-failure",
-                        python_command("raise SystemExit(3)"),
-                    ),
-                    (
-                        "second-failure",
-                        python_command("raise SystemExit(7)"),
-                    ),
+                    ("first", "raise SystemExit(3)", frozenset()),
+                    ("second", "raise SystemExit(7)", frozenset()),
                 ],
             )
-
             self.assertEqual(
-                [
-                    ("first-failure", 3),
-                    ("second-failure", 7),
-                ],
-                failed,
+                [ObligationStatus.VIOLATED, ObligationStatus.VIOLATED],
+                [item.status for item in result.validations],
             )
-            self.assertIn(
-                "validation step failed: first-failure (exit 3)",
-                errors,
-            )
-            self.assertIn(
-                "validation step failed: second-failure (exit 7)",
-                errors,
-            )
+            self.assertEqual([3, 7], [item.obligations[0].returncode for item in result.validations])
 
-    def test_undetermined_exit_is_not_reported_as_failed(self) -> None:
+    def test_exit_two_maps_to_undetermined(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
-
-            errors, failed = checker.run_validation(
-                fixture,
-                [
-                    (
-                        "Authoritative Ref Monotonicity effective rules",
-                        python_command("raise SystemExit(2)"),
-                    )
-                ],
+            root = make_repository(temporary)
+            result = evaluate_steps(
+                root, [("arm", "raise SystemExit(2)", frozenset({2}))]
             )
+            self.assertIs(ObligationStatus.UNDETERMINED, result.validations[0].status)
 
-            self.assertEqual([], failed)
-            self.assertEqual(
-                [
-                    "validation step undetermined: "
-                    "Authoritative Ref Monotonicity effective rules: "
-                    "command exited with 2"
-                ],
-                errors,
-            )
-            self.assertNotIn(
-                "validation step failed: "
-                "Authoritative Ref Monotonicity effective rules",
-                "\n".join(errors),
-            )
-
-    def test_pre_existing_dirty_state_remains_admissible(self) -> None:
+    def test_preexisting_dirty_state_is_admissible(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
+            root = make_repository(temporary)
+            (root / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+            (root / "loose.txt").write_text("scratch\n", encoding="utf-8")
+            result = evaluate_steps(root, [("noop", "pass", frozenset())])
+            self.assertIs(ObligationStatus.SATISFIED, result.validations[0].status)
 
-            (fixture / "tracked.txt").write_text(
-                "dirty\n",
-                encoding="utf-8",
-            )
-
-            (fixture / "untracked.txt").write_text(
-                "scratch\n",
-                encoding="utf-8",
-            )
-
-            errors, failed = checker.run_validation(
-                fixture,
-                [("noop", python_command("pass"))],
-            )
-
-            self.assertEqual([], errors)
-            self.assertEqual([], failed)
-
-    def test_already_dirty_tracked_mutation_is_rejected_by_local_binding(
-        self,
-    ) -> None:
+    def test_mutation_is_detected_and_stops_later_validation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
-
-            (fixture / "tracked.txt").write_text(
-                "dirty-one\n",
-                encoding="utf-8",
-            )
-
-            status_before = subprocess.run(
-                ["git", "-C", str(fixture), "status", "--porcelain"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
-            self.assertEqual(" M tracked.txt\n", status_before)
-
-            errors, failed = checker.run_validation(
-                fixture,
-                [
-                    (
-                        "mutate-dirty",
-                        python_command(
-                            "from pathlib import Path\n"
-                            "Path('tracked.txt').write_text('dirty-two\\n', encoding='utf-8')"
-                        ),
-                    )
-                ],
-            )
-
-            status_after = subprocess.run(
-                ["git", "-C", str(fixture), "status", "--porcelain"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
-            self.assertEqual(" M tracked.txt\n", status_after)
-
-            self.assertEqual([], failed)
-            self.assertIn(
-                "repository integrity validation modified the worktree",
-                errors,
-            )
-            self.assertTrue(
-                any(
-                    "repository state changed during obligation" in error
-                    for error in errors
-                ),
-                errors,
-            )
-
-    def test_already_present_untracked_mutation_is_rejected_by_local_binding(
-        self,
-    ) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
-
-            (fixture / "loose.txt").write_text(
-                "one\n",
-                encoding="utf-8",
-            )
-
-            status_before = subprocess.run(
-                ["git", "-C", str(fixture), "status", "--porcelain"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
-            self.assertEqual("?? loose.txt\n", status_before)
-
-            errors, failed = checker.run_validation(
-                fixture,
-                [
-                    (
-                        "mutate-untracked",
-                        python_command(
-                            "from pathlib import Path\n"
-                            "Path('loose.txt').write_text('two\\n', encoding='utf-8')"
-                        ),
-                    )
-                ],
-            )
-
-            status_after = subprocess.run(
-                ["git", "-C", str(fixture), "status", "--porcelain"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
-            self.assertEqual("?? loose.txt\n", status_after)
-
-            self.assertEqual([], failed)
-            self.assertIn(
-                "repository integrity validation modified the worktree",
-                errors,
-            )
-            self.assertTrue(
-                any(
-                    "repository state changed during obligation" in error
-                    for error in errors
-                ),
-                errors,
-            )
-
-    def test_mutation_stops_later_local_step(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(str(Path(temporary) / "repo"))
-            marker = Path(temporary) / "later.marker"
-
-            errors, _failed = checker.run_validation(
-                fixture,
+            root = make_repository(temporary)
+            marker = Path(temporary) / "later"
+            result = evaluate_steps(
+                root,
                 [
                     (
                         "mutate",
-                        python_command(
-                            "from pathlib import Path\n"
-                            "Path('tracked.txt').write_text('mutated\\n', encoding='utf-8')"
-                        ),
+                        "from pathlib import Path; Path('tracked.txt').write_text('changed')",
+                        frozenset(),
                     ),
                     (
                         "later",
-                        python_command(
-                            "from pathlib import Path\n"
-                            f"Path({str(marker)!r}).write_text('ran')"
-                        ),
+                        f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+                        frozenset(),
                     ),
                 ],
             )
-
             self.assertFalse(marker.exists())
-            self.assertIn(
-                "repository integrity validation modified the worktree",
-                errors,
-            )
-
-    def test_failure_and_mutation_are_both_reported(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = make_committed_git_fixture(temporary)
-
-            errors, failed = checker.run_validation(
-                fixture,
-                [
-                    (
-                        "mutate-and-fail",
-                        python_command(
-                            "from pathlib import Path\n"
-                            "Path('tracked.txt').write_text('mutated\\n', encoding='utf-8')\n"
-                            "raise SystemExit(5)"
-                        ),
-                    )
-                ],
-            )
-
-            self.assertEqual([("mutate-and-fail", 5)], failed)
-            self.assertIn(
-                "validation step failed: mutate-and-fail (exit 5)",
-                errors,
-            )
-            self.assertIn(
-                "repository integrity validation modified the worktree",
-                errors,
-            )
+            self.assertTrue(any("repository state changed" in error for error in result.errors))
 
 
 if __name__ == "__main__":
