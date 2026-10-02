@@ -497,6 +497,25 @@ repository specializes that rule as follows:
   legacy aliases and are not active mutable validation authority;
 - protocol v4 binds the exact protocol-bundle meta-schema and exact
   review-evidence meta-schema into P;
+- protocol v5 extends P with deterministic reviewer acquisition;
+- `reviewer_profiles` is an eligibility registry, not an execute-all list;
+- `policies.reviewer_acquisition.mode` is exactly
+  `minimum-effective-independent-v1`;
+- `policies.reviewer_acquisition.profile_order` is the sole protocol-owned
+  acquisition order;
+- lexical `profileId` order is canonical representation only and never
+  acquisition priority;
+- acquisition is content-independent and round-based;
+- statically known duplicate pinned effective identities may be skipped before
+  execution;
+- provider-reported identities may not be guessed or pre-collapsed;
+- qualified effective-identity collision may trigger acquisition of the next
+  ordered eligible profile;
+- operational retry exhaustion of a selected WorkItem may not trigger automatic
+  profile substitution;
+- pool exhaustion with the effective minimum unmet routes to
+  `OPERATOR-ACTION-REQUIRED`;
+- `minimum_independent_reviewers` remains hostile-review policy outside P;
 - protocol bundles v1-v3 are interpreted with the immutable v1-v3 bundle
   meta-schema snapshot;
 - future meta-schema changes require new artifact paths and a new protocol
