@@ -392,6 +392,10 @@ PROTOCOL_V4_META_SCHEMA_REFERENCE = {
     "path": "formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json",
     "sha256": "4604ad8aa1868c0f13bad5a173af5c7df1cb4343a9cd7b3b48d3000e2fb6cb43",
 }
+PROTOCOL_V5_META_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json",
+    "sha256": "96ff941defb59687f77593fb60b7dda460da06250b718e9ce082f78e94407327",
+}
 REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
 REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
 MATERIALITY_CHALLENGE_SELECTOR = "hostile-materiality-challenge-v1"
@@ -1194,6 +1198,44 @@ def _protocol_profile_map(bundle: object) -> dict[str, dict]:
     return profiles
 
 
+def _statically_qualifying_reviewer_profile(profile: dict) -> bool:
+    if profile.get("frontier_eligible") is not True:
+        return False
+    resolution = _mapping(profile.get("identity_resolution"))
+    kind = resolution.get("kind")
+    return kind == "provider-reported" or (
+        kind == "pinned-request-model"
+        and resolution.get("request_model_is_immutable_version") is True
+    )
+
+
+def _reviewer_acquisition_policy_errors(bundle: dict, label: str) -> list[str]:
+    if bundle.get("protocol_bundle_schema_version") != 5:
+        return []
+    policy = _mapping(_mapping(bundle.get("policies")).get("reviewer_acquisition"))
+    errors: list[str] = []
+    if policy.get("mode") != "minimum-effective-independent-v1":
+        errors.append(
+            f"{label}: protocol v5 reviewer acquisition mode must be "
+            "minimum-effective-independent-v1"
+        )
+    profile_order = _sequence(policy.get("profile_order"))
+    ordered_ids = [item for item in profile_order if isinstance(item, str)]
+    profile_ids = [
+        profile.get("profile_id")
+        for profile in _sequence(bundle.get("reviewer_profiles"))
+        if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str)
+    ]
+    if len(ordered_ids) != len(set(ordered_ids)):
+        errors.append(f"{label}: reviewer acquisition profile_order contains duplicates")
+    if len(ordered_ids) != len(profile_ids) or set(ordered_ids) != set(profile_ids):
+        errors.append(
+            f"{label}: reviewer acquisition profile_order must be an exact "
+            "permutation of reviewer profile IDs"
+        )
+    return errors
+
+
 def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
     """Validate every immutable artifact referenced by one bundle."""
     errors: list[str] = []
@@ -1203,7 +1245,7 @@ def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
         errors.extend(artifact_errors)
     schemas = _mapping(bundle.get("schemas"))
     keys = ["raw-review-output", "execution-receipt", "challenge-output"]
-    if bundle.get("protocol_bundle_schema_version") in (2, 3, 4):
+    if bundle.get("protocol_bundle_schema_version") in (2, 3, 4, 5):
         keys.append("challenge-packet")
     for key in keys:
         data, artifact_errors = _read_review_artifact(root, _mapping(schemas.get(key)), f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
@@ -1220,6 +1262,7 @@ def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
     for profile_id, count in Counter(profile_ids).items():
         if count > 1:
             errors.append(f"{label}: duplicate reviewer profile_id {profile_id!r}")
+    errors.extend(_reviewer_acquisition_policy_errors(bundle, label))
     return errors
 
 
@@ -1254,6 +1297,8 @@ def _protocol_bundle_meta_schema_reference(version: object) -> dict | None:
         return dict(LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE)
     if version == 4:
         return dict(PROTOCOL_V4_META_SCHEMA_REFERENCE)
+    if version == 5:
+        return dict(PROTOCOL_V5_META_SCHEMA_REFERENCE)
     return None
 
 
@@ -1275,14 +1320,25 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, ca
     errors.extend(meta_errors)
     if validator is not None:
         errors.extend(_schema_violations(validator, bundle, label))
-    if version == 4:
+    if version in (4, 5):
         meta_schemas = _mapping(bundle.get("meta_schemas"))
         declared_protocol_bundle = _mapping(meta_schemas.get("protocol-bundle"))
-        if declared_protocol_bundle != PROTOCOL_V4_META_SCHEMA_REFERENCE:
-            errors.append(f"{label}: protocol v4 must bind the exact published protocol-bundle meta-schema")
+        expected_protocol_bundle = (
+            PROTOCOL_V4_META_SCHEMA_REFERENCE
+            if version == 4
+            else PROTOCOL_V5_META_SCHEMA_REFERENCE
+        )
+        if declared_protocol_bundle != expected_protocol_bundle:
+            errors.append(
+                f"{label}: protocol v{version} must bind the exact published "
+                "protocol-bundle meta-schema"
+            )
         declared_review_evidence = _mapping(meta_schemas.get("review-evidence"))
         if declared_review_evidence != LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE:
-            errors.append(f"{label}: protocol v4 must bind the exact published review-evidence meta-schema")
+            errors.append(
+                f"{label}: protocol v{version} must bind the exact published "
+                "review-evidence meta-schema"
+            )
         for key in ("protocol-bundle", "review-evidence"):
             _, binding_errors = _load_meta_schema_validator(root, _mapping(meta_schemas.get(key)), f"{label}: meta_schemas.{key}")
             errors.extend(binding_errors)
@@ -1300,7 +1356,7 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, ca
     if isinstance(path, str): paths.add(path)
     if isinstance(protocol_id, str): ids.add(protocol_id)
     predecessor = bundle.get("predecessor")
-    if version in (2, 3, 4):
+    if version in (2, 3, 4, 5):
         if not isinstance(predecessor, dict):
             errors.append(f"{label}: schema-version-{version} bundle requires predecessor")
         else:
@@ -1333,6 +1389,12 @@ def _current_protocol_bundle_errors(root: Path, manifest: dict, cache: dict[str,
         predecessor = _mapping(bundle.get("predecessor"))
         if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v3.json" or predecessor.get("sha256") != "cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6":
             errors.append(f"{label}: current protocol v4 predecessor must be the exact published v3 bundle")
+    # v5 establishes the fixed v4 lineage and deterministic reviewer acquisition.
+    if bundle is not None and bundle.get("protocol_bundle_schema_version") == 5:
+        predecessor = _mapping(bundle.get("predecessor"))
+        if predecessor.get("path") != "formal/reviews/protocols/gate-a-campaign-protocol-v4.json" or predecessor.get("sha256") != "f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac":
+            errors.append(f"{label}: current protocol v5 predecessor must be the exact published v4 bundle")
+    if bundle is not None and bundle.get("protocol_bundle_schema_version") in (4, 5):
         evidence_binding = _mapping(_mapping(bundle.get("meta_schemas")).get("review-evidence"))
         if hostile_review.get("evidence_schema") != evidence_binding.get("path"):
             errors.append(f"{label}: current hostile-review evidence_schema path must equal the current protocol-bound review-evidence meta-schema path")
@@ -1579,6 +1641,102 @@ def _initial_reviewer_receipt_errors(
     ) != execution.get("raw_output"):
         errors.append(
             f"{label}: qualifying attempt raw output must equal the execution raw_output"
+        )
+    return errors
+
+
+def _reviewer_acquisition_conformance_errors(
+    bundle: dict,
+    executions: list[dict],
+    minimum_reviewers: int,
+    label: str,
+) -> list[str]:
+    """Reconstruct protocol-v5 deterministic initial-reviewer acquisition."""
+    if bundle.get("protocol_bundle_schema_version") != 5:
+        return []
+
+    errors: list[str] = []
+    actual_by_profile: dict[str, list[dict]] = {}
+    for execution in executions:
+        profile_id = execution.get("reviewer_profile_id")
+        if isinstance(profile_id, str):
+            actual_by_profile.setdefault(profile_id, []).append(execution)
+    for profile_id, matching in actual_by_profile.items():
+        if len(matching) > 1:
+            errors.append(
+                f"{label}: protocol v5 permits at most one logical "
+                f"initial-reviewer execution for profile {profile_id!r}"
+            )
+
+    profiles = _protocol_profile_map(bundle)
+    policy = _mapping(_mapping(bundle.get("policies")).get("reviewer_acquisition"))
+    acquisition_order = [
+        profile_id
+        for profile_id in _sequence(policy.get("profile_order"))
+        if isinstance(profile_id, str)
+        and profile_id in profiles
+        and _statically_qualifying_reviewer_profile(profiles[profile_id])
+    ]
+
+    effective_identities: set[tuple[object, object]] = set()
+    selected_history: list[str] = []
+    selected_ids: set[str] = set()
+    while len(effective_identities) < minimum_reviewers:
+        deficit = minimum_reviewers - len(effective_identities)
+        selected_round: list[str] = []
+        reserved_pinned: set[tuple[object, object]] = set()
+        for profile_id in acquisition_order:
+            if profile_id in selected_ids:
+                continue
+            profile = profiles[profile_id]
+            resolution = _mapping(profile.get("identity_resolution"))
+            if resolution.get("kind") == "pinned-request-model":
+                known_identity = (profile.get("provider"), profile.get("request_model"))
+                if (
+                    known_identity in effective_identities
+                    or known_identity in reserved_pinned
+                ):
+                    continue
+                reserved_pinned.add(known_identity)
+            selected_round.append(profile_id)
+            if len(selected_round) == deficit:
+                break
+
+        if not selected_round:
+            errors.append(
+                f"{label}: completed protocol-v5 review cannot satisfy "
+                "minimum-effective-independent-v1 with the remaining eligible pool"
+            )
+            break
+
+        selected_history.extend(selected_round)
+        selected_ids.update(selected_round)
+        missing = [
+            profile_id
+            for profile_id in selected_round
+            if len(actual_by_profile.get(profile_id, [])) != 1
+        ]
+        for profile_id in missing:
+            errors.append(
+                f"{label}: deterministic reviewer acquisition requires exactly one "
+                f"execution for selected profile {profile_id!r}"
+            )
+        if missing:
+            break
+
+        for profile_id in selected_round:
+            execution = actual_by_profile[profile_id][0]
+            effective_identities.add(
+                (execution.get("provider"), execution.get("model_version"))
+            )
+
+    actual_profile_ids = set(actual_by_profile)
+    expected_profile_ids = set(selected_history)
+    if actual_profile_ids != expected_profile_ids:
+        errors.append(
+            f"{label}: actual initial-reviewer profiles must equal deterministic "
+            f"acquisition history; expected {sorted(expected_profile_ids)!r}, "
+            f"found {sorted(actual_profile_ids)!r}"
         )
     return errors
 
@@ -2095,6 +2253,10 @@ def _review_evidence_errors(
                 evidence_reference = _mapping(
                     _mapping(bundle.get("meta_schemas")).get("review-evidence")
                 )
+            elif version == 5:
+                evidence_reference = _mapping(
+                    _mapping(bundle.get("meta_schemas")).get("review-evidence")
+                )
             elif version in (1, 2, 3):
                 evidence_reference = dict(LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE)
         evidence_validator: Draft202012Validator | None = None
@@ -2303,6 +2465,18 @@ def _review_evidence_errors(
                     for raw_id in _sequence(execution.get("raw_finding_ids"))
                     if isinstance(raw_id, str)
                 }
+
+        if is_gate_a_subject_review and bundle is not None:
+            hostile_review = _mapping(
+                _mapping(manifest.get("policy")).get("hostile_review")
+            )
+            minimum_reviewers = hostile_review.get("minimum_independent_reviewers")
+            if isinstance(minimum_reviewers, int) and minimum_reviewers >= 1:
+                errors.extend(
+                    _reviewer_acquisition_conformance_errors(
+                        bundle, executions, minimum_reviewers, label
+                    )
+                )
 
         duplicates = sorted(
             path for path, count in Counter(raw_paths).items() if count > 1
