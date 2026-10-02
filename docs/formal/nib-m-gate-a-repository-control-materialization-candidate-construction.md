@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "2.0.0"
+version: "2.0.1"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,7 @@ superseded_by: []
 
 # NIB-M — Gate A Repository Control — Materialization and Candidate Construction
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
 
 This Module Brief is implementation-construction authority only. It creates no
 TURNLOCK product semantics, hostile-review protocol semantics, canonical formal
@@ -1795,8 +1795,11 @@ M7A-09C M7-A interprets no assurance semantics and performs no subject
 M7A-10 all patch preimages are validated against one immutable source before
         any replacement is applied.
 
-M7A-11 one successful candidate construction preserves exact source parent and
-        RepairIntent provenance.
+M7A-11 one successful non-C0 candidate construction preserves the exact source
+        parent and the exact nullable RepairIntent and
+        AssuranceRepositoryProjection provenance supplied by the accepted
+        CandidateConstructionRequest; at least one of those two provenance
+        authorities is non-null.
 
 M7A-12 identical baseline/candidate/object-format inputs produce identical T.
 

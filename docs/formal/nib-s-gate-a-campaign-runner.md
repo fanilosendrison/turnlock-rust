@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "8.0.0"
+version: "8.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -548,6 +548,33 @@ No M6/M3 ownership change.
 No ReviewCampaign identity change.
 No M3 operational-cause architecture change.
 No blocker identity change.
+No product ADR is created.
+
+Version `8.0.1` corrects three stale repair-only active clauses left by the
+`8.0.0` candidate-provenance generalization.
+
+The accepted `8.0.0` architecture already allows assurance-only, repair-only,
+and combined repair-plus-assurance successors.
+
+This revision synchronizes GI-84, M7-A M7A-11 through its consuming Module
+Brief, and M2 restart/replay prose with that already-accepted architecture.
+
+The construction discovery classifications recorded by this revision are:
+
+```text
+stale repair-only clauses contradicting already-accepted generalized candidate
+provenance
+→ derived-from-existing-authority
+
+exact wording/invariant synchronization
+→ no-normative-impact construction correction
+```
+
+No construction architecture changes.
+No TURNLOCK product semantics change.
+No hostile-review protocol semantics change.
+No formal-assurance semantics change.
+No blocker/recovery semantics change.
 No product ADR is created.
 
 ## 2. System objective
@@ -8363,10 +8390,14 @@ GI-83  After publication Arm, observing the intended successor never enters the
        already-current shortcut; it belongs to the existing outcome/recovery
        lifecycle of the armed Execution.
 
-GI-84  M7 candidate construction consumes one exact authoritative
-       RepairIntentRef, applies only that RepairIntent's exact approvedPatch to
-       the exact CandidateRevision named by that RepairIntent, and returns a
-       sealed candidate bound to the same source candidate and RepairIntent.
+GI-84  For every non-C0 candidate construction, M7 consumes the exact
+       authoritative nullable RepairIntentRef and
+       AssuranceRepositoryProjectionRef selected for the exact source
+       CandidateRevision, requires at least one of them to be non-null, applies
+       only the exact RepairIntent.approvedPatch when repair is present and only
+       the exact AssuranceRepositoryProjection.projection when assurance
+       projection is present, and returns a sealed candidate bound to the same
+       source candidate and the exact nullable repair/projection provenance.
 
 GI-85  One RepairIntent may produce at most one CandidateRevision. The admitted
        CandidateRevision carrying that RepairIntentId is the append-only proof

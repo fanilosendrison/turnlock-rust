@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "3.0.0"
+version: "3.0.1"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.1`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -405,10 +405,26 @@ M7-A may seal deterministic successor artifacts and crash before
 `AdmitCandidateV1`.
 
 Because no authoritative candidate was admitted, restart may replay the same
-sourceCandidate + RepairIntent and reproduce the same sealed successor.
+exact sourceCandidate plus the same exact nullable RepairIntentRef and
+AssuranceRepositoryProjectionRef and reproduce the same sealed successor.
 
-Once one CandidateRevision with `producedByRepairIntentId == R` exists, R is
-consumed and ordinary orchestration must not invoke M7-A with R again.
+For every replayed non-C0 construction, at least one of the repair/projection
+authorities remains non-null exactly as required by the accepted
+CandidateConstructionRequest.
+
+Once an admitted CandidateRevision names a non-null RepairIntent R through
+`producedByRepairIntentId == R.repairIntentId`, R is consumed and ordinary
+orchestration must not invoke M7-A using R again.
+
+Once an admitted CandidateRevision names a non-null
+AssuranceRepositoryProjection A through
+`producedByAssuranceProjectionId == A.projectionId`, A is consumed and ordinary
+orchestration must not invoke M7-A using A again.
+
+For a combined repair + assurance successor, that one admitted
+CandidateRevision consumes both exact authorities simultaneously.
+
+No mutable repair/projection consumed flag exists.
 
 No special recovery protocol is introduced.
 
