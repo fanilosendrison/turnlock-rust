@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY
-version: "2.0.3"
+version: "2.0.4"
 scope: gate-a-campaign-runner/recovery-operator/operator-boundary
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,7 @@ superseded_by: []
 
 # NIB-M — Gate A Recovery Operator — Operator Boundary
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.3`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
 
 This Module Brief is implementation-construction authority only. It does not
 create TURNLOCK product semantics, hostile-review protocol semantics, canonical
@@ -172,6 +172,10 @@ require causeDescriptor.mediaType == application/json
 
 validate resolutionContracts duplicate-free
 
+resolutionContracts may be empty when and only when the accepted producer
+NIB-M declares that the exact cause has no lawful same-run operator-resolution
+contract
+
 reject authorize-uncertain-execution-replacement
 
 for every authorize-known-terminal-execution-replacement:
@@ -181,6 +185,8 @@ for every authorize-known-terminal-execution-replacement:
 canonicalize resolutionContracts order:
     request-operational-recheck
     then authorize-known-terminal-execution-replacement
+
+an empty input canonicalizes to []
 
 derive exact workItemComponent
 derive exact executionComponent
@@ -223,6 +229,12 @@ OperationalBlocker {
 
 return exact blocker
 ```
+
+For an authorized empty `resolutionContracts` input, M8-B still constructs the
+`GateAOperatorActionRequestV1` with `mechanicalContinuations = []` and
+`resolutionContracts = []`, then constructs the `OperationalBlocker` normally.
+It does not reject the blocker merely because the operator has no same-run
+resolution artifact available.
 
 M8-B does not inspect producer-domain cause-descriptor semantics beyond the
 accepted producer contract and common `ArtifactRef` integrity.
@@ -590,6 +602,11 @@ validate exact target blocker/OAR using normal M8-B blocker validation
 require artifact.operatorRequest ==
         target blocker.operatorRequest
 
+if target OAR.resolutionContracts == []:
+    no GateAOperatorResolutionArtifactV1 kind can satisfy:
+        artifact.kind appears exactly in target OAR.resolutionContracts
+    therefore reject INVALID-OPERATOR-INPUT
+
 require artifact.kind appears exactly in
         target OAR.resolutionContracts
 
@@ -609,6 +626,12 @@ return envelope + effect
 ```
 
 M8-B never reads the mutable path a second time.
+
+For a target OAR whose exact `resolutionContracts` set is empty, every submitted
+operator-resolution artifact is `INVALID-OPERATOR-INPUT` unless the blocker is
+already stale or inapplicable. In that case retain the existing
+`STALE-OR-INAPPLICABLE-OPERATOR-RESOLUTION` ordering above. Do not add a new
+operator-resolution kind, `start-new-run`, or `acknowledge-only` resolution.
 
 ## 13. Operator-resolution mapping
 
@@ -911,6 +934,21 @@ No other blocker permits a mechanical continuation unless its exact OAR says so.
 
 M8B-40
 M8-B never turns an operator action into semantic authority.
+
+M8B-41
+A producer occurrence may lawfully expose zero resolution contracts when its
+producer NIB declares no same-run operator-resolution transition.
+
+M8B-42
+An OAR with zero resolution contracts still represents an exact outstanding
+OperationalBlocker.
+
+M8B-43
+M8-B never invents a resolution merely to make every OAR actionable in-run.
+
+M8B-44
+No operator-resolution artifact can be accepted for an OAR whose exact
+resolutionContracts set is empty.
 ```
 
 ## 18. Explicitly forbidden behaviors
