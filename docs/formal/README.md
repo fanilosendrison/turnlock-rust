@@ -304,11 +304,14 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   — SQLite-backed authoritative persistence, immutable artifact storage,
   bootstrap, ownership, and fencing;
 - [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md)
-  — authoritative mutation admission, obligations/blockers, retries, dispatch,
-  recovery admission, qualification, and publication state transitions;
+  — authoritative mutation admission, generalized candidate provenance,
+  `AssuranceRepositoryProjectionRef` retention/consumption integrity,
+  obligations/blockers, retries, dispatch, recovery admission, qualification,
+  and publication state transitions;
 - [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md)
   — deterministic snapshot reconstruction, unresolved-execution projection,
-  retained-state integrity, and provenance-root materialization.
+  retained projection history/consumption integrity, generalized candidate
+  provenance integrity, and provenance-root materialization.
 
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
@@ -316,9 +319,10 @@ candidate construction and M7-B publication / remote observation / recovery.
 The active M7-A Module Brief is
 [`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md).
 It owns repository inspection, exact baseline Git basis, publication-target
-identity resolution, canonical candidate materialization, exact RepairIntent
-patch application, Git tree projection, deterministic publication successor
-`T`, and the internal M7-A → M7-B successor boundary.
+identity resolution, canonical C0 materialization, exact RepairIntent patch
+application, exact assurance repository projection application, combined repair
+plus assurance successor construction, Git tree projection, deterministic
+publication successor `T`, and the internal M7-A → M7-B successor boundary.
 
 It selects `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` as a required separate
 Dependency Contract before GREEN.
