@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "7.0.1"
+version: "7.0.2"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -361,6 +361,60 @@ that must exist before GREEN.
 
 This revision is implementation-construction authority only.
 
+No product ADR is created.
+
+Version `7.0.2` closes the M6↔M3 mechanical-authority/campaign-authority seam
+required before M3 Module Brief authoring.
+
+M6 owns mechanical execution of existing TURNLOCK Python authority for:
+
+- exact Gate A subject derivation;
+- exact current hostile-review protocol/policy projection;
+- complete hostile-review repository-record validation/projection.
+
+M3 consumes mechanically established facts and owns:
+
+- campaign interpretation;
+- exact `(S, P)` currentness;
+- imported campaign construction;
+- reviewer-prerequisite interpretation;
+- `INITIAL` / `SUBJECT-CHANGED` / `PROTOCOL-CHANGED` classification;
+- `ReviewContext` / `GateAEvaluationContext`.
+
+M3 never directly invokes Python authority and never reimplements existing
+checker rules in TypeScript.
+
+`ReviewCampaignId` is the hostile-review `review_id` identity.
+
+Runner-produced campaign logical identity is based on `(runId, S, P)`, not
+candidate identity or repository provenance.
+
+Imported campaign provenance retains the exact schema-5 `repository_commit`;
+it does not fabricate an unavailable repository tree identity.
+
+Exact subject derivation must succeed before baseline preflight becomes
+authoritative.
+
+A trustworthy failure to derive `S` is not a normal campaign blocker/outcome.
+
+The construction discoveries in this revision are implementation/construction
+closure derived from existing authority, with no product-semantic change:
+
+```text
+M6 mechanical facts vs M3 campaign interpretation
+ReviewCampaignId adoption of hostile-review review_id
+imported provenance preserving repository_commit without invented tree
+subject-derivation failure outside normal campaign outcomes
+preflight subject witness retained before C0
+exact ReviewCurrentnessRequest/currentness algorithm
+```
+
+This revision changes implementation-construction authority only.
+
+No TURNLOCK product semantics change.
+No hostile-review protocol semantics change.
+No canonical formal semantics change.
+No verification evidence change.
 No product ADR is created.
 
 ## 2. System objective
@@ -743,20 +797,23 @@ resume: load GateARun + acquire successor fenced ownership in M2
     ↓
 new-run preflight OR resume recovery barrier
     ↓
-resolve exact baseline repository authority
+M7 inspect repository and seal baseline candidate
     ↓
-materialize/seal current candidate materialization
+M6 derive exact S from the sealed candidate materialization
     ↓
-derive exact semantic subject S
+M6 project exact current hostile-review authority from that materialization
+    ↓
+M3 interpret preflight and M2 retain exact S/P mechanical witnesses
     ↓
 construct/admit complete current CandidateRevision
     ↓
-load/validate exact current protocol P
+for the current candidate, M6 project complete exact hostile-review authority
     ↓
-enumerate the complete repository-selected campaign sets:
-    current campaigns = every structurally valid campaign over exact (S, P)
+M3 merge already registered campaigns plus newly mechanically valid repository
+observations and enumerate complete canonical campaign sets:
+    current campaigns = every campaign over exact (S, P)
     stale-protocol campaigns = every campaign over exact S and non-current P
-    candidate/repository provenance does not filter either set
+    candidate/run/repository provenance does not filter either set
     ↓
 determine whether accepted authority requires a new campaign:
     initial S with no current campaign
@@ -771,7 +828,8 @@ if a new campaign is required:
         materialize exact operational blocker
         OPERATOR-ACTION-REQUIRED
     otherwise:
-        create exactly one full ReviewCampaign(candidate, S, P)
+        create exactly one full runner-produced ReviewCampaign(runId, S, P)
+        with candidate/repository authority retained only as provenance
         schedule all current-P campaign work
         schedule required current-P re-adjudication of stale-protocol findings
     ↓
@@ -905,7 +963,9 @@ Owns:
 
 * repository/preflight authority resolution;
 * exact baseline repository authority;
-* exact Gate A semantic subject derivation/currentness;
+* consumption and binding of the exact mechanically derived Gate A semantic subject;
+* exact Gate A semantic-subject currentness;
+* consumption and interpretation of exact mechanically projected hostile-review authority;
 * exact current protocol bundle identity/currentness;
 * protocol-owned reviewer/profile admissibility prerequisites;
 * detection of subject/protocol staleness;
@@ -914,6 +974,14 @@ Owns:
 It does not redefine any protocol rule.
 
 It does not select unregistered reviewer profiles or models.
+
+M3 does not invoke repository Python validators directly.
+
+M3 does not reimplement subject construction, canonical JSON hashing,
+protocol-bundle validation, hostile-review evidence validation, or reviewer
+profile parsing in TypeScript.
+
+M3 does not manufacture repository tree identity for imported review evidence.
 
 ### M4 — `cognitive-execution`
 
@@ -964,6 +1032,12 @@ It does not declare Gate A READY independently of existing mechanical authority.
 Owns:
 
 * subprocess invocation of existing repository Python validation authorities;
+* exact mechanical Gate A subject derivation from one exact candidate
+  materialization;
+* exact mechanical current hostile-review authority projection from one exact
+  candidate materialization;
+* exact complete hostile-review review-record validation/projection;
+* sealing of the corresponding mechanical projection artifacts;
 * role-aware classification of exact captured cognitive attempts through the
   existing Python hostile-review validation authority;
 * exact capture of validator inputs, outputs, exit status, candidate identity,
@@ -972,6 +1046,22 @@ Owns:
 * final mechanical Gate A qualification request for one exact sealed candidate;
 * post-publication repository validation request.
 
+M6 establishes mechanically validated facts.
+
+M6 does not decide:
+
+- campaign currentness;
+- campaign-required;
+- `INITIAL`;
+- `SUBJECT-CHANGED`;
+- `PROTOCOL-CHANGED`;
+- `qualifyingReviewerProfileIds`;
+- `ReviewContext`;
+- `GateAEvaluationContext`;
+- campaign blocker meaning.
+
+Those are M3/M5/M8 responsibilities as already allocated.
+
 It must invoke existing authorities rather than reimplementing them in TypeScript.
 
 M6 validation invocations are read-only with respect to authoritative external systems.
@@ -979,6 +1069,14 @@ M6 validation invocations are read-only with respect to authoritative external s
 They execute only against exact immutable validation inputs: an exact
 cognitive execution request plus captured result, an exact sealed candidate, or
 an exact `PublishedRepositoryViewRef`.
+
+Exact candidate authority is the candidate materialization `ArtifactRef` plus
+its referenced immutable content, not a caller-supplied mutable filesystem path.
+
+The future M6 NIB-M will own the exact safe ephemeral realization needed to
+invoke existing Path-based Python authority. That realization must not make a
+mutable path authoritative, must not dereference candidate symlinks outside
+candidate authority, and must not reimplement Python validation semantics.
 
 A validator subprocess interruption does not create an ambiguous external authoritative side effect.
 
@@ -1199,11 +1297,19 @@ interface RepositoryInspectionRef {
   readonly evidence: readonly ArtifactRef[];
 }
 
-interface ReviewCampaignProvenanceRef {
-  readonly originatingRunId: GateARunId | null;
-  readonly candidateId: CandidateRevisionId | null;
-  readonly repositoryAuthority: RepositoryAuthorityRef;
-}
+type ReviewCampaignProvenanceRef =
+  | {
+      readonly kind: "runner-produced";
+      readonly originatingRunId: GateARunId;
+      readonly candidateId: CandidateRevisionId;
+      readonly repositoryAuthority: RepositoryAuthorityRef;
+    }
+  | {
+      readonly kind: "repository-imported";
+      readonly originatingRunId: null;
+      readonly candidateId: null;
+      readonly repositoryCommitSha: string;
+    };
 
 interface ReviewCampaignRef {
   readonly reviewCampaignId: ReviewCampaignId;
@@ -1211,6 +1317,89 @@ interface ReviewCampaignRef {
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
 }
+
+`ReviewCampaignId` is the same logical identity as hostile-review schema-5
+`review_id`.
+
+Every `ReviewCampaignId` must satisfy the schema-5 `review_id` lexical contract:
+
+```text
+^REVIEW-[A-Z0-9][A-Z0-9-]*$
+```
+
+For repository-imported campaigns:
+
+```text
+reviewCampaignId == exact validated record.review_id
+
+provenance.repositoryCommitSha ==
+    exact validated record.repository_commit
+```
+
+Do not derive an imported `ReviewCampaignId` from record SHA, record path,
+candidate, repository observation, repository tree, or run. Do not infer a
+`treeSha` for imported review evidence. The review-evidence contract supplies
+`repository_commit`, not a complete `RepositoryAuthorityRef`.
+
+For runner-produced campaigns, the logical slot is exactly:
+
+```text
+(runId, semanticSubject S, protocolBundle P)
+```
+
+The deterministic runner-created ID is:
+
+```text
+deriveReviewCampaignId(
+    "review-campaign.v1",
+    runId,
+    semanticSubject.selector,
+    semanticSubject.sha256,
+    protocolBundle.protocolId,
+    protocolBundle.sha256
+)
+```
+
+`candidateId` is not an identity input.
+`repositoryAuthority` is not an identity input.
+`StateRevision` is not an identity input.
+`timestamp` is not an identity input.
+
+M0 final closure owns the collision-safe byte framing and exact deterministic
+rendering of `deriveReviewCampaignId`, and the rendering must validate against
+the schema-5 `review_id` lexical contract.
+
+M2 must recompute runner-created `ReviewCampaignId` before admission.
+
+The eventual hostile-review record produced for a runner-created campaign must
+use:
+
+```text
+record.review_id == campaign.reviewCampaignId
+
+record.repository_commit ==
+    campaign.provenance.repositoryAuthority.commitSha
+```
+
+A campaign is never retargeted.
+
+The same `ReviewCampaignId` with incompatible immutable campaign bindings fails
+closed and may never be represented as a second campaign.
+
+The canonical order for campaign sets is:
+
+```text
+ReviewCampaignId ascending by unsigned ASCII byte order
+```
+
+Every M3-produced `currentCampaigns` and `staleProtocolCampaigns` set must be
+duplicate-free and in this order.
+
+`currentReviewCampaignIds` and the current-campaign prefix of
+`contributingReviewCampaignIds` must preserve that same canonical order.
+
+No filesystem traversal order, introduction revision, record path, repository
+commit, or record hash may define M3 currentness ordering.
 
 interface GateAQualificationRef {
   readonly qualificationId: GateAQualificationId;
@@ -1260,7 +1449,11 @@ baseline tree, not mutable working-tree bytes.
 No mutable `repositoryPath`, worktree, index, remote-tracking ref, Git config,
 or temporary repository is part of retained baseline authority.
 
-`ReviewCampaignProvenanceRef` records the exact candidate/run identity when the runner produced the campaign and always records the exact repository authority where it was produced. Imported repository evidence may have null runner-local identities; it never has missing repository authority.
+`ReviewCampaignProvenanceRef` records the exact candidate/run/full repository
+authority when the runner produced the campaign. Imported repository evidence
+retains null runner-local identities and exactly the schema-5
+`repository_commit`; it never fabricates an unavailable repository tree
+identity or complete `RepositoryAuthorityRef`.
 
 `currentReviewCampaignIds` is the complete ordered, duplicate-free set of structurally valid assurance-decomposition campaigns whose exact subject and protocol equal current `(S, P)`. Candidate, run, and repository provenance do not filter this set.
 
@@ -2182,7 +2375,12 @@ interface LoadGateARunSnapshotRequest {
 interface GateARunSnapshot {
   readonly run: GateARunRef;
   readonly repositoryInspection: RepositoryInspectionRef | null;
+  readonly preflightSemanticSubject: SemanticSubjectRef | null;
+  readonly preflightProtocolBundle: ProtocolBundleRef | null;
+  readonly preflightSubjectProjection: ArtifactRef | null;
+  readonly preflightReviewAuthorityProjection: ArtifactRef | null;
   readonly stateRevision: StateRevision;
+  readonly candidates: readonly CandidateRevisionRef[];
   readonly currentCandidate: CandidateRevisionRef | null;
   readonly reviewCampaigns: readonly ReviewCampaignRef[];
   readonly obligations: readonly ObligationRef[];
@@ -2234,50 +2432,64 @@ type CommitAuthoritativeMutationResult =
     };
 ```
 
-`repositoryInspection` is a derived snapshot projection of authoritative
-preflight history.
+`repositoryInspection`, `preflightSemanticSubject`,
+`preflightProtocolBundle`, `preflightSubjectProjection`, and
+`preflightReviewAuthorityProjection` are derived snapshot projections of
+authoritative preflight history.
 
 Before one `EstablishPreflightV1` is admitted:
 
 ```text
-snapshot.repositoryInspection == null
-
-snapshot.run.initialRepositoryAuthority == null
-
-snapshot.run.publicationTarget == null
+repositoryInspection == null
+preflightSemanticSubject == null
+preflightProtocolBundle == null
+preflightSubjectProjection == null
+preflightReviewAuthorityProjection == null
+run.initialRepositoryAuthority == null
+run.publicationTarget == null
 ```
 
 After the unique `EstablishPreflightV1` is admitted:
 
 ```text
-snapshot.repositoryInspection ==
-    the exact RepositoryInspectionRef retained by that
-    EstablishPreflightV1 mutation
+repositoryInspection ==
+    exact retained mutation.repositoryInspection
 
-snapshot.repositoryInspection.runId ==
-    snapshot.run.runId
+preflightSemanticSubject ==
+    exact retained mutation.baselineSemanticSubject
 
-snapshot.repositoryInspection.baselineAuthority ==
-    snapshot.run.initialRepositoryAuthority
+preflightProtocolBundle ==
+    exact retained mutation.protocolBundle
 
-snapshot.repositoryInspection.publicationTarget ==
-    snapshot.run.publicationTarget
+preflightSubjectProjection ==
+    exact retained mutation.subjectProjection
+
+preflightReviewAuthorityProjection ==
+    exact retained mutation.reviewAuthorityProjection
 ```
 
-The projected `RepositoryInspectionRef` is never reconstructed from:
+All four preflight projected values become non-null together and never change.
+They are reconstructed only from the exact retained unique
+`EstablishPreflightV1`.
+
+Never reconstruct them from:
 
 ```text
-repositoryPath
-baselineGitBasis bytes
-evidence arrays
-current Git configuration
-current repository state
-commit/tree identity alone
+current repository
+candidate files
+CAS guesses
+current Git state
+another M6 invocation
+normalized database columns without exact mutation provenance
 ```
 
-M2 projects the exact retained value from authoritative history.
+The projected `RepositoryInspectionRef` is likewise never reconstructed from
+`repositoryPath`, baseline-Git-basis bytes, evidence arrays, current Git
+configuration, current repository state, or commit/tree identity alone.
 
-The projection is immutable for the lifetime of the `GateARun` because
+M2 projects the exact retained values from authoritative history.
+
+The projections are immutable for the lifetime of the `GateARun` because
 `EstablishPreflightV1` is admitted at most once.
 
 Require exact equivalence:
@@ -2285,12 +2497,37 @@ Require exact equivalence:
 ```text
 snapshot.repositoryInspection == null
 iff
+snapshot.preflightSemanticSubject == null
+AND
+snapshot.preflightProtocolBundle == null
+AND
+snapshot.preflightSubjectProjection == null
+AND
+snapshot.preflightReviewAuthorityProjection == null
+AND
 snapshot.run.initialRepositoryAuthority == null
 AND
 snapshot.run.publicationTarget == null
 ```
 
-Any retained state violating this is `INTEGRITY_FAILURE`.
+Candidate lineage is projected exactly as:
+
+```text
+candidates =
+    all admitted CandidateRevisionRef values
+    ordered by ordinal ascending
+
+candidate ordinals are contiguous from 0
+
+currentCandidate == null
+iff
+candidates is empty
+
+otherwise:
+currentCandidate == candidates[candidates.length - 1]
+```
+
+Any retained state violating these requirements is `INTEGRITY_FAILURE`.
 
 `CreateGateARunAndAcquireInitialOwnershipResult.kind = "created"` atomically persists the first `GateARun` revision, its initial fenced owner, and the root obligation to establish exact baseline authority, publication target, and current protocol or record exact preflight blockers. No separately visible run-without-owner or run-without-root-obligation state exists.
 
@@ -2331,6 +2568,9 @@ No other module writes authoritative campaign state directly.
 interface PreflightRequest {
   readonly runId: GateARunId;
   readonly repositoryInspection: RepositoryInspectionRef;
+  readonly subjectDerivation: CandidateSubjectMechanicalDerivationResult;
+  readonly reviewAuthority:
+    CandidateReviewAuthorityMechanicalProjectionResult;
 }
 
 type PreflightResolution =
@@ -2338,7 +2578,10 @@ type PreflightResolution =
       readonly kind: "established";
       readonly baselineAuthority: RepositoryAuthorityRef;
       readonly publicationTarget: RepositoryPublicationTargetRef;
+      readonly baselineSemanticSubject: SemanticSubjectRef;
       readonly protocolBundle: ProtocolBundleRef;
+      readonly subjectProjection: ArtifactRef;
+      readonly reviewAuthorityProjection: ArtifactRef;
       readonly evidence: readonly ArtifactRef[];
     }
   | {
@@ -2346,18 +2589,32 @@ type PreflightResolution =
       readonly blockers: readonly OperationalBlocker[];
     };
 
-interface CandidateSubjectDerivationRequest {
-  readonly sealedCandidate: SealedCandidateMaterializationRef;
-}
-
-interface CandidateSubjectDerivationResult {
-  readonly semanticSubject: SemanticSubjectRef;
-}
-
 interface ReviewContext {
   readonly runId: GateARunId;
   readonly candidate: CandidateRevisionRef;
   readonly campaign: ReviewCampaignRef;
+}
+
+interface RepositoryReviewObservationV1 {
+  readonly reviewCampaignId: ReviewCampaignId;
+  readonly sourceRecord: ArtifactRef;
+  readonly repositoryCommitSha: string;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+}
+
+interface GateACampaignAuthorityEvaluationV1 {
+  readonly schema: "gate-a-campaign-authority-evaluation.v1";
+  readonly runId: GateARunId;
+  readonly stateRevision: StateRevision;
+  readonly qualificationCandidateId: CandidateRevisionId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly reviewAuthorityProjection: ArtifactRef;
+  readonly repositoryReviewObservations:
+    readonly RepositoryReviewObservationV1[];
+  readonly currentReviewCampaignIds: readonly ReviewCampaignId[];
+  readonly staleProtocolReviewCampaignIds: readonly ReviewCampaignId[];
 }
 
 interface GateAEvaluationContext {
@@ -2367,12 +2624,18 @@ interface GateAEvaluationContext {
   readonly protocolBundle: ProtocolBundleRef;
   readonly currentCampaigns: readonly ReviewCampaignRef[];
   readonly staleProtocolCampaigns: readonly ReviewCampaignRef[];
+  readonly authorityEvaluation: ArtifactRef;
 }
 
 interface ReviewerPrerequisiteRequest {
   readonly candidate: CandidateRevisionRef;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly reviewAuthority:
+    Extract<
+      CandidateReviewAuthorityMechanicalProjectionResult,
+      { readonly kind: "established" }
+    >;
 }
 
 type ReviewerPrerequisiteResolution =
@@ -2385,6 +2648,16 @@ type ReviewerPrerequisiteResolution =
       readonly kind: "blocked";
       readonly blockers: readonly OperationalBlocker[];
     };
+
+interface ReviewCurrentnessRequest {
+  readonly runId: GateARunId;
+  readonly stateRevision: StateRevision;
+  readonly candidate: CandidateRevisionRef;
+  readonly candidateLineage: readonly CandidateRevisionRef[];
+  readonly registeredCampaigns: readonly ReviewCampaignRef[];
+  readonly reviewAuthority:
+    CandidateReviewAuthorityMechanicalProjectionResult;
+}
 
 type ReviewCurrentnessResolution =
   | {
@@ -2405,51 +2678,256 @@ type ReviewCurrentnessResolution =
     };
 ```
 
-For `kind = established`:
+For preflight `kind = established`, require exactly:
 
 ```text
+subjectDerivation.candidateMaterialization ==
+    repositoryInspection.sealedBaselineCandidate.materialization
+
+reviewAuthority.kind == established
+
+reviewAuthority.candidateMaterialization ==
+    repositoryInspection.sealedBaselineCandidate.materialization
+
 baselineAuthority ==
-    request.repositoryInspection.baselineAuthority
+    repositoryInspection.baselineAuthority
 
 publicationTarget ==
-    request.repositoryInspection.publicationTarget
+    repositoryInspection.publicationTarget
 
-evidence is duplicate-free
+baselineSemanticSubject ==
+    subjectDerivation.semanticSubject
 
-every evidence ArtifactRef exists and is intact
+protocolBundle ==
+    reviewAuthority.protocolBundle
+
+subjectProjection ==
+    subjectDerivation.projection
+
+reviewAuthorityProjection ==
+    reviewAuthority.projection
 ```
+
+`evidence` remains duplicate-free and intact. Do not duplicate
+`subjectProjection` or `reviewAuthorityProjection` inside `evidence`.
+
+If `reviewAuthority.kind == "invalid"`, `PreflightResolution.kind == blocked`
+using exact M3-owned operational cause materialization rules to be closed by M3
+NIB-M. No campaign is created, baseline authority is not admitted, and the root
+preflight obligation remains outstanding.
 
 M7 observes and mechanically captures repository/Git facts.
 
-M3 interprets the exact immutable `RepositoryInspectionRef` under accepted
-campaign/repository authority.
+M3 interprets the exact immutable `RepositoryInspectionRef` and exact M6
+mechanical projections under accepted campaign/repository authority.
 
 M3 does not establish baseline authority or publication target by rereading a
-mutable repository path.
-
-M3 resolves the exact current protocol against the immutable inspected/sealed
-baseline material and accepted repository authority.
+mutable repository path. M3 does not invoke Python authority or derive `S`.
 
 M2 alone makes the resulting preflight facts authoritative.
 
-M3 derives `SemanticSubjectRef` only from the exact sealed candidate
-materialization. M7 does not derive `S`.
-
 A complete `CandidateRevisionRef` is constructed only after M7 has returned the
-sealed materialization and M3 has returned the exact derived semantic subject.
-M2 then validates and registers that complete candidate identity.
+sealed materialization and M6 has returned the exact mechanically derived
+semantic subject. M2 then validates and registers that complete candidate
+identity.
 
-M3 selects current campaigns solely by exact `(S, P)` through existing repository authority. Candidate, run, and repository provenance never filter `currentCampaigns`. Invalid evidence yields `blocked`; M3 must not omit it and continue with a convenient subset.
+For `ReviewCurrentnessRequest`, require exactly:
 
-A `ReviewContext` used for new execution must use the exact production candidate recorded by its runner-owned campaign provenance. Reusing a current campaign to qualify a later same-`(S, P)` candidate does not create new executions under rewritten provenance.
+```text
+candidate.runId == runId
 
-`campaign-required` is never emitted for CandidateRevision change alone when exact `(S, P)` is unchanged and at least one current campaign exists.
+candidateLineage is duplicate-free
+candidateLineage ordered by ordinal ascending
+candidateLineage ordinals contiguous from 0
+candidate == final candidateLineage item
 
-For every `campaign-required` result, M1 must obtain `ReviewerPrerequisiteResolution.kind = "established"` before committing a new ReviewCampaign. A blocked prerequisite creates no campaign and projects `OPERATOR-ACTION-REQUIRED` after the blockers are committed.
+every candidateLineage item belongs to runId
 
-`established` is valid only when the exact protocol bundle registers a non-empty set of `frontier_eligible == true` reviewer profiles that satisfies every protocol-declared reviewer-qualification prerequisite for the required review class, and `qualifyingReviewerProfileIds` is the exact duplicate-free subser of those registered profile IDs. An empty or insufficient registered set MUST be `blocked` with exact operational blockers. M1 and M3 never establish a resolution from runner configuration, environment, or a model alias absent from the protocol bundle.
+registeredCampaigns contains the complete GateARunSnapshot.reviewCampaigns
+sequence
 
-`PROTOCOL-CHANGED` requires one full new current-`P` campaign plus accepted stale-protocol re-adjudication. It is not permission to mutate any old ReviewCampaign.
+reviewAuthority.candidateMaterialization ==
+    candidate.materialization
+```
+
+`reviewAuthority.kind == invalid` produces
+`ReviewCurrentnessResolution.kind == blocked`. M3 does not use partial review
+records.
+
+For every established mechanically projected repository review, if no
+registered campaign has its `reviewId`, M3 constructs exactly:
+
+```ts
+{
+  reviewCampaignId: review.reviewId,
+  provenance: {
+    kind: "repository-imported",
+    originatingRunId: null,
+    candidateId: null,
+    repositoryCommitSha: review.repositoryCommitSha
+  },
+  semanticSubject: review.semanticSubject,
+  protocolBundle: review.protocolBundle
+}
+```
+
+If a registered campaign has the same `ReviewCampaignId`, require compatible
+immutable bindings. For an existing runner-produced campaign require:
+
+```text
+existing.semanticSubject == review.semanticSubject
+existing.protocolBundle == review.protocolBundle
+existing.provenance.repositoryAuthority.commitSha ==
+    review.repositoryCommitSha
+```
+
+For an existing repository-imported campaign require:
+
+```text
+existing.semanticSubject == review.semanticSubject
+existing.protocolBundle == review.protocolBundle
+existing.provenance.repositoryCommitSha ==
+    review.repositoryCommitSha
+```
+
+Then reuse the existing campaign identity. Do not create an imported duplicate.
+Any same-ID incompatibility fails closed. Never retarget the existing campaign,
+create a second campaign for the same `review_id`, tie-break by record
+path/hash/order, or fabricate repository tree identity.
+
+For an established review-authority projection, define the campaign universe as
+all registered `ReviewCampaignRef` values plus every newly observed mechanically
+valid repository `ReviewCampaignRef`. Merge only by exact `ReviewCampaignId`.
+Exact duplicate identity plus exact compatible payload is one logical campaign.
+The same identity plus incompatible immutable payload fails closed.
+
+Define:
+
+```text
+S = request.candidate.semanticSubject
+P = request.reviewAuthority.protocolBundle
+
+currentCampaigns =
+    every campaign in campaign universe where:
+        campaign.semanticSubject == S
+        AND
+        campaign.protocolBundle == P
+
+staleProtocolCampaigns =
+    every campaign in campaign universe where:
+        campaign.semanticSubject == S
+        AND
+        campaign.protocolBundle != P
+```
+
+Candidate, run, and repository provenance do not filter either set. Sort both by
+`ReviewCampaignId` unsigned ASCII ascending.
+
+Apply exact precedence:
+
+```text
+if currentCampaigns is non-empty:
+    return current
+
+else if staleProtocolCampaigns is non-empty:
+    return campaign-required(PROTOCOL-CHANGED)
+
+else if candidate.ordinal > 0
+     AND immediate parent candidate semanticSubject != S:
+    return campaign-required(SUBJECT-CHANGED)
+
+else:
+    return campaign-required(INITIAL)
+```
+
+The immediate parent is exactly:
+
+```text
+candidateLineage[candidate.ordinal - 1]
+```
+
+No historical repository campaign over another subject may substitute for this
+parent comparison.
+
+`INITIAL` means the required first campaign for the currently applicable exact
+subject/protocol when neither a current campaign nor a same-subject stale-P
+campaign explains the requirement.
+
+`PROTOCOL-CHANGED` takes precedence over `SUBJECT-CHANGED` when same-subject
+stale-P campaigns exist, because current-P campaign creation and stale-P
+re-adjudication are required.
+
+CandidateRevision change alone never produces campaign-required when a current
+exact `(S, P)` campaign exists.
+
+M3 canonical-serializes and seals exactly one
+`GateACampaignAuthorityEvaluationV1` artifact for every successful `current`
+resolution. Repository observations are ordered by `ReviewCampaignId` unsigned
+ASCII ascending. The witness is runner-owned immutable provenance.
+
+Require exact authority-evaluation bindings:
+
+```text
+authorityEvaluation.runId == context.runId
+
+authorityEvaluation.stateRevision == request.stateRevision
+
+authorityEvaluation.reviewAuthorityProjection ==
+    request.reviewAuthority.projection
+
+authorityEvaluation.qualificationCandidateId ==
+    context.qualificationCandidate.candidateId
+
+authorityEvaluation.semanticSubject ==
+    context.semanticSubject
+
+authorityEvaluation.protocolBundle ==
+    context.protocolBundle
+
+authorityEvaluation.currentReviewCampaignIds ==
+    context.currentCampaigns.map(reviewCampaignId)
+
+authorityEvaluation.staleProtocolReviewCampaignIds ==
+    context.staleProtocolCampaigns.map(reviewCampaignId)
+```
+
+A `ReviewContext` used for new execution must use the exact production candidate
+recorded by its runner-produced campaign provenance. Reusing a current campaign
+to qualify a later same-`(S, P)` candidate does not create new executions under
+rewritten provenance.
+
+For every `campaign-required` result, M1 must obtain
+`ReviewerPrerequisiteResolution.kind = "established"` before committing a new
+ReviewCampaign. A blocked prerequisite creates no campaign and projects
+`OPERATOR-ACTION-REQUIRED` after the blockers are committed.
+
+Reviewer-prerequisite requests require exactly:
+
+```text
+reviewAuthority.candidateMaterialization ==
+    candidate.materialization
+
+reviewAuthority.protocolBundle ==
+    protocolBundle
+
+candidate.semanticSubject ==
+    semanticSubject
+```
+
+For `kind = established`, `qualifyingReviewerProfileIds` must be the complete
+set of protocol-registered profiles that satisfy every accepted
+reviewer/profile prerequisite for the required Gate A review class. M3 may not
+choose an arbitrary subset. The order is `profileId` unsigned ASCII ascending.
+
+If the complete mechanically projected registry cannot satisfy the applicable
+minimum/prerequisite contract, the result is `blocked` with exact operational
+blockers. M1 and M3 never establish a resolution from runner configuration,
+environment, an unregistered model alias, or a model alias absent from the
+protocol bundle.
+
+`PROTOCOL-CHANGED` requires one full new current-`P` campaign plus accepted
+stale-protocol re-adjudication. It is not permission to mutate any old
+ReviewCampaign.
 
 ### M4
 
@@ -2780,10 +3258,91 @@ schema-v3 receipt.
 ### M6
 
 ```ts
+interface CandidateSubjectMechanicalDerivationRequest {
+  readonly runId: GateARunId;
+  readonly candidateMaterialization: ArtifactRef;
+}
+
+interface GateASubjectMechanicalProjectionV1 {
+  readonly schema: "gate-a-subject-mechanical-projection.v1";
+  readonly runId: GateARunId;
+  readonly candidateMaterialization: ArtifactRef;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly evidence: readonly ArtifactRef[];
+}
+
+interface CandidateSubjectMechanicalDerivationResult {
+  readonly candidateMaterialization: ArtifactRef;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly projection: ArtifactRef;
+  readonly evidence: readonly ArtifactRef[];
+}
+
+interface GateAReviewerProfileMechanicalFactV1 {
+  readonly profileId: string;
+  readonly provider: string;
+  readonly requestModel: string;
+  readonly frontierEligible: boolean;
+  readonly identityResolution:
+    | {
+        readonly kind: "provider-reported";
+      }
+    | {
+        readonly kind: "pinned-request-model";
+        readonly requestModelIsImmutableVersion: boolean;
+      };
+}
+
+interface GateARepositoryReviewMechanicalFactV1 {
+  readonly reviewId: ReviewCampaignId;
+  readonly sourceRecord: ArtifactRef;
+  readonly repositoryCommitSha: string;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+}
+
+interface GateAReviewAuthorityMechanicalProjectionV1 {
+  readonly schema: "gate-a-review-authority-mechanical-projection.v1";
+  readonly runId: GateARunId;
+  readonly candidateMaterialization: ArtifactRef;
+  readonly protocolBundle: ProtocolBundleRef;
+  readonly minimumIndependentReviewers: number;
+  readonly reviewerProfiles:
+    readonly GateAReviewerProfileMechanicalFactV1[];
+  readonly repositoryReviews:
+    readonly GateARepositoryReviewMechanicalFactV1[];
+  readonly evidence: readonly ArtifactRef[];
+}
+
+interface CandidateReviewAuthorityMechanicalProjectionRequest {
+  readonly runId: GateARunId;
+  readonly candidateMaterialization: ArtifactRef;
+}
+
+type CandidateReviewAuthorityMechanicalProjectionResult =
+  | {
+      readonly kind: "established";
+      readonly candidateMaterialization: ArtifactRef;
+      readonly protocolBundle: ProtocolBundleRef;
+      readonly minimumIndependentReviewers: number;
+      readonly reviewerProfiles:
+        readonly GateAReviewerProfileMechanicalFactV1[];
+      readonly repositoryReviews:
+        readonly GateARepositoryReviewMechanicalFactV1[];
+      readonly projection: ArtifactRef;
+      readonly evidence: readonly ArtifactRef[];
+    }
+  | {
+      readonly kind: "invalid";
+      readonly candidateMaterialization: ArtifactRef;
+      readonly projection: ArtifactRef;
+      readonly diagnostics: ArtifactRef;
+      readonly evidence: readonly ArtifactRef[];
+    };
+
 interface CognitiveAttemptValidationRequest {
   readonly kind: "cognitive-attempt";
   readonly runId: GateARunId;
-  readonly repositoryPath: string;
   readonly executionRequest: CognitiveExecutionRequest;
   readonly capturedResult: CapturedExecutionResult;
 }
@@ -2814,13 +3373,11 @@ type MechanicalValidationRequest =
       readonly kind: "repository-integrity";
       readonly runId: GateARunId;
       readonly candidate: CandidateRevisionRef;
-      readonly repositoryPath: string;
     }
   | {
       readonly kind: "gate-a-qualification";
       readonly runId: GateARunId;
       readonly candidate: CandidateRevisionRef;
-      readonly repositoryPath: string;
       readonly reviewReadiness: CandidateReviewReadinessRef;
     }
   | {
@@ -2855,6 +3412,142 @@ type MechanicalValidationResult =
       readonly evidence: readonly ArtifactRef[];
     };
 ```
+
+For subject derivation, require exactly:
+
+```text
+result.candidateMaterialization == request.candidateMaterialization
+
+projection is the sealed canonical runner-owned representation of the exact
+GateASubjectMechanicalProjectionV1
+
+projection.candidateMaterialization == request.candidateMaterialization
+
+projection.semanticSubject == result.semanticSubject
+
+projection.evidence == result.evidence
+```
+
+The exact subject must come from the existing Turnlock Python subject authority.
+The supported thin Python entry point must delegate to the existing checker
+implementation that owns Gate A subject construction.
+
+M6 must not reproduce in TypeScript:
+
+```text
+subject payload construction
+authority artifact hashing
+claim normalization
+normative-coverage normalization
+formal semantic-domain canonicalization
+canonical JSON hashing
+Gate A subject selector semantics
+```
+
+There is no `kind = invalid`, `kind = blocked`, or `semanticSubject = null`
+branch for subject derivation.
+
+If the existing mechanical authority executes trustworthily and establishes
+that the exact candidate cannot produce a Gate A subject, including duplicate
+`formal_semantic_domain` ID, missing required subject authority artifact,
+ambiguous required subject authority, or another trustworthy
+subject-construction integrity failure, the result is:
+
+```text
+repository/candidate integrity failure
+no CandidateSubjectMechanicalDerivationResult
+no CampaignBlocker
+no OperationalBlocker
+no Operator Action Request
+no OPERATOR-ACTION-REQUIRED
+no DECISION-REQUIRED
+```
+
+If trustworthy Python authority cannot be obtained because the mechanism itself
+is unreliable, the result is an implementation/process/integrity/dependency
+failure and no `CandidateSubjectMechanicalDerivationResult`.
+
+Transient local/process/resource failure is invocation failure, creates no
+`CampaignBlocker`, and permits retry from durable state.
+
+For review-authority `kind = established`, require exactly:
+
+```text
+candidateMaterialization == request.candidateMaterialization
+
+projection is a sealed canonical
+GateAReviewAuthorityMechanicalProjectionV1
+
+projection.protocolBundle ==
+    result.protocolBundle
+
+projection.minimumIndependentReviewers ==
+    result.minimumIndependentReviewers
+
+projection.reviewerProfiles ==
+    result.reviewerProfiles
+
+projection.repositoryReviews ==
+    result.repositoryReviews
+
+projection.evidence ==
+    result.evidence
+```
+
+`minimumIndependentReviewers` is mechanically projected from the applicable
+hostile-review policy. It is not added to protocol identity `P`.
+
+`reviewerProfiles` is the complete validated current-`P` registry, ordered by
+`profileId` unsigned ASCII ascending. M6 does not select
+`qualifyingReviewerProfileIds`.
+
+`repositoryReviews` is the complete mechanically valid Gate A
+assurance-decomposition review-record corpus selected by the exact candidate
+authority, ordered by `reviewId` unsigned ASCII ascending.
+
+For each item:
+
+```text
+reviewId == exact record.review_id
+repositoryCommitSha == exact record.repository_commit
+semanticSubject == exact unique Gate A record subject
+protocolBundle == exact record protocol bundle
+sourceRecord == exact sealed/ingested record bytes
+```
+
+Duplicate `review_id` is invalid authority; never tie-break.
+Malformed/referentially invalid review evidence is never silently omitted.
+
+The `invalid` branch is legal only when the existing Python authority executed
+trustworthily and established an invalid protocol/review-authority condition.
+Failure to execute or trust the Python authority is not `kind = invalid`; it is
+an implementation/process/integrity/dependency failure outside this union.
+
+M6 must use supported thin Python authority entry points delegating to existing
+checker logic.
+
+M6 must not reimplement in TypeScript:
+
+```text
+current protocol validation
+protocol predecessor-chain validation
+meta-schema selection
+review-evidence schema validation
+packet binding
+prompt/schema/reference validation
+execution-receipt validation
+review-record integrity
+```
+
+Candidate-scoped M6 validation is bound to the exact candidate materialization
+already reachable from the request's candidate/review context.
+
+A caller-supplied mutable repository path is never candidate authority.
+
+The future M6 NIB-M owns the exact ephemeral checker-input realization needed
+to run the existing Python authority.
+
+`PublishedRepositoryViewRef` remains the post-publication exact view contract.
 
 For `cognitive-attempt`, M6 must invoke a supported thin Python entry point
 that delegates to the existing hostile-review checker authority. It must not
@@ -5217,9 +5910,23 @@ run(command):
         require inspection_result.kind == observed
         inspection = inspection_result.inspection
 
+        subject_derivation = mechanical_validation.derive_candidate_subject({
+            runId: run.runId,
+            candidateMaterialization:
+                inspection.sealedBaselineCandidate.materialization
+        })
+
+        review_authority = mechanical_validation.project_candidate_review_authority({
+            runId: run.runId,
+            candidateMaterialization:
+                inspection.sealedBaselineCandidate.materialization
+        })
+
         preflight = campaign_authority.preflight({
             runId: run.runId,
-            repositoryInspection: inspection
+            repositoryInspection: inspection,
+            subjectDerivation: subject_derivation,
+            reviewAuthority: review_authority
         })
 
         if preflight is blocked:
@@ -5240,6 +5947,8 @@ run(command):
                 inspection.sealedBaselineCandidate.materialization,
                 ...inspection.sealedBaselineCandidate.materializationEvidence,
                 ...inspection.evidence,
+                preflight.subjectProjection,
+                preflight.reviewAuthorityProjection,
                 ...preflight.evidence
             ]
 
@@ -5258,22 +5967,21 @@ run(command):
                 baselineAuthority: preflight.baselineAuthority,
                 publicationTarget: preflight.publicationTarget,
                 protocolBundle: preflight.protocolBundle,
+                baselineSemanticSubject: preflight.baselineSemanticSubject,
+                subjectProjection: preflight.subjectProjection,
+                reviewAuthorityProjection: preflight.reviewAuthorityProjection,
                 preflightEvidence: preflight.evidence,
                 rootObligationDisposition: root_preflight_disposition
             }
 
         snapshot = committed snapshot
 
-        candidate_subject = campaign_authority.derive_subject({
-            sealedCandidate: inspection.sealedBaselineCandidate
-        })
-
         candidate = construct complete CandidateRevision:
             runId = run.runId,
             ordinal = 0,
             parentCandidateId = null,
             materialization = inspection.sealedBaselineCandidate.materialization,
-            semanticSubject = candidate_subject.semanticSubject,
+            semanticSubject = snapshot.preflightSemanticSubject,
             producedByRepairIntentId = null
 
         commit through M2 one exact AdmitCandidateV1:
@@ -5408,9 +6116,23 @@ run(command):
             require inspection_result.kind == observed
             inspection = inspection_result.inspection
 
+            subject_derivation = mechanical_validation.derive_candidate_subject({
+                runId: run.runId,
+                candidateMaterialization:
+                    inspection.sealedBaselineCandidate.materialization
+            })
+
+            review_authority = mechanical_validation.project_candidate_review_authority({
+                runId: run.runId,
+                candidateMaterialization:
+                    inspection.sealedBaselineCandidate.materialization
+            })
+
             preflight = campaign_authority.preflight({
                 runId: run.runId,
-                repositoryInspection: inspection
+                repositoryInspection: inspection,
+                subjectDerivation: subject_derivation,
+                reviewAuthority: review_authority
             })
 
             if preflight is blocked:
@@ -5431,6 +6153,8 @@ run(command):
                     inspection.sealedBaselineCandidate.materialization,
                     ...inspection.sealedBaselineCandidate.materializationEvidence,
                     ...inspection.evidence,
+                    preflight.subjectProjection,
+                    preflight.reviewAuthorityProjection,
                     ...preflight.evidence
                 ]
 
@@ -5449,21 +6173,49 @@ run(command):
                     baselineAuthority: preflight.baselineAuthority,
                     publicationTarget: preflight.publicationTarget,
                     protocolBundle: preflight.protocolBundle,
+                    baselineSemanticSubject: preflight.baselineSemanticSubject,
+                    subjectProjection: preflight.subjectProjection,
+                    reviewAuthorityProjection: preflight.reviewAuthorityProjection,
                     preflightEvidence: preflight.evidence,
                     rootObligationDisposition: root_preflight_disposition
                 }
             snapshot = committed snapshot
-
-            candidate_subject = campaign_authority.derive_subject({
-                sealedCandidate: inspection.sealedBaselineCandidate
-            })
 
             candidate = construct complete CandidateRevision:
                 runId = run.runId,
                 ordinal = 0,
                 parentCandidateId = null,
                 materialization = inspection.sealedBaselineCandidate.materialization,
-                semanticSubject = candidate_subject.semanticSubject,
+                semanticSubject = snapshot.preflightSemanticSubject,
+                producedByRepairIntentId = null
+
+            commit through M2 one exact AdmitCandidateV1:
+                {
+                    kind: "admit-candidate",
+                    sealedCandidate: inspection.sealedBaselineCandidate,
+                    candidate
+                }
+            snapshot = committed snapshot
+
+        if snapshot.repositoryInspection != null
+           and snapshot.candidates is empty:
+            require snapshot.preflightSemanticSubject != null
+            require snapshot.preflightProtocolBundle != null
+            require snapshot.preflightSubjectProjection != null and intact
+            require snapshot.preflightReviewAuthorityProjection != null and intact
+            require snapshot.currentCandidate == null
+            require root_preflight_obligation is satisfied by the exact retained
+                EstablishPreflightV1
+
+            inspection = snapshot.repositoryInspection
+
+            candidate = construct complete CandidateRevision:
+                runId = run.runId,
+                ordinal = 0,
+                parentCandidateId = null,
+                materialization =
+                    inspection.sealedBaselineCandidate.materialization,
+                semanticSubject = snapshot.preflightSemanticSubject,
                 producedByRepairIntentId = null
 
             commit through M2 one exact AdmitCandidateV1:
@@ -5536,24 +6288,53 @@ run(command):
         if snapshot is effectively terminal:
             return project_runner_result(snapshot)
 
-        currentness = revalidate_current_authority_and_currentness(snapshot)
+        require snapshot.currentCandidate != null
+
+        review_authority =
+            mechanical_validation.project_candidate_review_authority({
+                runId: run.runId,
+                candidateMaterialization:
+                    snapshot.currentCandidate.materialization
+            })
+
+        currentness =
+            campaign_authority.resolve_currentness({
+                runId: run.runId,
+                stateRevision: snapshot.stateRevision,
+                candidate: snapshot.currentCandidate,
+                candidateLineage: snapshot.candidates,
+                registeredCampaigns: snapshot.reviewCampaigns,
+                reviewAuthority: review_authority
+            })
 
         if currentness.kind == "campaign-required":
             prerequisites = campaign_authority.verify_reviewer_prerequisites({
                 candidate: currentness.candidate,
                 semanticSubject: currentness.semanticSubject,
-                protocolBundle: currentness.currentProtocolBundle
+                protocolBundle: currentness.currentProtocolBundle,
+                reviewAuthority:
+                    require established review_authority
             })
 
             if prerequisites.kind == "blocked":
                 commit exact operational blockers through M2
                 return OPERATOR-ACTION-REQUIRED projection
 
-            campaign = construct exactly one full ReviewCampaign(
-                exact current candidate provenance,
-                exact current repository authority,
-                currentness.semanticSubject,
-                currentness.currentProtocolBundle,
+            campaign = construct exactly one full runner-produced ReviewCampaign(
+                logical slot =
+                    run.runId,
+                    currentness.semanticSubject,
+                    currentness.currentProtocolBundle,
+                reviewCampaignId = deriveReviewCampaignId(
+                    "review-campaign.v1",
+                    run.runId,
+                    currentness.semanticSubject.selector,
+                    currentness.semanticSubject.sha256,
+                    currentness.currentProtocolBundle.protocolId,
+                    currentness.currentProtocolBundle.sha256
+                ),
+                provenance = exact current candidate plus exact current full
+                    repository authority,
                 prerequisites.qualifyingReviewerProfileIds,
                 prerequisites.evidence
             )
@@ -5574,8 +6355,16 @@ run(command):
         evaluation_context = currentness.context
 
         require evaluation_context.currentCampaigns
-            == complete repository-selected campaign set for exact (S, P)
-            without candidate/repository provenance filtering
+            == complete canonical campaign set after exact M3 merge of:
+                already registered campaigns
+                plus newly mechanically valid repository observations
+            for exact (S, P)
+            without candidate/run/repository provenance filtering
+
+        require no registered campaign is forgotten because it was produced
+            under another candidate or repository provenance
+
+        require invalid evidence was not silently omitted
 
         if operational blocker exists:
             return OPERATOR-ACTION-REQUIRED projection
@@ -5622,9 +6411,17 @@ run(command):
             require sealed_successor.sealedCandidate.producedByRepairIntentId ==
                 repair_intent.repairIntentId
 
-            successor_subject = campaign_authority.derive_subject({
-                sealedCandidate: sealed_successor.sealedCandidate
+            successor_subject = mechanical_validation.derive_candidate_subject({
+                runId: run.runId,
+                candidateMaterialization:
+                    sealed_successor.sealedCandidate.materialization
             })
+
+            if M6 does not produce a trustworthy subject result:
+                admit no successor CandidateRevision
+                leave RepairIntent unconsumed
+                fabricate no CampaignBlocker
+                fail invocation outside normal RunnerResult
 
             successor = construct complete CandidateRevision:
                 runId =
@@ -5799,7 +6596,6 @@ run(command):
                 attempt_validation = mechanical_validation.validate_cognitive_attempt({
                     kind: cognitive-attempt,
                     runId: run.runId,
-                    repositoryPath: exact candidate repository path,
                     executionRequest: exact CognitiveExecutionRequest,
                     capturedResult: exact CapturedExecutionResult
                 })
@@ -6171,16 +6967,33 @@ run(command):
             continue
 ```
 
-An incomplete bootstrap preflight is resumed only after the exact root preflight
-obligation is still outstanding and no OperationalBlocker remains outstanding.
-Resolving an operational blocker does not itself satisfy the preflight
-obligation, establish repository authority, create the initial candidate, or
-authorize normal campaign progression. M1 must re-run the existing M3 preflight
-boundary and, on success, complete the same baseline-authority,
-publication-target, root-obligation, sealed-candidate, semantic-subject, and
-CandidateRevision ordinal-0 construction used by `start`. If preflight blocks
-again, the newly established exact blockers are committed and the run remains
+An incomplete bootstrap before preflight establishment is resumed only after
+the exact root preflight obligation is still outstanding and no
+`OperationalBlocker` remains outstanding. Resolving an operational blocker does
+not itself satisfy the preflight obligation, establish repository authority,
+create the initial candidate, or authorize normal campaign progression. M1 must
+re-run repository inspection, M6 subject derivation, M6 review-authority
+projection, and M3 preflight interpretation. If preflight blocks again, the
+newly established exact blockers are committed and the run remains
 `OPERATOR-ACTION-REQUIRED`.
+
+Subject derivation failure before `EstablishPreflightV1` creates no
+authoritative baseline fact, creates no `CampaignBlocker`, leaves the root
+preflight obligation outstanding, and fails the invocation outside normal
+`RunnerResult`. A later invocation may re-run repository inspection because
+baseline authority was never established.
+
+After the unique `EstablishPreflightV1` but before C0 admission, the legal
+incomplete-bootstrap state is resumed from exact retained preflight authority.
+M1 loads the exact retained `RepositoryInspectionRef`, verifies all retained
+preflight projection fields and `ArtifactRef` values, constructs C0 from the
+exact retained sealed baseline candidate and `preflightSemanticSubject`, and
+commits exact `AdmitCandidateV1`. M1 does not rerun repository inspection,
+reread mutable `repositoryPath`, select another baseline, rederive `S` from
+mutable state, select another protocol, or replace the sealed baseline
+candidate. Missing, corrupt, or contradictory retained subject/review
+projections are retained-authority integrity failure and produce no normal
+`RunnerResult`.
 
 After an accepted operator `request-operational-recheck` resolution, ordinary
 orchestration may invoke repository inspection again against the current
@@ -6190,15 +7003,19 @@ observations, or convert a prior cause descriptor into repository truth. Each
 new inspection returns either `observed` or one fresh producer cause under the
 current exact state.
 
-The initial-run and incomplete-preflight order is therefore always:
+The initial-run and preflight-establishment order is therefore always:
 
 ```text
-M7 repository inspection/capture
-→ M3 interpretation of the immutable RepositoryInspectionRef
-→ one M2 EstablishPreflightV1 admission
-→ semantic-subject derivation from the retained sealed baseline candidate
-→ C0 admission through M2 using that same sealed baseline candidate
+M7 inspect repository and seal baseline candidate
+→ M6 derive exact S from the sealed baseline candidate materialization
+→ M6 project exact hostile-review authority from the same materialization
+→ M3 preflight interpretation
+→ M2 EstablishPreflightV1 retaining S/P mechanical witnesses
+→ M2 AdmitCandidateV1(C0)
 ```
+
+M1 owns this sequencing. M6 does not call M3. M3 does not call M6. Neither
+writes M2 directly.
 
 There is no separate initial-candidate sealing operation after baseline
 authority becomes authoritative, and no authoritative StateRevision may expose
@@ -6277,11 +7094,13 @@ The implementation must preserve all of the following.
 ```text
 GI-01  RunnerSession != GateARun != ReviewCampaign.
 GI-02  ReviewCampaign provenance is permanently bound to its exact production
-       candidate/run identity when runner-owned, exact repository authority,
-       exact S, and exact P; currentness is independently derived from (S, P).
+       candidate/run/full repository authority when runner-produced, or to null
+       runner/candidate plus exact repository_commit when repository-imported,
+       and always to exact S and exact P; currentness is independently derived
+       from (S, P).
 GI-03  CandidateRevision is constructed only from a sealed candidate
-       materialization plus its exact derived semantic subject and is immutable
-       after admission.
+       materialization plus its exact M6 mechanically derived semantic subject
+       and is immutable after admission.
 GI-04  A repair that changes S requires a full new ReviewCampaign; a
        CandidateRevision-only change with unchanged (S, P) does not.
 GI-05  A protocol change never rewrites historical campaign evidence.
