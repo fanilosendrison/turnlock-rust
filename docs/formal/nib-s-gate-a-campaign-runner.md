@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "7.0.2"
+version: "7.0.3"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -410,6 +410,49 @@ exact ReviewCurrentnessRequest/currentness algorithm
 ```
 
 This revision changes implementation-construction authority only.
+
+No TURNLOCK product semantics change.
+No hostile-review protocol semantics change.
+No canonical formal semantics change.
+No verification evidence change.
+No product ADR is created.
+
+Version `7.0.3` closes the M4 non-recovery operational-blocker
+producer-ownership gap before M4-A Module Brief authoring without changing
+TURNLOCK product semantics, hostile-review protocol semantics, canonical formal
+semantics, or verification evidence.
+
+`NonRecoveryOperationalBlockerProducerV1` now includes
+`"cognitive-execution"`. This makes the already-required unavailable-provider-
+credential operational path representable as exact M4-owned producer cause
+material through the existing non-recovery operator boundary.
+
+M4 owns the cognitive-execution cause schema and domain meaning.
+
+M8-B remains the sole owner of `BlockerId`, Operator Action Request
+construction, and `OperationalBlocker` materialization.
+
+M2 remains the sole authoritative state-admission boundary.
+
+This change does not grant M4 authority to construct `OperationalBlocker`,
+assign recovery classifications, invent operator resolutions, or reinterpret
+cognitive execution truth.
+
+The construction discovery classifications recorded by this revision are:
+
+```text
+unavailable required provider credential requires OPERATOR-ACTION-REQUIRED,
+but cognitive-execution is absent from NonRecoveryOperationalBlockerProducerV1
+→ authority-conflict-or-uncertain
+
+adding cognitive-execution to the closed producer union while preserving
+M4 producer-domain cause meaning, M8-B blocker-materialization ownership,
+and M2 authoritative-admission ownership
+→ derived-from-existing-authority
+
+exact union-member addition
+→ no-normative-impact construction mechanism
+```
 
 No TURNLOCK product semantics change.
 No hostile-review protocol semantics change.
@@ -3957,6 +4000,7 @@ type ClassifyUnresolvedExecutionResult =
 
 type NonRecoveryOperationalBlockerProducerV1 =
   | "campaign-authority"
+  | "cognitive-execution"
   | "assurance-ledger"
   | "mechanical-validation"
   | "repository-control";
