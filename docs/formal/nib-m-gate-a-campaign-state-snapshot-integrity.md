@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "2.0.4"
+version: "3.0.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,7 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `7.0.4`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `8.0.0`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -664,6 +664,7 @@ findings
 adjudications
 reAdjudications
 repairIntents
+assuranceRepositoryProjections
 decisionRequests
 ```
 
@@ -674,9 +675,12 @@ introducedRevision ascending
 then primary logical ID ascending
 ```
 
-No currentness filtering occurs here.
+For `assuranceRepositoryProjections`, ordering is introduced revision ascending,
+then `projectionId` ascending. Every projection remains visible after
+consumption. Consumption is derived only from retained candidate provenance;
+there is no mutable consumed state.
 
-M3/M5 own applicability.
+No currentness filtering occurs here. M3/M5 own applicability.
 
 ## 8. Candidate review readiness
 
@@ -726,7 +730,11 @@ else:
 
 This field is not M3 currentness authority.
 
-M1 must still compare it to a fresh `GateAEvaluationContext` before use.
+If the current candidate has an unconsumed assurance projection,
+`candidateReviewReadiness` must be null. A retained non-null designation in that
+state is `INTEGRITY_FAILURE`.
+
+M1 must still compare readiness to a fresh `GateAEvaluationContext` before use.
 
 ## 9. Blockers
 
@@ -918,87 +926,78 @@ candidate.materialization ==
     sealedCandidate.materialization
 ```
 
-For C0 retain the existing preflight binding and require:
+For C0 retain all accepted preflight, lineage, and crash-resume bindings and
+require:
 
 ```text
-candidate.semanticSubject ==
-    preflightSemanticSubject
-
+candidate.semanticSubject == preflightSemanticSubject
 candidate.parentCandidateId == null
-
 candidate.producedByRepairIntentId == null
-
+candidate.producedByAssuranceProjectionId == null
 sealedCandidate.parentCandidateId == null
-
 sealedCandidate.producedByRepairIntentId == null
+sealedCandidate.producedByAssuranceProjectionId == null
 ```
 
-For every Cn+1:
-
-Let:
-
-```text
-P = exact immediately previous CandidateRevision in the linear lineage
-
-R = exact retained RepairIntentRef named by:
-    candidate.producedByRepairIntentId
-```
+For every Cn+1, let `P` be the exact immediate lineage parent, `R` the exact
+retained repair named by nullable repair provenance, and `A` the exact retained
+projection named by nullable assurance provenance.
 
 Require:
+
+```text
+R != null OR A != null
+candidate.parentCandidateId == P.candidateId
+sealedCandidate.parentCandidateId == P.candidateId
+candidate.producedByRepairIntentId ==
+    sealedCandidate.producedByRepairIntentId
+candidate.producedByAssuranceProjectionId ==
+    sealedCandidate.producedByAssuranceProjectionId
+candidate.materialization == sealedCandidate.materialization
+sealedCandidate.materializationEvidence contains exact P.materialization
+```
+
+If `R != null`:
 
 ```text
 R exists exactly once
-
 R.runId == runId
-
 R.candidateId == P.candidateId
-
-candidate.parentCandidateId ==
-    P.candidateId
-
-sealedCandidate.parentCandidateId ==
-    P.candidateId
-
-candidate.producedByRepairIntentId ==
-    R.repairIntentId
-
-sealedCandidate.producedByRepairIntentId ==
-    R.repairIntentId
-
-candidate.materialization ==
-    sealedCandidate.materialization
+sealedCandidate.materializationEvidence contains exact R.approvedPatch
 ```
 
-Require:
+Otherwise both repair provenance fields are null.
+
+If `A != null`:
 
 ```text
-sealedCandidate.materializationEvidence contains exact:
-    P.materialization
-
-sealedCandidate.materializationEvidence contains exact:
-    R.approvedPatch
+A exists exactly once
+A.runId == runId
+A.sourceCandidateId == P.candidateId
+A.semanticSubject == P.semanticSubject
+sealedCandidate.materializationEvidence contains exact A.projection
 ```
 
-All referenced ArtifactRefs must remain intact.
+Otherwise both assurance provenance fields are null.
 
-During reconstruction require:
+For assurance-only, candidate subject equals both parent and projection subject.
+All referenced artifacts remain intact. Recompute candidate identity with
+`candidate-revision.v2` and both nullable provenance components.
+
+Require independently:
 
 ```text
-for every RepairIntentRef R:
-
-count(
-    candidates where
-    producedByRepairIntentId == R.repairIntentId
-) <= 1
+count(candidates naming each RepairIntent) <= 1
+count(candidates naming each AssuranceRepositoryProjection) <= 1
+at most one unconsumed projection exists per sourceCandidateId
 ```
 
-If two retained candidates name the same exact RepairIntent:
-
-```text
-INTEGRITY_FAILURE
-```
-
-There is no “choose latest candidate” recovery.
+A projection is unconsumed when no candidate names its projection ID. Duplicate
+consumption, competing pending projections, wrong parent/source, missing named
+provenance, both-null non-C0 provenance, provenance mismatch, missing exact
+source/repair/projection evidence, or assurance-only subject drift is
+`INTEGRITY_FAILURE`. Candidate lineage remains explicit, contiguous, and
+complete; there is no “choose latest” repair.
 
 ### 10.1 `gateQualification`
 
@@ -1425,20 +1424,16 @@ I62  Automatic later-PublicationIntent replacement after any prior Arm is
      permitted only when every relevant prior armed Execution has exact
      PROVEN-NOT-EXECUTED or exact PublicationNonApplicationRef disposition.
 
-I63  Every CandidateRevision is bound to the exact
-     SealedCandidateMaterializationRef admitted with it; their run and
-     materialization identities are exact, and their parent/repair provenance
-     agrees for the candidate's construction position.
+I63  Every CandidateRevision is bound to the exact sealed materialization;
+     run, materialization, parent, repair provenance, and assurance-projection
+     provenance agree exactly.
 
-I64  Every non-C0 CandidateRevision names exactly one retained RepairIntent
-     whose runId matches the GateARun and whose candidateId is the exact
-     immediately prior CandidateRevision; the admitted sealed candidate
-     retains both the exact source materialization and exact
-     RepairIntent.approvedPatch in its construction provenance.
+I64  Every non-C0 candidate names a retained RepairIntent, a retained
+     AssuranceRepositoryProjection, or both, bound to the exact immediate
+     parent and retaining every required exact provenance artifact.
 
-I65  One RepairIntent produces at most one CandidateRevision. A retained second
-     CandidateRevision naming the same RepairIntent is integrity failure; no
-     mutable RepairIntent-consumed flag exists.
+I65  One RepairIntent and one AssuranceRepositoryProjection each produce at
+     most one CandidateRevision; no mutable consumed flag exists.
 
 I66  The projected repositoryInspection is null exactly before preflight and,
      after preflight, equals the exact RepositoryInspectionRef retained by the
@@ -1474,6 +1469,13 @@ I74  Every ObligationRef introduced through EstablishOperationalBlockersV1 is
      referenced by at least one OperationalBlocker co-admitted in that same
      mutation; every such blocker references either an already-admitted
      obligation or exactly one obligation co-admitted by that mutation.
+
+I75  Every assurance-only successor preserves exact parent/projection subject.
+
+I76  At most one unconsumed assurance projection exists per source candidate.
+
+I77  CandidateReviewReadiness is null while the current candidate has an
+     unconsumed assurance projection.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -1503,9 +1505,12 @@ reconstructSnapshot(runId):
     verify legal established-preflight/zero-candidate state when applicable
     verify C0 sealedCandidate and preflightSemanticSubject binding
     verify candidate/sealed-materialization exact binding
-    verify every non-C0 candidate's exact parent RepairIntent binding
-    verify repaired sealed-candidate source/approvedPatch provenance
-    verify one-shot RepairIntent consumption
+    verify every non-C0 candidate's exact parent and R/A bindings
+    verify sealed-candidate source/repair/projection provenance
+    verify assurance-only subject preservation
+    verify one-shot RepairIntent and projection consumption
+    verify at most one unconsumed projection per source candidate
+    verify readiness is null while projection is pending
     verify ReviewCampaignId payload uniqueness and provenance variant bindings
     verify obligation/disposition graph
     verify EstablishOperationalBlockersV1 co-admitted obligation/blocker closure
