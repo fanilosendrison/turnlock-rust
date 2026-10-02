@@ -327,6 +327,22 @@ M3 requires no external Dependency Contract.
 
 M3 performs no Python/Git/provider invocation and no authoritative state write.
 
+M4 `cognitive-execution` is construction-decomposed into M4-A execution /
+capture and M4-B recovery observation.
+
+The active M4-A Module Brief is
+[`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md).
+It owns the immutable cognitive WorkItem operation, pre-Arm preparation,
+cognitive-call identity, durable execution journal and effect fence, selected
+cognitive dependency invocation, exact raw completion and runtime-evidence
+capture, the technical-failure versus uncertainty distinction, abort handling,
+and non-authoritative liveness telemetry.
+
+M4-B recovery observation remains separately scoped.
+
+Pi dependency-specific behavior remains owned by the separate Pi M4 Dependency
+Contract required before GREEN.
+
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
 
