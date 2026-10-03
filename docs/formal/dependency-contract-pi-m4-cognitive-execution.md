@@ -2,7 +2,7 @@
 
 Contract ID: `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION`
 
-Version: `1.0.0`
+Version: `1.0.1`
 
 Status: `active`
 
@@ -14,8 +14,13 @@ It consumes:
 
 ```text
 NIB-S-GATE-A-CAMPAIGN-RUNNER 9.0.1
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.0.4
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.0.5
 ```
+
+Version `1.0.1` closes the exact adapter interface, transient credential-store
+write, public stream-result call, strict UTF-8 failure mapping, unsealed result
+union, and M4-owned evidence-sealing boundary. It changes no backend
+qualification or execution behavior established by version `1.0.0`.
 
 It creates no TURNLOCK product semantics.
 It creates no hostile-review protocol semantics.
@@ -52,6 +57,34 @@ The five accepted adapter responsibilities are exactly:
 5. Exact provider-semantic textual completion and M4 journal/recovery evidence
    preserved before interpretation; never manufacture provider truth from Pi
    normalization or absence.
+
+The ownership boundary is exact:
+
+```text
+M4-A
+owns CampaignArtifactStore
+owns every ArtifactRef read
+owns every ArtifactRef verification
+owns prompt/packet byte reads
+owns strict UTF-8 decoding
+owns every evidence-artifact seal
+owns rawResult sealing
+owns terminal-evidence sealing
+owns terminal journal publication
+owns CognitiveExecutionCapture construction
+
+PiM4DependencyAdapterV1
+owns only Pi/provider realization
+receives no CampaignArtifactStore
+dereferences no ArtifactRef
+returns no ArtifactRef
+persists no evidence
+writes no M4 journal
+constructs no CognitiveExecutionCapture
+```
+
+The adapter receives already-verified runtime values and returns unsealed
+dependency facts.
 
 ## 2. Immutable dependency identity
 
@@ -115,7 +148,7 @@ qualify another request model
 Any exact M4 operation asking for another provider or requestModel is:
 
 ```text
-unsupported by DC version 1.0.0
+unsupported by DC version 1.0.1
 → DEPENDENCY-CONTRACT-VIOLATION
 → no fallback
 → no substitution
@@ -220,7 +253,72 @@ as identity namespaces even if string values accidentally resemble each other.
 
 ## 6. Dependency execution plan
 
-Define exactly:
+Define the exact planning request:
+
+```ts
+interface PiM4BuildExecutionPlanRequestV1 {
+  readonly schema:
+    "gate-a-pi-m4-build-execution-plan-request.v1";
+
+  readonly callId:
+    CognitiveCallId;
+
+  readonly reviewerProfileId:
+    string;
+
+  readonly provider:
+    string;
+
+  readonly requestModel:
+    string;
+}
+```
+
+No other field is permitted. In particular it contains no:
+
+```text
+ArtifactRef
+CognitiveExecutionOperationV1
+prompt
+packet
+credential
+AbortSignal
+CampaignArtifactStore
+ExecutionRef
+WorkItemRef
+StateRevision
+```
+
+M4-A has already validated the immutable operation and projects these exact four
+values into this request.
+
+Define the exact adapter interface:
+
+```ts
+interface PiM4DependencyAdapterV1 {
+  buildExecutionPlan(
+    request: PiM4BuildExecutionPlanRequestV1,
+  ): PiM4DependencyExecutionPlanV1;
+
+  invoke(
+    request: PiM4DependencyInvocationRequestV1,
+  ): Promise<PiM4DependencyInvocationResultV1>;
+}
+```
+
+`buildExecutionPlan` is intentionally synchronous. It MUST NOT:
+
+```text
+return Promise
+perform network I/O
+read credentials
+read environment auth
+read ArtifactRefs
+touch CampaignArtifactStore
+yield the event loop
+```
+
+Define the execution plan exactly:
 
 ```ts
 interface PiM4DependencyExecutionPlanV1 {
@@ -231,7 +329,7 @@ interface PiM4DependencyExecutionPlanV1 {
     "DC-PI-M4-GATE-A-COGNITIVE-EXECUTION";
 
   readonly contractVersion:
-    "1.0.0";
+    "1.0.1";
 
   readonly callId:
     CognitiveCallId;
@@ -280,6 +378,52 @@ interface PiM4DependencyExecutionPlanV1 {
 }
 ```
 
+Define the exact invocation request:
+
+```ts
+interface PiM4DependencyInvocationRequestV1 {
+  readonly schema:
+    "gate-a-pi-m4-dependency-invocation-request.v1";
+
+  readonly plan:
+    PiM4DependencyExecutionPlanV1;
+
+  readonly promptText:
+    string;
+
+  readonly packetText:
+    string;
+
+  readonly credential:
+    OAuthCredential;
+
+  readonly signal:
+    AbortSignal;
+
+  readonly onProviderActivity:
+    () => void;
+}
+```
+
+No other field is permitted. Specifically absent:
+
+```text
+ArtifactRef
+CampaignArtifactStore
+raw prompt bytes
+raw packet bytes
+journalRoot
+RunnerSessionId
+WorkItemRef
+ExecutionRef
+dispatch intent
+M2 state
+M8 recovery state
+```
+
+`promptText` and `packetText` are exact strings produced by M4-A from already
+verified immutable input artifacts.
+
 The plan is credential-free.
 
 It contains no:
@@ -298,11 +442,13 @@ session/process identity
 
 ## 7. Credential-free plan construction
 
-Plan construction happens during M4 `prepare()`.
+Plan construction happens during M4 `prepare()` through synchronous
+`buildExecutionPlan()`.
 
 It causes zero network effects.
 
-Algorithm exactly:
+`buildExecutionPlan()` receives only `PiM4BuildExecutionPlanRequestV1` and
+executes exactly:
 
 ```text
 1. Require exact provider == "openai-codex".
@@ -330,7 +476,18 @@ Algorithm exactly:
 
 9. Construct the exact plan above.
 
-10. Seal it using ordinary M4 runner canonical JSON.
+10. Return it to M4-A.
+```
+
+M4-A seals the returned plan using ordinary M4 runner canonical JSON.
+
+Unsupported provider/model or impossible pinned catalog contradiction throws:
+
+```text
+PiM4DependencyAdapterErrorV1 {
+  code:
+    "DEPENDENCY-CONTRACT-VIOLATION"
+}
 ```
 
 No model fallback.
@@ -390,18 +547,78 @@ Credential source/resolution is outside this DC.
 
 The DC defines only the required transient object and injection behavior.
 
-At invocation time:
+At invocation time, `invoke()` validates the supplied credential shape and
+constructs:
+
+```ts
+const credentials =
+  new InMemoryCredentialStore();
+```
+
+Insert exactly:
+
+```ts
+await credentials.modify(
+  "openai-codex",
+  async (current) => {
+    if (current !== undefined) {
+      throw dependencyContractViolation();
+    }
+
+    return structuredClone(
+      request.credential
+    );
+  },
+  {
+    signal:
+      request.signal,
+  },
+);
+```
+
+Then re-read exactly:
+
+```ts
+const stored =
+  await credentials.read(
+    "openai-codex",
+    {
+      signal:
+        request.signal,
+    },
+  );
+```
+
+Require structural equality:
 
 ```text
-1. create one fresh InMemoryCredentialStore
-
-2. insert the exact transient OAuthCredential only under:
-   "openai-codex"
-
-3. create one fresh Models instance using exactly that credential store
-
-4. retain neither Models nor credential store after this M4 call
+stored == request.credential
 ```
+
+including all own enumerable credential fields. The comparison occurs only in
+transient memory.
+
+If `modify()` or `read()` fails because `request.signal` is aborted:
+
+```text
+return ambiguous
+reason = "aborted"
+transportAttemptCount = 0
+```
+
+If the fresh store unexpectedly contains a credential before insertion:
+
+```text
+DEPENDENCY-CONTRACT-VIOLATION
+```
+
+If non-abort credential-store behavior throws or readback differs:
+
+```text
+CREDENTIAL-BOUNDARY-FAILURE
+```
+
+Retain neither Models nor credential store after this M4 call.
 
 Do not use:
 
@@ -419,19 +636,36 @@ Do not persist or log any credential field.
 
 ## 9. Fresh isolated Context
 
-Read exact prompt and packet artifacts through `CampaignArtifactStore`.
+M4-A, not the adapter, reads the exact prompt and packet artifacts through
+`CampaignArtifactStore`.
 
-Decode both as strict UTF-8.
+For each artifact bytes `B`, M4-A performs exactly:
 
-Require:
-
-```text
-UTF8(DecodedPrompt) == exact original prompt bytes
-
-UTF8(DecodedPacket) == exact original packet bytes
+```ts
+const text =
+  new TextDecoder(
+    "utf-8",
+    {
+      fatal: true,
+      ignoreBOM: true,
+    },
+  ).decode(B);
 ```
 
-Any failed UTF-8 round trip is an input/artifact failure.
+Then require:
+
+```text
+UTF8(text) == B byte-for-byte
+```
+
+Failure of decoding or round-trip equality is exactly:
+
+```text
+ARTIFACT-INTEGRITY-FAILURE
+```
+
+It occurs before dependency invocation. The adapter therefore never decides how
+ArtifactRef bytes become Pi text.
 
 Construct exactly one fresh Context:
 
@@ -476,14 +710,46 @@ compaction summary
 
 ## 10. Models/provider/model construction
 
-For every M4 invocation:
+For every M4 invocation construct an inert public Pi `AuthContext` exactly:
 
-```text
-one fresh credential store
-→ one fresh Models instance
-→ one openaiCodexProvider instance
-→ models.setProvider(provider)
-→ models.getModel("openai-codex", "gpt-6.1-sol")
+```ts
+const authContext: AuthContext = {
+  env:
+    async () => undefined,
+
+  fileExists:
+    async () => false,
+};
+```
+
+Construct Models exactly:
+
+```ts
+const models =
+  createModels({
+    credentials,
+    authContext,
+  });
+
+const provider =
+  openaiCodexProvider();
+
+models.setProvider(
+  provider
+);
+```
+
+No ambient Pi credential or environment lookup is capable of supplying
+execution auth.
+
+Resolve exactly:
+
+```ts
+const model =
+  models.getModel(
+    "openai-codex",
+    "gpt-6.1-sol",
+  );
 ```
 
 Require:
@@ -575,21 +841,45 @@ DEPENDENCY-CONTRACT-VIOLATION
 
 ## 12. Direct invocation and stream consumption
 
-Exact sequence:
+Immediately before the single `Models.streamSimple(...)` call, recheck:
 
 ```text
-stream =
-models.streamSimple(
-  exact model,
-  exact fresh Context,
-  exact options
-)
+request.signal.aborted == false
 ```
 
-Call this public surface exactly once.
+If aborted:
 
-Then immediately consume that exact stream to its final `AssistantMessage`
-through the public stream result mechanism.
+```text
+return ambiguous
+reason = "aborted"
+transportAttemptCount = 0
+```
+
+This adapter-local recheck complements the M4-A post-`MAYBE-SENT` caller check.
+It does not replace it.
+
+Invoke exactly once:
+
+```ts
+const stream =
+  models.streamSimple(
+    model,
+    context,
+    options,
+  );
+```
+
+No second invocation is permitted.
+
+Consume that same stream exactly with:
+
+```ts
+const finalMessage =
+  await stream.result();
+```
+
+All observation callbacks attached to `options` remain active while
+`stream.result()` completes.
 
 Do not:
 
@@ -605,6 +895,76 @@ resume a deferred response
 The final Pi `AssistantMessage` is observation material only.
 
 It is never by itself sufficient provider truth.
+
+Define exactly:
+
+```ts
+type PiM4DependencyAdapterFailureCodeV1 =
+  | "DEPENDENCY-CONTRACT-VIOLATION"
+  | "CREDENTIAL-BOUNDARY-FAILURE";
+
+interface PiM4DependencyAdapterErrorV1
+  extends Error {
+  readonly name:
+    "PiM4DependencyAdapterError";
+
+  readonly code:
+    PiM4DependencyAdapterFailureCodeV1;
+}
+```
+
+Only those typed adapter errors may escape `buildExecutionPlan()` or `invoke()`
+as expected contract failures. M4-A maps them exactly to its identically named
+invocation-failure codes.
+
+Abort, network failure, stream interruption, missing provider terminal truth,
+and other existing execution-domain ambiguity MUST NOT escape as adapter
+exceptions; they return the `ambiguous` result variant.
+
+Unexpected internal adapter behavior not matching an accepted execution-domain
+fact is wrapped as:
+
+```text
+DEPENDENCY-CONTRACT-VIOLATION
+```
+
+Define exactly:
+
+```ts
+type PiM4DependencyInvocationResultV1 =
+  | PiM4DependencyCompletedResponseV1
+  | PiM4DependencyTechnicalFailureV1
+  | PiM4DependencyAmbiguousV1;
+```
+
+No fourth execution-domain result variant exists.
+
+`invoke()` performs exactly:
+
+```text
+validate exact plan
+validate credential
+create fresh credential store
+inject credential through modify()
+read back and compare
+create inert AuthContext
+create fresh Models using:
+  createModels({
+    credentials,
+    authContext,
+  })
+construct/set exact provider
+resolve exact model
+construct exact fresh Context
+construct exact options
+recheck AbortSignal
+invoke Models.streamSimple exactly once
+await stream.result()
+classify only from accepted observed dependency facts
+return exactly one of the three result variants
+```
+
+The adapter itself never seals evidence.
 
 ## 13. Transport attempt instrumentation
 
@@ -654,6 +1014,28 @@ Every receipt-admissible terminal outcome has:
 transportAttemptCount == 1
 ```
 
+`onProviderActivity` is telemetry only. The adapter invokes it best-effort:
+
+```text
+1. immediately when the custom fetch wrapper is entered and the first
+   transport attempt is established;
+
+2. after an HTTP response is observed;
+
+3. after every onProviderStreamEvent callback.
+```
+
+Every call is wrapped so that a callback exception is ignored. An
+`onProviderActivity` failure:
+
+```text
+does not abort
+does not change result kind
+does not change transport count
+does not change provider truth
+does not create invocation failure
+```
+
 ## 14. Request observation
 
 `onPayload` is observational only.
@@ -680,7 +1062,7 @@ Do not mutate the object before or after observation.
 The pinned provider later serializes the same unchanged body with
 `JSON.stringify`.
 
-Seal those exact observed pre-compression JSON bytes:
+M4-A seals those exact observed pre-compression JSON bytes:
 
 ```text
 mediaType = application/json
@@ -697,7 +1079,10 @@ interface PiM4DependencyRequestEvidenceV1 {
     CognitiveCallId;
 
   readonly providerAttemptId:
-    string;
+    string | null;
+
+  readonly transportAttemptCount:
+    0 | 1;
 
   readonly reviewerProfileId:
     string;
@@ -725,7 +1110,16 @@ interface PiM4DependencyRequestEvidenceV1 {
 }
 ```
 
-The observed payload must mechanically preserve:
+Require:
+
+```text
+providerAttemptId == null
+iff
+transportAttemptCount == 0
+```
+
+This is a construction completeness correction only. The observed payload must
+mechanically preserve:
 
 ```text
 model == "gpt-6.1-sol"
@@ -792,7 +1186,7 @@ append it in exact callback order
 do not mutate it
 ```
 
-At terminal/returned classification, seal exactly:
+At terminal/returned classification, M4-A seals exactly:
 
 ```ts
 interface PiM4ProviderEventTraceV1 {
@@ -1015,6 +1409,70 @@ rawContent =
 providerDeltaText
 ```
 
+Define the returned completed-response value exactly:
+
+```ts
+interface PiM4DependencyCompletedResponseV1 {
+  readonly kind:
+    "completed-response";
+
+  readonly callId:
+    CognitiveCallId;
+
+  readonly providerAttemptId:
+    string;
+
+  readonly transportAttemptCount:
+    1;
+
+  readonly providerPayloadJson:
+    string;
+
+  readonly httpStatus:
+    number;
+
+  readonly providerEvents:
+    readonly JsonValue[];
+
+  readonly providerResponseId:
+    string | null;
+
+  readonly providerModel:
+    string | null;
+
+  readonly termination:
+    string;
+
+  readonly rawContent:
+    string;
+}
+```
+
+Require:
+
+```text
+callId == request.plan.callId
+
+providerAttemptId ==
+deriveId(
+  "m4-provider-attempt.v1",
+  callId,
+  "1"
+)
+
+httpStatus is integer 200..299
+
+providerPayloadJson is the exact JSON.stringify output captured by onPayload
+
+providerEvents are exact detached deep-cloned provider events in callback order
+
+rawContent is the exact provider-semantic textual completion already defined by
+DC 1.0.0
+```
+
+No `ArtifactRef` appears in this value. `rawContent` is a string, not bytes and
+not an ArtifactRef.
+
 M4 seals exactly:
 
 ```text
@@ -1139,7 +1597,57 @@ Define exact failure-source enum:
 "provider-terminal-cancelled"
 ```
 
-Define:
+Define the returned technical-failure value exactly:
+
+```ts
+interface PiM4DependencyTechnicalFailureV1 {
+  readonly kind:
+    "technical-failure";
+
+  readonly callId:
+    CognitiveCallId;
+
+  readonly providerAttemptId:
+    string;
+
+  readonly transportAttemptCount:
+    1;
+
+  readonly providerPayloadJson:
+    string;
+
+  readonly httpStatus:
+    number | null;
+
+  readonly providerEvents:
+    readonly JsonValue[];
+
+  readonly providerResponseId:
+    string | null;
+
+  readonly providerModel:
+    string | null;
+
+  readonly termination:
+    string;
+
+  readonly failureSource:
+    | "http-non-ok"
+    | "provider-response-failed"
+    | "provider-error-event"
+    | "provider-terminal-failed"
+    | "provider-terminal-cancelled";
+
+  readonly providerEventIndex:
+    number | null;
+}
+```
+
+No `rawContent` field and no `ArtifactRef` exists in this value. Every such
+value has `transportAttemptCount == 1` and is therefore receipt-admissible with
+respect to the schema-v3 transport count.
+
+Define the M4-owned sealed failure evidence:
 
 ```ts
 interface PiM4TechnicalFailureEvidenceV1 {
@@ -1230,7 +1738,85 @@ Define ambiguity reasons:
 "pi-error-without-provider-terminal"
 ```
 
-Define:
+Define the returned ambiguous value exactly:
+
+```ts
+interface PiM4DependencyAmbiguousV1 {
+  readonly kind:
+    "ambiguous";
+
+  readonly callId:
+    CognitiveCallId;
+
+  readonly providerAttemptId:
+    string | null;
+
+  readonly transportAttemptCount:
+    0 | 1;
+
+  readonly providerPayloadJson:
+    string | null;
+
+  readonly httpStatus:
+    number | null;
+
+  readonly providerEvents:
+    readonly JsonValue[];
+
+  readonly providerResponseId:
+    string | null;
+
+  readonly providerModel:
+    string | null;
+
+  readonly reason:
+    | "aborted"
+    | "network-exception"
+    | "missing-response-body"
+    | "provider-stream-protocol-error"
+    | "stream-interruption"
+    | "stream-ended-without-provider-terminal"
+    | "pi-error-without-provider-terminal";
+}
+```
+
+No `rawContent` field, no `termination` field, and no terminal result is
+implied.
+
+Require:
+
+```text
+if transportAttemptCount == 0:
+
+  providerAttemptId == null
+  httpStatus == null
+  providerEvents == []
+  providerResponseId == null
+  providerModel == null
+
+  providerPayloadJson MAY be null or non-null
+```
+
+The final allowance is intentional because Pi invokes asynchronous `onPayload`
+before entering the SSE fetch loop. Therefore execution may be aborted after
+payload observation but before the first transport attempt.
+
+Require:
+
+```text
+if transportAttemptCount == 1:
+
+  providerAttemptId ==
+  deriveId(
+    "m4-provider-attempt.v1",
+    callId,
+    "1"
+  )
+
+  providerPayloadJson != null
+```
+
+Define the M4-owned sealed ambiguity evidence:
 
 ```ts
 interface PiM4AmbiguityEvidenceV1 {
@@ -1357,47 +1943,172 @@ Node exact version stays in dependency runtime evidence.
 
 ## 24. Evidence ordering into M4-A
 
-For completed response:
+Before returning any result, the adapter ensures:
 
 ```text
-dependencyRequestEvidence =
-exact PiM4DependencyRequestEvidenceV1 ArtifactRef
+providerEvents
+→ fresh deep-cloned JSON values
 
-dependencyRuntimeEvidence =
-[
-  exact PiM4ProviderEventTraceV1 ArtifactRef,
-  exact PiM4DependencyRuntimeEvidenceV1 ArtifactRef
-]
+providerPayloadJson
+→ immutable string value
+
+rawContent
+→ immutable string value where present
 ```
 
-For technical failure:
+The adapter retains no mutable reference that it may modify after return.
+
+The adapter returns no sealed evidence. M4-A performs all sealing.
+
+The exact ownership is:
 
 ```text
-dependencyRequestEvidence =
-exact PiM4DependencyRequestEvidenceV1 ArtifactRef
+prompt ArtifactRef read
+→ M4-A
 
-dependencyRuntimeEvidence =
-[
-  exact PiM4ProviderEventTraceV1 ArtifactRef,
-  exact PiM4DependencyRuntimeEvidenceV1 ArtifactRef
-]
+packet ArtifactRef read
+→ M4-A
 
-failureEvidence =
-[
-  exact PiM4TechnicalFailureEvidenceV1 ArtifactRef
-]
+provider payload bytes seal
+→ M4-A
+
+PiM4DependencyRequestEvidenceV1 seal
+→ M4-A
+
+PiM4ProviderEventTraceV1 seal
+→ M4-A
+
+PiM4DependencyRuntimeEvidenceV1 seal
+→ M4-A
+
+PiM4TechnicalFailureEvidenceV1 seal
+→ M4-A
+
+PiM4AmbiguityEvidenceV1 seal
+→ M4-A
+
+rawResult seal
+→ M4-A
+
+CognitiveCompletedResponseEvidenceV1 seal
+→ M4-A
+
+CognitiveTechnicalFailureEvidenceV1 seal
+→ M4-A
 ```
 
-For direct ambiguity, after arm-time evidence append only available same-call
-evidence in this order:
+Every seal uses the existing M4-owned `CampaignArtifactStore`. The adapter has
+no access to it.
+
+For adapter result `kind == completed-response`, M4-A performs exactly:
 
 ```text
-dependency request evidence, if payload was observed
-provider event trace, if sealed
-ambiguity evidence
+1. UTF8(result.rawContent)
+   → seal as rawResult
+   mediaType = text/plain; charset=utf-8
+
+2. UTF8(result.providerPayloadJson)
+   → seal providerPayload
+   mediaType = application/json
+
+3. construct/seal PiM4DependencyRequestEvidenceV1 using:
+     result.callId
+     result.providerAttemptId
+     result.transportAttemptCount
+     exact operation reviewerProfileId
+     exact prompt ArtifactRef
+     exact packet ArtifactRef
+     providerPayload
+
+4. construct/seal PiM4ProviderEventTraceV1 from:
+     result.callId
+     result.providerAttemptId
+     result.providerEvents
+
+5. construct/seal PiM4DependencyRuntimeEvidenceV1 from:
+     exact plan
+     result transport/http/provider facts
+     providerEventTrace
+
+6. construct/seal CognitiveCompletedResponseEvidenceV1
+
+7. durably publish TERMINAL-DURABLE
+
+8. return M4 captured
 ```
 
-Do not label ambiguity evidence as terminal evidence.
+No protocol parsing occurs before step 1.
+
+For adapter result `kind == technical-failure`, M4-A performs exactly:
+
+```text
+1. seal exact providerPayloadJson bytes
+
+2. construct/seal PiM4DependencyRequestEvidenceV1
+
+3. construct/seal PiM4ProviderEventTraceV1
+   even when events == []
+
+4. construct/seal PiM4DependencyRuntimeEvidenceV1
+
+5. construct/seal PiM4TechnicalFailureEvidenceV1
+
+6. construct/seal CognitiveTechnicalFailureEvidenceV1
+
+7. durably publish TERMINAL-DURABLE
+
+8. return M4 technical-failure
+```
+
+There is no `rawResult`.
+
+For adapter result `kind == ambiguous`, M4-A MUST NOT construct terminal
+evidence and MUST NOT publish a terminal marker.
+
+Let:
+
+```text
+sameCallDependencyEvidence = []
+```
+
+If `result.providerPayloadJson != null`, M4-A:
+
+```text
+seal exact UTF8(providerPayloadJson)
+
+construct/seal PiM4DependencyRequestEvidenceV1
+
+append requestEvidenceRef
+to sameCallDependencyEvidence
+```
+
+If `result.transportAttemptCount == 1`, M4-A constructs and seals
+`PiM4ProviderEventTraceV1`, including an empty `events` array when no provider
+event was observed, and appends `providerEventTraceRef` to
+`sameCallDependencyEvidence`.
+
+Always construct/seal exactly one `PiM4AmbiguityEvidenceV1` and append its ref
+last.
+
+The M4 uncertain result uses exact dispatch evidence:
+
+```text
+orderedUnique([
+  ...exactArmTimeDispatchEvidence,
+  callStartEvidence,
+  ...sameCallDependencyEvidence,
+])
+```
+
+Therefore the dependency-owned suffix order is exactly:
+
+```text
+request evidence, if present
+→ provider event trace, if transportAttemptCount == 1
+→ ambiguity evidence
+```
+
+No runtime terminal evidence is invented for ambiguity.
 
 ## 25. Abort, cancellation, revocation, and recovery
 
