@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "9.0.0"
+version: "9.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -588,6 +588,29 @@ The numeric `minimum_independent_reviewers` remains formal-assurance policy
 outside protocol identity P. This revision changes no TURNLOCK product
 semantics, Gate A semantic subject S, review-evidence schema, or execution-
 receipt schema.
+
+Version 9.0.1 closes two implementation-construction transport/restart seams
+introduced by the accepted ADR-053 reviewer-acquisition architecture.
+
+First, the exact reviewer-prerequisite acquisition basis admitted with a
+runner-produced ReviewCampaign becomes an explicit deterministic
+GateARunSnapshot projection. M5 therefore consumes the exact authoritative
+basis after restart instead of rerunning M3, rereading P, or reconstructing
+profile acquisition state.
+
+Second, every selected cognitive reviewer WorkItem must retain the exact
+GateAReviewerAcquisitionCandidateV1 selected by M1/M5 inside its executor-owned
+M4 operation. M4 obtains provider and requestModel only from that exact
+candidate; the Pi Dependency Contract may validate/realize those values but may
+not select or substitute them.
+
+This revision changes no reviewer-acquisition policy, formal-assurance
+semantics, hostile-review protocol semantics, TURNLOCK product semantics,
+effective-identity semantics, retry policy, recovery semantics, or module
+ownership.
+
+Both corrections are derived from existing ADR-053 / protocol-v5 authority and
+introduce no product ADR.
 
 ## 2. System objective
 
@@ -2711,6 +2734,8 @@ interface GateARunSnapshot {
   readonly candidates: readonly CandidateRevisionRef[];
   readonly currentCandidate: CandidateRevisionRef | null;
   readonly reviewCampaigns: readonly ReviewCampaignRef[];
+  readonly reviewCampaignPrerequisiteBases:
+    readonly ReviewCampaignPrerequisiteBasisRefV1[];
   readonly obligations: readonly ObligationRef[];
   readonly obligationDispositions: readonly ObligationDispositionRef[];
   readonly workItems: readonly WorkItemRef[];
@@ -2821,6 +2846,38 @@ M2 projects the exact retained values from authoritative history.
 
 The projections are immutable for the lifetime of the `GateARun` because
 `EstablishPreflightV1` is admitted at most once.
+
+For `reviewCampaignPrerequisiteBases`, require exactly:
+
+```text
+one and only one basis exists for every runner-produced ReviewCampaign
+
+no basis exists for repository-imported ReviewCampaigns
+```
+
+Ordering is the exact relative order of `snapshot.reviewCampaigns` after
+filtering to `provenance.kind == "runner-produced"`. Do not invent another
+independent ordering.
+
+`reviewCampaignPrerequisiteBases` is reconstructed only from exact retained
+`EstablishReviewCampaignBundleV1` mutation history.
+
+It is never reconstructed from:
+
+```text
+current protocol files
+current reviewer registry
+a new M3 call
+GateAReviewAuthorityMechanicalProjectionV1 re-execution
+WorkItem inspection
+Pi configuration
+environment
+repository files
+current Git state
+```
+
+The exact retained mutation is authoritative for what acquisition basis was
+admitted for that campaign.
 
 Require exact equivalence:
 
@@ -3685,6 +3742,46 @@ qualified receipt existence, resolved identities, and statically known pinned
 identities. Finding content, favorability, latency, scheduling, and completion
 order are never inputs.
 
+For any runner-produced ReviewCampaign whose acquisition state M5 must derive,
+M5 obtains the exact `ReviewCampaignPrerequisiteBasisRefV1` from
+`snapshot.reviewCampaignPrerequisiteBases`.
+
+M5 must not rerun M3 or reconstruct the acquisition candidate universe from
+current P.
+
+Later acquisition rounds consume exactly the immutable candidate sequence in
+that retained basis together with already-admitted qualified receipt identities
+and other exact ADR-053 inputs.
+
+`AssuranceDerivationRequest` itself remains unchanged because it already carries
+the exact `GateARunSnapshot`.
+
+Every cognitive WorkItem representing one selected reviewer acquisition
+candidate must bind exactly one `GateAReviewerAcquisitionCandidateV1` selected
+from the exact `ReviewCampaignPrerequisiteBasisRefV1` governing its
+ReviewCampaign.
+
+The executor-owned M4 operation must retain that exact candidate.
+
+WorkItem reviewer-profile binding is exactly:
+
+```text
+operation.reviewerProfileId ==
+operation.reviewerAcquisitionCandidate.profileId
+```
+
+Selection ownership remains exactly:
+
+```text
+M1
+→ first acquisition round only
+
+M5
+→ later acquisition rounds only
+```
+
+M4 does not select candidates. M2 does not select candidates.
+
 A selected reviewer WorkItem remains required campaign work. Retry exhaustion
 never triggers automatic profile substitution and routes through the existing
 M5 → M8-B → M2 `OPERATOR-ACTION-REQUIRED` path. A qualified duplicate effective
@@ -4166,6 +4263,87 @@ interface GateAReviewerAcquisitionCandidateV1 {
     EffectiveReviewerIdentityRefV1 | null;
 }
 
+interface ReviewCampaignPrerequisiteBasisRefV1 {
+  readonly reviewCampaignId: ReviewCampaignId;
+
+  readonly candidateId: CandidateRevisionId;
+  readonly semanticSubject: SemanticSubjectRef;
+  readonly protocolBundle: ProtocolBundleRef;
+
+  readonly minimumIndependentReviewers: number;
+  readonly acquisitionMode: "minimum-effective-independent-v1";
+
+  readonly qualifyingReviewerProfileIds: readonly string[];
+
+  readonly reviewerAcquisitionCandidates:
+    readonly GateAReviewerAcquisitionCandidateV1[];
+
+  readonly evidence: readonly ArtifactRef[];
+}
+```
+
+`ReviewCampaignPrerequisiteBasisRefV1` is runner authoritative-history
+projection material. It is not hostile-review evidence and is not a new product
+or protocol artifact.
+
+For every `ReviewCampaignPrerequisiteBasisRefV1 B`, require exactly:
+
+```text
+B.reviewCampaignId names one exact runner-produced ReviewCampaign C
+
+C.provenance.kind == "runner-produced"
+
+B.candidateId ==
+    C.provenance.candidateId
+
+B.semanticSubject ==
+    C.semanticSubject
+
+B.protocolBundle ==
+    C.protocolBundle
+
+B.minimumIndependentReviewers is integer >= 1
+
+B.acquisitionMode ==
+    "minimum-effective-independent-v1"
+
+B.qualifyingReviewerProfileIds:
+    duplicate-free
+    unsigned-ASCII ascending
+
+B.reviewerAcquisitionCandidates:
+    duplicate-free by profileId
+
+set(
+  B.reviewerAcquisitionCandidates.map(profileId)
+)
+==
+set(
+  B.qualifyingReviewerProfileIds
+)
+```
+
+Candidate ordering is preserved exactly from the accepted M3 result. Do not
+sort `reviewerAcquisitionCandidates`.
+
+For each candidate require:
+
+```text
+identityResolution.kind == "provider-reported"
+→ staticallyKnownEffectiveIdentity == null
+
+identityResolution.kind == "pinned-request-model"
+→ identityResolution.requestModelIsImmutableVersion == true
+→ staticallyKnownEffectiveIdentity ==
+    {
+      provider: candidate.provider,
+      modelVersion: candidate.requestModel
+    }
+```
+
+`evidence` is duplicate-free and every `ArtifactRef` is intact.
+
+```ts
 interface GateARepositoryReviewMechanicalFactV1 {
   readonly reviewId: ReviewCampaignId;
   readonly sourceRecord: ArtifactRef;
@@ -7364,9 +7542,34 @@ run(command):
                 prerequisites.evidence
             )
 
+            prerequisite_basis =
+                construct exact ReviewCampaignPrerequisiteBasisRefV1 from:
+                    campaign = exact runner-produced campaign
+                    prerequisites = exact established M3 result
+
+                copy with no field transformation, sorting, or profile rewriting:
+                    minimumIndependentReviewers
+                    acquisitionMode
+                    qualifyingReviewerProfileIds
+                    reviewerAcquisitionCandidates
+                    evidence
+
+                bind exact:
+                    reviewCampaignId
+                    candidateId
+                    semanticSubject
+                    protocolBundle
+
             derive:
                 the first deterministic initial-reviewer acquisition round from
                     exact M3 reviewer acquisition basis
+
+                for every selected acquisition candidate A:
+                    the resulting cognitive WorkItem's M4 operation retains exact A
+                    no WorkItem may be constructed from only A.profileId while
+                        dropping A.provider, A.requestModel,
+                        A.identityResolution, or A.staticallyKnownEffectiveIdentity
+
                 all selected first-round WorkItems as required campaign work
                 all other protocol-required current-P campaign obligations and
                     non-reviewer WorkItems
@@ -7378,7 +7581,15 @@ run(command):
                 in the prior round has qualified or entered an existing
                 operational/recovery blocker path
 
-            commit campaign + complete derived ledger products through M2
+            require every M5-added cognitive reviewer WorkItem for a later
+                acquisition round binds the exact
+                GateAReviewerAcquisitionCandidateV1 from the campaign's exact
+                snapshot ReviewCampaignPrerequisiteBasisRefV1
+
+            require no environment/config lookup replaces this binding
+
+            commit campaign + exact prerequisite_basis + complete derived ledger
+                products through M2 atomically
 
             continue
 
