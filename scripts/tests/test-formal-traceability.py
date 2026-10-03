@@ -512,7 +512,7 @@ def install_protocol_bundle(
         if profile["profile_id"] not in acquisition_order:
             acquisition_order.append(profile["profile_id"])
     payload["reviewer_profiles"] = [existing[key] for key in sorted(existing)]
-    if payload.get("protocol_bundle_schema_version") == 5:
+    if payload.get("protocol_bundle_schema_version") in (5, 6):
         payload["policies"]["reviewer_acquisition"]["profile_order"] = (
             acquisition_order
         )
@@ -5668,6 +5668,115 @@ class GateAProtocolV4Tests(unittest.TestCase):
             )
             self.assertFalse(summary["gate_a"]["ready"])
 
+    def test_provider_reported_opaque_canonical_token_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(
+                    fixture_root,
+                    "EXEC-A",
+                    packet=packet,
+                    prompt=prompt,
+                    model="some-request-alias",
+                    model_version="mdl_01HXYZopaque",
+                ),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt),
+            ]
+            profiles = [
+                default_profile("EXEC-A", model="some-request-alias"),
+                default_profile("EXEC-B"),
+            ]
+            write_review(
+                fixture_root,
+                make_review(fixture_root, executions=executions, profiles=profiles),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_provider_reported_request_and_canonical_token_may_be_equal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = write_gate_a_review_packet(fixture_root)
+            prompt = bundle_document(fixture_root)["prompts"]["initial-reviewer"]
+            executions = [
+                execution(
+                    fixture_root,
+                    "EXEC-A",
+                    packet=packet,
+                    prompt=prompt,
+                    model="opaque-effective-token",
+                    model_version="opaque-effective-token",
+                ),
+                execution(fixture_root, "EXEC-B", packet=packet, prompt=prompt),
+            ]
+            profiles = [
+                default_profile("EXEC-A", model="opaque-effective-token"),
+                default_profile("EXEC-B"),
+            ]
+            write_review(
+                fixture_root,
+                make_review(fixture_root, executions=executions, profiles=profiles),
+            )
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_provider_reported_latest_identity_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+
+            def mutator(payload: dict) -> None:
+                payload["attempts"][0]["provider_model"] = "latest"
+                payload["resolved_identity"]["model_version"] = "latest"
+
+            mutate_execution_receipt(fixture_root, record, 0, mutator)
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("provider-reported provider_model must not be latest" in error for error in errors),
+                errors,
+            )
+            self.assertTrue(
+                any("resolved identity model_version must not be latest" in error for error in errors),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_pinned_request_model_latest_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(
+                fixture_root,
+                profiles=[
+                    default_profile(
+                        "EXEC-A",
+                        model="latest",
+                        kind="pinned-request-model",
+                        immutable=True,
+                    ),
+                    default_profile("EXEC-B"),
+                ],
+            )
+            write_review(fixture_root, record)
+            errors, summary = checker.collect_errors(
+                fixture_root, check_generated=False
+            )
+            self.assertTrue(
+                any("pinned-request-model request_model must not be latest" in error for error in errors),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
     def test_pinned_request_model_requires_immutable_version_flag(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
@@ -8587,7 +8696,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
         hostile_review = manifest["policy"]["hostile_review"]
         reference = hostile_review["current_protocol_bundle"]
         bundle = self._load_protocol(reference["path"])
-        self.assertEqual(5, bundle["protocol_bundle_schema_version"])
+        self.assertEqual(6, bundle["protocol_bundle_schema_version"])
         self.assertEqual(
             hostile_review["evidence_schema"],
             bundle["meta_schemas"]["review-evidence"]["path"],
@@ -8673,6 +8782,88 @@ def _mutated_challenge_packet(
     return write_json_artifact(
         fixture_root, f"formal/reviews/challenge-packets/{name}.json", payload
     )
+
+class GateAProtocolV6RegressionTests(unittest.TestCase):
+    PROTOCOL_V6 = "formal/reviews/protocols/gate-a-campaign-protocol-v6.json"
+    PROTOCOL_V6_SHA = "841908ae137b1caaa8d0ae1035d7f888f736fda04ef70c10d33bda8383feae98"
+    META_V6 = "formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json"
+    META_V6_SHA = "b4cfc0ca7b577e2d37f048d9cb7bb5d546c77a6dffed2100340e05d52b525e78"
+    PROTOCOL_V5 = "formal/reviews/protocols/gate-a-campaign-protocol-v5.json"
+    PROTOCOL_V5_SHA = "b9dc015188b89f605bf8252bf47ff5497be54668cc274e953146577f1a76e091"
+    META_V5 = "formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json"
+    META_V5_SHA = "96ff941defb59687f77593fb60b7dda460da06250b718e9ce082f78e94407327"
+
+    def _bundle(self) -> dict:
+        return json.loads((ROOT / self.PROTOCOL_V6).read_text(encoding="utf-8"))
+
+    def test_current_protocol_is_exact_v6(self) -> None:
+        manifest = yaml.safe_load((ROOT / MANIFEST_RELATIVE).read_text())
+        reference = manifest["policy"]["hostile_review"]["current_protocol_bundle"]
+        self.assertEqual(
+            {"path": self.PROTOCOL_V6, "sha256": self.PROTOCOL_V6_SHA},
+            reference,
+        )
+        self.assertEqual(self.PROTOCOL_V6_SHA, checker.sha256_hex((ROOT / self.PROTOCOL_V6).read_bytes()))
+
+    def test_v6_meta_schema_and_predecessor_are_exact(self) -> None:
+        bundle = self._bundle()
+        self.assertEqual(6, bundle["protocol_bundle_schema_version"])
+        self.assertEqual("gate-a-campaign-protocol-v6", bundle["protocol_id"])
+        self.assertEqual(
+            {"path": self.META_V6, "sha256": self.META_V6_SHA},
+            bundle["meta_schemas"]["protocol-bundle"],
+        )
+        self.assertEqual(self.META_V6_SHA, checker.sha256_hex((ROOT / self.META_V6).read_bytes()))
+        self.assertEqual(
+            {"path": self.PROTOCOL_V5, "sha256": self.PROTOCOL_V5_SHA},
+            bundle["predecessor"],
+        )
+
+    def test_v6_identity_and_acquisition_policies_are_exact(self) -> None:
+        bundle = self._bundle()
+        self.assertEqual(
+            "provider-owned-canonical-effective-model-identity-v1",
+            bundle["policies"]["model_identity"]["provider_reported_resolution"],
+        )
+        self.assertEqual([], bundle["reviewer_profiles"])
+        self.assertEqual(
+            {"mode": "minimum-effective-independent-v1", "profile_order": []},
+            bundle["policies"]["reviewer_acquisition"],
+        )
+
+    def test_v6_reuses_exact_evidence_and_execution_schemas(self) -> None:
+        bundle = self._bundle()
+        self.assertEqual(
+            {
+                "path": "formal/reviews/meta-schemas/review-evidence-v5.schema.json",
+                "sha256": "0f66a468c5afc0909389bf3bece221cc083e05a52f9e19be8b41c7e24d3e01bc",
+            },
+            bundle["meta_schemas"]["review-evidence"],
+        )
+        self.assertEqual(
+            {
+                "path": "formal/reviews/schemas/execution-receipt-v3.schema.json",
+                "sha256": "7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72",
+            },
+            bundle["schemas"]["execution-receipt"],
+        )
+        v5 = json.loads((ROOT / self.PROTOCOL_V5).read_text(encoding="utf-8"))
+        for key in ("raw-review-output", "challenge-output", "challenge-packet"):
+            self.assertEqual(v5["schemas"][key], bundle["schemas"][key])
+
+    def test_published_v1_through_v5_protocols_remain_byte_identical(self) -> None:
+        anchors = {
+            "formal/reviews/protocols/gate-a-campaign-protocol-v1.json": "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1",
+            "formal/reviews/protocols/gate-a-campaign-protocol-v2.json": "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9",
+            "formal/reviews/protocols/gate-a-campaign-protocol-v3.json": "cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6",
+            "formal/reviews/protocols/gate-a-campaign-protocol-v4.json": "f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac",
+            self.PROTOCOL_V5: self.PROTOCOL_V5_SHA,
+            self.META_V5: self.META_V5_SHA,
+        }
+        for path, expected in anchors.items():
+            with self.subTest(path=path):
+                self.assertEqual(expected, checker.sha256_hex((ROOT / path).read_bytes()))
+
 
 class GateAProtocolV5ReviewerAcquisitionTests(unittest.TestCase):
     PROTOCOL_V5 = "formal/reviews/protocols/gate-a-campaign-protocol-v5.json"
