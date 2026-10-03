@@ -2,9 +2,15 @@
 
 Contract ID: `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION`
 
-Version: `1.0.1`
+Version: `1.1.0`
 
 Status: `active`
+
+Version `1.1.0` is built on version `1.0.1`, preserves all of its exact adapter
+interface and evidence-sealing ownership closures, synchronizes the active
+Dependency Contract with ADR-054, and records the provider-reported identity
+capability status of the already qualified openai-codex path without performing
+a new provider experiment.
 
 ## 1. Status, authority, and purpose
 
@@ -13,8 +19,8 @@ This is implementation-construction dependency authority for M4-A only.
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.0.1
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.0.5
+NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.0
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.0
 ```
 
 Version `1.0.1` closes the exact adapter interface, transient credential-store
@@ -140,7 +146,6 @@ This does NOT:
 admit a reviewer profile
 assert gpt-6.1-sol is immutable
 assert gpt-6.1-sol is a resolved model_version
-resolve Issue #47
 qualify another Pi provider
 qualify another request model
 ```
@@ -148,7 +153,7 @@ qualify another request model
 Any exact M4 operation asking for another provider or requestModel is:
 
 ```text
-unsupported by DC version 1.0.1
+unsupported by DC version 1.1.0
 → DEPENDENCY-CONTRACT-VIOLATION
 → no fallback
 → no substitution
@@ -329,7 +334,7 @@ interface PiM4DependencyExecutionPlanV1 {
     "DC-PI-M4-GATE-A-COGNITIVE-EXECUTION";
 
   readonly contractVersion:
-    "1.0.1";
+    "1.1.0";
 
   readonly callId:
     CognitiveCallId;
@@ -447,6 +452,38 @@ Plan construction happens during M4 `prepare()` through synchronous
 
 It causes zero network effects.
 
+`buildExecutionPlan()` does not receive `identityResolution`. It does not
+decide whether a provider-reported acquisition candidate is admissible, and it
+does not infer canonical-effective identity support from its pinned static model
+catalog.
+
+M4-A is responsible for applying the exact selected-DC capability gate before
+calling `buildExecutionPlan()`. For this exact DC:
+
+```text
+identityResolution.kind == "provider-reported"
+→ M4-A must not call buildExecutionPlan
+```
+
+because:
+
+```text
+provider-owned-canonical-effective-model-identity-v1
+== NOT-ESTABLISHED
+```
+
+For `identityResolution.kind == "pinned-request-model"`, M4-A may continue to
+the exact four-field `PiM4BuildExecutionPlanRequestV1` only after enforcing the
+already-existing acquisition-candidate invariant:
+
+```text
+requestModelIsImmutableVersion == true
+```
+
+The adapter does not receive or interpret `requestModelIsImmutableVersion` as
+provider truth. It consumes only `provider` and `requestModel` after M4-A has
+performed the required construction guards.
+
 `buildExecutionPlan()` receives only `PiM4BuildExecutionPlanRequestV1` and
 executes exactly:
 
@@ -478,6 +515,10 @@ executes exactly:
 
 10. Return it to M4-A.
 ```
+
+The pinned static Pi catalog used by `buildExecutionPlan()` proves only exact
+provider/model support and exact API availability. It never proves
+`provider-owned-canonical-effective-model-identity-v1`.
 
 M4-A seals the returned plan using ordinary M4 runner canonical JSON.
 
@@ -1284,6 +1325,13 @@ profile metadata
 ```
 
 Pi `responseModel` is known to be unpopulated on the selected path.
+
+`providerModel` capture is provider-owned evidence capture.
+
+`providerModel` capture alone does not establish
+`provider-owned-canonical-effective-model-identity-v1`. A future Dependency
+Contract version may declare that capability `ESTABLISHED` only after
+architecturally authorized qualification produces the required proof.
 
 ## 18. Provider terminal-event classification
 
@@ -2242,18 +2290,42 @@ Pi responseModel is not populated on the selected path.
 Therefore neither may substitute provider-owned response.model evidence.
 ```
 
-Issue #47 boundary exactly:
+## 26.1 Provider-reported construction capability authority
+
+The exact construction capability status is:
 
 ```text
-The DC may preserve providerModel.
+provider-owned response/effective-model evidence capture:
+ESTABLISHED
 
-It may NOT decide whether that identifier is:
-resolved immutable model_version
-or
-mutable/unresolved alias.
-
-That remains Issue #47 Product Semantics authority.
+provider-owned-canonical-effective-model-identity-v1:
+NOT-ESTABLISHED
 ```
+
+The Dependency Contract closes the exact capability-status question.
+
+Closing the capability-status question does not mean that the capability is
+established.
+
+The `ESTABLISHED` capture basis is the durable Issues #44 and #46 evidence that
+provider-owned `response.model` and provider response identity are faithfully
+captured and that `requestModel` is not substituted as `providerModel`.
+
+The `NOT-ESTABLISHED` canonicality basis is that no durable accepted evidence
+establishes `response.model` as the canonical effective model identity after
+request-alias resolution. The historical immutable classification is `UNKNOWN`;
+the snapshot experiment is `BLOCKED`; and the alias-pair experiment is
+`BLOCKED`. No new evidence is fabricated.
+
+```text
+NOT-ESTABLISHED
+!= unsupported in principle
+!= Pi disqualified
+!= OpenAI cannot provide such a channel
+```
+
+The status records only the absence of current capability qualification for the
+exact selected path.
 
 Exact invariants:
 
@@ -2300,7 +2372,17 @@ DC-PI-M4-13
 Credential values never enter durable evidence.
 
 DC-PI-M4-14
-Issue #47 remains unresolved.
+ProviderModel is captured only from provider-owned raw events and its spelling
+never establishes canonical effective-model identity.
+
+DC-PI-M4-15
+DC 1.1.0 determinately declares
+provider-owned-canonical-effective-model-identity-v1 as NOT-ESTABLISHED.
+
+DC-PI-M4-16
+Under DC 1.1.0, M4-A must reject a provider-reported acquisition candidate
+before buildExecutionPlan; the adapter never receives identityResolution and
+never performs that admission decision.
 ```
 
 Construction classification:

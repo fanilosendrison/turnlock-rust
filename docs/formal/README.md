@@ -9,8 +9,9 @@ binding,
 [ADR-042](../adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md),
 [ADR-043](../adr/adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md),
 [ADR-044](../adr/adr-044-require-one-unambiguous-gate-a-review-subject.md),
-[ADR-045](../adr/adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md), and
-[ADR-053](../adr/adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md).
+[ADR-045](../adr/adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md),
+[ADR-053](../adr/adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md), and
+[ADR-054](../adr/adr-054-define-provider-reported-effective-model-identity-resolution.md).
 
 ## Architecture
 
@@ -261,19 +262,22 @@ evidence. Machine-readable linkage validates traceability consistency; it does
 not prove that a future TLA+ formula faithfully captures the prose meaning.
 Semantic correspondence remains a hostile-review obligation.
 
-## Hostile-review protocol v5 and immutable meta-schemas
+## Hostile-review protocol v6 and immutable meta-schemas
 
 The current hostile-review protocol identity `P` is
-`gate-a-campaign-protocol-v5`, and review evidence remains schema `5.0`.
-Protocol v5 has exact v4 predecessor, binds
-`formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json`, and
+`gate-a-campaign-protocol-v6`, and review evidence remains schema `5.0`.
+Protocol v6 has exact v5 predecessor, binds
+`formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json`, and
 continues to bind unchanged
 `formal/reviews/meta-schemas/review-evidence-v5.schema.json`. Execution receipts
-remain schema `3.0`. Protocol v1-v4 artifacts remain immutable history; v1-v3
-use their immutable shared meta-schema snapshot and v4 retains its exact
-immutable v4 meta-schema. Frozen unversioned aliases remain inactive.
+remain schema `3.0`. Protocol v1-v5 artifacts remain immutable history. Frozen
+unversioned aliases remain inactive.
 
-Protocol v5 commits minimum-effective, deterministic, content-independent,
+Protocol v6 preserves v5 deterministic minimum-effective reviewer acquisition
+and closes provider-reported effective identity resolution. ADR-054 changes P,
+not S, and does not enter Gate A subject dependencies.
+
+Protocol v6 commits minimum-effective, deterministic, content-independent,
 round-based reviewer acquisition through the sole protocol-owned
 `profile_order`. Registry membership is eligibility, not execute-all authority.
 Pinned static duplicate identities may be skipped; provider-reported identities
@@ -296,7 +300,7 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `9.0.1`. The brief's own NIB metadata is the sole source for its
+version is `9.1.0`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
@@ -322,7 +326,7 @@ M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
 interpretation, campaign-authority operational causes and blocking obligations,
 `GateACampaignAuthorityEvaluationV1` sealing, and `ReviewContext` construction.
 
-M3 consumes NIB-S `9.0.1`.
+M3 consumes NIB-S `9.1.0`.
 
 NIB-S `9.0.0` adds the M6 → M3 → M5 reviewer-acquisition boundary. M6 projects
 exact protocol policy, M3 validates it and computes the complete lexical
@@ -339,7 +343,8 @@ M4 `cognitive-execution` is construction-decomposed into M4-A execution /
 capture and M4-B recovery observation.
 
 The active M4-A Module Brief is
-[`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md).
+[`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md),
+version `1.1.0`.
 It owns the immutable cognitive WorkItem operation, pre-Arm preparation,
 cognitive-call identity, durable execution journal and effect fence, selected
 cognitive dependency invocation, exact raw completion and runtime-evidence
@@ -350,17 +355,29 @@ M4-B recovery observation remains separately scoped.
 
 The active Pi M4 Dependency Contract is
 [`dependency-contract-pi-m4-cognitive-execution.md`](dependency-contract-pi-m4-cognitive-execution.md),
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.1`.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.0`.
 
 It pins `@earendil-works/pi-ai@0.99.2` / Pi
 `005af57d88ee23b33778f343a9595b32e67ff788`, the direct
 `Models.streamSimple(...)` boundary, the selected `openai-codex` SSE execution
 path, exact request/provider evidence capture, raw completion extraction,
 credential injection, terminal/uncertain classification, and the conservative
-no-provider-recovery limitation.
+no-provider-recovery limitation. Version `1.1.0` preserves version `1.0.1`'s
+exact four-field synchronous planning interface, unsealed three-result adapter
+boundary, and M4-owned strict UTF-8, evidence-sealing, raw-result, and terminal-
+journal ownership closures.
 
-Provider-reported resolved-identity versus alias semantics remain outside the
-Dependency Contract and remain routed to Issue #47.
+ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.0` and
+delegates exact identity-channel capability qualification to the Pi M4
+Dependency Contract while preserving raw evidence. Pi M4 Dependency Contract
+version `1.1.0` records provider-owned response/effective-model evidence capture
+as `ESTABLISHED`, but records
+`provider-owned-canonical-effective-model-identity-v1` as `NOT-ESTABLISHED` for
+the current `openai-codex` / `gpt-6.1-sol` qualification evidence.
+
+M5-A must handle a completed semantically qualified response lacking required
+provider-reported identity through the assurance-ledger operational path without
+retry or profile substitution.
 
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.

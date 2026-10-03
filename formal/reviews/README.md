@@ -61,12 +61,13 @@ prompt artifacts, canonical schema artifacts, reviewer profiles, and protocol
 policies. A protocol change requires a new content identity `P`. A review made
 under a stale `P` does not satisfy current Gate A.
 
-The current bundle is `gate-a-campaign-protocol-v5`. It cryptographically links
-the exact immutable v4 bundle as its predecessor; v4 links v3, v3 links v2, and
-v2 links v1. Predecessor bundles and their referenced prompts and schemas are
-recursively checked. Published versioned protocol bundles and referenced
-prompt/schema artifacts are append-only by path and bytes. The protocol history
-is `v5 -> v4 -> v3 -> v2 -> v1`; v1-v4 remain immutable history.
+The current bundle is `gate-a-campaign-protocol-v6`. It cryptographically links
+the exact immutable v5 bundle as its predecessor; v5 links v4, v4 links v3, v3
+links v2, and v2 links v1. Predecessor bundles and their referenced prompts and
+schemas are recursively checked. Published versioned protocol bundles and
+referenced prompt/schema artifacts are append-only by path and bytes. The
+protocol history is `v6 -> v5 -> v4 -> v3 -> v2 -> v1`; v1-v5 remain immutable
+history.
 
 The published v1-v5 bundles intentionally declare:
 
@@ -89,19 +90,21 @@ formal/reviews/meta-schemas/review-evidence-v5.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json
+formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json
 ```
 
 `review-evidence-v5.schema.json` is the immutable unchanged review-evidence
 meta-schema. `review-protocol-bundle-v1-v3.schema.json` preserves the historical
 bundle validation semantics for bundle schema versions 1, 2, and 3.
-`review-protocol-bundle-v4.schema.json` defines historical bundle schema version
-4, and `review-protocol-bundle-v5.schema.json` is current for schema version 5.
+`review-protocol-bundle-v4.schema.json` and
+`review-protocol-bundle-v5.schema.json` define historical bundle schema versions
+4 and 5. `review-protocol-bundle-v6.schema.json` is current for schema version 6.
 
-Protocol v5 binds both exact current meta-schema artifact references into
+Protocol v6 binds both exact current meta-schema artifact references into
 protocol identity `P`:
 
 ```text
-meta_schemas.protocol-bundle = exact review-protocol-bundle-v5.schema.json
+meta_schemas.protocol-bundle = exact review-protocol-bundle-v6.schema.json
 meta_schemas.review-evidence = exact review-evidence-v5.schema.json
 ```
 
@@ -110,8 +113,8 @@ meta-schema snapshot; protocol v4 remains interpreted by its immutable v4
 meta-schema. Their review records use the immutable schema-5 evidence snapshot
 as compatibility support. No real campaign evidence exists.
 
-Protocol v5 reviewer acquisition is minimum-effective, deterministic,
-content-independent, round-based, and ordered only by
+Protocol v6 preserves protocol v5 reviewer acquisition exactly: it remains
+minimum-effective, deterministic, content-independent, round-based, and ordered only by
 `policies.reviewer_acquisition.profile_order`. Registry membership is
 eligibility, not execute-all authority. Statically duplicate pinned identities
 may be skipped; provider-reported identities are not guessed or pre-collapsed;
@@ -196,7 +199,11 @@ Allowed resolution kinds are exactly `provider-reported` and
 
 ```text
 provider-reported:
-  the qualified attempt provider_model must be non-empty
+  the selected execution realization must qualify an exact provider-owned,
+  execution-bound, post-routing canonical effective-model identity channel
+  under provider-owned-canonical-effective-model-identity-v1
+  provider_model is the exact per-execution token from that channel
+  the qualified attempt provider_model must be non-empty and not exact "latest"
   model_version = qualified attempt provider_model
 
 pinned-request-model:
@@ -204,7 +211,27 @@ pinned-request-model:
   model_version = profile.request_model
 ```
 
+Provider-reported does not classify identifier spelling. Date suffixes, version
+appearance, snapshot-looking syntax, repeated observations, request/model
+inequality, provider-specific guessing, and Pi catalog inference never establish
+resolution. Exact `latest` remains forbidden as `model_version`.
+
+Provider documentation, catalogs, source, metadata, and controlled experiments
+may support realization qualification; they are not per-execution identity
+evidence or Gate A/protocol authority. The current active Pi Dependency Contract
+faithfully captures provider-owned `response.model` but does not currently
+establish the canonical-effective-identity capability for the selected
+`openai-codex` / `gpt-6.1-sol` path. This is a conformance status, not provider
+semantic authority or Pi disqualification.
+
+When a completed semantic response requires provider-reported identity but the
+exact `provider_model` is null, empty, or exact `latest`, the response and raw
+evidence are preserved. No semantic retry, qualifying receipt, profile
+substitution, or later acquisition round is authorized; automatic progression
+uses the operational-action path.
+
 No runner-supplied alias, `latest`, or unresolved alias is admissible.
+Review-evidence schema remains v5 and execution-receipt schema remains v3.
 
 Independent-reviewer counting enforces both the distinct full tuple
 `(provider, model, model_version)` and the distinct effective identity

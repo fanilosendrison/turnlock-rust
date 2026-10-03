@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "9.0.1"
+version: "9.1.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -24,7 +24,7 @@ It is implementation-construction authority only. It does not define TURNLOCK pr
 Its controlling technical inputs are:
 
 - `docs/specification/turnlock-spec.md`;
-- accepted ADR-041 through ADR-049 and ADR-053;
+- accepted ADR-041 through ADR-049, ADR-053, and ADR-054;
 - `formal/verification.yaml`;
 - the content-addressed hostile-review protocol and evidence contracts under `formal/reviews/`;
 - the repository authority and validation rules in `AGENTS.md`.
@@ -611,6 +611,14 @@ ownership.
 
 Both corrections are derived from existing ADR-053 / protocol-v5 authority and
 introduce no product ADR.
+
+Version `9.1.0` is an additive compatible implementation-construction revision
+driven by ADR-054 and hostile-review protocol v6. It changes no system module,
+cross-module type shape, TURNLOCK product semantics, Gate A semantic subject S,
+reviewer-acquisition algorithm, review-evidence schema, or execution-receipt
+schema. It closes provider-reported effective identity semantics, Pi Dependency
+Contract realization conformance, the completed-response-without-required-
+identity boundary, and the M5 operational-stop behavior.
 
 ## 2. System objective
 
@@ -3716,6 +3724,18 @@ candidate.semanticSubject ==
 M6 mechanically projects `reviewerAcquisition` exactly from validated current P.
 M6 does not choose acquisition order, select profiles, or use finding content.
 
+M3 static provider-reported qualification remains protocol-only. M3 does not
+inspect Pi, Dependency Contract capability, provider runtime support, or
+provider documentation. Therefore:
+
+```text
+protocol profile qualification
+!=
+execution-realization capability
+```
+
+M3 gains no realization-conformance ownership.
+
 For `kind = established`, `qualifyingReviewerProfileIds` must be the complete
 set of protocol-registered profiles that satisfy every accepted
 reviewer/profile prerequisite for the required Gate A review class. M3 may not
@@ -3844,9 +3864,22 @@ The selected M4 realization is the explicit Pi M4 adapter around
    M4 journal/recovery evidence before interpretation; never manufacture
    provider truth from Pi normalization or absence of response.
 
-The adapter must not decide whether a provider-reported model identifier is a
-resolved identity or an unresolved alias. That remains the unresolved
-Product Semantics question tracked separately in Issue #47.
+For `identityResolution.kind == "provider-reported"`, M4 may execute only
+through a selected Dependency Contract realization that has established:
+
+```text
+provider-owned-canonical-effective-model-identity-v1
+```
+
+M4 does not infer this capability from `providerModel` spelling, repeated
+observations, request/model inequality, Pi requested-model normalization, or
+provider-specific naming. It never substitutes `requestModel`. An exact
+Dependency Contract realization mismatch fails closed before provider
+invocation through `DEPENDENCY-CONTRACT-VIOLATION`.
+
+M4 captures the exact provider-owned identity token only after an accepted
+realization contract has established the capability. It does not classify the
+token's spelling.
 
 M4 must execute only an `ArmedExecutionDispatchRef` produced after successful
 M2 Arm admission. It must not reconstruct a WorkItem, dispatch intent,
@@ -4167,8 +4200,39 @@ sealed completed outputs, and M6 validation evidence as GateARun operational
 history. That pre-receipt history is not a hostile-review execution receipt and
 must not be written or admitted under `formal/reviews/executions/`.
 
-When M6 returns the first `qualified` classification for the logical cognitive
-execution, M5 mechanically assembles and seals one complete schema-v3 receipt.
+For one cognitive WorkItem whose retained acquisition candidate has
+`identityResolution.kind == "provider-reported"`, after M6 returns the first
+`qualified` semantic-attempt classification, M5 reads the exact M4 terminal
+evidence bound to the captured result. If exact `providerModel` is `null`, the
+empty string, or exact `latest`, M5 must preserve the raw response, all M4
+runtime evidence, and all M6 validation evidence. It creates no schema-v3
+receipt, no receipt `EvidenceRef`, no `resolved_identity`, and no retry
+authorization. It performs no semantic retry, no reviewer-profile substitution,
+and derives no later reviewer-acquisition round from that WorkItem.
+
+M5 prepares exactly one assurance-ledger non-recovery operational blocker
+request bound to the exact source obligation, WorkItem, and Execution with:
+
+```text
+producer = assurance-ledger
+kind = provider-reported-identity-unavailable
+resolutionContracts = []
+```
+
+The future M5-A Module Brief owns the exact cause-descriptor schema. M8-B remains
+the sole blocker and Operator Action Request materializer, M2 remains the sole
+authoritative writer, and normal external progression becomes
+`OPERATOR-ACTION-REQUIRED`. This case is neither `protocol-invalid`,
+`TechnicalExecutionFailure`, nor `DECISION-REQUIRED`.
+
+When M6 returns the first `qualified` classification for any other admissible
+logical cognitive execution, or when provider-reported `providerModel` is
+non-empty and not exact `latest`, M5 mechanically assembles and seals one
+complete schema-v3 receipt. For provider-reported identity M5 never inspects
+identifier spelling and sets the exact request/provider binding, exact request
+model, exact `providerModel`, `resolution_kind = "provider-reported"`, and exact
+qualifying attempt as `evidence_attempt_id`. Effective counting remains
+distinct `(provider, model_version)`.
 The receipt includes every preserved receipt-admissible protocol attempt for
 that WorkItem, in runner Execution attempt-ordinal order, together with its
 applicable exact M4 and M6 evidence. A receipt-admissible attempt has an exact

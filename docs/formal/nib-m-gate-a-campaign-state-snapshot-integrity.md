@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "3.0.3"
+version: "3.0.4"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,9 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+
+Version `3.0.4` is a dependency-only compatibility synchronization with NIB-S `9.1.0`. It changes no algorithm, type, or module invariant.
 
 Version `3.0.3` projects the exact retained
 `ReviewCampaignPrerequisiteBasisRefV1` for each runner-produced campaign during

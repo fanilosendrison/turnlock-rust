@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.0.5"
+version: "1.1.0"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,13 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+
+Version `1.1.0` is built on version `1.0.5`, preserves all of its exact adapter
+interface, strict UTF-8, unsealed-result, evidence-sealing, and journal-ownership
+closures, closes the Issue #47 provider-reported realization boundary, and
+activates `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.0`. It changes no
+public interface.
 
 Version `1.0.5` consumes
 `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.1` and closes only the exact
@@ -656,7 +662,33 @@ Provider, model, and request identity do not enter callId derivation.
            provider =
                O.reviewerAcquisitionCandidate.provider
            requestModel =
-               O.reviewerAcquisitionCandidate.requestModel;
+               O.reviewerAcquisitionCandidate.requestModel
+           identityResolution =
+               O.reviewerAcquisitionCandidate.identityResolution;
+
+       if identityResolution.kind == "provider-reported":
+           require selected DC ==
+               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.0;
+
+           observe selected DC capability:
+               provider-owned-canonical-effective-model-identity-v1
+               == NOT-ESTABLISHED;
+
+           fail prepare invocation as:
+               DEPENDENCY-CONTRACT-VIOLATION;
+
+           do NOT call adapter.buildExecutionPlan;
+           do NOT seal dependencyExecutionPlan;
+           do NOT check credential availability;
+           do NOT construct preparation artifact;
+           do NOT construct reconciliation operation;
+           do NOT publish PREPARED;
+           do NOT Arm;
+           do NOT invoke provider;
+
+       if identityResolution.kind == "pinned-request-model":
+           require the already-existing acquisition-candidate invariant:
+               requestModelIsImmutableVersion == true;
 
        construct exactly:
            PiM4BuildExecutionPlanRequestV1 {
@@ -1855,7 +1887,8 @@ M4A-18
 Provider response identity is never substituted for callId.
 
 M4A-19
-Provider-reported model evidence is preserved without resolving Issue #47.
+Provider-owned model evidence is preserved exactly; identifier spelling never
+establishes provider-reported resolution.
 
 M4A-20
 Heartbeat and provider-activity telemetry are non-authoritative and non-evidentiary.
@@ -1917,6 +1950,21 @@ M4A-34
 A dependencyExecutionPlan may validate but never replace callId,
 reviewerProfileId, provider, or requestModel selected by the immutable M4
 operation.
+
+M4A-35
+For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.0, a provider-reported acquisition
+candidate is rejected as DEPENDENCY-CONTRACT-VIOLATION before
+buildExecutionPlan because
+provider-owned-canonical-effective-model-identity-v1 is NOT-ESTABLISHED.
+
+M4A-36
+PiM4BuildExecutionPlanRequestV1 remains identity-resolution blind; M4-A never
+adds provider-reported admission semantics to the dependency adapter interface.
+
+M4A-37
+A completed provider-semantic response remains captured when providerModel is
+null, empty, or "latest"; missing usable identity evidence never creates
+technical-failure or retry permission.
 ```
 
 ## 23. Forbidden behavior
@@ -2129,11 +2177,11 @@ Active dependency contract:
 
 ```text
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION
-version 1.0.1
+version 1.1.0
 docs/formal/dependency-contract-pi-m4-cognitive-execution.md
 ```
 
-The active DC 1.0.1 closes these requirements for the selected v1 Pi backend.
+The active DC 1.1.0 closes these requirements for the selected v1 Pi backend.
 
 It satisfies every requirement in Section 12 and additionally closes:
 
@@ -2154,6 +2202,15 @@ exact request evidence schema
 exact runtime/provider evidence schema
 exact providerResponseId extraction
 exact providerModel extraction
+exact provider-reported identity capability status for the selected realization
+exact provider-owned providerModel extraction and preservation
+exact qualification evidence required before
+provider-owned-canonical-effective-model-identity-v1 may be reported as
+ESTABLISHED
+fail-closed consumer behavior when
+provider-owned-canonical-effective-model-identity-v1 is NOT-ESTABLISHED
+proof that providerModel is not substituted from requestModel or Pi
+high-level normalization
 exact textual completion extraction
 exact transportAttemptCount definition
 exact terminal-no-completed-response facts
@@ -2161,6 +2218,46 @@ exact ambiguous failure mapping
 known provider-normalization limitations
 selected backend recovery limitation
 ```
+
+Dependency Contract closure means that the exact realization's capability
+status and evidence boundary are determinate.
+
+It does not mean every optional capability is established.
+
+The Dependency Contract must always determine and declare the capability status
+of the exact selected realization. Declaring the status does not imply that the
+capability is established.
+
+For the active DC 1.1.0:
+
+```text
+provider-owned providerModel capture
+= ESTABLISHED
+
+canonical-effective identity capability
+= NOT-ESTABLISHED
+```
+
+The active DC therefore satisfies the M4-A obligation to report the capability
+status, but it does not satisfy a provider-reported execution's requirement for
+that capability to be `ESTABLISHED`:
+
+```text
+DC obligation closed
+AND
+current provider-reported execution realization inadmissible
+```
+
+For a provider-reported execution, M4-A requires the status of
+`provider-owned-canonical-effective-model-identity-v1` to be `ESTABLISHED`. A
+determinate `NOT-ESTABLISHED` status therefore closes the Dependency Contract
+question while making that exact provider-reported realization inadmissible.
+
+A future accepted Dependency Contract realization may report
+`provider-owned-canonical-effective-model-identity-v1` as `ESTABLISHED` only
+when its qualification evidence establishes that property. M4-A does not define
+which future concrete evidence suffices beyond the semantic contract fixed by
+ADR-054 and introduces no provider-specific qualification rule.
 
 The contract must also close exactly:
 
@@ -2220,25 +2317,36 @@ An unsupported exact binding must fail closed under the Dependency Contract.
 The M4 NIB does not implement those Pi facts itself.
 
 The Pi-specific Dependency Contract prerequisite for M4-A is satisfied by
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.0.1.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.0.
 
 This does not itself authorize GREEN before the remaining construction sequence
 is complete.
 
-## 26. Unresolved model-identity boundary
+## 26. Provider-reported identity realization boundary
 
-Issue #47 remains unresolved.
+ADR-054 resolves the semantic meaning of provider-reported.
 
-M4-A may capture:
+M4-A owns no identifier-string classification. The selected Dependency Contract
+owns realization capability status.
+
+Current DC 1.1.0 status:
 
 ```text
-requested provider
-requested model
-provider-owned response model
-provider-owned response identity
+provider-owned-canonical-effective-model-identity-v1
+= NOT-ESTABLISHED
 ```
 
-It may not decide whether a provider-reported identifier is a resolved immutable
-`model_version` or an unresolved alias. No syntax heuristic, date suffix,
-repeated observation, Pi behavior, or provider documentation is allowed to
-resolve that Product Semantics question here.
+Therefore current provider-reported candidates fail closed as
+`DEPENDENCY-CONTRACT-VIOLATION` before `buildExecutionPlan`. M4-A calls no
+adapter operation, seals no dependency execution plan, publishes no PREPARED,
+creates no Arm, and invokes no provider.
+
+M4-A never invents `providerModel`, substitutes `requestModel`, normalizes an
+unresolved alias into a fabricated version, or uses Pi high-level requested-
+model echoes as provider-owned evidence.
+
+If a later accepted realization establishes the capability and an executed
+completed semantic response nevertheless has `providerModel` null, empty, or
+`"latest"`, M4 preserves the captured completed response. M4 does not relabel
+it technical-failure and does not retry. M5 owns assurance progression
+handling.

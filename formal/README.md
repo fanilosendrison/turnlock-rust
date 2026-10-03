@@ -178,22 +178,28 @@ prevent Gate A subject derivation.
 state. Focused configurations may restrict the integrated semantics; they must
 never become independent mini-semantics.
 
-## Hostile-review protocol v5
+## Hostile-review protocol v6
 
 The current hostile-review protocol identity `P` is
-`gate-a-campaign-protocol-v5`, and review evidence remains schema `5.0`. The
-protocol history is `v5 -> v4 -> v3 -> v2 -> v1`; v1-v4 remain immutable
-history. Protocol v5's exact predecessor is v4, and v5 binds the exact
-content-addressed v5 protocol-bundle meta-schema plus the unchanged
+`gate-a-campaign-protocol-v6`, and review evidence remains schema `5.0`. The
+protocol history is `v6 -> v5 -> v4 -> v3 -> v2 -> v1`; v1-v5 remain immutable
+history. Protocol v6's exact predecessor is v5, and v6 binds the exact
+content-addressed v6 protocol-bundle meta-schema plus the unchanged
 content-addressed review-evidence-v5 meta-schema into P. Execution receipts
-remain schema `3.0`. Protocol bundles v1-v3 remain interpreted with the
-immutable v1-v3 bundle meta-schema snapshot, while v4 retains its exact
-immutable v4 meta-schema. The unversioned schema files are frozen legacy aliases
-and are never edited.
+remain schema `3.0`.
 
-Protocol v5 acquisition is minimum-effective, deterministic,
+ADR-054 governs provider-reported effective identity resolution. Protocol v6 is
+exactly v5 deterministic minimum-effective acquisition plus the requirement that
+provider-reported identity use a realization-qualified provider-owned canonical
+effective-model identity channel. Identifier spelling never establishes
+resolution, and exact `latest` remains forbidden as `model_version`.
+
+ADR-054 changes P, not S. It does not enter Gate A subject dependencies and
+changes no formal claim, normative coverage, or executable formal semantics.
+
+Protocol v6 preserves v5 acquisition: it is minimum-effective, deterministic,
 content-independent, round-based, and ordered only by the protocol-owned
-`profile_order`. Reviewer-profile registry membership is eligibility rather
+`profile_order`. Reviewer-profile registry membership remains eligibility rather
 than execute-all authority. Statically duplicate pinned identities may be
 skipped before execution; provider-reported identities are never guessed or
 pre-collapsed; and qualified effective-identity collision may acquire the next

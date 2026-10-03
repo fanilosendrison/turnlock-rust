@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "2.0.8"
+version: "2.0.9"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,9 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+
+Version `2.0.9` is a dependency-only compatibility synchronization with NIB-S `9.1.0`. It changes no algorithm, type, or module invariant.
 
 Version `2.0.8` is dependency-only synchronization with NIB-S `9.0.1`.
 
