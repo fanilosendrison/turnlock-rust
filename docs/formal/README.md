@@ -350,7 +350,7 @@ M4-B recovery observation remains separately scoped.
 
 The active Pi M4 Dependency Contract is
 [`dependency-contract-pi-m4-cognitive-execution.md`](dependency-contract-pi-m4-cognitive-execution.md),
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.0`.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.1`.
 
 It pins `@earendil-works/pi-ai@0.99.2` / Pi
 `005af57d88ee23b33778f343a9595b32e67ff788`, the direct
