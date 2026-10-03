@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "3.0.2"
+version: "3.0.3"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,12 +20,15 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
 
-Version `3.0.2` is dependency-only compatibility synchronization with
-NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`. The reviewer-acquisition System Brief
-change does not alter snapshot reconstruction, unresolved-execution projection,
-retained-history integrity, or provenance-root behavior.
+Version `3.0.3` projects the exact retained
+`ReviewCampaignPrerequisiteBasisRefV1` for each runner-produced campaign during
+snapshot reconstruction. All other snapshot, recovery, and provenance behavior
+is unchanged.
+
+Version `3.0.2` was dependency-only compatibility synchronization with
+NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`.
 
 It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
@@ -364,6 +367,72 @@ then reviewCampaignId ascending
 ```
 
 Currentness is not projected by M2.
+
+### 5.4.1 `reviewCampaignPrerequisiteBases`
+
+Project exactly:
+
+```text
+1. Iterate snapshot.reviewCampaigns in their existing exact snapshot order.
+
+2. For repository-imported campaign:
+       emit no prerequisite basis.
+
+3. For runner-produced campaign C:
+       locate the unique retained successful
+       EstablishReviewCampaignBundleV1 mutation whose:
+           mutation.campaign == exact C
+
+       require exactly one
+
+       let B = mutation.prerequisiteBasis
+
+       runtime-validate B as ReviewCampaignPrerequisiteBasisRefV1
+
+       require every NIB-S basis/campaign binding
+
+       append exact B unchanged
+```
+
+Do not reconstruct a new basis object from other fields. The projected value is
+the exact retained `mutation.prerequisiteBasis`.
+
+Fail snapshot reconstruction with `INTEGRITY_FAILURE` if:
+
+```text
+runner-produced campaign has zero basis
+
+runner-produced campaign has more than one incompatible basis
+
+basis reviewCampaignId mismatch
+
+basis candidate/S/P mismatch
+
+basis candidate sequence invalid
+
+qualifying profile set != candidate profile set
+
+pinned candidate static identity mismatch
+
+provider-reported candidate has non-null static identity
+
+basis evidence corrupt/missing
+
+repository-imported campaign has an authoritative
+EstablishReviewCampaignBundleV1 prerequisite basis
+```
+
+Exact replay of the same logical already-admitted campaign/basis is not a second
+logical basis.
+
+Require the restart property:
+
+```text
+same authoritative history
+→ same reviewCampaignPrerequisiteBases bytes/values/order
+```
+
+M5 can resume later-round acquisition without invoking M3.
 
 ### 5.5 `obligations`
 
@@ -1465,6 +1534,16 @@ I71  Established preflight with zero candidates is a legal incomplete-bootstrap
 I72  One ReviewCampaignId cannot retain incompatible immutable campaign
      payloads; an exact duplicate is one logical campaign fact.
 
+I72A Every runner-produced ReviewCampaign has exactly one retained valid
+     ReviewCampaignPrerequisiteBasisRefV1 projected from its exact successful
+     EstablishReviewCampaignBundleV1 mutation.
+
+I72B Repository-imported ReviewCampaigns have no prerequisite-basis projection
+     and no authoritative EstablishReviewCampaignBundleV1 prerequisite basis.
+
+I72C The reviewer-acquisition candidate order and complete prerequisite-basis
+     payload are reconstructed unchanged from retained mutation authority.
+
 I73  Runner-produced campaign provenance has non-null originating run,
      candidate, and full RepositoryAuthorityRef, while repository-imported
      provenance has null originating run/candidate and only the exact
@@ -1517,6 +1596,10 @@ reconstructSnapshot(runId):
     verify at most one unconsumed projection per source candidate
     verify readiness is null while projection is pending
     verify ReviewCampaignId payload uniqueness and provenance variant bindings
+    project exact reviewCampaignPrerequisiteBases in reviewCampaigns order
+    verify one exact retained basis per runner-produced campaign
+    verify zero retained bases for repository-imported campaigns
+    verify every basis/campaign/candidate/static-identity/evidence binding
     verify obligation/disposition graph
     verify EstablishOperationalBlockersV1 co-admitted obligation/blocker closure
     verify WorkItem source closure
