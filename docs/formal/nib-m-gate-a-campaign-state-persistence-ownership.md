@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "2.0.7"
+version: "2.0.8"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -20,12 +20,23 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
 
-Version `2.0.7` is dependency-only compatibility synchronization with
-NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`. The reviewer-acquisition System Brief
-change does not alter M2 persistence, ownership, SQLite, artifact-store,
-bootstrap, or fencing behavior.
+Version `2.0.8` is dependency-only synchronization with NIB-S `9.0.1`.
+
+NIB-S `9.0.1` requires no SQLite schema-version change and no new authoritative
+table.
+
+The exact prerequisite basis is already durably reconstructible because every
+committed `StateRevision` retains its immutable mutation artifact and
+`EstablishReviewCampaignBundleV1` contains the complete exact basis.
+
+Schema version remains exactly `1`.
+
+Physical layout, SQLite configuration, and ownership semantics are unchanged.
+
+Version `2.0.7` was dependency-only compatibility synchronization with
+NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`.
 
 `AssuranceRepositoryProjectionRef` is a companion-M2 domain relation/fact
 owned by the mutation/execution and snapshot/integrity contracts. It does not
