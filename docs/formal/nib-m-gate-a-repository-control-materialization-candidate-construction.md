@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "2.0.2"
+version: "2.0.3"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -15,12 +15,13 @@ superseded_by: []
 
 # NIB-M — Gate A Repository Control — Materialization and Candidate Construction
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
 
-Version `2.0.2` is dependency-only compatibility synchronization with
-NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`. The reviewer-acquisition System Brief
-change does not alter M7-A repository inspection, materialization, candidate
-construction, repair, assurance-projection, or provenance behavior.
+Version `2.0.3` is dependency-only synchronization with NIB-S `9.0.1`. No M7-A
+repository, candidate, or materialization semantics change.
+
+Version `2.0.2` was dependency-only compatibility synchronization with
+NIB-S-GATE-A-CAMPAIGN-RUNNER `9.0.0`.
 
 This Module Brief is implementation-construction authority only. It creates no
 TURNLOCK product semantics, hostile-review protocol semantics, canonical formal
