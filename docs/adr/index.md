@@ -70,6 +70,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | Require proto-ring for applicable generic repository governance | accepted | 2026-09-27 | complete | Mandatory use of proto-ring for applicable generic repository governance<br>Classification boundary between generic and Turnlock-specific repository governance<br>Immutable local adoption of the proto-ring Shared Governance Provider contract |
 | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | Adopt structured proto-ring repository governance | accepted | 2026-10-02 | complete | Repository Governance Model version 2 adoption<br>Structured proto-ring governance registries and profiles<br>Authority migration for active governance bindings and validation membership |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | Define deterministic minimum-effective hostile-reviewer acquisition | accepted | 2026-10-02 | complete | Gate A initial-reviewer acquisition policy<br>Deterministic reviewer-profile acquisition order<br>Minimum-effective independent-reviewer acquisition<br>Qualified reviewer identity collision expansion<br>Reviewer-pool exhaustion outcome |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | Define provider-reported effective model identity resolution | accepted | 2026-10-03 | complete | Gate A provider-reported model identity resolution<br>Canonical effective model identity channel<br>Provider-reported unresolved-alias handling<br>Reviewer identity realization conformance |
 
 ## Recorded outgoing relations
 
@@ -198,6 +199,13 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | confirms | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | confirms | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | confirms | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | amends | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | clarifies | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | confirms | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | confirms | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | confirms | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | confirms | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
+| [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | confirms | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 
 ## Derived incoming relations
 
@@ -304,6 +312,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | amended by | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | confirmed by | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
 | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | confirmed by | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
+| [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) | confirmed by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amended by | [ADR-044](adr-044-require-one-unambiguous-gate-a-review-subject.md) |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amended by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
 | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) | amended by | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) |
@@ -312,17 +321,23 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | confirmed by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | confirmed by | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
+| [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | confirmed by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | amended by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | confirmed by | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
+| [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) | confirmed by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | confirmed by | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) |
 | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | confirmed by | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
+| [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) | confirmed by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | confirmed by | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
+| [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | confirmed by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | amended by | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | confirmed by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | amended by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
+| [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | clarified by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
