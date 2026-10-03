@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.0.2"
+version: "1.0.3"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,16 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+
+Version `1.0.3` binds the exact selected
+`GateAReviewerAcquisitionCandidateV1` into the immutable M4 WorkItem operation
+so provider and requestModel are never inferred from reviewerProfileId.
+
+This is a pre-GREEN construction closure. It changes no product semantics,
+hostile-review protocol semantics, reviewer-acquisition policy, provider/model
+selection, retry, recovery, persistence, module ownership, or Issue #47
+identity-resolution authority.
 
 Version 1.0.2 synchronizes this Module Brief with
 NIB-S-GATE-A-CAMPAIGN-RUNNER 9.0.0.
@@ -173,12 +182,26 @@ M4-A seals them through `CampaignArtifactStore.sealRunnerArtifact`.
 
 ```ts
 interface CognitiveExecutionOperationV1 {
-  readonly schema: "gate-a-cognitive-execution-operation.v1";
-  readonly reviewContext: ReviewContext;
-  readonly role: CognitiveExecutionRole;
-  readonly reviewerProfileId: string;
-  readonly prompt: ArtifactRef;
-  readonly packet: ArtifactRef;
+  readonly schema:
+    "gate-a-cognitive-execution-operation.v1";
+
+  readonly reviewContext:
+    ReviewContext;
+
+  readonly role:
+    CognitiveExecutionRole;
+
+  readonly reviewerProfileId:
+    string;
+
+  readonly reviewerAcquisitionCandidate:
+    GateAReviewerAcquisitionCandidateV1;
+
+  readonly prompt:
+    ArtifactRef;
+
+  readonly packet:
+    ArtifactRef;
 }
 ```
 
@@ -229,6 +252,9 @@ O.reviewContext.campaign.provenance.candidateId ==
 O.reviewContext.campaign.semanticSubject ==
     O.reviewContext.candidate.semanticSubject
 
+O.reviewerAcquisitionCandidate.profileId ==
+    O.reviewerProfileId
+
 W.inputRefs ==
 [
     O.prompt,
@@ -237,7 +263,40 @@ W.inputRefs ==
 ```
 
 The `inputRefs` equality means exact same length, same order, same exact
-`ArtifactRef` values, and no hidden semantic input.
+`ArtifactRef` values, and no hidden semantic input. The acquisition candidate is
+immutable execution configuration retained in the operation, not an additional
+cognitive textual input.
+
+Runtime-validate the complete candidate structure. Require exactly:
+
+```text
+identityResolution.kind == "provider-reported"
+→ staticallyKnownEffectiveIdentity == null
+
+identityResolution.kind == "pinned-request-model"
+→ requestModelIsImmutableVersion == true
+→ staticallyKnownEffectiveIdentity ==
+    {
+      provider:
+        O.reviewerAcquisitionCandidate.provider,
+
+      modelVersion:
+        O.reviewerAcquisitionCandidate.requestModel
+    }
+```
+
+M4 does not:
+
+```text
+choose candidate
+check acquisition-round eligibility
+compute reviewer deficit
+determine reviewer independence
+re-run M3
+re-read P
+```
+
+Those responsibilities remain upstream.
 
 For a new M4 execution:
 
@@ -393,6 +452,9 @@ R.prompt == prepared requestTemplate.prompt
 
 R.packet == prepared requestTemplate.packet
 
+R.reviewerProfileId ==
+    prepared operation.reviewerAcquisitionCandidate.profileId
+
 R.dispatch.recoveryCapability ==
     exact prepared recoveryCapability
 
@@ -401,6 +463,12 @@ R.dispatch.dispatchEvidence ==
 ```
 
 M4 must not repair any mismatch. A mismatch is invocation failure.
+
+`CognitiveExecutionRequest` and `CognitiveExecutionRequestTemplateV1` retain
+their existing cross-module shapes and continue to project only
+`reviewerProfileId`. Provider and requestModel remain M4-internal execution
+realization facts retained through the immutable WorkItem operation and
+preparation.
 
 ## 7. Cognitive-call identity
 
@@ -500,11 +568,21 @@ Provider, model, and request identity do not enter callId derivation.
        do NOT construct another reconciliation operation;
        do NOT publish another PREPARED marker;
 
-       obtain from the existing plan exactly:
-           provider
-           request model
-           runtime identity
-           credentialRequirementId;
+       require the existing plan binds exactly:
+           callId == derived callId
+           reviewerProfileId ==
+               O.reviewerAcquisitionCandidate.profileId
+           provider ==
+               O.reviewerAcquisitionCandidate.provider
+           requestModel ==
+               O.reviewerAcquisitionCandidate.requestModel;
+
+       if retained plan contradicts the immutable operation:
+           JOURNAL-INTEGRITY-FAILURE;
+           do not derive a replacement plan;
+
+       obtain runtime identity and credentialRequirementId from the exact
+       validated existing plan;
 
        check credential availability NOW through the runtime credential
        boundary;
@@ -528,16 +606,36 @@ Provider, model, and request identity do not enter callId derivation.
            RecoveryCapabilityRef.
 
 7. Otherwise PREPARED does not exist:
+       define authoritative preparation inputs exactly:
+           reviewerProfileId =
+               O.reviewerAcquisitionCandidate.profileId
+           provider =
+               O.reviewerAcquisitionCandidate.provider
+           requestModel =
+               O.reviewerAcquisitionCandidate.requestModel;
+
        request from Dependency Contract #31 the exact credential-free
-       dependency execution plan for exact operation + exact callId;
+       dependency execution plan for:
+           exact callId
+           exact reviewerProfileId
+           exact provider
+           exact requestModel
+           exact cognitive operation;
 
        seal/verify that plan;
 
-       obtain:
-           provider
-           request model
-           runtime identity
-           credentialRequirementId;
+       require the returned plan binds exactly:
+           plan.callId == derived callId
+           plan.reviewerProfileId == reviewerProfileId
+           plan.provider == provider
+           plan.requestModel == requestModel;
+
+       any contradiction:
+           DEPENDENCY-CONTRACT-VIOLATION;
+           do not accept substitution;
+
+       obtain runtime identity and credentialRequirementId from the exact
+       validated plan;
 
        check current credential availability;
 
@@ -590,6 +688,10 @@ availability checking.
 
 Credential secret values are not retained by preparation. Execution resolves
 and injects the credential again immediately before the external-call fence.
+
+The authoritative provider, requestModel, and reviewerProfileId are always the
+exact immutable operation-candidate values. The Dependency Contract validates
+and realizes those values; it never selects or replaces them.
 
 ## 9. Preparation and reconciliation artifacts
 
@@ -1717,6 +1819,23 @@ M4A-30
 For selected v1, a TechnicalExecutionFailure eligible to become a schema-v3
 receipt attempt has transportAttemptCount == 1; zero-transport outcomes may not
 be mislabeled as such an attempt.
+
+M4A-31
+Every cognitive reviewer WorkItem operation retains exactly one selected
+GateAReviewerAcquisitionCandidateV1.
+
+M4A-32
+operation.reviewerProfileId always equals
+operation.reviewerAcquisitionCandidate.profileId.
+
+M4A-33
+M4-A obtains requested provider and requestModel only from the exact retained
+reviewerAcquisitionCandidate and never from reviewerProfileId alone.
+
+M4A-34
+A dependencyExecutionPlan may validate but never replace callId,
+reviewerProfileId, provider, or requestModel selected by the immutable M4
+operation.
 ```
 
 ## 23. Forbidden behavior
@@ -1789,6 +1908,19 @@ M6
 
 M5
 → owns protocol/campaign retry authorization and receipt assembly
+
+M1 first-round WorkItem construction:
+→ exact selected GateAReviewerAcquisitionCandidateV1 from the newly established
+  ReviewCampaignPrerequisiteBasisRefV1
+→ copied unchanged into CognitiveExecutionOperationV1
+
+M5 later-round WorkItem construction:
+→ exact selected GateAReviewerAcquisitionCandidateV1 from
+  snapshot.reviewCampaignPrerequisiteBases
+→ copied unchanged into CognitiveExecutionOperationV1
+
+Neither may construct only `reviewerProfileId` and later ask M4 to recover the
+remaining profile data.
 
 M8
 → owns recovery classification/operator boundary
@@ -1969,6 +2101,31 @@ mislabeled as a receipt technical-failure attempt. If the pinned realization
 can establish neither under the existing M4/NIB-S result language, Dependency
 Contract authoring must stop and route the construction gap rather than invent a
 mapping.
+
+The Pi Dependency Contract receives exact:
+
+```text
+callId
+reviewerProfileId
+provider
+requestModel
+```
+
+from the M4 operation.
+
+The Dependency Contract may validate support but must not:
+
+```text
+resolve reviewerProfileId through configuration
+choose another provider
+choose another requestModel
+fall back to a Pi default model
+replace unsupported model with another catalog model
+infer provider/model from environment
+use Pi's model catalog as reviewer-profile authority
+```
+
+An unsupported exact binding must fail closed under the Dependency Contract.
 
 The M4 NIB does not implement those Pi facts itself. GREEN for M4-A remains
 blocked until the accepted Dependency Contract exists.
