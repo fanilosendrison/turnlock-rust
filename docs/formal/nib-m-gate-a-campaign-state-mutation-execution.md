@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "4.0.0"
+version: "4.0.1"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,10 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+
+Version `4.0.1` closes only the exact retained prerequisite-basis projection
+required by NIB-S `9.0.1`. M2 gains no acquisition-selection semantics.
 
 Version `4.0.0` is a breaking construction-contract revision only because the
 persisted reviewer-prerequisite admission basis shape changes under ADR-053.
@@ -441,22 +444,11 @@ No external-effect Arm is involved.
 ### 5.3 Review campaign bundle
 
 ```ts
-interface ReviewerPrerequisiteAdmissionBasis {
-  readonly candidateId: CandidateRevisionId;
-  readonly semanticSubject: SemanticSubjectRef;
-  readonly protocolBundle: ProtocolBundleRef;
-  readonly minimumIndependentReviewers: number;
-  readonly acquisitionMode: "minimum-effective-independent-v1";
-  readonly qualifyingReviewerProfileIds: readonly string[];
-  readonly reviewerAcquisitionCandidates:
-    readonly GateAReviewerAcquisitionCandidateV1[];
-  readonly evidence: readonly ArtifactRef[];
-}
-
 interface EstablishReviewCampaignBundleV1 {
   readonly kind: "establish-review-campaign-bundle";
   readonly campaign: ReviewCampaignRef;
-  readonly prerequisiteBasis: ReviewerPrerequisiteAdmissionBasis;
+  readonly prerequisiteBasis:
+    ReviewCampaignPrerequisiteBasisRefV1;
   readonly obligations: readonly ObligationRef[];
   readonly workItems: readonly WorkItemRef[];
 }
@@ -470,15 +462,23 @@ campaign.provenance.kind == runner-produced
 campaign.provenance.originatingRunId ==
     exact GateARun runId
 
-campaign.provenance.candidateId ==
-    prerequisiteBasis.candidateId
+prerequisiteBasis.reviewCampaignId ==
+    campaign.reviewCampaignId
 
-campaign.semanticSubject ==
-    prerequisiteBasis.semanticSubject
+prerequisiteBasis.candidateId ==
+    campaign.provenance.candidateId
 
-campaign.protocolBundle ==
-    prerequisiteBasis.protocolBundle
+prerequisiteBasis.semanticSubject ==
+    campaign.semanticSubject
+
+prerequisiteBasis.protocolBundle ==
+    campaign.protocolBundle
 ```
+
+Runtime-validate every NIB-S basis invariant, including exact candidate order,
+qualifying-profile set equality, identity-resolution/static-identity bindings,
+duplicate freedom, evidence integrity, and campaign bindings. M2 does not
+recompute selection or candidate order.
 
 M2 recomputes and requires:
 
@@ -498,10 +498,50 @@ The same logical `ReviewCampaignId` with a different payload is
 `INVALID_MUTATION`. An exact duplicate already-present campaign is not inserted
 a second time.
 
+Given campaign `C` and established `ReviewerPrerequisiteResolution P`, M1
+constructs exactly:
+
+```ts
+ReviewCampaignPrerequisiteBasisRefV1 {
+  reviewCampaignId:
+    C.reviewCampaignId,
+
+  candidateId:
+    C.provenance.candidateId,
+
+  semanticSubject:
+    C.semanticSubject,
+
+  protocolBundle:
+    C.protocolBundle,
+
+  minimumIndependentReviewers:
+    P.minimumIndependentReviewers,
+
+  acquisitionMode:
+    P.acquisitionMode,
+
+  qualifyingReviewerProfileIds:
+    P.qualifyingReviewerProfileIds,
+
+  reviewerAcquisitionCandidates:
+    P.reviewerAcquisitionCandidates,
+
+  evidence:
+    P.evidence,
+}
+```
+
+Apply no field transformation, sorting, or profile rewriting.
+
 The campaign and all initial obligations/work items are committed atomically in
 the same revision. M2 preserves the exact complete supplied prerequisite basis.
 The first reviewer-acquisition round is part of the complete initial
 obligations/workItems supplied for the campaign under M5 semantics.
+
+The exact `prerequisiteBasis` is retained inside the immutable authoritative
+`EstablishReviewCampaignBundleV1` mutation artifact. No extra mutable record is
+authority.
 
 Later reviewer-acquisition WorkItems may be added only through the existing
 `AdmitAssuranceLedgerDeltaV1` path. No new mutation kind and no additional state
