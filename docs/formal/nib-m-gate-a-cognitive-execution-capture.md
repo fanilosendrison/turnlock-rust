@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.1.0"
+version: "1.1.1"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -16,6 +16,11 @@ superseded_by: []
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
 It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+
+Version 1.1.1 is a construction-only synchronization with DC 1.1.1 and M4-B.
+
+It changes no execution/capture algorithm, journal state, provider behavior,
+result classification, or M4A-01..M4A-34 invariant.
 
 Version `1.1.0` is built on version `1.0.5`, preserves all of its exact adapter
 interface, strict UTF-8, unsealed-result, evidence-sealing, and journal-ownership
@@ -668,7 +673,7 @@ Provider, model, and request identity do not enter callId derivation.
 
        if identityResolution.kind == "provider-reported":
            require selected DC ==
-               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.0;
+               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.1;
 
            observe selected DC capability:
                provider-owned-canonical-effective-model-identity-v1
@@ -872,6 +877,15 @@ terminal.json
 
 Telemetry files are not truth-bearing.
 
+M4 owns one process-local exclusive call-lock registry keyed by
+`CognitiveCallId`.
+
+The lock acquired by M4-A `execute()` is the same exact registry consumed by
+M4-B `reconcile()`.
+
+M4-A and M4-B may never concurrently inspect/mutate the same call journal in one
+process outside that exact lock.
+
 ```ts
 interface CognitiveExecutionPreparedMarkerV1 {
   readonly schema: "gate-a-cognitive-execution-journal-prepared.v1";
@@ -1015,7 +1029,8 @@ exactly:
 ```text
 1. Validate exact prepared bindings from Section 6.
 
-2. Acquire one process-local exclusive execution lock keyed by callId.
+2. Acquire one process-local exclusive execution lock keyed by callId from the
+   M4-wide call-lock registry.
 
 3. Re-read and validate PREPARED marker and referenced artifacts.
 
@@ -1952,7 +1967,7 @@ reviewerProfileId, provider, or requestModel selected by the immutable M4
 operation.
 
 M4A-35
-For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.0, a provider-reported acquisition
+For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.1, a provider-reported acquisition
 candidate is rejected as DEPENDENCY-CONTRACT-VIOLATION before
 buildExecutionPlan because
 provider-owned-canonical-effective-model-identity-v1 is NOT-ESTABLISHED.
@@ -2177,11 +2192,11 @@ Active dependency contract:
 
 ```text
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION
-version 1.1.0
+version 1.1.1
 docs/formal/dependency-contract-pi-m4-cognitive-execution.md
 ```
 
-The active DC 1.1.0 closes these requirements for the selected v1 Pi backend.
+The active DC 1.1.1 closes these requirements for the selected v1 Pi backend.
 
 It satisfies every requirement in Section 12 and additionally closes:
 
@@ -2228,7 +2243,7 @@ The Dependency Contract must always determine and declare the capability status
 of the exact selected realization. Declaring the status does not imply that the
 capability is established.
 
-For the active DC 1.1.0:
+For the active DC 1.1.1:
 
 ```text
 provider-owned providerModel capture
@@ -2317,7 +2332,7 @@ An unsupported exact binding must fail closed under the Dependency Contract.
 The M4 NIB does not implement those Pi facts itself.
 
 The Pi-specific Dependency Contract prerequisite for M4-A is satisfied by
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.0.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.1.
 
 This does not itself authorize GREEN before the remaining construction sequence
 is complete.
@@ -2329,7 +2344,7 @@ ADR-054 resolves the semantic meaning of provider-reported.
 M4-A owns no identifier-string classification. The selected Dependency Contract
 owns realization capability status.
 
-Current DC 1.1.0 status:
+Current DC 1.1.1 status:
 
 ```text
 provider-owned-canonical-effective-model-identity-v1

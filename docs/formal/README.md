@@ -344,18 +344,29 @@ capture and M4-B recovery observation.
 
 The active M4-A Module Brief is
 [`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md),
-version `1.1.0`.
+version `1.1.1`.
 It owns the immutable cognitive WorkItem operation, pre-Arm preparation,
 cognitive-call identity, durable execution journal and effect fence, selected
 cognitive dependency invocation, exact raw completion and runtime-evidence
 capture, the technical-failure versus uncertainty distinction, abort handling,
 and non-authoritative liveness telemetry.
 
-M4-B recovery observation remains separately scoped.
+The active M4-B Module Brief is
+[`nib-m-gate-a-cognitive-execution-recovery-observation.md`](nib-m-gate-a-cognitive-execution-recovery-observation.md),
+version `1.0.0`.
+
+It owns exact validation of the cognitive recovery capability, read-only M4
+journal interpretation, positive PREPARED-only non-execution proof, exact local
+terminal reconstruction, and executor-domain indeterminacy for MAYBE-SENT
+without terminal truth.
+
+For the selected Pi backend, M4-B has no legal `pending` branch because the
+active Pi Dependency Contract exposes no qualified safe observational
+provider-side recovery operation and forbids replay.
 
 The active Pi M4 Dependency Contract is
 [`dependency-contract-pi-m4-cognitive-execution.md`](dependency-contract-pi-m4-cognitive-execution.md),
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.0`.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.1`.
 
 It pins `@earendil-works/pi-ai@0.99.2` / Pi
 `005af57d88ee23b33778f343a9595b32e67ff788`, the direct
@@ -367,10 +378,10 @@ exact four-field synchronous planning interface, unsealed three-result adapter
 boundary, and M4-owned strict UTF-8, evidence-sealing, raw-result, and terminal-
 journal ownership closures.
 
-ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.0` and
+ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.1` and
 delegates exact identity-channel capability qualification to the Pi M4
 Dependency Contract while preserving raw evidence. Pi M4 Dependency Contract
-version `1.1.0` records provider-owned response/effective-model evidence capture
+version `1.1.1` records provider-owned response/effective-model evidence capture
 as `ESTABLISHED`, but records
 `provider-owned-canonical-effective-model-identity-v1` as `NOT-ESTABLISHED` for
 the current `openai-codex` / `gpt-6.1-sol` qualification evidence.
