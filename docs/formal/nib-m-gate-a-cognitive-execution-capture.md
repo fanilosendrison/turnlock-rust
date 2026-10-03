@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.0.4"
+version: "1.0.5"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -16,6 +16,12 @@ superseded_by: []
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
 It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+
+Version `1.0.5` consumes
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.1` and closes only the exact
+adapter interface, strict UTF-8 failure mapping, unsealed dependency-result
+mapping, and M4-owned evidence-sealing boundary. It changes no M4 execution or
+capture semantics.
 
 Version 1.0.4 activates
 `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.0` as the exact selected
@@ -471,6 +477,37 @@ R.dispatch.dispatchEvidence ==
 
 M4 must not repair any mismatch. A mismatch is invocation failure.
 
+M4-A owns every prompt and packet `ArtifactRef` read and verification. For each
+exact artifact bytes `B`, it decodes exactly:
+
+```ts
+const text =
+  new TextDecoder(
+    "utf-8",
+    {
+      fatal: true,
+      ignoreBOM: true,
+    },
+  ).decode(B);
+```
+
+Then require:
+
+```text
+UTF8(text) == B byte-for-byte
+```
+
+Map exactly:
+
+```text
+invalid prompt/packet UTF-8
+or failed exact UTF-8 round trip
+→ ARTIFACT-INTEGRITY-FAILURE
+```
+
+This happens before dependency invocation. The adapter receives only the exact
+decoded `promptText` and `packetText`; it never reads an `ArtifactRef`.
+
 `CognitiveExecutionRequest` and `CognitiveExecutionRequestTemplateV1` retain
 their existing cross-module shapes and continue to project only
 `reviewerProfileId`. Provider and requestModel remain M4-internal execution
@@ -621,15 +658,29 @@ Provider, model, and request identity do not enter callId derivation.
            requestModel =
                O.reviewerAcquisitionCandidate.requestModel;
 
-       request from Dependency Contract #31 the exact credential-free
-       dependency execution plan for:
-           exact callId
-           exact reviewerProfileId
-           exact provider
-           exact requestModel
-           exact cognitive operation;
+       construct exactly:
+           PiM4BuildExecutionPlanRequestV1 {
+               schema:
+                   "gate-a-pi-m4-build-execution-plan-request.v1",
+               callId:
+                   exact callId,
+               reviewerProfileId:
+                   exact reviewerProfileId,
+               provider:
+                   exact provider,
+               requestModel:
+                   exact requestModel,
+           };
 
-       seal/verify that plan;
+       synchronously call:
+           adapter.buildExecutionPlan(
+               exact PiM4BuildExecutionPlanRequestV1
+           );
+
+       do not await, yield, read credentials, or perform network I/O;
+
+       seal/verify the returned plan through M4-owned
+       CampaignArtifactStore;
 
        require the returned plan binds exactly:
            plan.callId == derived callId
@@ -992,7 +1043,19 @@ exactly:
         later recovery remains conservative because MAYBE-SENT exists.
 
 18. If not aborted:
-        invoke the Issue #31 dependency adapter exactly once.
+        construct the exact PiM4DependencyInvocationRequestV1 from:
+            exact validated dependencyExecutionPlan
+            exact M4-decoded promptText
+            exact M4-decoded packetText
+            exact transient OAuthCredential
+            signal = exact control.signal
+            onProviderActivity = exact M4 telemetry callback;
+
+        call exactly once:
+
+        adapter.invoke(
+          exact PiM4DependencyInvocationRequestV1
+        )
 
         There MUST be no await, timer, I/O operation, event-loop yield, or other
         asynchronous boundary between the final signal check and initiating the
@@ -1005,18 +1068,28 @@ exactly:
         heartbeat best-effort
         provider activity best-effort
 
-21. Classify only from trustworthy dependency facts:
+21. Map the exact adapter result only as follows:
 
-        completed provider-semantic textual response
-        → completed-response terminal path
+        completed-response
+        → M4 completed terminal sealing path
+        → captured
 
-        positively established terminal no-completed-response failure
-        → technical-failure terminal path
+        technical-failure
+        → M4 technical-failure terminal sealing path
+        → technical-failure
 
-        anything else where external truth is not positively terminal
-        → uncertain path
+        ambiguous
+        → no terminal marker
+        → uncertain
 
-22. Never retry inside M4-A v1.
+        no fourth execution-domain result exists.
+
+22. M4-A owns every evidence-artifact seal, rawResult seal, terminal-evidence
+    seal, terminal journal publication, and CognitiveExecutionCapture
+    construction. The adapter returns unsealed facts only and receives no
+    CampaignArtifactStore.
+
+23. Never retry inside M4-A v1.
 ```
 
 There is no automatic duration-based abort.
@@ -1031,7 +1104,8 @@ positive nonexecution; it returns uncertainty and leaves recovery conservative.
 
 ## 12. Dependency-consumer requirements
 
-Issue #31 must provide a consumer contract satisfying exactly:
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.1` provides the consumer
+contract satisfying exactly:
 
 ```text
 @earendil-works/pi-ai@0.99.2
@@ -1097,7 +1171,7 @@ transportAttemptCount == 1
 Pre-call paths with no transport attempt do not become receipt technical-failure
 attempts.
 
-The Issue #31 contract must additionally require:
+The active Dependency Contract additionally requires:
 
 ```text
 the adapter receives the exact same execution-owned AbortSignal
@@ -1141,7 +1215,7 @@ M4/NIB-S result language, Dependency Contract authoring must stop and route the
 construction gap rather than invent a mapping.
 
 Pi source and API details beyond these M4 consumer requirements remain owned by
-Issue #31.
+the active Dependency Contract.
 
 ## 13. Raw completion and terminal evidence
 
@@ -2055,11 +2129,11 @@ Active dependency contract:
 
 ```text
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION
-version 1.0.0
+version 1.0.1
 docs/formal/dependency-contract-pi-m4-cognitive-execution.md
 ```
 
-The active DC 1.0.0 closes these requirements for the selected v1 Pi backend.
+The active DC 1.0.1 closes these requirements for the selected v1 Pi backend.
 
 It satisfies every requirement in Section 12 and additionally closes:
 
@@ -2146,7 +2220,7 @@ An unsupported exact binding must fail closed under the Dependency Contract.
 The M4 NIB does not implement those Pi facts itself.
 
 The Pi-specific Dependency Contract prerequisite for M4-A is satisfied by
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.0.0.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.0.1.
 
 This does not itself authorize GREEN before the remaining construction sequence
 is complete.
