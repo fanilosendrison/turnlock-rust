@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-AUTHORITY
-version: "2.0.0"
+version: "2.0.1"
 scope: gate-a-campaign-runner/campaign-authority
 status: active
 consumers: [architect, coding-agent]
@@ -19,7 +19,13 @@ superseded_by: []
 
 Implement M3 `campaign-authority` according to this active Module Brief.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+
+Version `2.0.1` is dependency-only synchronization with NIB-S `9.0.1`.
+
+M3 still produces the same exact `ReviewerPrerequisiteResolution` established
+basis. NIB-S `9.0.1` only makes the downstream admitted basis restart-observable.
+M3 gains no new persistence or execution authority.
 
 Version `2.0.0` is a breaking Module Brief revision because
 `ReviewerPrerequisiteResolution` and static reviewer-feasibility semantics
