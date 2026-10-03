@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.0.3"
+version: "1.0.4"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -16,6 +16,13 @@ superseded_by: []
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
 It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.0.1`.
+
+Version 1.0.4 activates
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.0` as the exact selected
+Pi dependency contract required by M4-A.
+
+It changes no M4 execution/capture semantics established by versions 1.0.1
+through 1.0.3.
 
 Version `1.0.3` binds the exact selected
 `GateAReviewerAcquisitionCandidateV1` into the immutable M4 WorkItem operation
@@ -2044,8 +2051,17 @@ producer cause
 
 ## 25. Dependency Contract obligations
 
-The future scoped Pi contract owned by Issue #31 must satisfy every requirement
-in Section 12 and additionally close:
+Active dependency contract:
+
+```text
+DC-PI-M4-GATE-A-COGNITIVE-EXECUTION
+version 1.0.0
+docs/formal/dependency-contract-pi-m4-cognitive-execution.md
+```
+
+The active DC 1.0.0 closes these requirements for the selected v1 Pi backend.
+
+It satisfies every requirement in Section 12 and additionally closes:
 
 ```text
 exact dependencyExecutionPlan schema
@@ -2127,8 +2143,13 @@ use Pi's model catalog as reviewer-profile authority
 
 An unsupported exact binding must fail closed under the Dependency Contract.
 
-The M4 NIB does not implement those Pi facts itself. GREEN for M4-A remains
-blocked until the accepted Dependency Contract exists.
+The M4 NIB does not implement those Pi facts itself.
+
+The Pi-specific Dependency Contract prerequisite for M4-A is satisfied by
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.0.0.
+
+This does not itself authorize GREEN before the remaining construction sequence
+is complete.
 
 ## 26. Unresolved model-identity boundary
 
