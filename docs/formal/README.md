@@ -296,7 +296,7 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `9.0.0`. The brief's own NIB metadata is the sole source for its
+version is `9.0.1`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
@@ -322,7 +322,7 @@ M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
 interpretation, campaign-authority operational causes and blocking obligations,
 `GateACampaignAuthorityEvaluationV1` sealing, and `ReviewContext` construction.
 
-M3 consumes NIB-S `9.0.0`.
+M3 consumes NIB-S `9.0.1`.
 
 NIB-S `9.0.0` adds the M6 → M3 → M5 reviewer-acquisition boundary. M6 projects
 exact protocol policy, M3 validates it and computes the complete lexical
@@ -348,8 +348,19 @@ and non-authoritative liveness telemetry.
 
 M4-B recovery observation remains separately scoped.
 
-Pi dependency-specific behavior remains owned by the separate Pi M4 Dependency
-Contract required before GREEN.
+The active Pi M4 Dependency Contract is
+[`dependency-contract-pi-m4-cognitive-execution.md`](dependency-contract-pi-m4-cognitive-execution.md),
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.0`.
+
+It pins `@earendil-works/pi-ai@0.99.2` / Pi
+`005af57d88ee23b33778f343a9595b32e67ff788`, the direct
+`Models.streamSimple(...)` boundary, the selected `openai-codex` SSE execution
+path, exact request/provider evidence capture, raw completion extraction,
+credential injection, terminal/uncertain classification, and the conservative
+no-provider-recovery limitation.
+
+Provider-reported resolved-identity versus alias semantics remain outside the
+Dependency Contract and remain routed to Issue #47.
 
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
