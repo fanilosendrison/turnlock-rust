@@ -457,11 +457,17 @@ repository specializes that rule as follows:
   `current_protocol_bundle` and hostile-review policy are outside `S`.
 - Reviewer executions MUST resolve a protocol-owned reviewer profile with
   `frontier_eligible == true`; never invent or auto-promote a profile.
-- Model version identity MUST be evidence-derived: `provider-reported` requires
-  a non-empty qualified attempt `provider_model`; `pinned-request-model`
-  requires `request_model_is_immutable_version == true` and the profile
-  `request_model`. Never accept a runner-supplied alias, `latest`, or an
-  unresolved alias.
+- Model version identity MUST be evidence-derived. `provider-reported` requires
+  an exact provider-owned canonical effective-model identity channel qualified
+  by the selected execution realization under
+  `provider-owned-canonical-effective-model-identity-v1`; non-empty evidence
+  alone is semantically insufficient, identifier syntax never establishes alias
+  resolution, and the checker validates only the exact per-execution token and
+  permitted bindings. The qualified attempt `provider_model` remains non-empty,
+  `model_version` equals `provider_model`, and exact `latest` remains forbidden
+  as `model_version`. `pinned-request-model` requires
+  `request_model_is_immutable_version == true` and the profile `request_model`.
+  Never accept a runner-supplied alias, `latest`, or an unresolved alias.
 - Independent reviewer counting MUST satisfy both the full
   `(provider, model, model_version)` tuple minimum and the effective
   `(provider, model_version)` tuple minimum. Aliases MUST NOT inflate the count.
@@ -498,6 +504,9 @@ repository specializes that rule as follows:
 - protocol v4 binds the exact protocol-bundle meta-schema and exact
   review-evidence meta-schema into P;
 - protocol v5 extends P with deterministic reviewer acquisition;
+- protocol v6 is current; it preserves v5 deterministic reviewer acquisition
+  and adds provider-reported canonical effective identity resolution under
+  ADR-054;
 - `reviewer_profiles` is an eligibility registry, not an execute-all list;
 - `policies.reviewer_acquisition.mode` is exactly
   `minimum-effective-independent-v1`;
