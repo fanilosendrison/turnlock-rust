@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-AUTHORITY
-version: "4.0.0"
+version: "4.0.1"
 scope: gate-a-campaign-runner/campaign-authority
 status: active
 consumers: [architect, coding-agent]
@@ -19,7 +19,14 @@ superseded_by: []
 
 Implement M3 `campaign-authority` according to this active Module Brief.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+
+Version `4.0.1` synchronizes with NIB-S `10.0.0`.
+
+`ReviewContext` construction is unchanged.
+
+M3 does not construct `ResolutionContextV1` and gains no resolution, finding,
+repair, candidate-selection, or M5-C authority.
 
 Version `4.0.0` is a breaking construction-contract revision because the
 exported established `ReviewerPrerequisiteResolution` shape gains the exact
@@ -116,6 +123,9 @@ LLM/provider invocation
 provider/model-version evidence resolution
 final independent-reviewer evidence counting
 finding semantics
+ResolutionContextV1 construction
+resolution-subject interpretation
+candidate-bound repair realization selection
 adjudication semantics
 re-adjudication semantics
 assurance repository projection semantics
