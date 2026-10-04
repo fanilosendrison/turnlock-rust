@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "2.0.11"
+version: "2.0.12"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,13 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+
+Version `2.0.12` is a dependency-only synchronization with NIB-S `10.0.0`. It
+changes no persistence algorithm, ownership, type, retry, hard-limit, provider,
+recovery, or repository semantic. The retained
+`ReviewCampaignPrerequisiteBasisRefV1.reviewContext` remains exact immutable
+review provenance and is not replaced by `ResolutionContextV1`.
 
 Version `2.0.11` is a dependency-only / construction-only compatibility
 synchronization with NIB-S `9.1.2`. It changes no persistence or ownership
