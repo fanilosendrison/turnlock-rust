@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "3.0.4"
+version: "4.0.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,9 +20,16 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
 
-Version `3.0.4` is a dependency-only compatibility synchronization with NIB-S `9.1.0`. It changes no algorithm, type, or module invariant.
+Version `4.0.0` is a breaking construction-contract revision because snapshot
+reconstruction must now preserve exactly the retained `reviewContext` and
+`initialReviewerExecutionInputs` fields of
+`ReviewCampaignPrerequisiteBasisRefV1`. No recovery, ordering, product,
+hostile-review, or repository semantics change.
+
+Version `3.0.4` was a dependency-only compatibility synchronization with NIB-S
+`9.1.0`. It changed no algorithm, type, or module invariant.
 
 Version `3.0.3` projects the exact retained
 `ReviewCampaignPrerequisiteBasisRefV1` for each runner-produced campaign during
@@ -399,6 +406,22 @@ Project exactly:
 Do not reconstruct a new basis object from other fields. The projected value is
 the exact retained `mutation.prerequisiteBasis`.
 
+Reconstruct `reviewContext` and `initialReviewerExecutionInputs` only from that
+exact retained `EstablishReviewCampaignBundleV1` mutation artifact. Never
+reconstruct either value from:
+
+```text
+current P
+protocol files
+current candidate
+new M3 invocation
+new M6 invocation
+WorkItem operation
+repository files
+current Git state
+environment
+```
+
 Fail snapshot reconstruction with `INTEGRITY_FAILURE` if:
 
 ```text
@@ -417,6 +440,14 @@ qualifying profile set != candidate profile set
 pinned candidate static identity mismatch
 
 provider-reported candidate has non-null static identity
+
+basis reviewContext campaign/run/candidate/subject binding mismatch
+
+basis initialReviewerExecutionInputs prompt missing/corrupt
+
+basis initialReviewerExecutionInputs packet missing/corrupt
+
+basis initialReviewerExecutionInputs repositoryPath/path-formula mismatch
 
 basis evidence corrupt/missing
 
@@ -1546,6 +1577,12 @@ I72B Repository-imported ReviewCampaigns have no prerequisite-basis projection
 I72C The reviewer-acquisition candidate order and complete prerequisite-basis
      payload are reconstructed unchanged from retained mutation authority.
 
+I72D Every retained prerequisite basis preserves its exact `ReviewContext` and
+     exact `InitialReviewerExecutionInputsRefV1` only from its immutable
+     `EstablishReviewCampaignBundleV1` mutation artifact; their prompt and packet
+     `ArtifactRef` values are intact and their path/null-repository bindings are
+     exact.
+
 I73  Runner-produced campaign provenance has non-null originating run,
      candidate, and full RepositoryAuthorityRef, while repository-imported
      provenance has null originating run/candidate and only the exact
@@ -1602,6 +1639,9 @@ reconstructSnapshot(runId):
     verify one exact retained basis per runner-produced campaign
     verify zero retained bases for repository-imported campaigns
     verify every basis/campaign/candidate/static-identity/evidence binding
+    verify every basis reviewContext exact retained binding
+    verify every basis initial-reviewer prompt/packet ArtifactRef integrity
+    verify every basis initial-reviewer path and null-repository binding
     verify obligation/disposition graph
     verify EstablishOperationalBlockersV1 co-admitted obligation/blocker closure
     verify WorkItem source closure

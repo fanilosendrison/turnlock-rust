@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "4.0.2"
+version: "5.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,9 +20,16 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
 
-Version `4.0.2` is a dependency-only compatibility synchronization with NIB-S `9.1.0`. It changes no algorithm, type, or module invariant.
+Version `5.0.0` is a breaking construction-contract revision because the
+complete persisted `ReviewCampaignPrerequisiteBasisRefV1` shape gains the
+retained `ReviewContext` and initial-reviewer execution-input basis required
+before M5-A. No SQLite implementation exists yet, so no runtime migration is
+required. M2 ownership and authoritative mutation semantics are unchanged.
+
+Version `4.0.2` was a dependency-only compatibility synchronization with NIB-S
+`9.1.0`. It changed no algorithm, type, or module invariant.
 
 Version `4.0.1` closes only the exact retained prerequisite-basis projection
 required by NIB-S `9.0.1`. M2 gains no acquisition-selection semantics.
@@ -475,6 +482,28 @@ prerequisiteBasis.semanticSubject ==
 
 prerequisiteBasis.protocolBundle ==
     campaign.protocolBundle
+
+prerequisiteBasis.reviewContext.campaign ==
+    campaign
+
+prerequisiteBasis.reviewContext.runId ==
+    campaign.provenance.originatingRunId
+
+prerequisiteBasis.reviewContext.candidate.candidateId ==
+    campaign.provenance.candidateId
+
+prerequisiteBasis.initialReviewerExecutionInputs.prompt exists and is intact
+
+prerequisiteBasis.initialReviewerExecutionInputs.packet exists and is intact
+
+prerequisiteBasis.initialReviewerExecutionInputs.prompt.repositoryPath == null
+
+prerequisiteBasis.initialReviewerExecutionInputs.packet.repositoryPath == null
+
+prerequisiteBasis.initialReviewerExecutionInputs.packetRepositoryPath ==
+    "formal/reviews/packets/" +
+    prerequisiteBasis.initialReviewerExecutionInputs.packet.sha256 +
+    ".json"
 ```
 
 Runtime-validate every NIB-S basis invariant, including exact candidate order,
@@ -500,8 +529,8 @@ The same logical `ReviewCampaignId` with a different payload is
 `INVALID_MUTATION`. An exact duplicate already-present campaign is not inserted
 a second time.
 
-Given campaign `C` and established `ReviewerPrerequisiteResolution P`, M1
-constructs exactly:
+Given campaign `C`, established `ReviewerPrerequisiteResolution P`, and exact
+M3-produced `ReviewContext R`, M1 constructs exactly:
 
 ```ts
 ReviewCampaignPrerequisiteBasisRefV1 {
@@ -516,6 +545,12 @@ ReviewCampaignPrerequisiteBasisRefV1 {
 
   protocolBundle:
     C.protocolBundle,
+
+  reviewContext:
+    R,
+
+  initialReviewerExecutionInputs:
+    P.initialReviewerExecutionInputs,
 
   minimumIndependentReviewers:
     P.minimumIndependentReviewers,
@@ -534,12 +569,16 @@ ReviewCampaignPrerequisiteBasisRefV1 {
 }
 ```
 
-Apply no field transformation, sorting, or profile rewriting.
+Apply no field transformation, sorting, normalization, or profile rewriting.
+M1 selects only the first-round acquisition candidates. M5 constructs the
+protocol-derived assurance obligations and WorkItems for those selected
+reviewers and returns the complete initial ledger products to M1.
 
-The campaign and all initial obligations/work items are committed atomically in
-the same revision. M2 preserves the exact complete supplied prerequisite basis.
-The first reviewer-acquisition round is part of the complete initial
-obligations/workItems supplied for the campaign under M5 semantics.
+The campaign, prerequisite basis, and complete initial M5-produced
+obligations/WorkItems are committed atomically in the same revision. M2
+preserves the exact complete supplied prerequisite basis. The first reviewer-
+acquisition round is part of those M5-owned semantic products after first-round
+selection by M1.
 
 The exact `prerequisiteBasis` is retained inside the immutable authoritative
 `EstablishReviewCampaignBundleV1` mutation artifact. No extra mutable record is
@@ -552,7 +591,8 @@ writer are introduced.
 M2 validates only exact structural and binding integrity. It MUST NOT choose
 reviewer profiles, compute acquisition rounds, interpret finding content, guess
 provider-reported identities, decide pool-exhaustion semantics, or create M5
-operational causes.
+operational causes. M2 does not reconstruct the prompt or packet, read P,
+construct `ReviewContext`, or select any reviewer.
 
 No runner-created executable campaign may become visible before its complete
 initial bundle is admitted.
