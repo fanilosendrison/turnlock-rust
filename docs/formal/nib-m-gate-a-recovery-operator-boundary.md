@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY
-version: "2.0.9"
+version: "2.0.10"
 scope: gate-a-campaign-runner/recovery-operator/operator-boundary
 status: active
 consumers: [architect, coding-agent]
@@ -15,9 +15,14 @@ superseded_by: []
 
 # NIB-M — Gate A Recovery Operator — Operator Boundary
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
 
-Version `2.0.9` is a dependency-only compatibility synchronization with NIB-S `9.1.0`. It changes no algorithm, type, or module invariant.
+Version `2.0.10` is a dependency-only / construction-only compatibility
+synchronization with NIB-S `9.1.1`. It changes no algorithm, type, provider,
+recovery, or repository semantics.
+
+Version `2.0.9` was a dependency-only compatibility synchronization with NIB-S
+`9.1.0`. It changed no algorithm, type, or module invariant.
 
 Version `2.0.8` is dependency-only synchronization with NIB-S `9.0.1`. No M8-B
 blocker identity, Operator Action Request, resolution-contract,
