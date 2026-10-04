@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "5.0.0"
+version: "6.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,13 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+
+Version `6.0.0` is a breaking construction-contract revision because the
+complete persisted `ReviewCampaignPrerequisiteBasisRefV1` gains the exact
+retry-policy fact projected from the campaign's bound protocol P. No mutation
+kind, hostile-review semantic, retry semantic, runner hard limit, or M2
+ownership changes.
 
 Version `5.0.0` is a breaking construction-contract revision because the
 complete persisted `ReviewCampaignPrerequisiteBasisRefV1` shape gains the
@@ -483,6 +489,16 @@ prerequisiteBasis.semanticSubject ==
 prerequisiteBasis.protocolBundle ==
     campaign.protocolBundle
 
+prerequisiteBasis.retryPolicy runtime-validates as
+    GateACognitiveRetryPolicyMechanicalFactV1
+
+prerequisiteBasis.retryPolicy contains no runner-limit fields
+
+prerequisiteBasis.retryPolicy role arrays contain only
+    CognitiveExecutionRole values
+
+prerequisiteBasis.retryPolicy role arrays are duplicate-free
+
 prerequisiteBasis.reviewContext.campaign ==
     campaign
 
@@ -546,6 +562,9 @@ ReviewCampaignPrerequisiteBasisRefV1 {
   protocolBundle:
     C.protocolBundle,
 
+  retryPolicy:
+    P.retryPolicy,
+
   reviewContext:
     R,
 
@@ -576,7 +595,9 @@ reviewers and returns the complete initial ledger products to M1.
 
 The campaign, prerequisite basis, and complete initial M5-produced
 obligations/WorkItems are committed atomically in the same revision. M2
-preserves the exact complete supplied prerequisite basis. The first reviewer-
+preserves the exact complete supplied prerequisite basis. M2 does not derive
+`retryPolicy`, read P, reinterpret `retryPolicy`, apply it during campaign-
+bundle admission, or merge it with runner hard limits. The first reviewer-
 acquisition round is part of those M5-owned semantic products after first-round
 selection by M1.
 
@@ -593,6 +614,8 @@ reviewer profiles, compute acquisition rounds, interpret finding content, guess
 provider-reported identities, decide pool-exhaustion semantics, or create M5
 operational causes. M2 does not reconstruct the prompt or packet, read P,
 construct `ReviewContext`, or select any reviewer.
+`EstablishReviewCampaignBundleV1` remains unchanged in name and external shape;
+its existing `prerequisiteBasis` now uses the corrected V1 basis.
 
 No runner-created executable campaign may become visible before its complete
 initial bundle is admitted.
