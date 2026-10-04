@@ -413,6 +413,21 @@ M5-A must handle a completed semantically qualified response lacking required
 provider-reported identity through the assurance-ledger operational path without
 retry or profile substitution.
 
+M5 `assurance-ledger` construction is being decomposed into scoped Module
+Briefs.
+
+The active M5-A Module Brief is
+[`nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md`](nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md),
+version `1.0.0`.
+
+It owns campaign reviewer work construction, deterministic reviewer acquisition,
+protocol/runner retry authorization, retry/pool/identity operational causes,
+initial-reviewer execution-receipt construction, and exact replay/idempotence
+for those products.
+
+It does not own finding adjudication, resolution qualification, assurance
+repository projection, or `CandidateReviewReadiness`.
+
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
 
