@@ -21,7 +21,7 @@ from proto_ring.exact_evidence_binding import (
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKER_PATH = ROOT / "scripts" / "check-formal-traceability.py"
-EXECUTABLE_PROVIDER_COMMIT = "890ed560e61e205067bdf3628e419302613ef06e"
+EXECUTABLE_PROVIDER_COMMIT = "dedb01a3a9b7a18930c9da75afa3773b5ad67f69"
 
 
 def load_checker():

@@ -11,7 +11,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
 CHECKER = SCRIPTS / "check-proto-ring-provider.py"
-EXPECTED = "890ed560e61e205067bdf3628e419302613ef06e"
+EXPECTED = "dedb01a3a9b7a18930c9da75afa3773b5ad67f69"
 
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))

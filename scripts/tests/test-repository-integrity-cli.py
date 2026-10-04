@@ -60,7 +60,8 @@ class RepositoryIntegrityCliTests(unittest.TestCase):
         source = (fixture.SCRIPT).read_text(encoding="utf-8")
         self.assertNotIn("canonical_steps", source)
         self.assertNotIn("scripts/tests/test-", source)
-        self.assertIn("repository_integrity.load", source)
+        self.assertIn("repository_governance_state.load", source)
+        self.assertNotIn("repository_integrity.load", source)
         self.assertIn("evaluate_consumer_profile", source)
 
 

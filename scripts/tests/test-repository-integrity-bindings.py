@@ -108,7 +108,7 @@ class RepositoryIntegrityBindingTests(unittest.TestCase):
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
             "proto-ring @ git+https://github.com/fanilosendrison/"
-            "proto-ring.git@890ed560e61e205067bdf3628e419302613ef06e",
+            "proto-ring.git@dedb01a3a9b7a18930c9da75afa3773b5ad67f69",
             requirements.splitlines(),
         )
 

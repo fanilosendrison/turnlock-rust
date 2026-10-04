@@ -137,7 +137,7 @@ class NormativeTerminologyTests(unittest.TestCase):
     def test_shared_engine_is_bound_to_exact_executable_provider(self) -> None:
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertIn(
-            "proto-ring.git@890ed560e61e205067bdf3628e419302613ef06e",
+            "proto-ring.git@dedb01a3a9b7a18930c9da75afa3773b5ad67f69",
             requirements,
         )
         binding = (

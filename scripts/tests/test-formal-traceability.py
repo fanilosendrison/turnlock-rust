@@ -317,6 +317,27 @@ def make_fixture(temporary: str) -> Path:
         ROOT / "scripts" / "check-repository-integrity.py",
         scripts_dir / "check-repository-integrity.py",
     )
+    subprocess.run(["git", "init", "-q", str(fixture_root)], check=True)
+    subprocess.run(
+        ["git", "-C", str(fixture_root), "config", "user.name", "Turnlock Formal Test"],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(fixture_root),
+            "config",
+            "user.email",
+            "turnlock-formal@example.invalid",
+        ],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(fixture_root), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(fixture_root), "commit", "-q", "-m", "baseline"],
+        check=True,
+    )
     return fixture_root
 
 

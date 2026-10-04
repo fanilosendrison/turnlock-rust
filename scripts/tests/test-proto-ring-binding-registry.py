@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
 CHECKER = SCRIPTS / "check-proto-ring-binding-registry.py"
 PROVIDER_CHECKER = SCRIPTS / "check-proto-ring-provider.py"
-EXPECTED = "890ed560e61e205067bdf3628e419302613ef06e"
+EXPECTED = "dedb01a3a9b7a18930c9da75afa3773b5ad67f69"
 OTHER = "b" * 40
 THIRD = "c" * 40
 
@@ -58,6 +58,27 @@ def make_fixture(temporary: str) -> Path:
         ROOT,
         root,
         ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__", "*.pyc"),
+    )
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(
+        ["git", "-C", str(root), "config", "user.name", "Turnlock Binding Test"],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "config",
+            "user.email",
+            "turnlock-binding@example.invalid",
+        ],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(root), "commit", "-q", "-m", "baseline"],
+        check=True,
     )
     return root
 
@@ -166,6 +187,19 @@ class ProtoRingBindingRegistryTests(unittest.TestCase):
                 "    proto_ring_executable:\n",
                 "    renamed_proto_ring_executable:\n",
             )
+            projection = (
+                root
+                / "docs/repository-governance/turnlock-rust-projection-integrity.md"
+            )
+            text = projection.read_text(encoding="utf-8")
+            old = "      binding: proto_ring_executable\n"
+            new = "      binding: renamed_proto_ring_executable\n"
+            if text.count(old) != 2:
+                raise AssertionError(
+                    "fixture expected exactly two proto_ring_executable "
+                    "projection bindings"
+                )
+            projection.write_text(text.replace(old, new), encoding="utf-8")
             self.assertIn("requires proto_ring_executable", checker.check(root)[0])
 
     def test_wrong_registry_repository_fails_closed(self) -> None:
@@ -223,17 +257,17 @@ class ProtoRingBindingRegistryTests(unittest.TestCase):
             )
             self.assertNotEqual([], checker.check(root))
 
-    def test_registry_loader_receives_routed_registry(self) -> None:
-        original = checker.governance_bindings.load
+    def test_checker_consumes_one_canonical_state_registry(self) -> None:
+        state = checker.repository_governance_state.load(ROOT)
+        expected = state.governance_bindings.bindings[
+            "proto_ring_executable"
+        ].identity.commit
         with mock.patch.object(
-            checker.governance_bindings, "load", wraps=original
+            checker.repository_governance_state, "load", return_value=state
         ) as load:
-            self.assertEqual([], checker.check(ROOT))
-        route = load.call_args.args[1]
-        self.assertEqual(
-            "docs/repository-governance/turnlock-rust-governance-bindings.md",
-            route.declared_path,
-        )
+            actual = checker.binding_registry_proto_ring_commit(ROOT)
+        load.assert_called_once_with(ROOT)
+        self.assertEqual(expected, actual)
 
     def test_cross_independence_registry_stale_provider_current(self) -> None:
         with TemporaryDirectory() as temporary:
