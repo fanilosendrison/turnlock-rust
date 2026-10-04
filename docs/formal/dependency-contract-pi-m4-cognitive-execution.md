@@ -2,9 +2,21 @@
 
 Contract ID: `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION`
 
-Version: `1.1.3`
+Version: `1.1.4`
 
 Status: `active`
+
+Version `1.1.4` is a dependency-only compatibility synchronization with NIB-S
+`10.0.0` and M4-A `2.0.0`.
+
+The M4 operation/request context split is entirely above the Pi adapter
+boundary.
+
+No Pi adapter interface, provider, model, request payload, prompt/packet text,
+retry, credential, timeout, evidence-capture, or recovery capability changes.
+
+The adapter still receives no `ReviewContext`, `ResolutionContextV1`,
+`WorkItemRef`, or `CognitiveExecutionOperationV2`.
 
 Version `1.1.3` is a dependency-only / construction-only compatibility
 synchronization with NIB-S `9.1.2` and M4-A `1.1.3`. It makes no execution
@@ -43,8 +55,8 @@ M4-B consumes only the exact selected-backend recovery-capability declaration.
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.2
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.3
+NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.0.0
 ```
 
 Version `1.0.1` closes the exact adapter interface, transient credential-store
@@ -177,7 +189,7 @@ qualify another request model
 Any exact M4 operation asking for another provider or requestModel is:
 
 ```text
-unsupported by DC version 1.1.3
+unsupported by DC version 1.1.4
 → DEPENDENCY-CONTRACT-VIOLATION
 → no fallback
 → no substitution
@@ -308,6 +320,9 @@ No other field is permitted. In particular it contains no:
 ```text
 ArtifactRef
 CognitiveExecutionOperationV1
+CognitiveExecutionOperationV2
+ReviewContext
+ResolutionContextV1
 prompt
 packet
 credential
@@ -2400,11 +2415,11 @@ ProviderModel is captured only from provider-owned raw events and its spelling
 never establishes canonical effective-model identity.
 
 DC-PI-M4-15
-DC 1.1.3 determinately declares
+DC 1.1.4 determinately declares
 provider-owned-canonical-effective-model-identity-v1 as NOT-ESTABLISHED.
 
 DC-PI-M4-16
-Under DC 1.1.3, M4-A must reject a provider-reported acquisition candidate
+Under DC 1.1.4, M4-A must reject a provider-reported acquisition candidate
 before buildExecutionPlan; the adapter never receives identityResolution and
 never performs that admission decision.
 ```
