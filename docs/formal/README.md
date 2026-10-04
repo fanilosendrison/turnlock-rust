@@ -300,7 +300,7 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `9.1.0`. The brief's own NIB metadata is the sole source for its
+version is `9.1.1`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
@@ -324,16 +324,34 @@ It owns deterministic preflight authority interpretation, exact `(S,P)`
 currentness, repository review observation/import merge including exact
 M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
 interpretation, campaign-authority operational causes and blocking obligations,
-`GateACampaignAuthorityEvaluationV1` sealing, and `ReviewContext` construction.
+`GateACampaignAuthorityEvaluationV1` sealing, pure campaign+candidate
+`ReviewContext` construction, and preservation of exact M6-projected initial-
+reviewer execution inputs.
 
-M3 consumes NIB-S `9.1.0`.
+M3 consumes NIB-S `9.1.1`.
 
-NIB-S `9.0.0` adds the M6 → M3 → M5 reviewer-acquisition boundary. M6 projects
-exact protocol policy, M3 validates it and computes the complete lexical
-qualifying set, protocol-ordered acquisition candidates, statically known pinned
-identities, and optimistic maximum capacity, while M5 owns qualified-identity
-progress and later acquisition rounds. M3 never executes reviewers or resolves
-provider-reported identity.
+The active reviewer-acquisition boundary is:
+
+```text
+M6
+→ mechanically establishes exact initial-reviewer prompt/packet inputs
+
+M3
+→ validates and preserves them in prerequisite resolution
+
+M1
+→ selects first-round candidates only
+
+M5
+→ constructs assurance obligations/workItems for selected reviewers
+→ selects every later round
+```
+
+M6 also projects exact protocol policy. M3 validates it and computes the
+complete lexical qualifying set, protocol-ordered acquisition candidates,
+statically known pinned identities, and optimistic maximum capacity. M3 never
+executes reviewers or resolves provider-reported identity. This boundary changes
+no hostile-review semantics.
 
 M3 requires no external Dependency Contract.
 
@@ -344,7 +362,7 @@ capture and M4-B recovery observation.
 
 The active M4-A Module Brief is
 [`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md),
-version `1.1.1`.
+version `1.1.2`.
 It owns the immutable cognitive WorkItem operation, pre-Arm preparation,
 cognitive-call identity, durable execution journal and effect fence, selected
 cognitive dependency invocation, exact raw completion and runtime-evidence
@@ -353,7 +371,7 @@ and non-authoritative liveness telemetry.
 
 The active M4-B Module Brief is
 [`nib-m-gate-a-cognitive-execution-recovery-observation.md`](nib-m-gate-a-cognitive-execution-recovery-observation.md),
-version `1.0.0`.
+version `1.0.1`.
 
 It owns exact validation of the cognitive recovery capability, read-only M4
 journal interpretation, positive PREPARED-only non-execution proof, exact local
@@ -366,7 +384,7 @@ provider-side recovery operation and forbids replay.
 
 The active Pi M4 Dependency Contract is
 [`dependency-contract-pi-m4-cognitive-execution.md`](dependency-contract-pi-m4-cognitive-execution.md),
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.1`.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.2`.
 
 It pins `@earendil-works/pi-ai@0.99.2` / Pi
 `005af57d88ee23b33778f343a9595b32e67ff788`, the direct
@@ -378,11 +396,11 @@ exact four-field synchronous planning interface, unsealed three-result adapter
 boundary, and M4-owned strict UTF-8, evidence-sealing, raw-result, and terminal-
 journal ownership closures.
 
-ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.1` and
+ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.2` and
 delegates exact identity-channel capability qualification to the Pi M4
 Dependency Contract while preserving raw evidence. Pi M4 Dependency Contract
-version `1.1.1` records provider-owned response/effective-model evidence capture
-as `ESTABLISHED`, but records
+version `1.1.2` retains provider-owned response/effective-model evidence
+capture as `ESTABLISHED`, but records
 `provider-owned-canonical-effective-model-identity-v1` as `NOT-ESTABLISHED` for
 the current `openai-codex` / `gpt-6.1-sol` qualification evidence.
 
