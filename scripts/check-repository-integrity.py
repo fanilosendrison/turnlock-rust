@@ -7,12 +7,7 @@ import os
 from pathlib import Path
 import sys
 
-from proto_ring import (
-    governance_authority,
-    governed_objects,
-    repository_governance_model,
-    repository_integrity,
-)
+from proto_ring import repository_governance_state, repository_integrity
 from proto_ring.repository_integrity import (
     EvaluationContext,
     IntegrityVerdict,
@@ -25,13 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_profile(root: Path = ROOT):
-    model = repository_governance_model.load(root)
-    authority_route = model.capabilities["governance_authority"].routes["profile"]
-    authority = governance_authority.load(root, authority_route)
-    objects_route = model.capabilities["governed_objects"].routes["profile"]
-    objects = governed_objects.load(root, objects_route, authority)
-    profile_route = model.capabilities["repository_integrity"].routes["profile"]
-    return repository_integrity.load(root, profile_route, authority, objects)
+    state = repository_governance_state.load(root)
+    profile = state.repository_integrity
+    if profile is None:
+        raise repository_integrity.RepositoryIntegrityError(
+            "Turnlock-Rust declares repository_integrity but the canonical state "
+            "does not contain its profile"
+        )
+    return profile
 
 
 def evaluation_context() -> EvaluationContext:
@@ -68,9 +64,7 @@ def main() -> int:
     try:
         result = run_validation()
     except (
-        governance_authority.GovernanceAuthorityError,
-        governed_objects.GovernedObjectsError,
-        repository_governance_model.RepositoryGovernanceModelError,
+        repository_governance_state.RepositoryGovernanceStateError,
         repository_integrity.RepositoryIntegrityError,
     ) as error:
         print(f"ERROR: repository integrity: {error}", file=sys.stderr)

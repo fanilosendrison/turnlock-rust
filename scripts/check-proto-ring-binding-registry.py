@@ -6,11 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
-from proto_ring import (
-    governance_authority,
-    governance_bindings,
-    repository_governance_model,
-)
+from proto_ring import governance_bindings, repository_governance_state
 from proto_ring_executable_binding import (
     PROTO_RING_REPOSITORY,
     authoritative_proto_ring_commit,
@@ -20,32 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 _BINDING_ID = "proto_ring_executable"
 
 
-def _route(model, capability_id: str, route_id: str):
-    capability = model.capabilities.get(capability_id)
-    if capability is None:
-        raise repository_governance_model.RepositoryGovernanceModelError(
-            f"{capability_id} capability is required"
-        )
-    route = capability.routes.get(route_id)
-    if route is None:
-        raise repository_governance_model.RepositoryGovernanceModelError(
-            f"{capability_id}/{route_id} route is required"
-        )
-    return route
-
-
 def binding_registry_proto_ring_commit(root: Path) -> str:
-    """Return the routed registry's stable executable binding commit."""
+    """Return the canonical state's stable executable binding commit."""
 
-    model = repository_governance_model.load(root)
-    authority = governance_authority.load(
-        root, _route(model, "governance_authority", "profile")
-    )
-    registry = governance_bindings.load(
-        root,
-        _route(model, "shared_governance_provider", "registry"),
-        authority,
-    )
+    state = repository_governance_state.load(root)
+    registry = state.governance_bindings
     binding = registry.bindings.get(_BINDING_ID)
     if binding is None:
         raise ValueError(f"Governance Binding Registry requires {_BINDING_ID}")
@@ -75,9 +50,7 @@ def check(root: Path = ROOT) -> list[str]:
     except (
         OSError,
         ValueError,
-        governance_authority.GovernanceAuthorityError,
-        governance_bindings.GovernanceBindingsError,
-        repository_governance_model.RepositoryGovernanceModelError,
+        repository_governance_state.RepositoryGovernanceStateError,
     ) as error:
         return [str(error)]
     if actual != expected:

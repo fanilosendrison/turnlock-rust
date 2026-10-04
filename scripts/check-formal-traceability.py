@@ -14,12 +14,7 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
-from proto_ring import (
-    evidence_requirements,
-    governance_authority,
-    governed_objects,
-    repository_governance_model,
-)
+from proto_ring import evidence_requirements, repository_governance_state
 from proto_ring.evidence_requirements import (
     EvidenceClassKind,
     InstantiationKind,
@@ -2988,13 +2983,13 @@ GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID = "gate_a_current_protocol_binding"
 def _load_gate_a_requirements(
     root: Path,
 ) -> tuple[PersistentEvidenceRequirement, PersistentEvidenceRequirement]:
-    model = repository_governance_model.load(root)
-    authority_route = model.capabilities["governance_authority"].routes["profile"]
-    authority = governance_authority.load(root, authority_route)
-    objects_route = model.capabilities["governed_objects"].routes["profile"]
-    objects = governed_objects.load(root, objects_route, authority)
-    registry_route = model.capabilities["evidence_requirements"].routes["registry"]
-    registry = evidence_requirements.load(root, registry_route, authority, objects)
+    state = repository_governance_state.load(root)
+    registry = state.evidence_requirements
+    if registry is None:
+        raise evidence_requirements.EvidenceRequirementsError(
+            "Turnlock-Rust declares evidence_requirements but the canonical state "
+            "does not contain its registry"
+        )
     try:
         subject = registry.requirements[GATE_A_SUBJECT_REQUIREMENT_ID]
         current_protocol = registry.requirements[
@@ -3594,9 +3589,7 @@ def collect_errors(
             gate_a_requirements = _load_gate_a_requirements(root)
         except (
             evidence_requirements.EvidenceRequirementsError,
-            governance_authority.GovernanceAuthorityError,
-            governed_objects.GovernedObjectsError,
-            repository_governance_model.RepositoryGovernanceModelError,
+            repository_governance_state.RepositoryGovernanceStateError,
             KeyError,
         ) as error:
             errors.append(f"Gate A evidence requirements: {error}")
