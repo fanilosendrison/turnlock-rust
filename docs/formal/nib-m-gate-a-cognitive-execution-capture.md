@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.1.3"
+version: "2.0.0"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,13 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0` and
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.4`.
+
+Version `2.0.0` is a breaking construction-contract revision only because the
+operation/request context changes from universal `ReviewContext` to
+`CognitiveExecutionContextV1`. Provider invocation, retry, journal, recovery,
+credential, prompt/packet, capture, and evidence semantics remain unchanged.
 
 Version `1.1.3` is a dependency-only / construction-only compatibility
 synchronization with NIB-S `9.1.2` and DC `1.1.3`.
@@ -218,12 +224,12 @@ M4-A seals them through `CampaignArtifactStore.sealRunnerArtifact`.
 ## 4. Cognitive WorkItem operation
 
 ```ts
-interface CognitiveExecutionOperationV1 {
+interface CognitiveExecutionOperationV2 {
   readonly schema:
-    "gate-a-cognitive-execution-operation.v1";
+    "gate-a-cognitive-execution-operation.v2";
 
-  readonly reviewContext:
-    ReviewContext;
+  readonly context:
+    CognitiveExecutionContextV1;
 
   readonly role:
     CognitiveExecutionRole;
@@ -243,12 +249,20 @@ interface CognitiveExecutionOperationV1 {
 ```
 
 The operation is the complete immutable cognitive meaning of the WorkItem.
-There is no separate `protocolBundle` field. The exact protocol identity is
-already:
+There is no separate operation-level `protocolBundle` field. Derive the exact
+protocol identity only from the selected context branch:
 
 ```text
-operation.reviewContext.campaign.protocolBundle
+if operation.context.kind == "review":
+    protocolBundle =
+        operation.context.reviewContext.campaign.protocolBundle
+
+if operation.context.kind == "resolution":
+    protocolBundle =
+        operation.context.resolutionContext.protocolBundle
 ```
+
+Do not reread P.
 
 M4 owns sealing and validation of this operation. Its artifact must have:
 
@@ -264,31 +278,109 @@ WorkItem `W`, require exactly:
 
 ```text
 W.executor == "cognitive-execution"
+```
 
+For `O.context.kind == "review"`, let `R = O.context.reviewContext` and require
+exactly:
+
+```text
 W.runId ==
-    O.reviewContext.runId
+    R.runId
 
 W.candidateId ==
-    O.reviewContext.candidate.candidateId
+    R.candidate.candidateId
 
 W.reviewCampaignId ==
-    O.reviewContext.campaign.reviewCampaignId
+    R.campaign.reviewCampaignId
 
-O.reviewContext.candidate.runId ==
+R.candidate.runId ==
     W.runId
 
-O.reviewContext.campaign.provenance.kind ==
+R.campaign.provenance.kind ==
     "runner-produced"
 
-O.reviewContext.campaign.provenance.originatingRunId ==
+R.campaign.provenance.originatingRunId ==
     W.runId
 
-O.reviewContext.campaign.provenance.candidateId ==
+R.campaign.provenance.candidateId ==
     W.candidateId
 
-O.reviewContext.campaign.semanticSubject ==
-    O.reviewContext.candidate.semanticSubject
+R.campaign.semanticSubject ==
+    R.candidate.semanticSubject
+```
 
+Review context has no imported-campaign branch.
+
+For `O.context.kind == "resolution"`, let
+`X = O.context.resolutionContext` and require exactly:
+
+```text
+W.runId ==
+    X.runId
+
+W.candidateId ==
+    X.currentCandidate.candidateId
+
+W.reviewCampaignId ==
+    X.adjudicatingCampaign.reviewCampaignId
+
+X.currentCandidate.runId ==
+    W.runId
+
+X.currentCandidate.semanticSubject ==
+    X.semanticSubject
+
+X.adjudicatingCampaign.semanticSubject ==
+    X.semanticSubject
+
+X.adjudicatingCampaign.protocolBundle ==
+    X.protocolBundle
+
+X.resolutionSubject exists and verifies
+```
+
+Do not require:
+
+```text
+X.adjudicatingCampaign.provenance.kind == "runner-produced"
+```
+
+Do not require:
+
+```text
+X.adjudicatingCampaign.provenance.candidateId == W.candidateId
+```
+
+Do not retarget or mutate the campaign.
+
+Validate role/context compatibility exactly:
+
+```text
+Review-context-only roles:
+- initial-reviewer
+- materiality-assessor
+- refutation-builder
+
+Resolution-context-only roles:
+- discovery-classifier
+- derivation-builder
+- decision-necessity-challenger
+- repair-synthesizer
+- decision-projection
+
+challenge:
+- may use review context for materiality/refutation challenge work;
+- may use resolution context for derivation/repair/decision-resolution challenge work;
+- M4 does not infer the challenge semantic kind from free text;
+- exact upstream M5 contracts own challenge-kind/context compatibility.
+```
+
+No other role/context combination is valid. M4 does not interpret semantic
+challenge type from output or arbitrary text.
+
+For either context branch, require exactly:
+
+```text
 O.reviewerAcquisitionCandidate.profileId ==
     O.reviewerProfileId
 
@@ -303,6 +395,13 @@ The `inputRefs` equality means exact same length, same order, same exact
 `ArtifactRef` values, and no hidden semantic input. The acquisition candidate is
 immutable execution configuration retained in the operation, not an additional
 cognitive textual input.
+
+`resolutionSubject` is authorization/provenance metadata only.
+
+M4 verifies its `ArtifactRef` for the resolution branch but never injects its
+bytes into the provider context.
+
+The model receives only exact prompt and packet text.
 
 Runtime-validate the complete candidate structure. Require exactly:
 
@@ -335,20 +434,22 @@ re-read P
 
 Those responsibilities remain upstream.
 
-For a new M4 execution:
+For a new M4 execution whose context kind is `review`:
 
 ```text
 non-runner-produced ReviewContext
 → INVALID-COGNITIVE-OPERATION
 ```
 
-There is no alternate or imported-campaign branch.
+There is no alternate or imported-campaign review-context branch. A resolution
+context may name a repository-imported adjudicating campaign only through the
+exact resolution-branch validation above.
 
 ## 5. M4-A public construction interfaces
 
 ```ts
-interface CognitiveExecutionRequestTemplateV1 {
-  readonly reviewContext: ReviewContext;
+interface CognitiveExecutionRequestTemplateV2 {
+  readonly context: CognitiveExecutionContextV1;
   readonly role: CognitiveExecutionRole;
   readonly reviewerProfileId: string;
   readonly prompt: ArtifactRef;
@@ -363,7 +464,7 @@ interface PrepareCognitiveExecutionRequestV1 {
 interface PreparedCognitiveExecutionV1 {
   readonly execution: ExecutionRef;
   readonly workItem: WorkItemRef;
-  readonly requestTemplate: CognitiveExecutionRequestTemplateV1;
+  readonly requestTemplate: CognitiveExecutionRequestTemplateV2;
   readonly preparation: ArtifactRef;
   readonly dispatchEvidence: readonly [ArtifactRef, ArtifactRef];
   readonly recoveryCapability: RecoveryCapabilityRef;
@@ -416,7 +517,7 @@ is projected through the exact signal it receives.
 ```ts
 interface CognitiveExecutionCaptureModule {
   sealOperation(
-    operation: CognitiveExecutionOperationV1
+    operation: CognitiveExecutionOperationV2
   ): Promise<ArtifactRef>;
 
   prepare(
@@ -462,7 +563,7 @@ that the obligation becomes satisfied or disposed.
 For successful preparation with decoded operation `O`, define:
 
 ```text
-requestTemplate.reviewContext = O.reviewContext
+requestTemplate.context = O.context
 requestTemplate.role = O.role
 requestTemplate.reviewerProfileId = O.reviewerProfileId
 requestTemplate.prompt = O.prompt
@@ -478,7 +579,7 @@ R.dispatch.workItem == prepared exact WorkItem
 
 R.dispatch.workItem.operation == exact prepared operation ArtifactRef
 
-R.reviewContext == prepared requestTemplate.reviewContext
+R.context == prepared requestTemplate.context
 
 R.role == prepared requestTemplate.role
 
@@ -532,11 +633,11 @@ or failed exact UTF-8 round trip
 This happens before dependency invocation. The adapter receives only the exact
 decoded `promptText` and `packetText`; it never reads an `ArtifactRef`.
 
-`CognitiveExecutionRequest` and `CognitiveExecutionRequestTemplateV1` retain
-their existing cross-module shapes and continue to project only
-`reviewerProfileId`. Provider and requestModel remain M4-internal execution
-realization facts retained through the immutable WorkItem operation and
-preparation.
+`CognitiveExecutionRequest` and `CognitiveExecutionRequestTemplateV2` carry the
+validated `CognitiveExecutionContextV1` branch and continue to project only
+`reviewerProfileId` across the Pi adapter boundary. Provider and requestModel
+remain M4-internal execution realization facts retained through the immutable
+WorkItem operation and preparation.
 
 ## 7. Cognitive-call identity
 
@@ -686,7 +787,7 @@ Provider, model, and request identity do not enter callId derivation.
 
        if identityResolution.kind == "provider-reported":
            require selected DC ==
-               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.3;
+               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4;
 
            observe selected DC capability:
                provider-owned-canonical-effective-model-identity-v1
@@ -1980,16 +2081,37 @@ reviewerProfileId, provider, or requestModel selected by the immutable M4
 operation.
 
 M4A-35
-For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.3, a provider-reported acquisition
+Every cognitive operation carries exactly one validated
+CognitiveExecutionContextV1 branch.
+
+M4A-36
+Review-context-only and resolution-context-only roles obey the exact NIB-S role
+partition; challenge is the only role admitted under either context kind.
+
+M4A-37
+Review-context WorkItems retain exact runner-produced campaign production
+candidate provenance.
+
+M4A-38
+Resolution-context WorkItems bind WorkItem.candidateId to the exact current
+candidate in ResolutionContextV1 without requiring equality to the adjudicating
+campaign's production candidate.
+
+M4A-39
+ResolutionContextV1.resolutionSubject is verified authorization/provenance
+material and never becomes a hidden provider/model input.
+
+M4A-40
+For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4, a provider-reported acquisition
 candidate is rejected as DEPENDENCY-CONTRACT-VIOLATION before
 buildExecutionPlan because
 provider-owned-canonical-effective-model-identity-v1 is NOT-ESTABLISHED.
 
-M4A-36
+M4A-41
 PiM4BuildExecutionPlanRequestV1 remains identity-resolution blind; M4-A never
 adds provider-reported admission semantics to the dependency adapter interface.
 
-M4A-37
+M4A-42
 A completed provider-semantic response remains captured when providerModel is
 null, empty, or "latest"; missing usable identity evidence never creates
 technical-failure or retry permission.
@@ -2026,6 +2148,12 @@ heartbeat-driven ownership
 heartbeat-driven recovery
 missing heartbeat as failure
 same-Execution replay
+unvalidated CognitiveExecutionContextV1 branch
+review-context-only role through ResolutionContextV1
+resolution-context-only role through ReviewContext
+challenge context chosen by interpreting arbitrary text or output
+review campaign retargeting
+resolutionSubject injection into provider/model input
 secret persistence
 ```
 
@@ -2079,7 +2207,8 @@ M5 later-round WorkItem construction:
 
 For both:
 → reviewerAcquisitionCandidate is copied unchanged
-→ operation.reviewContext equals the basis.reviewContext
+→ operation.context.kind equals "review"
+→ operation.context.reviewContext equals the basis.reviewContext
 → operation.prompt equals
   basis.initialReviewerExecutionInputs.prompt
 → operation.packet equals
@@ -2365,7 +2494,20 @@ An unsupported exact binding must fail closed under the Dependency Contract.
 The M4 NIB does not implement those Pi facts itself.
 
 The Pi-specific Dependency Contract prerequisite for M4-A is satisfied by
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.3.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.4.
+
+The following Pi adapter boundary types remain unchanged:
+
+```text
+PiM4BuildExecutionPlanRequestV1
+PiM4DependencyExecutionPlanV1
+PiM4DependencyInvocationRequestV1
+PiM4DependencyInvocationResultV1
+```
+
+No `ReviewContext`, `ResolutionContextV1`,
+`CognitiveExecutionContextV1`, or `CognitiveExecutionOperationV2` field enters
+the Pi Dependency Contract invocation.
 
 This does not itself authorize GREEN before the remaining construction sequence
 is complete.

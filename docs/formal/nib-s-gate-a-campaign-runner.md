@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "9.1.2"
+version: "10.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -735,6 +735,59 @@ No review-evidence schema change.
 No formal-assurance claim change.
 No product ADR is created.
 
+Version 10.0.0 is a breaking implementation-construction contract revision.
+
+It separates immutable review-production provenance from current-candidate
+resolution execution.
+
+ReviewContext remains permanently bound to the exact runner-produced campaign
+and its production CandidateRevision.
+
+ResolutionContextV1 is introduced for M5-C resolution-role cognitive work. It
+binds the exact current CandidateRevision, exact current semantic subject S,
+exact current protocol P, exact current adjudicating ReviewCampaign, and one
+immutable M5-owned resolution-subject artifact.
+
+A campaign remaining current across a candidate-only change with unchanged
+(S, P) never retargets its ReviewContext.
+
+A later resolution execution may instead use a new ResolutionContextV1 bound
+to the new current candidate while preserving the same exact current semantic
+finding/adjudication basis when that basis remains applicable.
+
+RepairIntent remains exact-candidate-bound. Candidate advancement never rebases
+or retargets an existing RepairIntent or approved patch.
+
+The Pi M4 Dependency Contract provider invocation surface is unchanged because
+the dependency receives only provider/model plus exact prompt/packet text, not
+ReviewContext or ResolutionContext.
+
+No TURNLOCK product semantics, hostile-review protocol semantics, Gate A
+semantic subject, retry semantics, reviewer-acquisition semantics, or review
+evidence semantics change.
+
+The construction discovery is recorded exactly as follows:
+
+```text
+statement:
+a ReviewCampaign may remain current after a CandidateRevision change with
+unchanged exact (S, P), while the existing universal M4 ReviewContext binding
+requires every later cognitive WorkItem to retain the campaign's production
+candidate; this makes candidate-bound M5-C repair realization impossible after
+a same-(S,P) candidate advance
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No product ADR is created.
+
 ## 2. System objective
 
 Build one isolated TypeScript/Node assurance-tooling application that mechanically executes the accepted Gate A hostile-review protocol over exact candidate repository states, persists and recovers execution without fabricating external outcomes, applies only exact protocol-authorized repairs, starts a full new review campaign whenever a repair changes the semantic subject `S`, and publishes only an exact mechanically qualified candidate.
@@ -1331,6 +1384,14 @@ profile parsing in TypeScript.
 
 M3 does not manufacture repository tree identity for imported review evidence.
 
+M3 does not own:
+
+* `ResolutionContextV1` construction;
+* resolution-subject interpretation;
+* candidate-bound repair realization selection.
+
+M3 must NOT retarget a `ReviewCampaign`.
+
 ### M4 — `cognitive-execution`
 
 Owns:
@@ -1363,6 +1424,10 @@ Owns:
 * materiality/refutation/challenge qualification;
 * stale-protocol finding re-adjudication state;
 * derivation, decision-necessity, repair, and decision-request qualification state;
+* construction of exact `ResolutionContextV1` for M5-C resolution WorkItems;
+* binding of `ResolutionContextV1` to current `CandidateRevision` and immutable
+  resolution-subject provenance;
+* candidate-late-bound `RepairIntent` qualification;
 * authority-preserving RepairIntent qualification;
 * exact assurance repository projection selection from immutable M5 evidence;
 * explicit finding, evidence, adjudication, re-adjudication, obligation-disposition, RepairIntent, assurance-projection, and Decision Request products for M2 admission;
@@ -1375,6 +1440,12 @@ It does not invoke Python validators.
 It does not apply patches.
 
 It does not declare Gate A READY independently of existing mechanical authority.
+
+M5 never reconstructs or retargets `ReviewContext` to the current candidate.
+
+M5 may construct a fresh `ResolutionContextV1` when the current candidate
+changes but the exact resolution subject remains current under unchanged
+`(S, P)`.
 
 ### M6 — `mechanical-validation`
 
@@ -3186,6 +3257,97 @@ interface ReviewContext {
   readonly campaign: ReviewCampaignRef;
 }
 
+interface ResolutionContextV1 {
+  readonly runId: GateARunId;
+
+  readonly currentCandidate: CandidateRevisionRef;
+
+  readonly adjudicatingCampaign: ReviewCampaignRef;
+
+  readonly semanticSubject: SemanticSubjectRef;
+
+  readonly protocolBundle: ProtocolBundleRef;
+
+  readonly resolutionSubject: ArtifactRef;
+}
+
+type CognitiveExecutionContextV1 =
+  | {
+      readonly kind: "review";
+      readonly reviewContext: ReviewContext;
+    }
+  | {
+      readonly kind: "resolution";
+      readonly resolutionContext: ResolutionContextV1;
+    };
+```
+
+`ReviewContext` is immutable review-production provenance.
+
+`ReviewContext.candidate` is always the exact production candidate recorded by
+the runner-produced `ReviewCampaign` provenance.
+
+Currentness of that campaign for a later candidate with unchanged `(S, P)` never
+changes or reconstructs `ReviewContext`.
+
+For `ResolutionContextV1 R`:
+
+```text
+R.currentCandidate.runId == R.runId
+
+R.currentCandidate.semanticSubject == R.semanticSubject
+
+R.adjudicatingCampaign.semanticSubject == R.semanticSubject
+
+R.adjudicatingCampaign.protocolBundle == R.protocolBundle
+
+R.resolutionSubject exists and is intact
+```
+
+`R.adjudicatingCampaign` may be runner-produced or repository-imported.
+
+`R.currentCandidate` is NOT required to equal the production candidate of
+`R.adjudicatingCampaign`.
+
+That inequality is not campaign retargeting.
+
+The exact adjudicating campaign remains immutable.
+
+`ResolutionContextV1` is current resolution provenance, not hostile-review
+campaign-production provenance.
+
+`resolutionSubject` is authorization/provenance material.
+
+It is not an implicit model-visible cognitive input.
+
+Every semantic byte visible to the cognitive execution must still be contained
+in the exact prompt/packet input artifacts.
+
+The role/context compatibility partition is exactly:
+
+```text
+Review-context-only roles:
+- initial-reviewer
+- materiality-assessor
+- refutation-builder
+
+Resolution-context-only roles:
+- discovery-classifier
+- derivation-builder
+- decision-necessity-challenger
+- repair-synthesizer
+- decision-projection
+
+challenge:
+- may use review context for materiality/refutation challenge work;
+- may use resolution context for derivation/repair/decision-resolution challenge work;
+- M4 does not infer the challenge semantic kind from free text;
+- exact upstream M5 contracts own challenge-kind/context compatibility.
+```
+
+No other role/context combination is valid.
+
+```ts
 interface RepositoryReviewObservationV1 {
   readonly reviewCampaignId: ReviewCampaignId;
   readonly sourceRecord: ArtifactRef;
@@ -3856,10 +4018,17 @@ authorityEvaluation.staleProtocolReviewCampaignIds ==
     context.staleProtocolCampaigns.map(reviewCampaignId)
 ```
 
-A `ReviewContext` used for new execution must use the exact production candidate
-recorded by its runner-produced campaign provenance. Reusing a current campaign
-to qualify a later same-`(S, P)` candidate does not create new executions under
-rewritten provenance.
+`ReviewContext` is immutable review-production provenance.
+
+`ReviewContext.candidate` is always the exact production candidate recorded by
+the runner-produced `ReviewCampaign` provenance.
+
+Currentness of that campaign for a later candidate with unchanged `(S, P)` never
+changes or reconstructs `ReviewContext`.
+
+Reusing a current campaign to qualify a later same-`(S, P)` candidate does not
+create new executions under rewritten provenance. M3 must NOT retarget a
+`ReviewCampaign`.
 
 For every `campaign-required` result, M1 must obtain
 `ReviewerPrerequisiteResolution.kind = "established"` before committing a new
@@ -4012,7 +4181,7 @@ ReviewCampaign.
 ```ts
 interface CognitiveExecutionRequest {
   readonly dispatch: ArmedExecutionDispatchRef;
-  readonly reviewContext: ReviewContext;
+  readonly context: CognitiveExecutionContextV1;
   readonly role: CognitiveExecutionRole;
   readonly reviewerProfileId: string;
   readonly prompt: ArtifactRef;
@@ -5117,7 +5286,10 @@ validator in TypeScript.
 
 The request and result bindings are exact:
 
-- `runId` must equal `executionRequest.reviewContext.runId`;
+- for `executionRequest.context.kind == "review"`, `runId` must equal
+  `executionRequest.context.reviewContext.runId`;
+- for `executionRequest.context.kind == "resolution"`, `runId` must equal
+  `executionRequest.context.resolutionContext.runId`;
 - `capturedResult.execution` must equal `executionRequest.dispatch.execution`;
 - `executionRequest.dispatch.workItem.workItemId` must equal `executionRequest.dispatch.execution.workItemId`;
 - the result's `executionRequest` and `capturedResult` must equal the exact
@@ -6761,6 +6933,41 @@ A RepairIntent may not silently expand its own semantic scope.
 A repair must not change the judging rules under which that same campaign is evaluated.
 
 If a proposed change requires new product-semantic authority, the repair path stops and produces a Decision Request.
+
+Semantic resolution qualification and concrete repair realization are distinct.
+
+A semantic derivation/resolution product is bound to its exact current
+resolution subject.
+
+`RepairIntentRef` is separately bound to exactly one `CandidateRevision`.
+
+A `RepairIntent` or approved patch is never rebound, rebased, retargeted, merged,
+or reused for another `CandidateRevision`.
+
+If the current candidate advances before a repair is realized, a prior
+candidate-bound `RepairIntent` is not applicable to the successor.
+
+If exact `(S, P)` and the qualifying resolution subject remain current after the
+candidate advance, M5-C may perform a fresh repair synthesis and fresh repair
+challenge through a fresh `ResolutionContextV1` bound to the new current
+candidate.
+
+No previous approved patch is treated as approval for the new candidate.
+
+A repair may legitimately leave S unchanged. In that case current campaign
+applicability continues according to the existing exact `(S, P)` rule.
+
+If S changes, all existing subject-change / full-new-campaign rules remain
+unchanged.
+
+At most one candidate-bound automatic repair realization may be enabled for
+materialization at a time.
+
+Scheduler timing or completion order must never select between multiple
+repairable findings.
+
+The exact deterministic ordering/selection algorithm belongs to the future M5-C
+Module Brief for Issue #53 and is NOT invented in this correction.
 
 ## 25. Decision boundary
 
@@ -9245,6 +9452,28 @@ GI-100 If the current P eligible pool is exhausted after qualified reviews and
        the effective independent-reviewer minimum remains unmet, M5 emits exact
        assurance-domain non-recovery cause material for M8-B; no
        DECISION-REQUIRED meaning is invented.
+
+GI-101
+ReviewContext remains permanently bound to its runner-produced campaign's exact
+production candidate; later campaign currentness never retargets it.
+
+GI-102
+Every ResolutionContextV1 binds one exact current CandidateRevision, one exact
+current S, one exact current P, one exact adjudicating campaign over that
+(S, P), and one intact immutable resolution-subject artifact.
+
+GI-103
+Review-context-only cognitive roles never execute through ResolutionContextV1;
+resolution-context-only cognitive roles never execute through ReviewContext;
+challenge may use either only under its exact upstream challenge-kind contract.
+
+GI-104
+A candidate change never rebinds, rebases, retargets, or reuses an existing
+RepairIntent or approved patch for the successor candidate.
+
+GI-105
+At most one candidate-bound automatic repair realization is enabled for
+materialization at a time; scheduler timing cannot determine repair order.
 ```
 
 ## 40. Cross-cutting policies
@@ -9381,6 +9610,21 @@ completion order. Once the effective minimum is established, no extra initial
 reviewer is acquired. Pool exhaustion below the minimum routes exact M5
 non-recovery cause material to M8-B and `OPERATOR-ACTION-REQUIRED`, with no
 same-run resolution contract.
+
+### CP-16 — Separate review provenance from resolution realization
+
+`ReviewContext` records immutable campaign-production provenance.
+
+`ResolutionContextV1` records current resolution-execution provenance.
+
+Campaign currentness across an unchanged exact `(S, P)` never rewrites
+`ReviewContext`.
+
+A resolution execution against a later current candidate uses a fresh
+`ResolutionContextV1`.
+
+Candidate-bound `RepairIntent`/patch material may never be carried across a
+candidate boundary by rebasing or retargeting.
 
 ## 41. NIB-M decomposition required by this System Brief
 
