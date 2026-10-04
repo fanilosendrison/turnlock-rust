@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-03"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION
-version: "1.0.2"
+version: "1.0.3"
 scope: gate-a-campaign-runner/cognitive-execution/recovery-observation
 status: active
 consumers: [architect, coding-agent]
@@ -18,16 +18,21 @@ superseded_by: []
 This brief consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.2
+NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.3
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.0.0
 
-DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.3
+DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.0.11
+NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.0.12
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.11
+NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.12
 ```
+
+Version `1.0.3` is a dependency-only synchronization with NIB-S `10.0.0`,
+M4-A `2.0.0`, DC `1.1.4`, M8-A `2.0.12`, and M8-B `2.0.12`. It changes no
+M4-B recovery algorithm, type, classification, provider, retry, hard-limit, or
+repository semantic.
 
 Version `1.0.2` is a dependency-only / construction-only compatibility
 synchronization. It makes no execution algorithm change, no provider change, no
