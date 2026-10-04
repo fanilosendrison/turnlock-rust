@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "9.1.0"
+version: "9.1.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -619,6 +619,78 @@ reviewer-acquisition algorithm, review-evidence schema, or execution-receipt
 schema. It closes provider-reported effective identity semantics, Pi Dependency
 Contract realization conformance, the completed-response-without-required-
 identity boundary, and the M5 operational-stop behavior.
+
+Version 9.1.1 closes two M5-A implementation-construction seams.
+
+1. ReviewContext construction no longer depends on a WorkItem whose M4
+   operation itself requires that ReviewContext.
+
+2. The exact initial-reviewer execution inputs required for first-round and
+   later-round reviewer WorkItems are mechanically established upstream and
+   retained in the admitted ReviewCampaignPrerequisiteBasisRefV1.
+
+The correction preserves:
+
+```text
+M3 ownership of ReviewContext construction
+M6 ownership of Python mechanical authority
+M5 ownership of protocol-derived assurance ObligationRef / WorkItemRef construction
+M1 ownership of first-round reviewer candidate selection only
+M5 ownership of later-round reviewer candidate selection
+M4 ownership of CognitiveExecutionOperationV1 validation/sealing
+M2 ownership of authoritative state writes
+```
+
+The construction discoveries are classified exactly as follows:
+
+```text
+statement:
+the active M3 ReviewContext construction input is cyclic with the active
+M4 cognitive WorkItem operation contract
+
+semantic disposition:
+authority-conflict-or-uncertain at implementation-construction level,
+resolved by synchronization of already accepted ownership/binding authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+```text
+statement:
+the exact initial-reviewer prompt/packet execution inputs required by accepted
+hostile-review authority are not durably carried across the admitted
+M6 → M3 → M5 campaign basis
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+The exact M6 → M3 → retained basis mechanism is classified as:
+
+```text
+no-normative-impact construction mechanism
+```
+
+No TURNLOCK product semantic change.
+No hostile-review protocol semantic change.
+No Gate A semantic-subject change.
+No reviewer-acquisition semantic change.
+No retry semantic change.
+No provider/model semantic change.
+No review-evidence schema change.
+No execution-receipt schema change.
+No formal-assurance claim change.
+No product ADR is created.
 
 ## 2. System objective
 
@@ -2873,11 +2945,14 @@ independent ordering.
 It is never reconstructed from:
 
 ```text
-current protocol files
+current P
+protocol files
 current reviewer registry
-a new M3 call
+current candidate
+a new M3 invocation
+a new M6 invocation
 GateAReviewAuthorityMechanicalProjectionV1 re-execution
-WorkItem inspection
+WorkItem operation
 Pi configuration
 environment
 repository files
@@ -3086,6 +3161,10 @@ type ReviewerPrerequisiteResolution =
       readonly qualifyingReviewerProfileIds: readonly string[];
       readonly reviewerAcquisitionCandidates:
         readonly GateAReviewerAcquisitionCandidateV1[];
+
+      readonly initialReviewerExecutionInputs:
+        InitialReviewerExecutionInputsRefV1;
+
       readonly evidence: readonly ArtifactRef[];
     }
   | {
@@ -3721,6 +3800,18 @@ candidate.semanticSubject ==
     semanticSubject
 ```
 
+M3 validates and preserves the exact
+`reviewAuthority.initialReviewerExecutionInputs`. It returns exactly:
+
+```text
+initialReviewerExecutionInputs:
+    reviewAuthority.initialReviewerExecutionInputs
+```
+
+M3 must not construct the prompt, construct the packet, reread P, reread the
+repository, or invoke Python. It performs no transformation of either exact
+immutable byte carrier or repository-path binding.
+
 M6 mechanically projects `reviewerAcquisition` exactly from validated current P.
 M6 does not choose acquisition order, select profiles, or use finding content.
 
@@ -3754,13 +3845,15 @@ less than `minimumIndependentReviewers`, the result is `blocked` with the exact
 candidate-scoped blocking obligation, the extended exact cause fields, and
 `resolutionContracts = []`. No ReviewCampaign is created.
 
-M1 creates the first deterministic acquisition round from this exact M3 basis.
-M5 alone derives later rounds from qualified receipt identities. Registry
-membership never means execute-all authority. Selection and expansion depend
-only on P, the policy minimum, static profile facts, profiles already selected,
-qualified receipt existence, resolved identities, and statically known pinned
-identities. Finding content, favorability, latency, scheduling, and completion
-order are never inputs.
+M1 selects the first deterministic acquisition-round candidates from this exact
+M3 basis. M5 owns protocol-derived assurance `ObligationRef` / `WorkItemRef`
+construction for both first-round selected reviewers and later-round selected
+reviewers. M5 alone selects later acquisition rounds from qualified receipt
+identities. Registry membership never means execute-all authority. Selection
+and expansion depend only on P, the policy minimum, static profile facts,
+profiles already selected, qualified receipt existence, resolved identities,
+and statically known pinned identities. Finding content, favorability, latency,
+scheduling, and completion order are never inputs.
 
 For any runner-produced ReviewCampaign whose acquisition state M5 must derive,
 M5 obtains the exact `ReviewCampaignPrerequisiteBasisRefV1` from
@@ -3790,14 +3883,20 @@ operation.reviewerProfileId ==
 operation.reviewerAcquisitionCandidate.profileId
 ```
 
-Selection ownership remains exactly:
+Selection and WorkItem-construction ownership remain exactly:
 
 ```text
 M1
-→ first acquisition round only
+→ selects first acquisition round candidates only
 
 M5
-→ later acquisition rounds only
+→ owns protocol-derived assurance ObligationRef / WorkItemRef construction
+  for BOTH:
+    first-round selected reviewers
+    later-round selected reviewers
+
+M5
+→ selects later acquisition rounds only
 ```
 
 M4 does not select candidates. M2 does not select candidates.
@@ -4327,12 +4426,25 @@ interface GateAReviewerAcquisitionCandidateV1 {
     EffectiveReviewerIdentityRefV1 | null;
 }
 
+interface InitialReviewerExecutionInputsRefV1 {
+  readonly prompt: ArtifactRef;
+  readonly promptRepositoryPath: string;
+
+  readonly packet: ArtifactRef;
+  readonly packetRepositoryPath: string;
+}
+
 interface ReviewCampaignPrerequisiteBasisRefV1 {
   readonly reviewCampaignId: ReviewCampaignId;
 
   readonly candidateId: CandidateRevisionId;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+
+  readonly reviewContext: ReviewContext;
+
+  readonly initialReviewerExecutionInputs:
+    InitialReviewerExecutionInputsRefV1;
 
   readonly minimumIndependentReviewers: number;
   readonly acquisitionMode: "minimum-effective-independent-v1";
@@ -4365,6 +4477,34 @@ B.semanticSubject ==
 
 B.protocolBundle ==
     C.protocolBundle
+
+B.reviewContext.runId ==
+    C.provenance.originatingRunId
+
+B.reviewContext.campaign ==
+    C
+
+B.reviewContext.candidate.candidateId ==
+    B.candidateId
+
+B.reviewContext.candidate.runId ==
+    C.provenance.originatingRunId
+
+B.reviewContext.candidate.semanticSubject ==
+    C.semanticSubject
+
+B.initialReviewerExecutionInputs.prompt exists and is intact
+
+B.initialReviewerExecutionInputs.packet exists and is intact
+
+B.initialReviewerExecutionInputs.prompt.repositoryPath == null
+
+B.initialReviewerExecutionInputs.packet.repositoryPath == null
+
+B.initialReviewerExecutionInputs.packetRepositoryPath ==
+    "formal/reviews/packets/" +
+    B.initialReviewerExecutionInputs.packet.sha256 +
+    ".json"
 
 B.minimumIndependentReviewers is integer >= 1
 
@@ -4422,6 +4562,8 @@ interface GateAReviewAuthorityMechanicalProjectionV1 {
   readonly runId: GateARunId;
   readonly candidateMaterialization: ArtifactRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly initialReviewerExecutionInputs:
+    InitialReviewerExecutionInputsRefV1;
   readonly minimumIndependentReviewers: number;
   readonly reviewerProfiles:
     readonly GateAReviewerProfileMechanicalFactV1[];
@@ -4442,6 +4584,8 @@ type CandidateReviewAuthorityMechanicalProjectionResult =
       readonly kind: "established";
       readonly candidateMaterialization: ArtifactRef;
       readonly protocolBundle: ProtocolBundleRef;
+      readonly initialReviewerExecutionInputs:
+        InitialReviewerExecutionInputsRefV1;
       readonly minimumIndependentReviewers: number;
       readonly reviewerProfiles:
         readonly GateAReviewerProfileMechanicalFactV1[];
@@ -4601,6 +4745,9 @@ GateAReviewAuthorityMechanicalProjectionV1
 projection.protocolBundle ==
     result.protocolBundle
 
+projection.initialReviewerExecutionInputs ==
+    result.initialReviewerExecutionInputs
+
 projection.minimumIndependentReviewers ==
     result.minimumIndependentReviewers
 
@@ -4613,6 +4760,78 @@ projection.repositoryReviews ==
 projection.evidence ==
     result.evidence
 ```
+
+`initialReviewerExecutionInputs` is an immutable exact execution-input basis.
+Its `prompt` and `packet` `ArtifactRef` values are immutable byte carriers in
+`CampaignArtifactStore`. Require exactly:
+
+```text
+prompt.repositoryPath == null
+packet.repositoryPath == null
+packet.mediaType == "application/json"
+promptRepositoryPath is non-empty
+packetRepositoryPath matches exactly:
+formal/reviews/packets/<lowercase-64-hex-sha256>.json
+packetRepositoryPath ==
+    "formal/reviews/packets/" + packet.sha256 + ".json"
+```
+
+Do not overload `ArtifactRef.repositoryPath` with a future repository path for
+bytes not materially present in the candidate repository. Do not assign a new
+media type to `prompt`; preserve the media type of its exact immutable byte
+carrier.
+
+For the prompt, M6 mechanically establishes exactly:
+
+```text
+result.initialReviewerExecutionInputs.promptRepositoryPath
+==
+exact current-P prompts["initial-reviewer"].path
+
+result.initialReviewerExecutionInputs.prompt.sha256
+==
+exact current-P prompts["initial-reviewer"].sha256
+```
+
+The prompt bytes are exactly the bytes bound by that path and SHA in the exact
+candidate materialization. M6 must not rewrite, normalize, or choose another
+prompt.
+
+For the packet, M6 must delegate byte construction to the existing Python
+mechanism that already owns mechanical Gate A review-packet construction,
+including the existing equivalent of:
+
+```text
+build_gate_a_review_packet_bytes(...)
+```
+
+M6 must not reimplement in TypeScript:
+
+```text
+subject payload construction
+authority content enumeration
+authority content ordering
+authority content hashing
+canonical Gate A packet serialization
+packet subject binding
+```
+
+Construct the packet from the exact immutable candidate materialization for
+which `CandidateReviewAuthorityMechanicalProjectionResult` is produced and
+which the runner-produced campaign binds as its exact production candidate
+authority. Seal or intern the resulting exact canonical Python-authority bytes in
+`CampaignArtifactStore` as an immutable runner artifact. Require exactly:
+
+```text
+packet.repositoryPath == null
+packet.mediaType == "application/json"
+packet bytes are the exact canonical Python-authority bytes
+packetRepositoryPath ==
+    "formal/reviews/packets/" + packet.sha256 + ".json"
+```
+
+The future exact M6 Module Brief may close the precise Python invocation and
+`ArtifactRef` realization. It must not change any of these bindings.
 
 `minimumIndependentReviewers` is mechanically projected from the applicable
 hostile-review policy. It is not added to protocol identity `P`.
@@ -7606,16 +7825,25 @@ run(command):
                 prerequisites.evidence
             )
 
+            review_context =
+                campaign_authority.construct_review_context({
+                    runId: run.runId,
+                    candidate: exact campaign production candidate,
+                    campaign
+                })
+
             prerequisite_basis =
                 construct exact ReviewCampaignPrerequisiteBasisRefV1 from:
-                    campaign = exact runner-produced campaign
-                    prerequisites = exact established M3 result
+                    campaign
+                    exact established ReviewerPrerequisiteResolution
+                    exact review_context
 
-                copy with no field transformation, sorting, or profile rewriting:
+                copy with no field transformation, sorting, or normalization:
                     minimumIndependentReviewers
                     acquisitionMode
                     qualifyingReviewerProfileIds
                     reviewerAcquisitionCandidates
+                    initialReviewerExecutionInputs
                     evidence
 
                 bind exact:
@@ -7623,22 +7851,41 @@ run(command):
                     candidateId
                     semanticSubject
                     protocolBundle
+                    reviewContext
 
-            derive:
-                the first deterministic initial-reviewer acquisition round from
-                    exact M3 reviewer acquisition basis
+            selected_first_round_candidates =
+                M1 derives exact first-round selected acquisition candidates
+                from the exact M3 prerequisite basis
 
-                for every selected acquisition candidate A:
-                    the resulting cognitive WorkItem's M4 operation retains exact A
-                    no WorkItem may be constructed from only A.profileId while
-                        dropping A.provider, A.requestModel,
-                        A.identityResolution, or A.staticallyKnownEffectiveIdentity
+            initial_ledger_products =
+                M1 supplies:
+                    campaign
+                    prerequisite_basis
+                    exact selected_first_round_candidates
+                to the M5 assurance-ledger construction boundary
 
-                all selected first-round WorkItems as required campaign work
-                all other protocol-required current-P campaign obligations and
-                    non-reviewer WorkItems
-                all required current-P re-adjudication obligations and WorkItems
-                for stale-protocol findings over the same S
+                M5 returns the exact M5-owned initial obligations/workItems
+
+                for every M5-produced reviewer WorkItem:
+                    the cognitive WorkItem's M4 operation retains its exact
+                        selected GateAReviewerAcquisitionCandidateV1
+                    no WorkItem may be constructed from only profileId while
+                        dropping provider, requestModel, identityResolution, or
+                        staticallyKnownEffectiveIdentity
+
+                M5 also returns all other protocol-required current-P campaign
+                    obligations and non-reviewer WorkItems and all required
+                    current-P re-adjudication obligations and WorkItems for
+                    stale-protocol findings over the same S
+
+            M1 submits:
+                campaign
+                prerequisite_basis
+                complete initial M5-produced obligations/workItems
+            to M2 atomically
+
+            The future M5-A Module Brief closes the exact internal interface and
+            ID formulas. Do not invent those formulas before M5-A.
 
             require later initial-reviewer acquisition WorkItems are added only
                 through M5 assurance-ledger deltas after every selected WorkItem
@@ -7652,8 +7899,8 @@ run(command):
 
             require no environment/config lookup replaces this binding
 
-            commit campaign + exact prerequisite_basis + complete derived ledger
-                products through M2 atomically
+            commit campaign + exact prerequisite_basis + complete initial
+                M5-produced ledger products through M2 atomically
 
             continue
 
@@ -8916,7 +9163,10 @@ uncertainty object before process interruption.
 
 Current P owns the sole total profile acquisition order. M3 proves optimistic
 static feasibility and returns the exact ordered qualifying candidate basis.
-M1 uses that basis for the first round; M5 derives later rounds only after a
+M1 selects candidates for the first round from that basis. M5 constructs the
+protocol-derived assurance obligations and WorkItems for those selected
+first-round candidates and owns both candidate selection and WorkItem
+construction for every later round. M5 derives a later round only after a
 successful prior round establishes exact qualified receipt identities.
 
 Each round selects at most the current effective-identity deficit. Statically
