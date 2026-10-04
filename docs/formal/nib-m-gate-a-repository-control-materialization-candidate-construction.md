@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "2.0.6"
+version: "2.0.7"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,11 @@ superseded_by: []
 
 # NIB-M — Gate A Repository Control — Materialization and Candidate Construction
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+
+Version `2.0.7` is a dependency-only synchronization with NIB-S `10.0.0`. It
+changes no M7-A algorithm, type, ownership, repair, materialization, candidate,
+Git, recovery, or repository semantic.
 
 Version `2.0.6` is a dependency-only / construction-only compatibility
 synchronization with NIB-S `9.1.2`. It makes no execution algorithm change, no
