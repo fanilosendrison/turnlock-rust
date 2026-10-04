@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-04"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-CAMPAIGN-WORK-EXECUTION-RECEIPT
-version: "1.0.0"
+version: "2.0.0"
 scope: gate-a-campaign-runner/assurance-ledger/campaign-work-execution-receipt
 status: active
 consumers: [architect, coding-agent]
@@ -23,21 +23,21 @@ to this active Module Brief.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.2
+NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0
 
-NIB-M-GATE-A-CAMPAIGN-AUTHORITY 4.0.0
+NIB-M-GATE-A-CAMPAIGN-AUTHORITY 4.0.1
 
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 6.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 6.0.1
 
-NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 5.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 5.0.1
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.3
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.0.0
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.0.2
+NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.0.3
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.11
+NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.12
 
-DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.3
+DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4
 
 ADR-045
 ADR-046
@@ -66,6 +66,12 @@ new cross-module product category
 Do not implement production code from this brief until the repository's GREEN
 boundary authorizes implementation.
 
+Version `2.0.0` changes the M4 operation shape to the NIB-S `10.0.0`
+review/resolution context union while M5-A continues to construct only the
+review branch. M5-A gains no `ResolutionContextV1` construction authority and
+continues to own only initial-reviewer campaign work. No M5-B or M5-C behavior
+is added by this revision.
+
 ## 2. Responsibility boundary
 
 M5-A owns exactly:
@@ -74,7 +80,7 @@ M5-A owns exactly:
 protocol-derived reviewer-acquisition target obligation construction
 selected-initial-reviewer obligation construction
 selected-initial-reviewer WorkItem construction
-M4 CognitiveExecutionOperationV1 construction inputs
+M4 CognitiveExecutionOperationV2 review-context construction inputs
 M4 operation sealing invocation
 first-round selected-candidate materialization validation
 later-round deterministic reviewer acquisition
@@ -96,6 +102,8 @@ restart/idempotence for all M5-A products
 M5-A does not own:
 
 ```text
+ResolutionContextV1 construction
+resolution-role cognitive WorkItem construction
 first-round candidate selection
 M2 state writes
 M4 execution
@@ -443,12 +451,17 @@ same WorkItemId + incompatible payload
 For basis `B` and exact selected candidate `A`, construct exactly:
 
 ```ts
-CognitiveExecutionOperationV1 {
+CognitiveExecutionOperationV2 {
   schema:
-    "gate-a-cognitive-execution-operation.v1",
+    "gate-a-cognitive-execution-operation.v2",
 
-  reviewContext:
-    B.reviewContext,
+  context: {
+    kind:
+      "review",
+
+    reviewContext:
+      B.reviewContext
+  },
 
   role:
     "initial-reviewer",
@@ -470,7 +483,9 @@ CognitiveExecutionOperationV1 {
 Require exact bindings:
 
 ```text
-operation.reviewContext
+operation.context.kind == "review"
+
+operation.context.reviewContext
 ==
 B.reviewContext
 
@@ -545,7 +560,7 @@ Produce exactly:
 
 ```text
 selected-reviewer Obligation
-M4 CognitiveExecutionOperationV1
+M4 CognitiveExecutionOperationV2
 M4-sealed operation
 WorkItem
 ```
@@ -2562,6 +2577,15 @@ M5-A constructs no OperationalBlocker identity.
 
 M5A-50
 M5-A implementation/integrity failures are never disguised as normal campaign outcomes.
+
+M5A-51
+M5-A constructs only `CognitiveExecutionOperationV2` values whose context kind
+is `review` and whose exact review context is the retained campaign prerequisite
+basis `ReviewContext`.
+
+M5A-52
+M5-A never constructs `ResolutionContextV1` or any resolution-role cognitive
+WorkItem.
 ```
 
 ## 71. Forbidden behavior
@@ -2592,6 +2616,8 @@ mutable repository rescan
 M5 direct repository mutation
 M5 direct state mutation
 M5-created BlockerId/OAR/operator effect
+ResolutionContextV1 construction
+resolution-context operation construction
 semantic merge with M5-B/C/D responsibilities
 ```
 
