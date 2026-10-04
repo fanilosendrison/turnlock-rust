@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-03"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION
-version: "1.0.1"
+version: "1.0.2"
 scope: gate-a-campaign-runner/cognitive-execution/recovery-observation
 status: active
 consumers: [architect, coding-agent]
@@ -18,19 +18,24 @@ superseded_by: []
 This brief consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.1
+NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.2
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.2
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.3
 
-DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.2
+DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.3
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.0.10
+NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.0.11
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.10
+NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.11
 ```
 
-Version `1.0.1` is a dependency-only / construction-only compatibility
-synchronization. It changes no algorithm, type, provider, recovery, or
+Version `1.0.2` is a dependency-only / construction-only compatibility
+synchronization. It makes no execution algorithm change, no provider change, no
+retry semantic change, no hard-limit change, no recovery change, and no
+repository semantic change.
+
+Version `1.0.1` was a dependency-only / construction-only compatibility
+synchronization. It changed no algorithm, type, provider, recovery, or
 repository semantics.
 
 ## 1. Responsibility boundary
@@ -301,7 +306,7 @@ contractId ==
 "DC-PI-M4-GATE-A-COGNITIVE-EXECUTION"
 
 contractVersion ==
-"1.1.2"
+"1.1.3"
 
 callId ==
 R.callId
@@ -880,7 +885,7 @@ interface CognitiveExecutionRecoveryIndeterminacyV1 {
       "DC-PI-M4-GATE-A-COGNITIVE-EXECUTION";
 
     readonly version:
-      "1.1.2";
+      "1.1.3";
   };
 
   readonly providerRecoveryCapability: {
@@ -909,7 +914,7 @@ MAYBE-SENT proves effect boundary may have become reachable
 
 no valid TERMINAL means no local durable terminal truth exists
 
-accepted DC 1.1.2 establishes no qualified read-only provider recovery mechanism
+accepted DC 1.1.3 establishes no qualified read-only provider recovery mechanism
 
 replay is forbidden
 
@@ -973,7 +978,7 @@ Return exactly:
 
 ## 21. Pending is unreachable
 
-M4-B 1.0.1 MUST NEVER construct:
+M4-B 1.0.2 MUST NEVER construct:
 
 ```text
 ReconciliationContinuabilityRef
@@ -985,7 +990,7 @@ and MUST NEVER return:
 kind = "pending"
 ```
 
-because DC 1.1.2 establishes:
+because DC 1.1.3 establishes:
 
 ```text
 safe read-only provider pending observation = NOT-ESTABLISHED
@@ -1200,11 +1205,11 @@ MAYBE-SENT without TERMINAL-DURABLE never proves execution, nonexecution, or
 technical failure.
 
 M4B-09
-Under DC 1.1.2, MAYBE-SENT without terminal produces exact executor-domain
+Under DC 1.1.3, MAYBE-SENT without terminal produces exact executor-domain
 indeterminacy.
 
 M4B-10
-M4-B 1.0.1 never returns pending.
+M4-B 1.0.2 never returns pending.
 
 M4B-11
 Unreferenced CAS material and telemetry never advance recovery truth.
