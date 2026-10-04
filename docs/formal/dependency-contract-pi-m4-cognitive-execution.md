@@ -2,11 +2,15 @@
 
 Contract ID: `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION`
 
-Version: `1.1.1`
+Version: `1.1.2`
 
 Status: `active`
 
-Version 1.1.1 changes no Pi invocation, provider, identity, evidence-capture,
+Version `1.1.2` is a dependency-only / construction-only compatibility
+synchronization with NIB-S `9.1.1` and M4-A `1.1.2`. It changes no algorithm,
+type, provider, recovery, or repository semantics.
+
+Version 1.1.1 changed no Pi invocation, provider, identity, evidence-capture,
 retry, timeout, credential, or execution semantics.
 
 It makes the already-existing selected-backend recovery-capability declaration
@@ -34,8 +38,8 @@ M4-B consumes only the exact selected-backend recovery-capability declaration.
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.0
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.1
+NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.1
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.2
 ```
 
 Version `1.0.1` closes the exact adapter interface, transient credential-store
@@ -168,7 +172,7 @@ qualify another request model
 Any exact M4 operation asking for another provider or requestModel is:
 
 ```text
-unsupported by DC version 1.1.1
+unsupported by DC version 1.1.2
 → DEPENDENCY-CONTRACT-VIOLATION
 → no fallback
 → no substitution
@@ -349,7 +353,7 @@ interface PiM4DependencyExecutionPlanV1 {
     "DC-PI-M4-GATE-A-COGNITIVE-EXECUTION";
 
   readonly contractVersion:
-    "1.1.1";
+    "1.1.2";
 
   readonly callId:
     CognitiveCallId;
@@ -2391,11 +2395,11 @@ ProviderModel is captured only from provider-owned raw events and its spelling
 never establishes canonical effective-model identity.
 
 DC-PI-M4-15
-DC 1.1.1 determinately declares
+DC 1.1.2 determinately declares
 provider-owned-canonical-effective-model-identity-v1 as NOT-ESTABLISHED.
 
 DC-PI-M4-16
-Under DC 1.1.1, M4-A must reject a provider-reported acquisition candidate
+Under DC 1.1.2, M4-A must reject a provider-reported acquisition candidate
 before buildExecutionPlan; the adapter never receives identityResolution and
 never performs that admission decision.
 ```
