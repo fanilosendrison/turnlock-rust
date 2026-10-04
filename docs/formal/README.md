@@ -300,51 +300,56 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `9.1.1`. The brief's own NIB metadata is the sole source for its
+version is `9.1.2`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
 
-- [`nib-m-gate-a-campaign-state-persistence-ownership.md`](nib-m-gate-a-campaign-state-persistence-ownership.md)
-  — SQLite-backed authoritative persistence, immutable artifact storage,
-  bootstrap, ownership, and fencing;
-- [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md)
-  — authoritative mutation admission, generalized candidate provenance,
-  `AssuranceRepositoryProjectionRef` retention/consumption integrity,
+- [`nib-m-gate-a-campaign-state-persistence-ownership.md`](nib-m-gate-a-campaign-state-persistence-ownership.md),
+  version `2.0.11` — SQLite-backed authoritative persistence, immutable
+  artifact storage, bootstrap, ownership, and fencing;
+- [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md),
+  version `6.0.0` — authoritative mutation admission, generalized candidate
+  provenance, `AssuranceRepositoryProjectionRef` retention/consumption integrity,
   obligations/blockers, retries, dispatch, recovery admission, qualification,
   and publication state transitions;
-- [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md)
-  — deterministic snapshot reconstruction, unresolved-execution projection,
-  retained projection history/consumption integrity, generalized candidate
+- [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md),
+  version `5.0.0` — deterministic snapshot reconstruction, unresolved-execution
+  projection, retained projection history/consumption integrity, generalized candidate
   provenance integrity, and provenance-root materialization.
 
 M3 `campaign-authority` is covered by one active Module Brief:
-[`nib-m-gate-a-campaign-authority.md`](nib-m-gate-a-campaign-authority.md).
-It owns deterministic preflight authority interpretation, exact `(S,P)`
-currentness, repository review observation/import merge including exact
+[`nib-m-gate-a-campaign-authority.md`](nib-m-gate-a-campaign-authority.md),
+version `4.0.0`. It owns deterministic preflight authority interpretation,
+exact `(S,P)` currentness, repository review observation/import merge including
+exact
 M6-projected `referencedArtifacts` closure preservation, reviewer-prerequisite
 interpretation, campaign-authority operational causes and blocking obligations,
 `GateACampaignAuthorityEvaluationV1` sealing, pure campaign+candidate
 `ReviewContext` construction, and preservation of exact M6-projected initial-
 reviewer execution inputs.
 
-M3 consumes NIB-S `9.1.1`.
+M3 consumes NIB-S `9.1.2`.
 
-The active reviewer-acquisition boundary is:
+The active reviewer/campaign boundary is:
 
 ```text
 M6
-→ mechanically establishes exact initial-reviewer prompt/packet inputs
+→ mechanically projects exact initial-reviewer execution inputs
+→ mechanically projects exact P retry policy
 
 M3
-→ validates and preserves them in prerequisite resolution
+→ validates/preserves both without reinterpretation
+
+ReviewCampaignPrerequisiteBasisRefV1
+→ retains both durably
 
 M1
-→ selects first-round candidates only
+→ selects first-round reviewer candidates only
 
 M5
-→ constructs assurance obligations/workItems for selected reviewers
-→ selects every later round
+→ consumes retained retry policy for protocol-side retry admissibility
+→ uses authoritative Execution history + M2 limits for runner-side caps
 ```
 
 M6 also projects exact protocol policy. M3 validates it and computes the
@@ -362,7 +367,7 @@ capture and M4-B recovery observation.
 
 The active M4-A Module Brief is
 [`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md),
-version `1.1.2`.
+version `1.1.3`.
 It owns the immutable cognitive WorkItem operation, pre-Arm preparation,
 cognitive-call identity, durable execution journal and effect fence, selected
 cognitive dependency invocation, exact raw completion and runtime-evidence
@@ -371,7 +376,7 @@ and non-authoritative liveness telemetry.
 
 The active M4-B Module Brief is
 [`nib-m-gate-a-cognitive-execution-recovery-observation.md`](nib-m-gate-a-cognitive-execution-recovery-observation.md),
-version `1.0.1`.
+version `1.0.2`.
 
 It owns exact validation of the cognitive recovery capability, read-only M4
 journal interpretation, positive PREPARED-only non-execution proof, exact local
@@ -384,7 +389,7 @@ provider-side recovery operation and forbids replay.
 
 The active Pi M4 Dependency Contract is
 [`dependency-contract-pi-m4-cognitive-execution.md`](dependency-contract-pi-m4-cognitive-execution.md),
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.2`.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.3`.
 
 It pins `@earendil-works/pi-ai@0.99.2` / Pi
 `005af57d88ee23b33778f343a9595b32e67ff788`, the direct
@@ -396,10 +401,10 @@ exact four-field synchronous planning interface, unsealed three-result adapter
 boundary, and M4-owned strict UTF-8, evidence-sealing, raw-result, and terminal-
 journal ownership closures.
 
-ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.2` and
+ADR-054 resolves provider-reported semantics. M4-A is now version `1.1.3` and
 delegates exact identity-channel capability qualification to the Pi M4
 Dependency Contract while preserving raw evidence. Pi M4 Dependency Contract
-version `1.1.2` retains provider-owned response/effective-model evidence
+version `1.1.3` retains provider-owned response/effective-model evidence
 capture as `ESTABLISHED`, but records
 `provider-owned-canonical-effective-model-identity-v1` as `NOT-ESTABLISHED` for
 the current `openai-codex` / `gpt-6.1-sol` qualification evidence.
@@ -412,9 +417,9 @@ M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
 
 The active M7-A Module Brief is
-[`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md).
-It owns repository inspection, exact baseline Git basis, publication-target
-identity resolution, canonical C0 materialization, exact RepairIntent patch
+[`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md),
+version `2.0.6`. It owns repository inspection, exact baseline Git basis,
+publication-target identity resolution, canonical C0 materialization, exact RepairIntent patch
 application, exact assurance repository projection application, combined repair
 plus assurance successor construction, Git tree projection, deterministic
 publication successor `T`, and the internal M7-A → M7-B successor boundary.
@@ -427,14 +432,14 @@ Publication/remote/recovery behavior remains outside the M7-A brief.
 M8 `recovery-operator` is architecturally decomposed into two active Module
 Briefs:
 
-- [`nib-m-gate-a-recovery-operator-reconciliation.md`](nib-m-gate-a-recovery-operator-reconciliation.md)
-  — M8-A exact unresolved-execution validation, executor-owned recovery-port
-  invocation, deterministic bounded re-observation, recovery evidence
+- [`nib-m-gate-a-recovery-operator-reconciliation.md`](nib-m-gate-a-recovery-operator-reconciliation.md),
+  version `2.0.11` — M8-A exact unresolved-execution validation, executor-owned
+  recovery-port invocation, deterministic bounded re-observation, recovery evidence
   projection, immutable reconciliation traces, and restart-safe episode
   behavior;
-- [`nib-m-gate-a-recovery-operator-boundary.md`](nib-m-gate-a-recovery-operator-boundary.md)
-  — M8-B deterministic operational-blocker identity/materialization, immutable
-  Operator Action Requests, recovery-blocker reuse/disposition, aggregate
+- [`nib-m-gate-a-recovery-operator-boundary.md`](nib-m-gate-a-recovery-operator-boundary.md),
+  version `2.0.11` — M8-B deterministic operational-blocker
+  identity/materialization, immutable Operator Action Requests, recovery-blocker reuse/disposition, aggregate
   RecoveryPlan blocker behavior, operator-resolution ingestion, and explicit
   operator-authorized Execution supersession mapping.
 
