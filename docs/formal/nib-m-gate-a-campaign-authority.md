@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-AUTHORITY
-version: "2.0.2"
+version: "3.0.0"
 scope: gate-a-campaign-runner/campaign-authority
 status: active
 consumers: [architect, coding-agent]
@@ -19,9 +19,15 @@ superseded_by: []
 
 Implement M3 `campaign-authority` according to this active Module Brief.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
 
-Version `2.0.2` is a dependency-only compatibility synchronization with NIB-S `9.1.0`. It changes no algorithm, type, or module invariant.
+Version `3.0.0` is a breaking construction-contract revision that removes the
+WorkItem/ReviewContext construction cycle, adds exact retained initial-reviewer
+execution inputs to the M3 prerequisite result, and changes no M3 ownership,
+external side effect, product semantic, or hostile-review semantic.
+
+Version `2.0.2` was a dependency-only compatibility synchronization with NIB-S
+`9.1.0`. It changed no algorithm, type, or module invariant.
 
 Version `2.0.1` is dependency-only synchronization with NIB-S `9.0.1`.
 
@@ -55,6 +61,7 @@ preflight authority interpretation
 exact semantic-subject/protocol campaign currentness
 repository review-campaign observation/import merge
 reviewer-prerequisite interpretation
+preservation of exact M6-projected initial-reviewer execution inputs
 campaign-authority operational cause construction
 campaign-authority blocking-obligation construction
 GateACampaignAuthorityEvaluationV1 witness construction
@@ -179,7 +186,7 @@ randomness
 environment-selected campaign authority
 ```
 
-Consume the following NIB-S `9.0.0` cross-module types unchanged:
+Consume the following NIB-S `9.1.1` cross-module types unchanged:
 
 ```text
 ArtifactRef
@@ -195,7 +202,6 @@ RepositoryInspectionRef
 CandidateRevisionRef
 ReviewCampaignRef
 ObligationRef
-WorkItemRef
 PreflightRequest
 PreflightResolution
 ReviewCurrentnessRequest
@@ -212,6 +218,7 @@ GateAReviewerProfileMechanicalFactV1
 GateAReviewerAcquisitionPolicyMechanicalFactV1
 EffectiveReviewerIdentityRefV1
 GateAReviewerAcquisitionCandidateV1
+InitialReviewerExecutionInputsRefV1
 GateARepositoryReviewMechanicalFactV1
 CampaignAuthorityOperationalCauseRefV1
 GateACampaignAuthorityOperationalCauseV1
@@ -252,9 +259,8 @@ Define exactly one M3-internal request type:
 ```ts
 interface ReviewContextConstructionRequest {
   readonly runId: GateARunId;
-  readonly workItem: WorkItemRef;
-  readonly candidateLineage: readonly CandidateRevisionRef[];
-  readonly registeredCampaigns: readonly ReviewCampaignRef[];
+  readonly candidate: CandidateRevisionRef;
+  readonly campaign: ReviewCampaignRef;
 }
 ```
 
@@ -1044,6 +1050,18 @@ Any acquisition-policy contradiction is
 
 Verify the exact projection and evidence `ArtifactRef` values.
 
+Validate and preserve the exact:
+
+```text
+reviewAuthority.initialReviewerExecutionInputs
+```
+
+Require its prompt and packet to exist and be intact and require every NIB-S
+path, SHA, media-type, null-`repositoryPath`, and exact-byte binding. M3 must
+not construct the prompt, construct the packet, reread P, reread the repository,
+or invoke Python. M3 must return the exact M6-projected value without
+transformation.
+
 ### 13.2 Static qualification
 
 Perform only static registry qualification. A profile is statically qualifying
@@ -1149,6 +1167,8 @@ Return exactly:
     "minimum-effective-independent-v1",
   qualifyingReviewerProfileIds,
   reviewerAcquisitionCandidates,
+  initialReviewerExecutionInputs:
+    reviewAuthority.initialReviewerExecutionInputs,
   evidence
 }
 ```
@@ -1243,58 +1263,50 @@ Use `[]` as the exact resolution contracts and return exactly:
 Keep `construct_review_context` pure. Use no artifact store, perform no state
 write, and do not recompute currentness.
 
-Require:
+Apply exactly:
 
 ```text
-workItem.runId == request.runId
-workItem.executor == "cognitive-execution"
-workItem.reviewCampaignId != null
-candidateLineage duplicate-free by candidateId
-every candidateLineage member.runId == request.runId
-registeredCampaigns duplicate-free by ReviewCampaignId
-```
+require candidate.runId == request.runId
 
-Find exactly one campaign where:
+require campaign.provenance.kind == "runner-produced"
 
-```text
-campaign.reviewCampaignId == workItem.reviewCampaignId
-```
+require campaign.provenance.originatingRunId ==
+    request.runId
 
-Require:
+require campaign.provenance.candidateId ==
+    candidate.candidateId
 
-```text
-campaign.provenance.kind == "runner-produced"
-campaign.provenance.originatingRunId == request.runId
-campaign.provenance.candidateId == workItem.candidateId
-```
+require candidate.semanticSubject ==
+    campaign.semanticSubject
 
-Find exactly one candidate where:
-
-```text
-candidate.candidateId == campaign.provenance.candidateId
-```
-
-Require:
-
-```text
-candidate.runId == request.runId
-candidate.semanticSubject == campaign.semanticSubject
-```
-
-Return exactly:
-
-```ts
+return exactly:
 {
-  runId:
-    request.runId,
-
-  candidate:
-    exact production candidate,
-
-  campaign:
-    exact runner-produced campaign
+    runId: request.runId,
+    candidate: exact request.candidate,
+    campaign: exact request.campaign
 }
 ```
+
+Do not perform:
+
+```text
+repository-imported campaign acceptance
+candidate retargeting
+current-candidate substitution
+registered-campaign lookup
+WorkItem lookup
+mutable repository lookup
+M2 query
+currentness recomputation
+```
+
+M2 retains responsibility for subsequently admitting a campaign. For the first
+round, `construct_review_context` may therefore receive the exact newly
+constructed runner-produced `ReviewCampaignRef` before admission together with
+its exact production `CandidateRevisionRef`.
+
+For later rounds, M5 must not call M3 again. It consumes the exact
+`reviewContext` retained in the authoritative prerequisite basis.
 
 Preserve production provenance. For example:
 
@@ -1306,13 +1318,9 @@ P unchanged
 REVIEW-X remains current
 ```
 
-For work belonging to `REVIEW-X`, return C1, not C2. The existence of
-`producedByRepairIntentId` or `producedByAssuranceProjectionId` on C2 does not
-retarget `REVIEW-X`.
-
-A repository-imported campaign cannot receive new cognitive execution
-authority. Treat an attempt to construct a `ReviewContext` from one as
-`CAMPAIGN-HISTORY-INTEGRITY-FAILURE`.
+The retained `ReviewContext` for `REVIEW-X` continues to name C1, not C2. The
+existence of `producedByRepairIntentId` or
+`producedByAssuranceProjectionId` on C2 does not retarget `REVIEW-X`.
 
 ## 15. Runner-produced campaign construction boundary
 
@@ -1348,14 +1356,15 @@ type CampaignAuthorityFailureCodeV1 =
 
 No other M3 failure code exists in v1.
 
-Map `INVALID-REQUEST` to:
+For M3 operations other than `construct_review_context`, retain the applicable
+`INVALID-REQUEST` mappings, including runtime-invalid requests, run-binding
+mismatches, and malformed candidate lineage supplied to currentness.
+
+For `construct_review_context`, map `INVALID-REQUEST` exactly to:
 
 ```text
-runtime-invalid request
-run binding mismatch
-malformed candidate lineage supplied by caller
-ReviewContext request for non-cognitive WorkItem
-ReviewContext request with reviewCampaignId == null
+malformed request
+candidate.runId mismatch
 ```
 
 Map `MECHANICAL-AUTHORITY-CONTRACT-FAILURE` to:
@@ -1369,15 +1378,19 @@ M6 referencedArtifacts violates its declared structural result contract
 impossible candidate-materialization binding
 ```
 
-Map `CAMPAIGN-HISTORY-INTEGRITY-FAILURE` to:
+For M3 operations other than `construct_review_context`, retain the applicable
+`CAMPAIGN-HISTORY-INTEGRITY-FAILURE` mappings, including duplicate registered
+`ReviewCampaignId`, incompatible same-ID repository observations, and campaign
+history/provenance contradictions.
+
+For `construct_review_context`, map
+`CAMPAIGN-HISTORY-INTEGRITY-FAILURE` exactly to:
 
 ```text
-duplicate registered ReviewCampaignId
-same ReviewCampaignId incompatible with repository observation
-missing campaign named by authoritative WorkItem
-runner-produced campaign production candidate missing
-campaign/candidate provenance contradiction
-ReviewContext requested for repository-imported campaign
+repository-imported campaign supplied
+campaign originatingRunId mismatch
+campaign production candidateId mismatch
+candidate/campaign semantic-subject contradiction
 ```
 
 Map `ARTIFACT-INTEGRITY-FAILURE` to:
@@ -1537,11 +1550,18 @@ current campaign + stale campaigns
 → current
 → stale list remains complete
 
-ReviewContext requested for imported campaign
+ReviewContext construction with imported campaign
 → failure
 
-ReviewContext for reused runner campaign
-→ exact original production candidate
+ReviewContext construction with candidate.runId mismatch
+→ INVALID-REQUEST
+
+ReviewContext construction with campaign run/candidate/subject contradiction
+→ CAMPAIGN-HISTORY-INTEGRITY-FAILURE
+
+Later-round WorkItem construction
+→ M5 consumes exact retained ReviewContext
+→ no new M3 invocation
 ```
 
 ## 19. Forbidden behavior
@@ -1710,11 +1730,13 @@ Both post-preflight M3 causes have `resolutionContracts == []`.
 
 ### M3-27
 
-`construct_review_context` accepts only a runner-produced campaign.
+`construct_review_context` accepts only the exact supplied runner-produced
+campaign and performs no campaign or WorkItem lookup.
 
 ### M3-28
 
-`ReviewContext` always names the exact production candidate of the campaign.
+`ReviewContext` always preserves the exact supplied production candidate and
+campaign.
 
 ### M3-29
 
@@ -1748,6 +1770,7 @@ The future coding agent must not choose:
 campaign merge semantics
 currentness semantics
 reviewer prerequisite filtering
+initial-reviewer execution-input preservation
 cause types
 blocking obligation identities
 authority witness shape
