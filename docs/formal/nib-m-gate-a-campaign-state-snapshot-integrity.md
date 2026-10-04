@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "4.0.0"
+version: "5.0.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,7 +20,13 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+
+Version `5.0.0` is a breaking read-side construction-contract revision because
+snapshot reconstruction must now preserve the exact retained `retryPolicy`
+field inside every `ReviewCampaignPrerequisiteBasisRefV1`. No retry semantic,
+runner hard limit, ordering, recovery, product, hostile-review, or repository
+semantic changes.
 
 Version `4.0.0` is a breaking construction-contract revision because snapshot
 reconstruction must now preserve exactly the retained `reviewContext` and
@@ -406,9 +412,12 @@ Project exactly:
 Do not reconstruct a new basis object from other fields. The projected value is
 the exact retained `mutation.prerequisiteBasis`.
 
-Reconstruct `reviewContext` and `initialReviewerExecutionInputs` only from that
-exact retained `EstablishReviewCampaignBundleV1` mutation artifact. Never
-reconstruct either value from:
+Reconstruct `retryPolicy`, `reviewContext`, and
+`initialReviewerExecutionInputs` only from that exact retained
+`EstablishReviewCampaignBundleV1` mutation artifact. In particular,
+`retryPolicy` comes only from the exact retained
+`mutation.prerequisiteBasis.retryPolicy`. Never reconstruct any of these values
+from:
 
 ```text
 current P
@@ -417,10 +426,16 @@ current candidate
 new M3 invocation
 new M6 invocation
 WorkItem operation
+CognitiveAttemptValidationResult
+preflight re-execution
 repository files
+current repository
 current Git state
 environment
 ```
+
+Preserve `retryPolicy` without sorting, rewriting, defaulting, or
+reinterpretation.
 
 Fail snapshot reconstruction with `INTEGRITY_FAILURE` if:
 
@@ -443,6 +458,8 @@ provider-reported candidate has non-null static identity
 
 basis reviewContext campaign/run/candidate/subject binding mismatch
 
+basis retryPolicy fails exact runtime validation
+
 basis initialReviewerExecutionInputs prompt missing/corrupt
 
 basis initialReviewerExecutionInputs packet missing/corrupt
@@ -463,6 +480,7 @@ Require the restart property:
 ```text
 same authoritative history
 → same reviewCampaignPrerequisiteBases bytes/values/order
+→ same retryPolicy bytes/values/role-array order
 ```
 
 M5 can resume later-round acquisition without invoking M3.
@@ -1577,11 +1595,12 @@ I72B Repository-imported ReviewCampaigns have no prerequisite-basis projection
 I72C The reviewer-acquisition candidate order and complete prerequisite-basis
      payload are reconstructed unchanged from retained mutation authority.
 
-I72D Every retained prerequisite basis preserves its exact `ReviewContext` and
-     exact `InitialReviewerExecutionInputsRefV1` only from its immutable
-     `EstablishReviewCampaignBundleV1` mutation artifact; their prompt and packet
-     `ArtifactRef` values are intact and their path/null-repository bindings are
-     exact.
+I72D Every retained prerequisite basis preserves its exact `ReviewContext`,
+     exact `InitialReviewerExecutionInputsRefV1`, and exact runtime-valid
+     `GateACognitiveRetryPolicyMechanicalFactV1` only from its immutable
+     `EstablishReviewCampaignBundleV1` mutation artifact; prompt and packet
+     `ArtifactRef` values are intact, path/null-repository bindings are exact,
+     and retry-policy role-array order is unchanged.
 
 I73  Runner-produced campaign provenance has non-null originating run,
      candidate, and full RepositoryAuthorityRef, while repository-imported
