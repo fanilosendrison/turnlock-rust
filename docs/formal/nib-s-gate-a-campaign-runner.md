@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "9.1.1"
+version: "9.1.2"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -689,6 +689,49 @@ No retry semantic change.
 No provider/model semantic change.
 No review-evidence schema change.
 No execution-receipt schema change.
+No formal-assurance claim change.
+No product ADR is created.
+
+Version 9.1.2 closes the remaining M5-A protocol-retry-authority transport
+seam.
+
+The exact retry policy of the ReviewCampaign's bound protocol P is now
+mechanically projected by M6, preserved without interpretation by M3, retained
+inside ReviewCampaignPrerequisiteBasisRefV1, reconstructed unchanged by M2, and
+consumed from that retained basis by M5.
+
+M5 therefore never needs to reread current P, rerun M6/M3, infer retry policy
+from an M6 attempt classification, or hardcode current protocol-v6 retry values.
+
+Runner retry hard limits remain separately M2-owned and unchanged.
+
+The construction discovery is classified exactly as follows:
+
+```text
+statement:
+after a runner-produced ReviewCampaign has been admitted, M5 must derive
+protocol retry admissibility from the exact protocol P bound to that campaign,
+but the exact P retry-policy facts are not currently carried in the retained
+ReviewCampaignPrerequisiteBasisRefV1
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No TURNLOCK product semantic change.
+No hostile-review protocol semantic change.
+No retry semantic change.
+No runner hard-limit change.
+No reviewer-acquisition semantic change.
+No recovery semantic change.
+No execution-receipt schema change.
+No review-evidence schema change.
 No formal-assurance claim change.
 No product ADR is created.
 
@@ -2707,6 +2750,36 @@ M1 never invents retry permission.
 
 M2 validates and consumes admitted retry authorization but never invents it.
 
+For every runner-produced ReviewCampaign, after campaign admission M5 obtains
+protocol retry policy only from the exact authoritative
+`ReviewCampaignPrerequisiteBasisRefV1.retryPolicy` retained for that campaign.
+
+M5 must not:
+
+```text
+reread current P
+read protocol files from mutable repository state
+rerun M6 review-authority projection
+rerun M3 reviewer prerequisites
+hardcode protocol-v6 retry booleans
+infer protocol retry authorization solely from M6 classification
+```
+
+The admissibility authorities remain separate:
+
+```text
+protocol-side retry admissibility
+→ B.retryPolicy
+
+runner hard-limit admissibility
+→ exact authoritative Execution history
+  + accepted M2 runner limits
+```
+
+`CognitiveAttemptValidationResult` establishes the exact attempt classification.
+It is not protocol retry policy. Both the exact attempt classification and the
+applicable protocol-side policy fact are required when applicable.
+
 Provider/transport retries internal to one Pi M4 adapter call are governed by
 the Pi M4 Dependency Contract and do not use
 `ExecutionRetryAuthorizationRef`.
@@ -2953,14 +3026,18 @@ a new M3 invocation
 a new M6 invocation
 GateAReviewAuthorityMechanicalProjectionV1 re-execution
 WorkItem operation
+CognitiveAttemptValidationResult
+preflight re-execution
 Pi configuration
 environment
 repository files
+current repository
 current Git state
 ```
 
 The exact retained mutation is authoritative for what acquisition basis was
-admitted for that campaign.
+admitted for that campaign. Its exact `retryPolicy` is projected unchanged,
+without sorting, rewriting, defaulting, or reinterpretation.
 
 Require exact equivalence:
 
@@ -3158,6 +3235,8 @@ type ReviewerPrerequisiteResolution =
       readonly kind: "established";
       readonly minimumIndependentReviewers: number;
       readonly acquisitionMode: "minimum-effective-independent-v1";
+      readonly retryPolicy:
+        GateACognitiveRetryPolicyMechanicalFactV1;
       readonly qualifyingReviewerProfileIds: readonly string[];
       readonly reviewerAcquisitionCandidates:
         readonly GateAReviewerAcquisitionCandidateV1[];
@@ -3801,16 +3880,27 @@ candidate.semanticSubject ==
 ```
 
 M3 validates and preserves the exact
-`reviewAuthority.initialReviewerExecutionInputs`. It returns exactly:
+`reviewAuthority.initialReviewerExecutionInputs` and
+`reviewAuthority.retryPolicy`. It requires the retry policy to runtime-validate
+as `GateACognitiveRetryPolicyMechanicalFactV1`, both role arrays to be
+duplicate-free, and every role value to belong to `CognitiveExecutionRole`.
+Any structural contradiction is `MECHANICAL-AUTHORITY-CONTRACT-FAILURE`.
+It returns exactly:
 
 ```text
+retryPolicy:
+    reviewAuthority.retryPolicy
+
 initialReviewerExecutionInputs:
     reviewAuthority.initialReviewerExecutionInputs
 ```
 
-M3 must not construct the prompt, construct the packet, reread P, reread the
-repository, or invoke Python. It performs no transformation of either exact
-immutable byte carrier or repository-path binding.
+M3 must not construct the prompt, construct the packet, reread P, reopen the
+protocol bundle path, reread the repository, invoke Python, apply retry rules,
+decide retry admissibility, compare against hardcoded protocol-v6 values, or
+add/remove/reorder either retry-policy role array. It performs no transformation
+of either exact immutable byte carrier, repository-path binding, or retry-policy
+fact.
 
 M6 mechanically projects `reviewerAcquisition` exactly from validated current P.
 M6 does not choose acquisition order, select profiles, or use finding content.
@@ -4405,6 +4495,33 @@ interface GateAReviewerAcquisitionPolicyMechanicalFactV1 {
   readonly profileOrder: readonly string[];
 }
 
+interface GateACognitiveRetryPolicyMechanicalFactV1 {
+  readonly technicalRetryAllowed: boolean;
+
+  readonly schemaInvalidCompletionRetryAllowed: boolean;
+
+  readonly semanticResultRetryAllowed: boolean;
+
+  readonly allCompletedAttemptsMustBeSealed: boolean;
+
+  readonly outcomeClassification:
+    "role-aware-conservative";
+
+  readonly firstProtocolValidCompletionIsTerminal: boolean;
+
+  readonly deterministicallyValidatedRoles:
+    readonly CognitiveExecutionRole[];
+
+  readonly rolesWithoutDeterministicOutputValidator:
+    readonly CognitiveExecutionRole[];
+
+  readonly rolesWithoutDeterministicOutputValidatorProtocolInvalidAllowed:
+    boolean;
+
+  readonly rolesWithoutDeterministicOutputValidatorFirstCompletedResponseTerminal:
+    boolean;
+}
+
 interface EffectiveReviewerIdentityRefV1 {
   readonly provider: string;
   readonly modelVersion: string;
@@ -4440,6 +4557,9 @@ interface ReviewCampaignPrerequisiteBasisRefV1 {
   readonly candidateId: CandidateRevisionId;
   readonly semanticSubject: SemanticSubjectRef;
   readonly protocolBundle: ProtocolBundleRef;
+
+  readonly retryPolicy:
+    GateACognitiveRetryPolicyMechanicalFactV1;
 
   readonly reviewContext: ReviewContext;
 
@@ -4477,6 +4597,17 @@ B.semanticSubject ==
 
 B.protocolBundle ==
     C.protocolBundle
+
+B.retryPolicy is runtime-valid as
+GateACognitiveRetryPolicyMechanicalFactV1
+
+B.retryPolicy belongs to the exact protocol P named by B.protocolBundle
+
+B.retryPolicy role arrays contain only valid CognitiveExecutionRole values
+
+B.retryPolicy.deterministicallyValidatedRoles is duplicate-free
+
+B.retryPolicy.rolesWithoutDeterministicOutputValidator is duplicate-free
 
 B.reviewContext.runId ==
     C.provenance.originatingRunId
@@ -4530,6 +4661,13 @@ set(
 Candidate ordering is preserved exactly from the accepted M3 result. Do not
 sort `reviewerAcquisitionCandidates`.
 
+`ReviewCampaignPrerequisiteBasisRefV1.retryPolicy` is immutable retained
+construction authority for M5's protocol-side retry admissibility.
+
+It is not new hostile-review policy authority.
+
+It is a mechanically preserved projection of exact P.
+
 For each candidate require:
 
 ```text
@@ -4562,6 +4700,8 @@ interface GateAReviewAuthorityMechanicalProjectionV1 {
   readonly runId: GateARunId;
   readonly candidateMaterialization: ArtifactRef;
   readonly protocolBundle: ProtocolBundleRef;
+  readonly retryPolicy:
+    GateACognitiveRetryPolicyMechanicalFactV1;
   readonly initialReviewerExecutionInputs:
     InitialReviewerExecutionInputsRefV1;
   readonly minimumIndependentReviewers: number;
@@ -4584,6 +4724,8 @@ type CandidateReviewAuthorityMechanicalProjectionResult =
       readonly kind: "established";
       readonly candidateMaterialization: ArtifactRef;
       readonly protocolBundle: ProtocolBundleRef;
+      readonly retryPolicy:
+        GateACognitiveRetryPolicyMechanicalFactV1;
       readonly initialReviewerExecutionInputs:
         InitialReviewerExecutionInputsRefV1;
       readonly minimumIndependentReviewers: number;
@@ -4745,6 +4887,9 @@ GateAReviewAuthorityMechanicalProjectionV1
 projection.protocolBundle ==
     result.protocolBundle
 
+projection.retryPolicy ==
+    result.retryPolicy
+
 projection.initialReviewerExecutionInputs ==
     result.initialReviewerExecutionInputs
 
@@ -4760,6 +4905,56 @@ projection.repositoryReviews ==
 projection.evidence ==
     result.evidence
 ```
+
+`retryPolicy` is the exact mechanically projected `P.policies.retry` of the
+validated protocol bundle P. M6 obtains every value from that exact P and maps
+exactly:
+
+```text
+P.policies.retry.technical_retry_allowed
+→ technicalRetryAllowed
+
+P.policies.retry.schema_invalid_completion_retry_allowed
+→ schemaInvalidCompletionRetryAllowed
+
+P.policies.retry.semantic_result_retry_allowed
+→ semanticResultRetryAllowed
+
+P.policies.retry.all_completed_attempts_must_be_sealed
+→ allCompletedAttemptsMustBeSealed
+
+P.policies.retry.outcome_classification
+→ outcomeClassification
+
+P.policies.retry.first_protocol_valid_completion_is_terminal
+→ firstProtocolValidCompletionIsTerminal
+
+P.policies.retry.deterministically_validated_roles
+→ deterministicallyValidatedRoles
+
+P.policies.retry.roles_without_deterministic_output_validator
+→ rolesWithoutDeterministicOutputValidator
+
+P.policies.retry.roles_without_deterministic_output_validator_protocol_invalid_allowed
+→ rolesWithoutDeterministicOutputValidatorProtocolInvalidAllowed
+
+P.policies.retry.roles_without_deterministic_output_validator_first_completed_response_terminal
+→ rolesWithoutDeterministicOutputValidatorFirstCompletedResponseTerminal
+```
+
+Both role arrays preserve exact values and exact order from P, with no sorting,
+deduplication, or reinterpretation.
+
+M6 decides no retry semantic. It projects only exact mechanically validated P.
+M6 must not use hardcoded protocol-v6 retry constants, default retry values, a
+current-protocol fixed-path reread after projection authority is established,
+inference from `CognitiveAttemptValidationResult`, inference from role alone,
+or any M2 runner hard limit when constructing this fact.
+
+`GateACognitiveRetryPolicyMechanicalFactV1` contains no runner retry count,
+runner absolute limit, `retryAuthorizationId`, Execution history,
+`StateRevision`, timestamp, current deficit, or provider transport retry
+configuration.
 
 `initialReviewerExecutionInputs` is an immutable exact execution-input basis.
 Its `prompt` and `packet` `ArtifactRef` values are immutable byte carriers in
@@ -7834,9 +8029,13 @@ run(command):
 
             prerequisite_basis =
                 construct exact ReviewCampaignPrerequisiteBasisRefV1 from:
-                    campaign
-                    exact established ReviewerPrerequisiteResolution
-                    exact review_context
+                    campaign C
+                    exact established ReviewerPrerequisiteResolution P
+                    exact review_context R
+
+                set exactly:
+                    retryPolicy:
+                        P.retryPolicy
 
                 copy with no field transformation, sorting, or normalization:
                     minimumIndependentReviewers
