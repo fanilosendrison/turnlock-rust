@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-AUTHORITY
-version: "3.0.0"
+version: "4.0.0"
 scope: gate-a-campaign-runner/campaign-authority
 status: active
 consumers: [architect, coding-agent]
@@ -19,7 +19,12 @@ superseded_by: []
 
 Implement M3 `campaign-authority` according to this active Module Brief.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+
+Version `4.0.0` is a breaking construction-contract revision because the
+exported established `ReviewerPrerequisiteResolution` shape gains the exact
+retained retry-policy fact required by M5-A. It adds no M3 semantic, retry
+interpretation, or retry-admissibility authority.
 
 Version `3.0.0` is a breaking construction-contract revision that removes the
 WorkItem/ReviewContext construction cycle, adds exact retained initial-reviewer
@@ -62,6 +67,7 @@ exact semantic-subject/protocol campaign currentness
 repository review-campaign observation/import merge
 reviewer-prerequisite interpretation
 preservation of exact M6-projected initial-reviewer execution inputs
+preservation of exact M6-projected protocol retry policy
 campaign-authority operational cause construction
 campaign-authority blocking-obligation construction
 GateACampaignAuthorityEvaluationV1 witness construction
@@ -86,6 +92,7 @@ merge/conflict handling by ReviewCampaignId
 canonical current/stale campaign selection
 INITIAL / SUBJECT-CHANGED / PROTOCOL-CHANGED classification
 static reviewer-profile prerequisite interpretation
+preservation without interpretation of exact M6-projected protocol retry policy
 M3 campaign-authority operational cause semantics
 M3 blocking ObligationRef construction
 GateACampaignAuthorityEvaluationV1 construction/sealing
@@ -186,7 +193,7 @@ randomness
 environment-selected campaign authority
 ```
 
-Consume the following NIB-S `9.1.1` cross-module types unchanged:
+Consume the following NIB-S `9.1.2` cross-module types unchanged:
 
 ```text
 ArtifactRef
@@ -216,6 +223,7 @@ CandidateSubjectMechanicalDerivationResult
 CandidateReviewAuthorityMechanicalProjectionResult
 GateAReviewerProfileMechanicalFactV1
 GateAReviewerAcquisitionPolicyMechanicalFactV1
+GateACognitiveRetryPolicyMechanicalFactV1
 EffectiveReviewerIdentityRefV1
 GateAReviewerAcquisitionCandidateV1
 InitialReviewerExecutionInputsRefV1
@@ -1043,9 +1051,15 @@ reviewerProfiles profile IDs unique
 reviewerAcquisition.mode == minimum-effective-independent-v1
 reviewerAcquisition.profileOrder contains every reviewerProfiles.profileId
     exactly once and no other ID
+reviewAuthority.retryPolicy runtime-validates as
+    GateACognitiveRetryPolicyMechanicalFactV1
+reviewAuthority.retryPolicy.deterministicallyValidatedRoles is duplicate-free
+reviewAuthority.retryPolicy.rolesWithoutDeterministicOutputValidator is
+    duplicate-free
+every retryPolicy role value belongs to CognitiveExecutionRole
 ```
 
-Any acquisition-policy contradiction is
+Any acquisition-policy or retry-policy structural contradiction is
 `MECHANICAL-AUTHORITY-CONTRACT-FAILURE`, not a normal blocker.
 
 Verify the exact projection and evidence `ArtifactRef` values.
@@ -1054,6 +1068,7 @@ Validate and preserve the exact:
 
 ```text
 reviewAuthority.initialReviewerExecutionInputs
+reviewAuthority.retryPolicy
 ```
 
 Require its prompt and packet to exist and be intact and require every NIB-S
@@ -1061,6 +1076,11 @@ path, SHA, media-type, null-`repositoryPath`, and exact-byte binding. M3 must
 not construct the prompt, construct the packet, reread P, reread the repository,
 or invoke Python. M3 must return the exact M6-projected value without
 transformation.
+
+M3 must not read P, reopen the protocol bundle path, apply retry rules, decide
+retry admissibility, compare against hardcoded protocol-v6 values, or
+add/remove/reorder either retry-policy role array. M3 does not interpret any
+retry-policy value.
 
 ### 13.2 Static qualification
 
@@ -1165,6 +1185,8 @@ Return exactly:
     reviewAuthority.minimumIndependentReviewers,
   acquisitionMode:
     "minimum-effective-independent-v1",
+  retryPolicy:
+    reviewAuthority.retryPolicy,
   qualifyingReviewerProfileIds,
   reviewerAcquisitionCandidates,
   initialReviewerExecutionInputs:
@@ -1372,6 +1394,9 @@ Map `MECHANICAL-AUTHORITY-CONTRACT-FAILURE` to:
 ```text
 M6 result contradicts its accepted structured contract
 invalid minimumIndependentReviewers
+runtime-invalid M6 retryPolicy
+retryPolicy role array contains an invalid CognitiveExecutionRole
+retryPolicy role array contains a duplicate role
 duplicate/misordered M6 reviewer profiles
 duplicate/misordered M6 repository reviews
 M6 referencedArtifacts violates its declared structural result contract
@@ -1464,6 +1489,7 @@ resolve_currentness
 → same witness bytes when current
 
 verify_reviewer_prerequisites
+→ same exact preserved retry policy
 → same qualifying set
 → same result / same blocking obligation and cause
 
