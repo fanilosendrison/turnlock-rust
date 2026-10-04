@@ -16,7 +16,7 @@ governance_bindings:
         kind: logical_provider
       identity:
         repository: fanilosendrison/proto-ring
-        commit: 890ed560e61e205067bdf3628e419302613ef06e
+        commit: dedb01a3a9b7a18930c9da75afa3773b5ad67f69
       authority:
         responsibility: executable_provider_binding
         source: executable_dependency_manifest
@@ -99,6 +99,17 @@ governance_bindings:
         repository: fanilosendrison/proto-ring
         commit: 890ed560e61e205067bdf3628e419302613ef06e
         path: docs/contracts/repository-governance-model.md
+      authority:
+        responsibility: governance_contract_bindings
+        source: governance_binding_registry
+    repository_governance_state_contract:
+      kind: governance_contract
+      scope:
+        kind: logical_provider
+      identity:
+        repository: fanilosendrison/proto-ring
+        commit: 9a1ed2d71d079b0118177c2a509ca356c371a597
+        path: docs/contracts/repository-governance-state.md
       authority:
         responsibility: governance_contract_bindings
         source: governance_binding_registry
