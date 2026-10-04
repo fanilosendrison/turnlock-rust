@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION
-version: "2.0.11"
+version: "2.0.12"
 scope: gate-a-campaign-runner/recovery-operator/recovery-reconciliation
 status: active
 consumers: [architect, coding-agent]
@@ -21,7 +21,11 @@ This document is the active Module Brief for M8-A
 `recovery-operator/recovery-reconciliation` in the Gate A hostile-review
 campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.2`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+
+Version `2.0.12` is a dependency-only synchronization with NIB-S `10.0.0`. It
+changes no M8-A algorithm, type, ownership, observation, classification,
+recovery, provider, retry, hard-limit, or repository semantic.
 
 Version `2.0.11` is a dependency-only / construction-only compatibility
 synchronization with NIB-S `9.1.2`. It makes no execution algorithm change, no
