@@ -2,9 +2,14 @@
 
 Contract ID: `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION`
 
-Version: `1.1.2`
+Version: `1.1.3`
 
 Status: `active`
+
+Version `1.1.3` is a dependency-only / construction-only compatibility
+synchronization with NIB-S `9.1.2` and M4-A `1.1.3`. It makes no execution
+algorithm change, no provider change, no retry semantic change, no hard-limit
+change, no recovery change, and no repository semantic change.
 
 Version `1.1.2` is a dependency-only / construction-only compatibility
 synchronization with NIB-S `9.1.1` and M4-A `1.1.2`. It changes no algorithm,
@@ -38,8 +43,8 @@ M4-B consumes only the exact selected-backend recovery-capability declaration.
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.1
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.2
+NIB-S-GATE-A-CAMPAIGN-RUNNER 9.1.2
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 1.1.3
 ```
 
 Version `1.0.1` closes the exact adapter interface, transient credential-store
@@ -172,7 +177,7 @@ qualify another request model
 Any exact M4 operation asking for another provider or requestModel is:
 
 ```text
-unsupported by DC version 1.1.2
+unsupported by DC version 1.1.3
 → DEPENDENCY-CONTRACT-VIOLATION
 → no fallback
 → no substitution
@@ -353,7 +358,7 @@ interface PiM4DependencyExecutionPlanV1 {
     "DC-PI-M4-GATE-A-COGNITIVE-EXECUTION";
 
   readonly contractVersion:
-    "1.1.2";
+    "1.1.3";
 
   readonly callId:
     CognitiveCallId;
@@ -2395,11 +2400,11 @@ ProviderModel is captured only from provider-owned raw events and its spelling
 never establishes canonical effective-model identity.
 
 DC-PI-M4-15
-DC 1.1.2 determinately declares
+DC 1.1.3 determinately declares
 provider-owned-canonical-effective-model-identity-v1 as NOT-ESTABLISHED.
 
 DC-PI-M4-16
-Under DC 1.1.2, M4-A must reject a provider-reported acquisition candidate
+Under DC 1.1.3, M4-A must reject a provider-reported acquisition candidate
 before buildExecutionPlan; the adapter never receives identityResolution and
 never performs that admission decision.
 ```
