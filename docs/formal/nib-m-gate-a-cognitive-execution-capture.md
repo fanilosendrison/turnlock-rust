@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "1.1.1"
+version: "1.1.2"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,9 +15,15 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.0`.
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `9.1.1`.
 
-Version 1.1.1 is a construction-only synchronization with DC 1.1.1 and M4-B.
+Version `1.1.2` is a construction-only synchronization with NIB-S `9.1.1`.
+
+It makes no M4 execution/capture algorithm change, no
+`CognitiveExecutionOperationV1` shape change, no dependency invocation change,
+and no provider/model change.
+
+Version 1.1.1 was a construction-only synchronization with DC 1.1.1 and M4-B.
 
 It changes no execution/capture algorithm, journal state, provider behavior,
 result classification, or M4A-01..M4A-34 invariant.
@@ -673,7 +679,7 @@ Provider, model, and request identity do not enter callId derivation.
 
        if identityResolution.kind == "provider-reported":
            require selected DC ==
-               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.1;
+               DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.2;
 
            observe selected DC capability:
                provider-owned-canonical-effective-model-identity-v1
@@ -1967,7 +1973,7 @@ reviewerProfileId, provider, or requestModel selected by the immutable M4
 operation.
 
 M4A-35
-For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.1, a provider-reported acquisition
+For DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.2, a provider-reported acquisition
 candidate is rejected as DEPENDENCY-CONTRACT-VIOLATION before
 buildExecutionPlan because
 provider-owned-canonical-effective-model-identity-v1 is NOT-ESTABLISHED.
@@ -2053,17 +2059,37 @@ M6
 M5
 → owns protocol/campaign retry authorization and receipt assembly
 
-M1 first-round WorkItem construction:
-→ exact selected GateAReviewerAcquisitionCandidateV1 from the newly established
+M1 first-round selection:
+→ selects exact GateAReviewerAcquisitionCandidateV1 values only
+
+M5 first-round WorkItem construction:
+→ consumes exact selected candidate from the newly retained
   ReviewCampaignPrerequisiteBasisRefV1
-→ copied unchanged into CognitiveExecutionOperationV1
 
 M5 later-round WorkItem construction:
-→ exact selected GateAReviewerAcquisitionCandidateV1 from
-  snapshot.reviewCampaignPrerequisiteBases
-→ copied unchanged into CognitiveExecutionOperationV1
+→ consumes exact selected candidate from the authoritative retained
+  ReviewCampaignPrerequisiteBasisRefV1
 
-Neither may construct only `reviewerProfileId` and later ask M4 to recover the
+For both:
+→ reviewerAcquisitionCandidate is copied unchanged
+→ operation.reviewContext equals the basis.reviewContext
+→ operation.prompt equals
+  basis.initialReviewerExecutionInputs.prompt
+→ operation.packet equals
+  basis.initialReviewerExecutionInputs.packet
+
+`WorkItem.inputRefs` remains exactly:
+
+```text
+[
+    operation.prompt,
+    operation.packet
+]
+```
+
+M4 never decides repository paths for the execution receipt.
+
+M5 may not construct only `reviewerProfileId` and later ask M4 to recover the
 remaining profile data.
 
 M8
@@ -2192,11 +2218,11 @@ Active dependency contract:
 
 ```text
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION
-version 1.1.1
+version 1.1.2
 docs/formal/dependency-contract-pi-m4-cognitive-execution.md
 ```
 
-The active DC 1.1.1 closes these requirements for the selected v1 Pi backend.
+The active DC 1.1.2 closes these requirements for the selected v1 Pi backend.
 
 It satisfies every requirement in Section 12 and additionally closes:
 
@@ -2243,7 +2269,7 @@ The Dependency Contract must always determine and declare the capability status
 of the exact selected realization. Declaring the status does not imply that the
 capability is established.
 
-For the active DC 1.1.1:
+For the active DC 1.1.2:
 
 ```text
 provider-owned providerModel capture
@@ -2332,7 +2358,7 @@ An unsupported exact binding must fail closed under the Dependency Contract.
 The M4 NIB does not implement those Pi facts itself.
 
 The Pi-specific Dependency Contract prerequisite for M4-A is satisfied by
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.1.
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` 1.1.2.
 
 This does not itself authorize GREEN before the remaining construction sequence
 is complete.
@@ -2344,7 +2370,7 @@ ADR-054 resolves the semantic meaning of provider-reported.
 M4-A owns no identifier-string classification. The selected Dependency Contract
 owns realization capability status.
 
-Current DC 1.1.1 status:
+Current DC 1.1.2 status:
 
 ```text
 provider-owned-canonical-effective-model-identity-v1
