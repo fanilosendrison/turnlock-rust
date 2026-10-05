@@ -441,6 +441,39 @@ for those products.
 It does not own finding adjudication, resolution qualification, assurance
 repository projection, or `CandidateReviewReadiness`.
 
+### Proposed M5 adjudication / resolution protocol evolution
+```
+
+Contenu exact :
+
+```markdown
+ADR-055 is proposed construction authority for the next Gate A hostile-review
+protocol evolution.
+
+It proposes protocol v7 structured contracts for M5-B review-evidence
+adjudication and M5-C resolution qualification, including deterministic
+supporting-role acquisition, structured adjudication packets/outputs,
+protocol-owned challenge objectives, separation of semantic UniqueCorrection
+from candidate-bound realization scope, explicit already-realized repair
+qualification, genuine decision-necessity qualification, and protocol-scoped
+stale-finding re-adjudication.
+
+ADR-055 is not yet accepted.
+
+Therefore:
+
+```text
+gate-a-campaign-protocol-v6 remains current
+NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
+M5-B and M5-C remain pending construction
+no protocol-v7 schema or checker behavior is active merely because ADR-055 exists
+```
+
+The expected later construction synchronization reserves immutable
+`ReviewContext` for initial-review production provenance and moves post-review
+adjudication/resolution cognitive work onto current resolution provenance. That
+synchronization does not retarget historical campaigns or review evidence.
+
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
 
