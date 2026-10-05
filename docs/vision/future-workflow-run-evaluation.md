@@ -65,6 +65,17 @@ higher-level system, or ordinary authored workflow. A future native evaluation
 or optimization facility would require its own accepted decision; it is not
 part of the current core product contract.
 
+This document captures the run-evaluation and run-intelligence side of a broader
+possible future managed TURNLOCK product. The separate
+[future managed execution design space](future-managed-execution.md) preserves
+the managed-execution side. These are independent non-normative considerations,
+and neither establishes Turnlock Cloud.
+
+Some capabilities explored here may later become part of a future managed
+product such as Turnlock Cloud, potentially alongside managed execution
+infrastructure. That possibility creates no TURNLOCK Core requirement and does
+not establish a Turnlock Cloud product boundary.
+
 ```text
 current TURNLOCK core
   = execution semantics
@@ -518,6 +529,9 @@ The following questions are intentionally unanswered:
     execution resource could expose, should receive stronger provenance duties?
 13. What privacy, security, retention, and cost constraints would apply to any
     future event or evidence capture?
+14. Which run-evaluation capabilities, if any, should belong to a future
+    Turnlock Cloud or other managed product rather than TURNLOCK Core or
+    ordinary external tooling?
 
 Listing these questions does not accept any answer, scope boundary, data model,
 or implementation mechanism.
