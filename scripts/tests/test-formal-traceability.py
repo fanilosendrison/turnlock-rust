@@ -432,6 +432,18 @@ def write_json_artifact(
     return write_bytes_artifact(fixture_root, relative_path, data)
 
 
+def write_receipt_artifact(
+    fixture_root: Path,
+    relative_path: str,
+    payload: dict,
+) -> dict:
+    return write_bytes_artifact(
+        fixture_root,
+        relative_path,
+        checker._canonical_json_bytes(payload),
+    )
+
+
 def write_raw_review_bytes(
     fixture_root: Path, relative_path: str, data: bytes
 ) -> dict:
@@ -746,8 +758,10 @@ def build_receipt_payload(
 
 
 def write_receipt_payload(fixture_root: Path, payload: dict, name: str) -> dict:
-    return write_json_artifact(
-        fixture_root, f"formal/reviews/executions/{name}.json", payload
+    return write_receipt_artifact(
+        fixture_root,
+        f"formal/reviews/executions/{name}.json",
+        payload,
     )
 
 
@@ -886,7 +900,11 @@ def mutate_execution_receipt(
         (fixture_root / reference["path"]).read_text(encoding="utf-8")
     )
     mutator(payload)
-    new_reference = write_json_artifact(fixture_root, reference["path"], payload)
+    new_reference = write_receipt_artifact(
+        fixture_root,
+        reference["path"],
+        payload,
+    )
     execution["execution_receipt"] = new_reference
     return payload
 
@@ -932,8 +950,10 @@ def replace_execution_raw_output(
                 and attempt_reference.get("path") == old_reference["path"]
             ):
                 attempt["raw_output"] = reference
-        execution["execution_receipt"] = write_json_artifact(
-            fixture_root, receipt_reference["path"], receipt_payload
+        execution["execution_receipt"] = write_receipt_artifact(
+            fixture_root,
+            receipt_reference["path"],
+            receipt_payload,
         )
     return reference
 
@@ -5483,6 +5503,63 @@ class GateAProtocolV4Tests(unittest.TestCase):
         )
         self.assertEqual([], bundle.get("reviewer_profiles"))
 
+    def test_execution_receipt_uses_canonical_json_value_without_trailing_newline(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            write_review(fixture_root, record)
+
+            execution = record["executions"][0]
+            reference = execution["execution_receipt"]
+            data = (fixture_root / reference["path"]).read_bytes()
+            payload = json.loads(data.decode("utf-8"))
+            self.assertEqual(
+                checker._canonical_json_bytes(payload),
+                data,
+            )
+            self.assertFalse(data.endswith(b"\n"))
+
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertEqual([], errors)
+            self.assertTrue(summary["gate_a"]["ready"])
+
+    def test_execution_receipt_trailing_newline_is_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            record = make_review(fixture_root)
+            execution = record["executions"][0]
+            reference = execution["execution_receipt"]
+            payload = json.loads(
+                (fixture_root / reference["path"]).read_text(encoding="utf-8")
+            )
+            execution["execution_receipt"] = write_bytes_artifact(
+                fixture_root,
+                reference["path"],
+                checker._canonical_json_document_bytes(payload),
+            )
+            write_review(fixture_root, record)
+
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+            self.assertTrue(
+                any(
+                    "artifact must use canonical JSON value serialization "
+                    "without a trailing newline" in error
+                    for error in errors
+                ),
+                errors,
+            )
+            self.assertFalse(summary["gate_a"]["ready"])
+
     def test_protocol_bundle_bad_sha_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
@@ -8120,7 +8197,7 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
             )
             self.assertNotEqual(packet_reference, other_packet)
             payload["input"]["packet"] = other_packet
-            execution["execution_receipt"] = write_json_artifact(
+            execution["execution_receipt"] = write_receipt_artifact(
                 fixture_root,
                 "formal/reviews/executions/receipt-exec-a-other-packet.json",
                 payload,
@@ -8659,8 +8736,10 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
                 receipt_payload["protocol_bundle_sha256"] = new_reference[
                     "sha256"
                 ]
-                item["execution_receipt"] = write_json_artifact(
-                    fixture_root, receipt_reference["path"], receipt_payload
+                item["execution_receipt"] = write_receipt_artifact(
+                    fixture_root,
+                    receipt_reference["path"],
+                    receipt_payload,
                 )
             manifest = load_manifest(fixture_root)
             manifest["policy"]["hostile_review"]["current_protocol_bundle"] = (
