@@ -1164,6 +1164,48 @@ def _load_json_object_artifact(
     return parsed, errors
 
 
+def _load_canonical_json_value_object_artifact(
+    root: Path,
+    reference: object,
+    label: str,
+    prefix: str,
+    suffix: str,
+) -> tuple[dict | None, list[str]]:
+    data, errors = _read_review_artifact(
+        root,
+        reference,
+        label,
+        prefix,
+        suffix,
+    )
+    if data is None:
+        return None, errors
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, errors + [f"{label}: artifact must be valid UTF-8"]
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as error:
+        return None, errors + [
+            f"{label}: artifact must be valid JSON "
+            f"({_concise_parser_error(error)})"
+        ]
+
+    if not isinstance(parsed, dict):
+        return None, errors + [f"{label}: artifact must be a JSON object"]
+
+    if data != _canonical_json_bytes(parsed):
+        errors.append(
+            f"{label}: artifact must use canonical JSON value serialization "
+            "without a trailing newline"
+        )
+
+    return parsed, errors
+
+
 def _load_meta_schema_validator(
     root: Path, reference: object, label: str
 ) -> tuple[Draft202012Validator | None, list[str]]:
@@ -1413,13 +1455,12 @@ def _load_execution_receipt(
     label: str,
     validator: Draft202012Validator | None,
 ) -> tuple[dict | None, list[str]]:
-    receipt, errors = _load_json_object_artifact(
+    receipt, errors = _load_canonical_json_value_object_artifact(
         root,
         reference,
         label,
         REVIEW_EXECUTIONS_PREFIX,
         REVIEW_EXECUTION_SUFFIX,
-        require_canonical=True,
     )
     if receipt is not None and validator is not None:
         errors.extend(_schema_violations(validator, receipt, label))
