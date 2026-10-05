@@ -443,31 +443,48 @@ repository projection, or `CandidateReviewReadiness`.
 
 ### Proposed M5 adjudication / resolution protocol evolution
 
-ADR-055 is proposed construction authority for the next Gate A hostile-review
-protocol evolution.
+ADR-055 remains proposed construction authority for the next Gate A
+hostile-review protocol evolution.
 
 It proposes protocol v7 structured contracts for M5-B review-evidence
 adjudication and M5-C resolution qualification, including deterministic
 supporting-role acquisition, structured adjudication packets/outputs,
-protocol-owned challenge objectives, separation of semantic UniqueCorrection
-from candidate-bound realization scope, explicit already-realized repair
-qualification, genuine decision-necessity qualification, and protocol-scoped
-stale-finding re-adjudication.
+candidate-bound realization, explicit already-realized repair qualification,
+genuine decision-necessity qualification, and mandatory bounded same-family
+closure revision.
 
-The proposal now also fixes three previously open construction/protocol
-boundaries:
+The detailed P7 construction now additionally fixes:
 
 ```text
-FindingAdjudicationSubject bootstraps materiality/refutation before any
-surviving-material resolution subject exists
+closure challenge contracts are selected by
+(challenge_kind, challenge_subject.selector), never challenge_kind alone
 
-review-evidence schema 5.0 remains the durable envelope while protocol v7
-validates an exact supporting-execution receipt/packet/output dependency graph
+UniqueCorrection and RealizationScope therefore use separate derivation
+challenge contracts and separate exact objective sets
 
-one bounded same-family semantic revision is mandatory after hostile objections
-while the exact subject remains current and execution remains operationally
-admissible
+review-evidence schema 5.0 remains the immutable ReviewCampaign-record schema
+
+protocol v7 adds a separate immutable FindingAdjudicationSupplementV1 artifact
+for append-only current adjudication of an immutable original finding
+
+supplements are not ReviewCampaigns and never count toward independent-reviewer
+minimums
+
+a supplement can make a finding non-blocking only through:
+- qualified non-materiality
+- qualified refutation
+
+every other terminal P7 lineage remains surviving-material
+
+repair qualification, NoNormativeImpact, DecisionRequest, SemanticBlocker and
+operator outcomes do not erase a material finding
+
+new P7 cross-campaign adjudication uses supplements rather than emitting a new
+schema-5 re_adjudications[] member
 ```
+
+Historical schema-5 `re_adjudications[]` remain valid for the protocol versions
+that produced them.
 
 ADR-055 is still proposed and is not yet active protocol authority.
 
@@ -478,22 +495,27 @@ gate-a-campaign-protocol-v6 remains current
 execution-receipt schema 3.0 remains current
 review-evidence schema 5.0 remains current
 NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
-M5-B and M5-C remain pending construction
-no protocol-v7 schema or checker behavior is active merely because ADR-055 exists
+M5-B, M5-C and M5-D remain pending construction
+no protocol-v7 schema, supplement or checker behavior is active merely because
+ADR-055 exists
 ```
 
 The expected later construction synchronization reserves immutable
-`ReviewContext` for initial-review production provenance and moves all
-post-review adjudication/resolution cognitive work onto current resolution
-provenance.
+`ReviewContext` for initial-review production provenance and moves post-review
+adjudication/resolution cognitive work onto current resolution provenance.
 
-M5-B will bootstrap that work from an exact immutable finding-adjudication
-subject and will promote only a positively material finding whose lawful
-refutation path terminates without a qualified refutation into the downstream
-surviving-material resolution boundary.
+`FindingAdjudicationSubject` bootstraps the exact materiality/refutation lineage.
 
-That synchronization does not retarget historical campaigns or rewrite
-historical review evidence.
+A positively material finding whose lawful refutation path terminates without a
+qualified refutation may then be promoted to the separate surviving-material
+resolution boundary.
+
+Where later adjudication belongs to an immutable source campaign rather than the
+same not-yet-projected campaign record, the future P7 construction uses an
+append-only finding-adjudication supplement rather than rewriting the source
+campaign or creating a synthetic writable campaign.
+
+Campaign currentness remains defined only over real ReviewCampaign records.
 
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.

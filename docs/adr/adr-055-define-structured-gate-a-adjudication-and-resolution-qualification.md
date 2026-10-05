@@ -9,7 +9,7 @@ name: "Define structured Gate A adjudication and resolution qualification"
 id: "ADR-055"
 status: "proposed"
 date: "2026-10-05"
-decision_body_sha256: "5cdb4797ccf4a6a91384fae21e2febfe818c9f35c724bec2f99ace177a8708ce"
+decision_body_sha256: "fb47a19e559f2a7c57392286c68dd77ea646698ed86ac41a21eb0d508add649e"
 relation_completeness: "complete"
 relations:
   clarifies: []
@@ -115,7 +115,7 @@ It does not change Gate A semantic subject `S`.
 Protocol v7 introduces the protocol-owned structured contracts required for
 post-review adjudication and resolution qualification.
 
-### Review evidence schema 5.0 is sufficient for protocol v7
+### Review-evidence schema 5.0 remains the immutable campaign-record schema
 
 Protocol v7 continues to bind the immutable:
 
@@ -125,45 +125,238 @@ formal/reviews/meta-schemas/review-evidence-v5.schema.json
 
 No review-evidence schema 6.0 is introduced by this decision.
 
-The schema-5 top-level:
+Schema 5.0 remains the exact schema for hostile-review campaign records.
+
+One schema-5 record continues to mean one real `ReviewCampaign`.
+
+In particular:
 
 ```text
-supporting_executions[]
+review_id
+==
+ReviewCampaignId
 ```
 
-is sufficient as the complete durable root set for qualified post-review
-cognitive executions admitted to one review record.
+remains unchanged.
 
-Protocol v7 strengthens the checker-visible graph between those existing
-artifact references rather than adding parallel top-level arrays for discovery,
-derivation, normative-impact, decision, repair, or revision history.
+Protocol v7 MUST NOT create a synthetic ReviewCampaign merely to obtain a
+writable repository record for later post-review evidence.
 
-Every qualified post-review cognitive execution admitted to one protocol-v7
-review record has exactly one execution receipt referenced by
-`supporting_executions[]`.
+A repository-imported or already-projected campaign record remains immutable.
 
-Each such receipt binds exactly:
+### Post-review adjudication supplements
+
+Protocol v7 additionally introduces a separate immutable artifact schema:
 
 ```text
-one role
-one exact protocol bundle
-one exact prompt artifact
-one exact packet artifact
-one logical execution
-one ordered protocol-attempt history
-one terminal qualified raw-output artifact
-one exact resolved reviewer identity
+formal/reviews/schemas/finding-adjudication-supplement-v1.schema.json
 ```
 
-A protocol retry remains another attempt inside that same logical execution
-receipt.
+for conceptually named:
 
-It is not another supporting execution receipt.
+```text
+FindingAdjudicationSupplementV1
+```
+
+instances.
+
+Projected supplement instances reside under:
+
+```text
+formal/reviews/supplements/<supplement-sha256>.json
+```
+
+A supplement is not a ReviewCampaign.
+
+It therefore:
+
+```text
+does not have a ReviewCampaignId of its own
+does not count toward minimum_independent_reviewers
+does not create initial-reviewer acquisition obligations
+does not create a new reviewed subject
+does not supersede its source ReviewCampaign
+does not retarget its source ReviewCampaign
+does not rewrite its source review record
+```
+
+The supplement exists only to append an exact current-protocol adjudication of
+one immutable original finding.
+
+### Supplement semantic identity
+
+The semantic key of one supplement is exactly:
+
+```text
+source review identity
++
+source finding identity
++
+validated substantive source-finding SHA-256
++
+exact adjudicating protocol identity P
+```
+
+The source-finding SHA MUST first be recomputed from the exact original finding
+through the canonical `hostile-finding-subject-v1` construction.
+
+A mismatching SHA does not create another semantic key.
+
+For one exact semantic key:
+
+```text
+zero supplements
+OR
+exactly one supplement
+```
+
+is valid.
+
+Two different supplements for the same exact semantic key are duplicate
+adjudications and invalid evidence.
+
+The exact adjudicating ReviewCampaign is provenance only and MUST NOT become an
+additional supplement identity dimension.
+
+A supplement under a later exact `P` is not a duplicate of a supplement under an
+earlier exact `P`.
+
+### Exact supplement shape
+
+The protocol-v7 supplement contract conceptually has exactly this shape:
+
+```ts
+interface FindingAdjudicationSupplementV1 {
+  readonly supplement_schema_version:
+    "1.0";
+
+  readonly semantic_subject: {
+    readonly selector:
+      "gate-a-assurance-decomposition-v1";
+
+    readonly sha256:
+      Sha256;
+  };
+
+  readonly protocol: {
+    readonly protocol_bundle:
+      ArtifactReference;
+
+    readonly review_packet:
+      ArtifactReference;
+  };
+
+  readonly source_finding: {
+    readonly review_id:
+      ReviewCampaignId;
+
+    readonly finding_id:
+      string;
+
+    readonly substantive_finding_sha256:
+      Sha256;
+  };
+
+  readonly adjudicating_review_id:
+    ReviewCampaignId;
+
+  readonly supporting_executions:
+    readonly ArtifactReference[];
+
+  readonly effective_adjudication:
+    EffectiveFindingAdjudicationV1;
+}
+```
+
+The eventual JSON Schema may encode the exact lexical primitives through shared
+or duplicated schema definitions, but it MUST preserve this exact semantic
+shape and MUST NOT add free outcome authority.
+
+`additionalProperties` is false for every closed object defined by the
+supplement schema.
+
+### Supplement authority binding
+
+For one supplement require mechanically:
+
+```text
+source review exists
+
+source review contains exactly source_finding.finding_id
+
+recomputed hostile-finding-subject-v1 SHA
+==
+source_finding.substantive_finding_sha256
+
+semantic_subject
+==
+exact current Gate A semantic subject S
+
+protocol.protocol_bundle
+==
+exact protocol P governing this supplement
+
+protocol.review_packet
+==
+exact current review packet used by this adjudication lineage
+
+review_packet subject
+==
+semantic_subject
+
+adjudicating_review_id identifies an exact current ReviewCampaign
+
+adjudicating ReviewCampaign semantic subject
+==
+semantic_subject
+
+adjudicating ReviewCampaign protocol
+==
+protocol.protocol_bundle
+```
+
+The adjudicating ReviewCampaign may be runner-produced or repository-imported.
+
+Its role is current execution/protocol provenance.
+
+It is not a writable owner of the supplement and is never mutated by supplement
+projection.
+
+### Evidence roots
+
+Protocol v7 has exactly two lawful classes of post-review supporting-evidence
+root.
+
+A supporting execution belongs to exactly one of:
+
+```text
+A. schema-5 ReviewCampaign record supporting_executions[]
+   for post-review work over findings native to that same runner-produced
+   campaign while its root record is being constructed;
+
+B. FindingAdjudicationSupplementV1 supporting_executions[]
+   for append-only adjudication of a finding whose source campaign evidence is
+   independently immutable from that new adjudication.
+```
+
+A supporting receipt MUST NOT belong to both roots.
+
+Cross-campaign P7 adjudication always uses a supplement.
+
+Adjudication of an immutable repository-imported campaign finding always uses a
+supplement.
+
+Historical schema-5 `re_adjudications[]` produced under protocol versions that
+authorize them remain valid historical evidence.
+
+New protocol-v7 cross-campaign adjudication MUST NOT emit a new schema-5
+`re_adjudications[]` member as an alternative representation of the same
+semantic adjudication.
 
 ### Supporting output evidence links
 
 Whenever a later protocol-v7 packet depends on an earlier supporting cognitive
-output, that dependency is represented by an exact evidence link containing:
+output, that dependency is represented by exact content identity over:
 
 ```text
 producer execution receipt ArtifactRef
@@ -174,13 +367,13 @@ exact parsed producer output payload
 The checker must establish all of the following:
 
 ```text
-producer receipt is present in supporting_executions[]
+producer receipt belongs to the exact evidence root for this lineage
 
 producer receipt has exactly one qualified attempt
 
 producer receipt qualifying raw_output
 ==
-referenced raw-output ArtifactRef
+referenced raw-output artifact identity
 
 SHA-256 of exact sealed raw-output bytes
 ==
@@ -196,10 +389,47 @@ The embedded payload does not replace the sealed raw evidence.
 The raw-output `ArtifactRef.sha256` identifies the exact sealed model-produced
 bytes.
 
-Any canonical semantic-object hash inside a packet identifies the canonical JSON
+A canonical semantic-object hash inside a packet identifies the canonical JSON
 payload required by that packet contract.
 
-These two hashes MUST NOT be conflated.
+These identities MUST NOT be conflated.
+
+### Runtime content identity and repository projection
+
+Runner-owned supporting artifacts are content-addressed before repository
+projection.
+
+Their runtime identity is the exact sealed `ArtifactRef`, including:
+
+```text
+artifactId = "sha256:" + sha256
+exact sha256
+exact byteLength
+exact mediaType
+repositoryPath = null
+```
+
+Repository `{path, sha256}` references are material locators for those exact
+bytes.
+
+Repository projection MUST NOT:
+
+```text
+rewrite bytes
+normalize model output
+repair JSON
+change encoding
+change SHA
+create a second semantic evidence identity
+```
+
+At final repository validation, the checker reads exact projected bytes,
+validates the declared SHA, and reconstructs the corresponding runtime
+content-addressed identity required by that artifact class.
+
+Location may change from CAS-only runtime storage to repository projection.
+
+Content identity never changes.
 
 ### Durable negative semantic results
 
@@ -214,45 +444,34 @@ is a qualified semantic result.
 It is not absence of evidence, a technical failure, a protocol-invalid
 completion, or authorization for semantic retry.
 
-Its durable evidence is exactly:
+Its durable evidence remains the exact qualified supporting receipt and exact
+sealed raw output in the lineage DAG.
 
-```text
-supporting_executions[]
-→ exact execution receipt
-→ exact qualified raw_output
-→ exact adjudication-output payload
-→ result = not-established
-```
+If retry policy ends without a qualified protocol attempt, no conforming
+execution receipt is manufactured.
 
-If retry policy ends without any qualified protocol attempt, no conforming
-execution receipt is manufactured. Exact operational history remains runner
-history and the applicable operator path is used.
+Operational history remains runner history and the applicable operator path is
+used.
 
 ### Revision evidence is append-only
 
 A semantic closure revision never replaces the candidate or challenge that
 caused it.
 
-For revision ordinal `0`:
+Revision ordinal `0` has no prior closure.
+
+Revision ordinal `1` binds exact evidence for:
 
 ```text
-prior closure candidate = null
-prior challenge = null
-```
-
-For revision ordinal `1`, the new semantic packet contains exact evidence links
-to:
-
-```text
-the prior producer receipt/output
+prior producer receipt/output
 +
-the prior hostile challenge receipt/output
+prior hostile challenge receipt/output
 ```
 
-The checker verifies that the prior challenge packet was itself bound to the
-exact prior producer candidate.
+and the checker verifies that the prior challenge packet was itself bound to the
+exact prior candidate.
 
-Therefore:
+Thus:
 
 ```text
 C0
@@ -265,90 +484,316 @@ is a cryptographically linked evidence graph.
 
 It is not four unrelated executions.
 
-No revision ordinal greater than `1` is valid under this protocol evolution.
-
-### Final projections do not erase intermediate evidence
-
-Schema-5 `findings[]` and `re_adjudications[]` continue to carry the final
-materiality/status/disposition projection required by that schema.
-
-Under protocol v7, whenever such a final field cites a producer or challenge
-execution, the checker additionally requires that the projected semantic fields
-equal the exact qualified output to which they refer.
-
-Examples include:
-
-```text
-finding.materiality
-==
-exact final materiality-assessor output projection
-
-refuted disposition
-==
-exact qualified refutation output projection
-
-challenge
-==
-exact qualified challenge output projection
-```
-
-Intermediate closure candidates, objections, withdrawals, and
-`not-established` results are not copied into new schema-5 history arrays.
-
-They remain durable through the exact supporting-execution graph.
+No revision ordinal greater than `1` is valid.
 
 ### Supporting evidence graph closure
 
-For one protocol-v7 review record, the checker requires:
+For each protocol-v7 evidence root, the checker requires:
 
 ```text
-every supporting receipt belongs to exactly one valid finding or
-re-adjudication lineage
+every supporting receipt belongs to exactly one valid finding lineage
 
-every predecessor receipt/output edge resolves to an exact supporting execution
+every predecessor receipt/output edge resolves exactly
 
 every referenced output equals that execution's exact qualified raw output
 
-every packet subject belongs to the exact current semantic subject and protocol
+every packet subject belongs to the exact semantic subject and protocol
 required by that lineage
 
+all semantic predecessor edges originate from qualified attempts only
+
+protocol-invalid and technical-failure attempts may remain receipt history
+but are never semantic DAG predecessors
+
 the supporting dependency graph is acyclic
+
+every supporting receipt is reachable from exactly one valid lineage root
 ```
 
-No orphan supporting execution is valid review evidence.
+No orphan supporting execution is valid evidence.
 
-No supporting execution from another finding, semantic subject, protocol
-identity, or re-adjudication may be silently attached to the lineage.
+No cross-finding, cross-subject, or cross-protocol predecessor edge is valid.
 
 ### No duplicate logical execution for one exact semantic packet
 
-For protocol v7, two distinct supporting execution receipts with the same exact:
+For protocol v7, two distinct supporting logical execution receipts with the
+same exact:
 
 ```text
 role
 +
-input.packet ArtifactRef
+input.packet content identity
 ```
 
-are invalid evidence.
+inside one finding lineage are invalid evidence.
 
-A retry of that semantic input belongs inside the existing logical execution
+A retry of that exact semantic input belongs inside the same logical execution
 receipt.
 
-A legitimate semantic revision has a different packet because its packet binds
+A legitimate semantic revision has a different packet because the packet binds
 the exact prior candidate, exact prior challenge, and revision ordinal.
-
-This rule prevents semantic-result model shopping through repeated logical
-executions of the same exact supporting task.
 
 The same rule applies to exact challenge packets.
 
+### Effective finding adjudication
+
+A supplement MUST NOT contain a free v5-style `status` / `disposition` override.
+
+Its `effective_adjudication` is exactly one of:
+
+```text
+qualified-non-material
+qualified-refutation
+surviving-material
+```
+
+No other supplement effective state exists.
+
+The model never emits one of those final effective states directly.
+
+They are mechanically projected from the exact qualified supporting DAG.
+
+### Qualified non-material
+
+Conceptually:
+
+```ts
+interface QualifiedNonMaterialV1 {
+  readonly kind:
+    "qualified-non-material";
+
+  readonly materiality_assessment_execution_receipt:
+    ArtifactReference;
+
+  readonly materiality_challenge_execution_receipt:
+    ArtifactReference;
+}
+```
+
+The checker requires that the cited exact assessment has:
+
+```text
+all seven materiality axes == false
+```
+
+and that the exact required hostile materiality challenge:
+
+```text
+is bound to that assessment
+uses the exact protocol-owned challenge contract
+has objections == []
+```
+
+Only then is the effective finding non-material and therefore non-blocking for
+Gate A.
+
+No free `material = false` field exists.
+
+### Qualified refutation
+
+Conceptually:
+
+```ts
+interface QualifiedRefutationV1 {
+  readonly kind:
+    "qualified-refutation";
+
+  readonly materiality_assessment_execution_receipt:
+    ArtifactReference;
+
+  readonly refutation_execution_receipt:
+    ArtifactReference;
+
+  readonly refutation_challenge_execution_receipt:
+    ArtifactReference;
+}
+```
+
+The checker requires:
+
+```text
+positive materiality
++
+exact refutation-candidate output
++
+exact hostile refutation challenge bound to that candidate
++
+challenge objections == []
+```
+
+Only then may the exact finding cease blocking through refutation.
+
+The model never emits `status = refuted`.
+
+### Surviving material
+
+Conceptually:
+
+```ts
+interface SurvivingMaterialV1 {
+  readonly kind:
+    "surviving-material";
+
+  readonly materiality_assessment_execution_receipt:
+    ArtifactReference;
+
+  readonly refutation_exhaustion_terminal_receipt:
+    ArtifactReference;
+}
+```
+
+This variant requires:
+
+```text
+positive materiality
++
+lawfully exhausted refutation path
++
+no qualified refutation
+```
+
+where lawful exhaustion is exactly the mandatory bounded-revision meaning
+defined by this ADR.
+
+Operational inability before lawful M5-B completion does not manufacture a
+surviving-material supplement.
+
+In that case no completed current adjudication supplement is projected and the
+applicable operator path remains authoritative.
+
+### Exactly two non-blocking overlay states
+
+A supplement can make a finding non-blocking only through exactly:
+
+```text
+qualified-non-material
+OR
+qualified-refutation
+```
+
+Every other terminal protocol-v7 resolution lineage retains:
+
+```text
+effective_adjudication.kind
+=
+surviving-material
+```
+
+In particular none of the following independently makes a material finding
+non-blocking:
+
+```text
+UniqueCorrection
+qualified RealizationScope
+qualified RepairRealization
+RepairIntent
+already-realized repair claim
+qualified NoNormativeImpact
+DecisionRequest
+SemanticBlocker
+OPERATOR-ACTION-REQUIRED
+downstream cause marked resolved
+```
+
+`no-normative-impact` is not non-materiality.
+
+A qualified repair is not a refutation.
+
+A Decision Request is not finding closure.
+
+An operator path is not finding closure.
+
+### Effective overlay selection
+
+For each original finding applicable to the current exact subject `S`, let `P`
+be the exact current protocol.
+
+Find the supplements whose exact semantic key names that original finding and
+exact `P`.
+
+Require:
+
+```text
+count > 1
+→ evidence integrity failure
+```
+
+When exactly one current-P supplement exists:
+
+```text
+effective Gate A adjudication
+=
+supplement.effective_adjudication
+```
+
+When no current-P supplement exists and:
+
+```text
+source campaign protocol == current P
+```
+
+use the source campaign finding's native materiality/status/disposition.
+
+When no current-P supplement exists and:
+
+```text
+source campaign protocol != current P
+```
+
+the finding lacks required current-protocol adjudication and remains blocking.
+
+Thus a protocol change never erases a historical finding merely because the old
+record is stale.
+
+### Same-protocol overlay
+
+A source finding whose source campaign already uses exact current `P` may also
+receive one supplement when later append-only post-review adjudication must
+change its effective current qualification without rewriting the immutable source
+record.
+
+This permits an immutable current campaign finding to become effectively:
+
+```text
+qualified-non-material
+```
+
+or:
+
+```text
+qualified-refutation
+```
+
+only through the exact positive protocol-v7 qualification path.
+
+It does not permit arbitrary status replacement.
+
+### Supplement projection terminality
+
+A supplement is projected only as an immutable closed artifact.
+
+It MUST NOT be projected while:
+
+```text
+a required materiality/refutation closure execution is pending
+a mandatory closure revision is pending
+a required hostile challenge is pending
+a supporting logical execution represented by that supplement is unresolved
+```
+
+Its exact M5-C/M5-D projection readiness point remains construction-owned, but a
+projected supplement's `supporting_executions[]` MUST form a closed evidence DAG.
+
+For a surviving-material finding, later M5-C qualification products may remain
+part of the same closed audit lineage without changing
+`effective_adjudication.kind`.
+
 ### Historical compatibility
 
-These stronger graph constraints apply only when the exact protocol identity
-requires them.
-
 Protocol-v1 through protocol-v6 evidence retains its historical interpretation.
+
+Existing schema-5 campaign records and historical `re_adjudications[]` are not
+rewritten or reinterpreted merely because protocol v7 exists.
 
 The immutable:
 
@@ -356,11 +801,10 @@ The immutable:
 formal/reviews/meta-schemas/review-evidence-v5.schema.json
 ```
 
-is not modified and historical review records are not reinterpreted merely
-because protocol v7 exists.
+is not modified.
 
-Do not mutate the frozen legacy aliases or the published schema-5 evidence
-meta-schema.
+P7 extends append-only post-review evidence through a separate supplement
+artifact rather than changing the meaning of historical campaign records.
 
 ### Execution receipts advance to schema 4.0
 
@@ -1251,23 +1695,230 @@ exercise the available revision.
 
 This makes closure exhaustion replayable and comparable across conforming runs.
 
-### Challenge objectives belong to protocol identity
+### Closure challenge contracts belong to protocol identity
 
-Protocol v7 owns the exact required objective set for every challenge kind.
+Protocol v7 does not select hostile challenge behavior by `challenge_kind`
+alone.
 
-The canonical challenge packet's:
+Protocol identity owns exactly one closure challenge contract for every admitted:
 
 ```text
-required_objectives
+(challenge_kind, challenge_subject.selector)
 ```
 
-must equal exactly the protocol-owned objective set for its
-`challenge_kind`.
+pair.
 
-No runner, M5 implementation, prompt, scheduler, or coding agent may choose an
-objective subset dynamically.
+Every contract fixes exactly:
 
-Materiality keeps exactly these objectives:
+```text
+candidate family
+challenge kind
+challenge subject selector
+challenger role
+required objective sequence
+revision producer role
+revision task
+revision task mode where applicable
+same-family revision target
+permitted withdrawal result
+```
+
+No runner, M5 implementation, prompt, scheduler, coding agent, or checker may
+select another objective set or role dynamically.
+
+No challenge-kind-only fallback exists.
+
+Unknown selector, known selector with wrong challenge kind, wrong challenger
+role, wrong objective sequence, or wrong revision producer/task binding is
+invalid evidence.
+
+### Exact protocol-v7 closure contracts
+
+Protocol v7 owns exactly these seven closure contracts:
+
+```text
+1.
+candidate family:
+materiality-assessment
+
+challenge_kind:
+materiality
+
+challenge_subject.selector:
+gate-a-materiality-assessment-challenge-v1
+
+challenger role:
+challenge
+
+revision producer:
+materiality-assessor
+
+revision task:
+materiality-assessment
+
+withdrawal:
+not permitted
+
+
+2.
+candidate family:
+refutation
+
+challenge_kind:
+refutation
+
+challenge_subject.selector:
+gate-a-refutation-candidate-challenge-v1
+
+challenger role:
+challenge
+
+revision producer:
+refutation-builder
+
+revision task:
+refutation
+
+withdrawal:
+not-established
+
+
+3.
+candidate family:
+unique-correction
+
+challenge_kind:
+derivation
+
+challenge_subject.selector:
+gate-a-unique-correction-candidate-challenge-v1
+
+challenger role:
+challenge
+
+revision producer:
+derivation-builder
+
+revision task:
+unique-correction-derivation
+
+withdrawal:
+not-established
+
+
+4.
+candidate family:
+realization-scope
+
+challenge_kind:
+derivation
+
+challenge_subject.selector:
+gate-a-realization-scope-candidate-challenge-v1
+
+challenger role:
+challenge
+
+revision producer:
+derivation-builder
+
+revision task:
+realization-scope-derivation
+
+withdrawal:
+not-established
+
+
+5.
+candidate family:
+no-normative-impact
+
+challenge_kind:
+normative-impact
+
+challenge_subject.selector:
+gate-a-no-normative-impact-candidate-challenge-v1
+
+challenger role:
+challenge
+
+revision producer:
+discovery-classifier
+
+revision task:
+discovery-classification
+
+revision task mode:
+closure-revision
+
+revision target:
+no-normative-impact
+
+withdrawal:
+not-established
+
+
+6.
+candidate family:
+decision-necessity
+
+challenge_kind:
+decision-necessity
+
+challenge_subject.selector:
+gate-a-decision-necessity-candidate-challenge-v1
+
+challenger role:
+decision-necessity-challenger
+
+revision producer:
+discovery-classifier
+
+revision task:
+discovery-classification
+
+revision task mode:
+closure-revision
+
+revision target:
+decision-necessity
+
+withdrawal:
+not-established
+
+
+7.
+candidate family:
+repair-realization
+
+challenge_kind:
+repair
+
+challenge_subject.selector:
+gate-a-repair-realization-candidate-challenge-v1
+
+challenger role:
+challenge
+
+revision producer:
+repair-synthesizer
+
+revision task:
+repair-realization
+
+withdrawal:
+not-established
+```
+
+Historical protocol-v1 through protocol-v6 challenge selectors retain their
+historical interpretation.
+
+The new protocol-v7 selectors do not mutate
+`hostile-materiality-challenge-v1` or `hostile-refutation-challenge-v1`.
+
+### Materiality objectives
+
+The protocol-v7 materiality contract uses exactly:
 
 ```text
 authority_or_upstream_decision
@@ -1279,7 +1930,18 @@ interaction_scope
 candidate_model_authorization
 ```
 
-Refutation keeps exactly:
+The initial and revised challenge trigger is exactly:
+
+```text
+all seven materiality axes == false
+```
+
+A revised materiality assessment with one or more true axes becomes material and
+does not require another materiality challenge.
+
+### Refutation objectives
+
+The protocol-v7 refutation contract uses exactly:
 
 ```text
 attacked-premise-still-supported
@@ -1291,7 +1953,9 @@ hidden-assumption-in-refutation
 alternative-authority-compatible-interpretation
 ```
 
-Derivation uses exactly:
+### UniqueCorrection derivation objectives
+
+The UniqueCorrection derivation contract uses exactly:
 
 ```text
 authority-does-not-entail-correction
@@ -1299,11 +1963,28 @@ materially-distinct-authority-compatible-alternative
 required-consequence-omitted
 unauthorized-semantic-effect
 hidden-assumption-in-derivation
+```
+
+It does NOT use RealizationScope objectives.
+
+### RealizationScope derivation objectives
+
+The RealizationScope derivation contract uses exactly:
+
+```text
 realization-scope-omits-required-surface
 realization-scope-grants-unnecessary-write-authority
 ```
 
-Normative impact uses exactly:
+It does NOT use UniqueCorrection semantic-derivation objectives.
+
+Mechanical prohibition on writable controlling product-authority paths remains
+a deterministic validation rule and is not added as another hostile objective by
+this ADR.
+
+### NoNormativeImpact objectives
+
+The NoNormativeImpact contract uses exactly:
 
 ```text
 correction-requires-product-authority-change
@@ -1315,7 +1996,9 @@ downstream-resolution-requires-product-choice
 authority-conflict-hidden-as-downstream-defect
 ```
 
-Decision necessity uses exactly:
+### DecisionNecessity objectives
+
+The DecisionNecessity contract uses exactly:
 
 ```text
 alternative-not-authority-compatible
@@ -1328,7 +2011,13 @@ uncertainty-is-missing-evidence-not-product-freedom
 authority-source-is-not-controlling
 ```
 
-Repair uses exactly:
+`decision-necessity-challenger` is the one hostile challenger for this contract.
+
+There is no second generic challenge after it.
+
+### RepairRealization objectives
+
+The RepairRealization contract uses exactly:
 
 ```text
 authorized-correction-not-fully-realized
@@ -1342,9 +2031,80 @@ required-candidate-change-omitted
 partial-realization-misclassified-complete
 ```
 
-The checker validates exact objective coverage and binding.
+### Exact challenge-subject binding
 
-It does not claim that the resulting objections are semantically correct.
+For protocol-v7 candidates produced directly by one cognitive execution, the
+challenge subject binds mechanically:
+
+```text
+exact qualification/adjudication subject
++
+exact producer execution receipt
++
+exact producer packet
++
+exact producer raw output
++
+exact parsed producer output
++
+exact challenged candidate selected inside that output
+```
+
+This direct-producer pattern applies to:
+
+```text
+materiality
+refutation
+UniqueCorrection
+RealizationScope
+NoNormativeImpact
+RepairRealization
+```
+
+The challenger therefore receives no hidden repository or mutable-workspace
+context.
+
+For DecisionNecessity, the challenged candidate is a mechanical projection, not
+a free producer output.
+
+Its challenge subject instead binds exactly:
+
+```text
+exact surviving-material resolution subject
++
+exact decision-required discovery hypothesis
++
+exact mechanically established UniqueCorrection-derivation exhaustion basis
++
+exact mechanically projected DecisionNecessity candidate
+```
+
+Failure to derive is not enough.
+
+Only a lawfully exhausted UniqueCorrection derivation path may participate in
+that mechanical DecisionNecessity construction.
+
+### Required objectives
+
+The canonical challenge packet's:
+
+```text
+required_objectives
+```
+
+must equal the exact objective sequence owned by the exact closure challenge
+contract selected through:
+
+```text
+challenge_subject.selector
+```
+
+and the packet's `challenge_kind` must equal that same contract's exact kind.
+
+The checker validates exact contract selection, objective coverage, role binding,
+candidate binding, and revision-family binding.
+
+It does not claim that the challenger's objections are semantically correct.
 
 ### Supporting-role acquisition belongs to P
 
@@ -1500,38 +2260,54 @@ It is not `DECISION-REQUIRED`.
 The current run may not mutate P, append a profile, reorder profiles, or invent
 a replacement model.
 
-### Stale-protocol re-adjudication identity is protocol-scoped
+### Finding-adjudication supplement identity is protocol-scoped
 
-A protocol change MUST NOT erase a surviving finding.
+A protocol change MUST NOT erase a surviving historical finding.
 
-The same historical source finding may therefore require a fresh
-re-adjudication under successive current protocols.
+The same original finding may require a fresh adjudication under successive
+current protocols.
 
-The semantic identity of one re-adjudication is scoped by:
+Protocol-v7 append-only current adjudication uses
+`FindingAdjudicationSupplementV1`.
+
+The exact supplement semantic key is:
 
 ```text
 source review identity
 +
 source finding identity
 +
-exact substantive source-finding SHA-256
+exact validated substantive source-finding SHA-256
 +
-current adjudicating protocol identity P
+exact adjudicating protocol identity P
 ```
 
-A source-finding SHA MUST first be validated against the exact source finding.
+A source-finding SHA MUST first be validated against the exact original finding.
 
-A mismatching SHA does not create a distinct valid re-adjudication identity.
+A mismatching SHA does not create a valid distinct supplement.
 
-Two re-adjudications of the same validated source finding under the same exact
-current `P` are duplicates.
+Two supplements for one exact semantic key are duplicates.
 
-A re-adjudication under a later current `P` is not a duplicate of the earlier
-one merely because source review and source finding are the same.
+A supplement under a later current `P` is not a duplicate of an earlier
+supplement merely because source review and source finding are unchanged.
 
-The current campaign that hosts or projects the re-adjudication is provenance.
-It does not create an additional semantic identity dimension that permits
-duplicate re-adjudication under one P.
+The adjudicating ReviewCampaign is provenance only.
+
+It does not create another semantic identity dimension and does not make the
+campaign record writable.
+
+Historical protocol-v1 through protocol-v6 `re_adjudications[]` remain valid
+under their exact historical protocol contracts.
+
+Protocol v7 does not rewrite those artifacts.
+
+New protocol-v7 cross-campaign adjudication uses the supplement representation
+defined by this ADR instead of manufacturing a new schema-5
+`re_adjudications[]` member.
+
+A same-protocol immutable source finding may also receive one current-P
+supplement when later post-review qualification must change its effective
+current adjudication without rewriting the source record.
 
 ### ReviewContext remains immutable production provenance
 
@@ -1743,6 +2519,15 @@ It does not become a new semantic identity component of stale-finding
 re-adjudication and does not authorize mutation of a repository-imported
 historical review record.
 
+It also does not determine a writable review-record owner.
+
+Protocol-v7 append-only cross-campaign adjudication is projected through the
+separate `FindingAdjudicationSupplementV1` artifact defined by this ADR.
+
+Therefore an imported current adjudicating campaign remains fully immutable even
+when it provides the current execution/protocol provenance for newly produced
+supporting work.
+
 The protocol-scoped re-adjudication identity remains the identity defined
 elsewhere in this ADR:
 
@@ -1938,7 +2723,7 @@ ADR-055 changes hostile-review assurance protocol architecture only.
 If this proposal is later accepted and protocol v7 is published, construction
 must synchronize the runner contracts before GREEN.
 
-The required construction direction is:
+The required construction direction remains:
 
 ```text
 ReviewContext
@@ -1953,22 +2738,39 @@ The future System Brief revision must account for at least:
 ```text
 FindingAdjudicationSubjectV1 bootstrap product
 SurvivingMaterialResolutionSubjectV1 promotion boundary
+
+FindingAdjudicationSupplementV1 append-only projection
+supplement semantic-key uniqueness
+supplement effective-adjudication overlay selection
+supplement supporting-execution DAG closure
+supplement repository projection namespace
+
 decision-projection no longer being a current cognitive role
+
 discovery-classification adjudication kind
 normative-impact adjudication kind
-protocol-scoped ReAdjudicationRef identity
-deterministic stale-finding adjudicating-campaign provenance
+
+protocol-v7 closure challenge contracts keyed by
+(challenge_kind, challenge_subject.selector)
+
+protocol-v7 exact challenger-role binding
+protocol-v7 exact revision-producer binding
+protocol-v7 same-family revision enforcement
+
 supporting cognitive authority projection
 protocol-v7 deterministic validation roles
-protocol-v7 supporting-evidence DAG validation
 protocol-v7 exact predecessor receipt/output bindings
+runtime CAS identity versus repository locator reconstruction
+
 mandatory bounded closure-revision WorkItem generation
-same-family revision enforcement
+
+historical schema-v5 re_adjudication compatibility
+without emitting new P7 cross-campaign re_adjudications
 ```
 
 These are construction consequences, not current active NIB-S behavior.
 
-Until that revision is accepted:
+Until later synchronization is accepted:
 
 ```text
 NIB-S 10.0.0 remains active
@@ -1976,10 +2778,131 @@ protocol v6 remains active
 current Module Brief versions remain active
 ```
 
+### Campaign currentness remains campaign-only
+
+The supplement mechanism does not change ReviewCampaign currentness.
+
+M3 continues to derive:
+
+```text
+currentCampaigns
+staleProtocolCampaigns
+```
+
+only from real ReviewCampaign records.
+
+A supplement never becomes a ReviewCampaign and never participates in reviewer
+minimum counting.
+
+The exact complete current campaign set remains the complete structurally valid
+campaign set over exact `(S, P)`.
+
+### No writable projection-host campaign
+
+Construction MUST NOT create an otherwise unnecessary runner-produced
+ReviewCampaign merely because new post-review evidence needs an append-only
+repository representation.
+
+Persistence need MUST NOT create new hostile-review semantic work.
+
+Construction also MUST NOT fabricate a new runner-produced campaign by reusing or
+copying initial-reviewer executions from an imported campaign.
+
+A runner-produced ReviewCampaign record remains the projection of that
+campaign's own authoritative campaign history.
+
+### Repository projection boundary
+
+The future M5-D contract must project supplement instances additively and
+idempotently under:
+
+```text
+formal/reviews/supplements/**
+```
+
+and extend the assurance repository projection allowlist accordingly.
+
+Supplement projection MUST obey the existing assurance projection principles:
+
+```text
+regular file only
+mode 100644
+no deletion
+no rename
+no rewrite
+no merge
+no symlink traversal
+exact byte equality for idempotent preexistence
+different bytes at the same exact target path fail closed
+```
+
+The supplement path is content-addressed by the exact canonical supplement
+bytes.
+
+The exact M5-D algorithms, projection-entry identity, readiness timing, and
+candidate materialization mechanics remain construction-owned.
+
+### Effective Gate A overlay
+
+Protocol-v7 checker construction must evaluate one original finding under exact
+current `(S, P)` as follows:
+
+```text
+if more than one exact current-P supplement exists:
+    evidence integrity failure
+
+if exactly one exact current-P supplement exists:
+    use supplement.effective_adjudication
+
+else if source campaign protocol == current P:
+    use source finding native materiality/status/disposition
+
+else:
+    current-protocol adjudication is absent
+    finding remains blocking
+```
+
+Only:
+
+```text
+qualified-non-material
+qualified-refutation
+```
+
+may produce a non-blocking supplement overlay.
+
+`surviving-material` remains blocking.
+
+This rule changes hostile-review assurance interpretation for protocol v7 only.
+
+It does not reinterpret historical protocol-v1 through protocol-v6 evidence.
+
 ## Closed proposal questions and remaining acceptance work
 
-The three design questions previously recorded as unresolved by this proposal
-are now closed.
+The previously identified bootstrap, durable-evidence, and bounded-revision
+questions remain closed.
+
+Concrete construction has additionally closed:
+
+```text
+challenge objective lookup
+→ exact closure contract selected by kind + subject selector
+
+cross-campaign immutable finding update
+→ FindingAdjudicationSupplementV1
+
+review-evidence-v5 role
+→ remains immutable ReviewCampaign record schema
+
+post-review append-only effective adjudication
+→ supplement overlay
+
+non-blocking overlay authority
+→ only qualified non-material or qualified refutation
+
+persistence-only ReviewCampaign creation
+→ forbidden
+```
 
 ### Bootstrap provenance
 
@@ -1991,17 +2914,23 @@ a prerequisite for materiality/refutation adjudication.
 
 ### Durable evidence linkage
 
-Review-evidence schema 5.0 remains sufficient.
+Review-evidence schema 5.0 remains sufficient for ReviewCampaign records.
 
-Protocol v7 uses `supporting_executions[]` as the durable supporting-execution
-root set and adds exact graph validation over receipts, packets, outputs,
-predecessor links, revisions, and negative semantic results.
+It is no longer claimed to be the sole possible root container for all
+protocol-v7 post-review evidence.
+
+Protocol v7 adds `FindingAdjudicationSupplementV1` as a separate immutable
+evidence root where append-only post-review adjudication cannot lawfully mutate
+the source campaign record.
+
+Both root classes use the exact supporting-execution DAG rules defined by this
+ADR.
 
 No review-evidence-v6 meta-schema is required by this design.
 
 ### Closure revision
 
-The one available semantic closure revision is mandatory after qualified
+The one available semantic closure revision remains mandatory after qualified
 objections whenever the exact subject remains current and automatic execution
 remains operationally admissible.
 
@@ -2010,8 +2939,8 @@ protocol-defined negative result rather than fabricate a new closure.
 
 ### ADR status remains proposed
 
-Closing these three questions does not activate protocol v7 and does not make
-this ADR accepted.
+Closing these construction discoveries does not activate protocol v7 and does
+not make this ADR accepted.
 
 Before ADR-055 may transition from `proposed` to `accepted`, the concrete
 protocol-v7 artifact set must be constructed and mechanically validated against
@@ -2025,19 +2954,24 @@ gate-a-campaign-protocol-v7
 execution-receipt-v4
 adjudication-packet-v1
 adjudication-output-v1
-exact protocol-owned challenge objective mappings
+finding-adjudication-supplement-v1
+adjudication prompt v2
+repair prompt v2
+exact protocol-owned closure challenge contracts
 protocol-v7 checker behavior
+protocol-v7 effective-supplement-overlay validation
+protocol-v7 supporting-evidence graph validation
 historical protocol-v1 through protocol-v6 regression validation
-protocol-v7 evidence-graph validation
+explicit inactive-P7 conformance validation while P6 remains current
 ```
 
-Concrete construction may expose a new material assurance ambiguity.
+Concrete construction may expose another material assurance ambiguity.
 
 If that occurs, STOP and route that discovery explicitly.
 
 A coding agent MUST NOT resolve a newly discovered semantic/protocol ambiguity
 by inventing schema fields, challenge policy, reviewer policy, branch behavior,
-or evidence meaning.
+overlay semantics, or evidence meaning.
 
 Until the complete protocol-v7 artifact set validates and ADR-055 is explicitly
 accepted:
@@ -2049,6 +2983,7 @@ review-evidence schema 5.0 remains current
 NIB-S 10.0.0 remains active
 M5-B remains pending
 M5-C remains pending
+M5-D remains pending
 ```
 
 ## Alternatives considered
@@ -2098,6 +3033,37 @@ Semantic correction and candidate-specific physical realization have different
 lifetimes. Candidate advance with unchanged `(S, P)` must not require rewriting
 semantic derivation merely because physical realization scope changes.
 
+### Create a new ReviewCampaign only to host append-only adjudication
+
+Rejected.
+
+A persistence requirement must not create new initial-reviewer executions,
+potentially new findings, or a new hostile-review campaign merely because an
+existing immutable campaign record cannot be rewritten.
+
+ReviewCampaign identity remains semantic hostile-review campaign identity, not a
+repository-write slot.
+
+### Reuse imported reviewer executions inside a synthetic runner campaign
+
+Rejected.
+
+A runner-produced ReviewCampaign record must remain the projection of that
+campaign's own authoritative campaign history.
+
+Copying or re-owning imported initial-reviewer executions under another
+`review_id` would manufacture campaign provenance.
+
+### Introduce review-evidence schema 6.0 only to represent post-review overlays
+
+Rejected for this design.
+
+Schema 5.0 remains a coherent immutable representation of a real ReviewCampaign.
+
+The missing abstraction is not another campaign-record version but a distinct
+append-only adjudication supplement whose semantics and qualification differ
+from review production.
+
 ### Convert failure to derive into DECISION-REQUIRED
 
 Rejected.
@@ -2122,11 +3088,22 @@ underdetermination or genuine unresolved product-authority conflict.
   patches.
 - Genuine Decision Requests remain positively qualified.
 - Supporting reviewer selection becomes deterministic and replayable.
+- Immutable imported or already-projected campaign findings can receive later
+  current-protocol adjudication without rewriting their source record.
+- Persistence needs no longer require synthetic ReviewCampaign creation or new
+  initial-reviewer execution.
+- Effective finding overlay is fail-closed: only qualified non-materiality or
+  qualified refutation can make one supplemented finding non-blocking.
+- ReviewCampaign identity remains distinct from append-only post-review evidence
+  identity.
 - Stale findings can be re-adjudicated under successive protocol identities.
 
 ### Costs
 
 - Protocol v7 requires new immutable schema and meta-schema artifacts.
+- Protocol v7 additionally requires the immutable
+  `finding-adjudication-supplement-v1` schema and supplement repository
+  validation/projection support.
 - Execution receipts require a new schema version.
 - The checker requires role-aware deterministic validation for the new
   structured outputs.
