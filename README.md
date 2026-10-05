@@ -97,6 +97,10 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   comparability, reproducibility, and execution-evidence profiles beyond the
   accepted minimum inspectability obligation, effective execution-condition
   provenance floor, and evaluation/optimization-policy boundary.
+- [Future managed execution design space](docs/vision/future-managed-execution.md)
+  preserves the non-normative future design space for managed, isolated,
+  elastic execution realizations and their possible relationship to a future
+  managed TURNLOCK product.
 - [Repository governance](docs/repository-governance/turnlock-rust-engineering.md)
   defines GitHub Engineering Project routing and workflow policy.
 - [Discovery classification profile](docs/repository-governance/turnlock-rust-discovery-classification.md)
