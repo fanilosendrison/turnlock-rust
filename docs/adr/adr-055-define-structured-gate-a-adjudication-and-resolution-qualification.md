@@ -9,7 +9,7 @@ name: "Define structured Gate A adjudication and resolution qualification"
 id: "ADR-055"
 status: "proposed"
 date: "2026-10-05"
-decision_body_sha256: "9079f149a5d49655e08d8aa13a469e6b43cbec86cab4c901f0b7286c39b3d0a5"
+decision_body_sha256: "5cdb4797ccf4a6a91384fae21e2febfe818c9f35c724bec2f99ace177a8708ce"
 relation_completeness: "complete"
 relations:
   clarifies: []
@@ -115,10 +115,7 @@ It does not change Gate A semantic subject `S`.
 Protocol v7 introduces the protocol-owned structured contracts required for
 post-review adjudication and resolution qualification.
 
-### Review evidence remains schema 5.0
-
-ADR-055 does not require a new top-level review-evidence schema merely because
-new cognitive packet/output schemas are introduced.
+### Review evidence schema 5.0 is sufficient for protocol v7
 
 Protocol v7 continues to bind the immutable:
 
@@ -126,12 +123,243 @@ Protocol v7 continues to bind the immutable:
 formal/reviews/meta-schemas/review-evidence-v5.schema.json
 ```
 
-unless later concrete schema construction proves that review-evidence v5 cannot
-represent the required durable references without ambiguity.
+No review-evidence schema 6.0 is introduced by this decision.
 
-Such a discovery must be routed separately before protocol v7 is accepted.
+The schema-5 top-level:
 
-Do not mutate the frozen legacy aliases or the published v5 evidence
+```text
+supporting_executions[]
+```
+
+is sufficient as the complete durable root set for qualified post-review
+cognitive executions admitted to one review record.
+
+Protocol v7 strengthens the checker-visible graph between those existing
+artifact references rather than adding parallel top-level arrays for discovery,
+derivation, normative-impact, decision, repair, or revision history.
+
+Every qualified post-review cognitive execution admitted to one protocol-v7
+review record has exactly one execution receipt referenced by
+`supporting_executions[]`.
+
+Each such receipt binds exactly:
+
+```text
+one role
+one exact protocol bundle
+one exact prompt artifact
+one exact packet artifact
+one logical execution
+one ordered protocol-attempt history
+one terminal qualified raw-output artifact
+one exact resolved reviewer identity
+```
+
+A protocol retry remains another attempt inside that same logical execution
+receipt.
+
+It is not another supporting execution receipt.
+
+### Supporting output evidence links
+
+Whenever a later protocol-v7 packet depends on an earlier supporting cognitive
+output, that dependency is represented by an exact evidence link containing:
+
+```text
+producer execution receipt ArtifactRef
+producer raw-output ArtifactRef
+exact parsed producer output payload
+```
+
+The checker must establish all of the following:
+
+```text
+producer receipt is present in supporting_executions[]
+
+producer receipt has exactly one qualified attempt
+
+producer receipt qualifying raw_output
+==
+referenced raw-output ArtifactRef
+
+SHA-256 of exact sealed raw-output bytes
+==
+raw-output ArtifactRef.sha256
+
+parsing the exact sealed raw-output bytes
+==
+embedded predecessor payload
+```
+
+The embedded payload does not replace the sealed raw evidence.
+
+The raw-output `ArtifactRef.sha256` identifies the exact sealed model-produced
+bytes.
+
+Any canonical semantic-object hash inside a packet identifies the canonical JSON
+payload required by that packet contract.
+
+These two hashes MUST NOT be conflated.
+
+### Durable negative semantic results
+
+A schema-valid role result such as:
+
+```text
+not-established
+```
+
+is a qualified semantic result.
+
+It is not absence of evidence, a technical failure, a protocol-invalid
+completion, or authorization for semantic retry.
+
+Its durable evidence is exactly:
+
+```text
+supporting_executions[]
+→ exact execution receipt
+→ exact qualified raw_output
+→ exact adjudication-output payload
+→ result = not-established
+```
+
+If retry policy ends without any qualified protocol attempt, no conforming
+execution receipt is manufactured. Exact operational history remains runner
+history and the applicable operator path is used.
+
+### Revision evidence is append-only
+
+A semantic closure revision never replaces the candidate or challenge that
+caused it.
+
+For revision ordinal `0`:
+
+```text
+prior closure candidate = null
+prior challenge = null
+```
+
+For revision ordinal `1`, the new semantic packet contains exact evidence links
+to:
+
+```text
+the prior producer receipt/output
++
+the prior hostile challenge receipt/output
+```
+
+The checker verifies that the prior challenge packet was itself bound to the
+exact prior producer candidate.
+
+Therefore:
+
+```text
+C0
+→ H0
+→ C1
+→ H1
+```
+
+is a cryptographically linked evidence graph.
+
+It is not four unrelated executions.
+
+No revision ordinal greater than `1` is valid under this protocol evolution.
+
+### Final projections do not erase intermediate evidence
+
+Schema-5 `findings[]` and `re_adjudications[]` continue to carry the final
+materiality/status/disposition projection required by that schema.
+
+Under protocol v7, whenever such a final field cites a producer or challenge
+execution, the checker additionally requires that the projected semantic fields
+equal the exact qualified output to which they refer.
+
+Examples include:
+
+```text
+finding.materiality
+==
+exact final materiality-assessor output projection
+
+refuted disposition
+==
+exact qualified refutation output projection
+
+challenge
+==
+exact qualified challenge output projection
+```
+
+Intermediate closure candidates, objections, withdrawals, and
+`not-established` results are not copied into new schema-5 history arrays.
+
+They remain durable through the exact supporting-execution graph.
+
+### Supporting evidence graph closure
+
+For one protocol-v7 review record, the checker requires:
+
+```text
+every supporting receipt belongs to exactly one valid finding or
+re-adjudication lineage
+
+every predecessor receipt/output edge resolves to an exact supporting execution
+
+every referenced output equals that execution's exact qualified raw output
+
+every packet subject belongs to the exact current semantic subject and protocol
+required by that lineage
+
+the supporting dependency graph is acyclic
+```
+
+No orphan supporting execution is valid review evidence.
+
+No supporting execution from another finding, semantic subject, protocol
+identity, or re-adjudication may be silently attached to the lineage.
+
+### No duplicate logical execution for one exact semantic packet
+
+For protocol v7, two distinct supporting execution receipts with the same exact:
+
+```text
+role
++
+input.packet ArtifactRef
+```
+
+are invalid evidence.
+
+A retry of that semantic input belongs inside the existing logical execution
+receipt.
+
+A legitimate semantic revision has a different packet because its packet binds
+the exact prior candidate, exact prior challenge, and revision ordinal.
+
+This rule prevents semantic-result model shopping through repeated logical
+executions of the same exact supporting task.
+
+The same rule applies to exact challenge packets.
+
+### Historical compatibility
+
+These stronger graph constraints apply only when the exact protocol identity
+requires them.
+
+Protocol-v1 through protocol-v6 evidence retains its historical interpretation.
+
+The immutable:
+
+```text
+formal/reviews/meta-schemas/review-evidence-v5.schema.json
+```
+
+is not modified and historical review records are not reinterpreted merely
+because protocol v7 exists.
+
+Do not mutate the frozen legacy aliases or the published schema-5 evidence
 meta-schema.
 
 ### Execution receipts advance to schema 4.0
@@ -730,7 +958,7 @@ There is no second generic challenge after a qualified
 A Decision Request is projected mechanically only after the decision-necessity
 candidate survives its required hostile challenge.
 
-### Closure revision remains bounded and is not protocol retry
+### Closure revision is mandatory when current and operationally admissible
 
 The existing:
 
@@ -740,39 +968,288 @@ max_closure_revisions = 1
 
 remains in protocol identity.
 
-When a closure candidate receives objections, any permitted revised closure
-candidate is a NEW logical cognitive execution.
+Protocol v7 strengthens the procedural meaning of that bound.
 
-It is not a second semantic attempt inside the producer's prior receipt.
-
-The revised execution receives the exact previous candidate and exact previous
-challenge output as explicit packet input.
-
-Its fresh challenge is another distinct logical execution bound to the revised
-candidate.
-
-A schema-invalid retry and a semantic closure revision are therefore distinct:
+When an initial revision-eligible closure candidate receives one or more
+qualified hostile objections, exactly one revision execution is REQUIRED when:
 
 ```text
-schema-invalid retry
-→ same logical semantic input
-→ same WorkItem/profile
-→ protocol attempt retry
+the exact closure subject remains current
+AND
+the exact protocol identity remains current
+AND
+automatic execution of that revision remains operationally admissible
+```
+
+The runner, scheduler, coding agent, operator, model preference, cost,
+latency, expected outcome, finding severity, or perceived strength of the
+objections MUST NOT decide whether to skip that required revision.
+
+Without this rule, two otherwise identical conforming runs could diverge only
+because one runner elected to abandon a challenged closure while another used
+the available revision. Protocol v7 forbids that hidden orchestration choice.
+
+### Revision is not protocol retry
+
+A closure revision is a NEW logical cognitive execution.
+
+It is not another semantic attempt inside the prior producer receipt.
+
+The revision packet contains the exact:
+
+```text
+closure subject
+prior producer receipt/output
+prior challenge receipt/output
+revision ordinal = 1
+```
+
+A schema-invalid or technical retry and a semantic revision remain distinct:
+
+```text
+protocol retry
+→ same logical execution
+→ same semantic packet
+→ another protocol attempt
+→ same execution receipt
 
 closure revision
 → new semantic packet
 → new logical execution
-→ new receipt
+→ new execution receipt
 ```
 
-This ADR does not change the existing maximum revision count.
+### Revision is bounded to the same closure family
 
-Whether a construction must always exercise the one available semantic revision
-after an objection, rather than merely being allowed to do so, remains open
-until the M5 construction contract closes that runner behavior.
+A revision exists only to answer the exact objections raised against the prior
+closure candidate.
 
-The coding agent MUST NOT resolve that open construction question while
-implementing this proposed ADR.
+It MUST NOT be used as a free second semantic search or as a branch-switching
+mechanism.
+
+A revision may:
+
+```text
+produce one revised candidate in the same closure family
+OR
+withdraw that closure through the role/task's protocol-defined
+not-established result
+```
+
+It MUST NOT directly convert one closure family into another.
+
+Examples of forbidden revision branch-switching include:
+
+```text
+unique-correction
+→ decision-required
+
+no-normative-impact
+→ unique-correction
+
+refutation
+→ normative-impact
+
+repair-realization
+→ product decision
+```
+
+A different semantic branch, when authorized, is entered only through its own
+ordinary qualification path.
+
+For mechanically projected closures whose source is an atomic structured
+discovery product, protocol-v7 construction must bind the revision to that
+exact atomic candidate and its exact hostile objections. It may not rewrite
+unrelated classifications from the same discovery output.
+
+The concrete P7 schema must make this same-family binding mechanically
+checkable. No implementation may infer it from free text.
+
+### Revised candidates require one fresh hostile challenge
+
+If the revision emits a revised closure candidate, that candidate requires one
+fresh hostile challenge bound to its exact revised bytes.
+
+The producer cannot self-certify that the objections were repaired.
+
+The maximal closure graph is therefore:
+
+```text
+C0
+→ H0 with objections
+→ C1
+→ H1
+```
+
+No `C2` exists.
+
+No `H2` exists.
+
+If `H1` contains one or more objections, that closure path is exhausted.
+
+### not-established revision terminates the closure path
+
+When the revision emits the protocol-defined:
+
+```text
+not-established
+```
+
+result, the producer has withdrawn the closure candidate.
+
+No hostile challenge is required for that withdrawal because no positive
+closure is being asserted.
+
+The closure path is then exhausted.
+
+`not-established` does not prove the opposite semantic proposition.
+
+### Materiality asymmetry remains special
+
+For a materiality-assessment closure:
+
+```text
+M0 has all seven axes false
+→ hostile materiality challenge H0
+```
+
+If `H0` has objections, one materiality revision `M1` is mandatory while the
+subject remains current and execution remains operationally admissible.
+
+If `M1` sets at least one materiality axis to true:
+
+```text
+material = true
+```
+
+and no second materiality challenge is required.
+
+If `M1` still has all seven axes false, it is a revised non-material closure
+candidate and requires one fresh materiality challenge `H1`.
+
+Then:
+
+```text
+H1.objections == []
+→ non-material closure qualifies
+
+H1.objections != []
+→ non-material closure is not established
+→ materiality remains unresolved
+→ applicable operator path
+```
+
+Surviving objections to an all-false materiality candidate MUST NOT be
+mechanically converted into `material = true`.
+
+### Refutation exhaustion
+
+For refutation:
+
+```text
+R0 candidate
+→ H0 objections
+→ mandatory R1
+```
+
+`R1` may be:
+
+```text
+revised refutation candidate
+OR
+not-established
+```
+
+If it is a revised candidate, one fresh challenge is required.
+
+If the revision returns `not-established`, or if its fresh challenge still has
+objections, the refutation path is exhausted.
+
+Refutation-path exhaustion does not prove the finding true.
+
+A positively material finding with no qualified refutation may then cross the
+separate surviving-material boundary defined by this ADR.
+
+### Derivation, realization-scope and repair exhaustion
+
+The same bounded rule applies to challenged positive candidates for:
+
+```text
+unique correction
+realization scope
+repair realization
+```
+
+The revision may produce a same-family revised candidate or
+`not-established`.
+
+A revised candidate requires one fresh challenge.
+
+A withdrawal or a revised candidate that still receives objections exhausts
+that exact closure path.
+
+Failure of automatic realization after a semantic correction has already been
+qualified is an operational inability to establish safe realization. It does
+not fabricate product-semantic underdetermination.
+
+### No-normative-impact and decision-necessity revisions
+
+A challenged no-normative-impact or decision-necessity closure also consumes
+the one mandatory revision when current and operationally admissible.
+
+The revision remains bound to the same exact closure family and exact prior
+objections.
+
+It may revise that candidate or withdraw it through the protocol-defined
+negative result.
+
+It may not introduce a materially different product question merely to preserve
+the closure.
+
+Protocol-v7 construction must define the exact targeted role/task binding for
+these mechanically projected closure candidates before activation. No M5
+implementation may choose it.
+
+A failed no-normative-impact closure does not prove normative impact.
+
+A failed decision-necessity closure does not prove that no product decision is
+needed.
+
+### Staleness and operational inability
+
+The mandatory revision requirement does not authorize stale semantic work.
+
+If, before revision construction:
+
+```text
+S changes
+OR
+P changes
+OR
+the exact adjudication/resolution subject ceases to be current
+```
+
+the old closure lineage terminates and work is derived from new current
+authority.
+
+Likewise, if the required revision cannot be executed because the exact current
+protocol has no usable supporting profile, required identity evidence cannot be
+established, dispatch cannot lawfully occur, or another accepted operational
+precondition fails, the applicable operational/operator path is used.
+
+Operational inability is not semantic closure failure and is not
+`DECISION-REQUIRED`.
+
+### Closure exhaustion is therefore deterministic
+
+For a challenged revision-eligible closure, `closure path exhausted` means
+exactly one of the protocol-defined terminal conditions has occurred after the
+mandatory bounded revision rule has been applied.
+
+A runner MUST NOT call a closure path exhausted merely because it chose not to
+exercise the available revision.
+
+This makes closure exhaustion replayable and comparable across conforming runs.
 
 ### Challenge objectives belong to protocol identity
 
@@ -1065,17 +1542,314 @@ It MUST NOT be retargeted to a later candidate.
 
 ADR-055 does not redefine that meaning.
 
-Construction synchronization following this ADR must reserve `ReviewContext`
-for initial-review production and use the existing resolution-context concept
-for post-review adjudication/resolution work that must operate against current
-resolution provenance.
+Construction synchronization following this ADR reserves `ReviewContext`
+for initial-review production.
 
-This construction synchronization may support both runner-produced and
-repository-imported adjudicating campaigns without rewriting their historical
-review evidence.
+All post-review cognitive work uses current resolution provenance through the
+resolution-context concept.
 
-The exact cross-module type revision belongs to the subsequent NIB-S update, not
-to protocol identity P.
+This includes:
+
+```text
+materiality assessment
+materiality challenge
+refutation
+refutation challenge
+discovery classification
+derivation
+normative-impact challenge
+decision-necessity challenge
+realization-scope derivation
+repair realization
+repair challenge
+```
+
+The exact cross-module type revision belongs to the subsequent NIB-S update.
+
+### Finding-adjudication bootstrap subject
+
+The first post-review materiality assessment MUST NOT depend on an already
+surviving-material resolution subject.
+
+After one exact raw finding has been normalized into one exact `FindingRef`,
+M5-B mechanically establishes an immutable bootstrap subject conceptually named:
+
+```text
+FindingAdjudicationSubjectV1
+```
+
+with canonical selector:
+
+```text
+gate-a-finding-adjudication-subject-v1
+```
+
+Its required semantic/provenance content is exactly:
+
+```ts
+interface FindingAdjudicationSubjectV1 {
+  readonly schema:
+    "gate-a-finding-adjudication-subject.v1";
+
+  readonly runId:
+    GateARunId;
+
+  readonly semanticSubject:
+    SemanticSubjectRef;
+
+  readonly currentProtocolBundle:
+    ProtocolBundleRef;
+
+  readonly sourceFinding: {
+    readonly reviewCampaignId:
+      ReviewCampaignId;
+
+    readonly findingId:
+      FindingId;
+
+    readonly substantiveFindingSha256:
+      Sha256;
+
+    readonly normalizedFinding:
+      ArtifactRef;
+  };
+
+  readonly sourceProtocolBundle:
+    ProtocolBundleRef;
+
+  readonly adjudicatingReviewCampaignId:
+    ReviewCampaignId;
+
+  readonly provenance:
+    | {
+        readonly kind:
+          "current-protocol-finding";
+      }
+    | {
+        readonly kind:
+          "stale-protocol-finding";
+      };
+}
+```
+
+The exact runtime validator and TypeScript declaration belong to the subsequent
+NIB-S/M0 synchronization.
+
+This ADR fixes the meaning they must preserve.
+
+The subject is established before the first materiality WorkItem.
+
+It does not claim:
+
+```text
+the finding is material
+the finding survived refutation
+the finding is true
+the finding requires repair
+the finding requires a product decision
+```
+
+It states only which exact finding is being adjudicated under which exact
+current `S` and `P`.
+
+### Substantive finding identity
+
+`substantiveFindingSha256` is the exact canonical hostile-finding semantic
+subject hash over the substantive finding content required by current
+hostile-review authority.
+
+Historical materiality, status, disposition, challenge result, or
+re-adjudication result MUST NOT become part of that substantive finding hash.
+
+A protocol change can therefore re-adjudicate the same substantive finding
+without rewriting its semantic finding identity.
+
+### Current-protocol bootstrap
+
+For a finding whose source campaign already uses the exact current protocol:
+
+```text
+source campaign S == current S
+source campaign P == current P
+```
+
+require exactly:
+
+```text
+provenance.kind
+=
+current-protocol-finding
+
+adjudicatingReviewCampaignId
+=
+sourceFinding.reviewCampaignId
+
+sourceProtocolBundle
+=
+currentProtocolBundle
+```
+
+No second campaign is selected merely to adjudicate that current-protocol
+finding.
+
+### Stale-protocol bootstrap
+
+For a stale-protocol finding:
+
+```text
+source campaign S == current S
+source campaign P != current P
+```
+
+a current-protocol campaign MUST already exist before post-review
+re-adjudication begins.
+
+If there is no current campaign, the existing protocol-changed campaign-required
+path is completed first.
+
+Once one or more current campaigns exist, select the adjudicating campaign
+deterministically as:
+
+```text
+the first current campaign in the exact canonical M3 currentCampaigns order
+```
+
+where that order remains:
+
+```text
+ReviewCampaignId unsigned ASCII ascending
+```
+
+No selection by:
+
+```text
+runner-produced versus repository-imported
+repository commit
+record path
+record hash
+candidate provenance
+finding severity
+semantic result
+scheduler order
+completion time
+model identity
+```
+
+is permitted.
+
+The selected adjudicating campaign is execution/provenance context only.
+
+It does not become a new semantic identity component of stale-finding
+re-adjudication and does not authorize mutation of a repository-imported
+historical review record.
+
+The protocol-scoped re-adjudication identity remains the identity defined
+elsewhere in this ADR:
+
+```text
+source review
++
+source finding
++
+validated substantive finding SHA
++
+current P
+```
+
+### Materiality and refutation share the bootstrap subject
+
+Materiality and refutation use the same exact
+`FindingAdjudicationSubjectV1`.
+
+A successful materiality assessment does not create a new finding subject.
+
+A refutation WorkItem receives the exact same finding-adjudication subject plus
+the exact qualified materiality evidence required by its packet.
+
+Intermediate adjudication products are packet inputs, not mutations of the
+finding-adjudication subject.
+
+### Surviving-material promotion boundary
+
+Only after M5-B has positively established materiality and the exact refutation
+path has lawfully terminated without a qualified refutation may M5 establish a
+distinct downstream subject conceptually named:
+
+```text
+SurvivingMaterialResolutionSubjectV1
+```
+
+with canonical selector:
+
+```text
+gate-a-surviving-material-resolution-subject-v1
+```
+
+Conceptually it binds:
+
+```text
+the exact FindingAdjudicationSubject
++
+the exact current S
++
+the exact current P
++
+the exact evidence that materiality qualified
++
+the exact evidence that the refutation path lawfully terminated
+  without a qualified refutation
+```
+
+The exact serialized field layout of the surviving-material basis belongs to the
+subsequent P7 schema/NIB-S construction because it must consume the exact
+durable evidence graph defined by this ADR.
+
+That later construction MUST NOT alter this promotion rule.
+
+No `SurvivingMaterialResolutionSubjectV1` exists when:
+
+```text
+non-material closure qualified
+OR
+qualified refutation exists
+OR
+materiality remains unresolved
+OR
+M5-B cannot lawfully finish the required adjudication path
+```
+
+`not-established` from one refutation-builder execution is not by itself proof
+that the finding is true.
+
+Crossing the surviving-material boundary requires:
+
+```text
+qualified materiality
++
+lawfully exhausted refutation path
++
+no qualified refutation
+```
+
+The meaning of `lawfully exhausted` uses the mandatory bounded-revision rule in
+this ADR.
+
+### Candidate independence of adjudication semantics
+
+`FindingAdjudicationSubjectV1` and a qualified
+`SurvivingMaterialResolutionSubjectV1` are not physical patch scopes.
+
+Candidate-specific execution provenance remains in `ResolutionContext`.
+
+A later same-`(S,P)` candidate does not retarget historical review production.
+
+A qualified semantic resolution may remain applicable according to its exact
+authority bindings while candidate-bound realization scope and repair must be
+derived freshly for the new current candidate as required elsewhere in this
+ADR.
+
+This construction may support both runner-produced and repository-imported
+adjudicating campaigns without rewriting their historical review evidence.
 
 ### Protocol structure does not define runner orchestration
 
@@ -1164,26 +1938,32 @@ ADR-055 changes hostile-review assurance protocol architecture only.
 If this proposal is later accepted and protocol v7 is published, construction
 must synchronize the runner contracts before GREEN.
 
-The expected construction direction is:
+The required construction direction is:
 
 ```text
 ReviewContext
 → initial-reviewer production provenance only
 
 ResolutionContext
-→ post-review materiality/refutation/discovery/derivation/
-  decision-necessity/repair/challenge work
+→ all post-review cognitive adjudication/resolution/challenge work
 ```
 
-The future System Brief revision must also account for:
+The future System Brief revision must account for at least:
 
 ```text
+FindingAdjudicationSubjectV1 bootstrap product
+SurvivingMaterialResolutionSubjectV1 promotion boundary
 decision-projection no longer being a current cognitive role
 discovery-classification adjudication kind
 normative-impact adjudication kind
-current-target provenance for ReAdjudicationRef
+protocol-scoped ReAdjudicationRef identity
+deterministic stale-finding adjudicating-campaign provenance
 supporting cognitive authority projection
 protocol-v7 deterministic validation roles
+protocol-v7 supporting-evidence DAG validation
+protocol-v7 exact predecessor receipt/output bindings
+mandatory bounded closure-revision WorkItem generation
+same-family revision enforcement
 ```
 
 These are construction consequences, not current active NIB-S behavior.
@@ -1196,25 +1976,80 @@ protocol v6 remains active
 current Module Brief versions remain active
 ```
 
-## Explicitly unresolved before acceptance
+## Closed proposal questions and remaining acceptance work
 
-ADR-055 remains `proposed` until the complete protocol-v7 construction proves
-that no hidden evidence-contract ambiguity remains.
+The three design questions previously recorded as unresolved by this proposal
+are now closed.
 
-In particular, acceptance requires explicit closure of:
+### Bootstrap provenance
 
-1. the exact bootstrap provenance used for the first post-review materiality
-   assessment before a surviving-material `ResolutionSubject` exists;
+The first post-review materiality assessment is bootstrapped by the exact
+`FindingAdjudicationSubjectV1` defined by this ADR.
 
-2. exact durable evidence linkage for the new adjudication packets, outputs,
-   revisions, and negative `not-established` results while preserving or
-   deliberately evolving review-evidence schema 5.0;
+A surviving-material resolution subject is a later promotion product and is not
+a prerequisite for materiality/refutation adjudication.
 
-3. whether one available semantic closure revision after objections is merely
-   permitted or mechanically required whenever automatic progression remains
-   operationally possible.
+### Durable evidence linkage
 
-No coding agent may decide these questions implicitly while implementing P7.
+Review-evidence schema 5.0 remains sufficient.
+
+Protocol v7 uses `supporting_executions[]` as the durable supporting-execution
+root set and adds exact graph validation over receipts, packets, outputs,
+predecessor links, revisions, and negative semantic results.
+
+No review-evidence-v6 meta-schema is required by this design.
+
+### Closure revision
+
+The one available semantic closure revision is mandatory after qualified
+objections whenever the exact subject remains current and automatic execution
+remains operationally admissible.
+
+The revision is bounded to the same closure family and may withdraw through the
+protocol-defined negative result rather than fabricate a new closure.
+
+### ADR status remains proposed
+
+Closing these three questions does not activate protocol v7 and does not make
+this ADR accepted.
+
+Before ADR-055 may transition from `proposed` to `accepted`, the concrete
+protocol-v7 artifact set must be constructed and mechanically validated against
+these decisions.
+
+That construction includes at minimum:
+
+```text
+review-protocol-bundle meta-schema v7
+gate-a-campaign-protocol-v7
+execution-receipt-v4
+adjudication-packet-v1
+adjudication-output-v1
+exact protocol-owned challenge objective mappings
+protocol-v7 checker behavior
+historical protocol-v1 through protocol-v6 regression validation
+protocol-v7 evidence-graph validation
+```
+
+Concrete construction may expose a new material assurance ambiguity.
+
+If that occurs, STOP and route that discovery explicitly.
+
+A coding agent MUST NOT resolve a newly discovered semantic/protocol ambiguity
+by inventing schema fields, challenge policy, reviewer policy, branch behavior,
+or evidence meaning.
+
+Until the complete protocol-v7 artifact set validates and ADR-055 is explicitly
+accepted:
+
+```text
+gate-a-campaign-protocol-v6 remains current
+execution-receipt schema 3.0 remains current
+review-evidence schema 5.0 remains current
+NIB-S 10.0.0 remains active
+M5-B remains pending
+M5-C remains pending
+```
 
 ## Alternatives considered
 

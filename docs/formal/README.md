@@ -442,11 +442,7 @@ It does not own finding adjudication, resolution qualification, assurance
 repository projection, or `CandidateReviewReadiness`.
 
 ### Proposed M5 adjudication / resolution protocol evolution
-```
 
-Contenu exact :
-
-```markdown
 ADR-055 is proposed construction authority for the next Gate A hostile-review
 protocol evolution.
 
@@ -458,21 +454,46 @@ from candidate-bound realization scope, explicit already-realized repair
 qualification, genuine decision-necessity qualification, and protocol-scoped
 stale-finding re-adjudication.
 
-ADR-055 is not yet accepted.
+The proposal now also fixes three previously open construction/protocol
+boundaries:
+
+```text
+FindingAdjudicationSubject bootstraps materiality/refutation before any
+surviving-material resolution subject exists
+
+review-evidence schema 5.0 remains the durable envelope while protocol v7
+validates an exact supporting-execution receipt/packet/output dependency graph
+
+one bounded same-family semantic revision is mandatory after hostile objections
+while the exact subject remains current and execution remains operationally
+admissible
+```
+
+ADR-055 is still proposed and is not yet active protocol authority.
 
 Therefore:
 
 ```text
 gate-a-campaign-protocol-v6 remains current
+execution-receipt schema 3.0 remains current
+review-evidence schema 5.0 remains current
 NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
 M5-B and M5-C remain pending construction
 no protocol-v7 schema or checker behavior is active merely because ADR-055 exists
 ```
 
 The expected later construction synchronization reserves immutable
-`ReviewContext` for initial-review production provenance and moves post-review
-adjudication/resolution cognitive work onto current resolution provenance. That
-synchronization does not retarget historical campaigns or review evidence.
+`ReviewContext` for initial-review production provenance and moves all
+post-review adjudication/resolution cognitive work onto current resolution
+provenance.
+
+M5-B will bootstrap that work from an exact immutable finding-adjudication
+subject and will promote only a positively material finding whose lawful
+refutation path terminates without a qualified refutation into the downstream
+surviving-material resolution boundary.
+
+That synchronization does not retarget historical campaigns or rewrite
+historical review evidence.
 
 M7 `repository-control` is construction-decomposed into M7-A materialization /
 candidate construction and M7-B publication / remote observation / recovery.
