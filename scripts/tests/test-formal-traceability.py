@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import base64
 import copy
 import importlib.util
 import json
@@ -9341,6 +9342,2087 @@ class EvidenceRequirementsGovernanceFailureTests(unittest.TestCase):
             "Gate A evidence requirements integrity failure",
             summary["gate_a"]["reason"],
         )
+
+
+class GateAProtocolV7SchemaTests(unittest.TestCase):
+    P7_META_SCHEMA = Path(
+        "formal/reviews/meta-schemas/review-protocol-bundle-v7.schema.json"
+    )
+    P7_BUNDLE = Path(
+        "formal/reviews/protocols/gate-a-campaign-protocol-v7.json"
+    )
+    RECEIPT_V4_SCHEMA = Path(
+        "formal/reviews/schemas/execution-receipt-v4.schema.json"
+    )
+    ADJUDICATION_PACKET_SCHEMA = Path(
+        "formal/reviews/schemas/adjudication-packet-v1.schema.json"
+    )
+    ADJUDICATION_OUTPUT_SCHEMA = Path(
+        "formal/reviews/schemas/adjudication-output-v1.schema.json"
+    )
+    SUPPLEMENT_SCHEMA = Path(
+        "formal/reviews/schemas/finding-adjudication-supplement-v1.schema.json"
+    )
+    P6_BUNDLE_SHA = (
+        "841908ae137b1caaa8d0ae1035d7f888f736fda04ef70c10d33bda8383feae98"
+    )
+    ROLES = (
+        "initial-reviewer",
+        "materiality-assessor",
+        "refutation-builder",
+        "challenge",
+        "discovery-classifier",
+        "derivation-builder",
+        "decision-necessity-challenger",
+        "repair-synthesizer",
+    )
+
+    def _schema(self, relative: Path) -> dict:
+        return json.loads((ROOT / relative).read_text(encoding="utf-8"))
+
+    def _validator(self, relative: Path) -> Draft202012Validator:
+        schema = self._schema(relative)
+        Draft202012Validator.check_schema(schema)
+        return Draft202012Validator(schema)
+
+    def _errors(self, relative: Path, payload: dict) -> list:
+        return list(self._validator(relative).iter_errors(payload))
+
+    def _bundle(self) -> dict:
+        return json.loads((ROOT / self.P7_BUNDLE).read_text(encoding="utf-8"))
+
+    def _authority(self) -> dict:
+        return {"kind": "authority-content", "role": "normative-spec"}
+
+    def _discovery_statement(
+        self, disposition: str = "derived-from-existing-authority"
+    ) -> dict:
+        bases = {
+            "derived-from-existing-authority": {
+                "derivation_steps": ["The cited authority entails the statement."],
+                "no_alternative_remains_argument": "No distinct alternative remains.",
+            },
+            "decision-required": {
+                "kind": "product-underdetermination",
+                "alternatives": [
+                    {
+                        "alternative": "Meaning A",
+                        "authority_compatibility_argument": "Authority permits A.",
+                    },
+                    {
+                        "alternative": "Meaning B",
+                        "authority_compatibility_argument": "Authority permits B.",
+                    },
+                ],
+                "material_distinction_argument": "A and B differ materially.",
+                "current_authority_non_selection_argument": (
+                    "Current authority selects neither."
+                ),
+            },
+            "no-normative-impact": {
+                "new_product_authority_not_required_argument": "No new authority.",
+                "changed_product_authority_not_required_argument": (
+                    "No changed authority."
+                ),
+                "product_meaning_selection_not_required_argument": (
+                    "No product meaning selection."
+                ),
+                "accepted_observable_obligation_change_not_required_argument": (
+                    "No accepted obligation changes."
+                ),
+            },
+            "authority-conflict-or-uncertain": {
+                "kind": "missing-authority",
+                "missing_authority": "The required authority is absent.",
+                "why_required_for_classification": (
+                    "Classification requires that authority."
+                ),
+            },
+        }
+        return {
+            "statement": "The issue is derived from existing authority.",
+            "evidence_references": [{"kind": "source-finding"}],
+            "evidence_argument": "The source finding establishes the issue.",
+            "existing_authority": [self._authority()],
+            "affected_layers": ["normative-contract"],
+            "semantic_disposition": disposition,
+            "disposition_basis": bases[disposition],
+        }
+
+    def _output_payloads(self) -> dict[str, dict]:
+        materiality = {
+            axis: False for axis in checker.MATERIALITY_AXES
+        }
+        materiality["rationale"] = "No material axis is established."
+        refutation = {
+            "kind": "refutation-candidate",
+            "ground": "premise-false",
+            "attacked_premise_or_inference": "The finding assumes X.",
+            "evidence_references": ["source-finding"],
+            "argument": "The supplied evidence contradicts X.",
+            "counterexample_disposition": None,
+        }
+        statement = self._discovery_statement()
+        discovery = {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": "This is the earliest unresolved cause.",
+                "upstream_exclusion_argument": "No upstream cause remains.",
+            },
+            "classification_statements": [statement],
+        }
+        unique_correction = {
+            "kind": "unique-correction-candidate",
+            "correction_requirements": [
+                {"postcondition": "The authority binding is exact."}
+            ],
+            "derivation_claims": [
+                {
+                    "claim": "Exact binding is required.",
+                    "requirement_ordinals": [0],
+                    "authority_references": [self._authority()],
+                    "evidence_references": [
+                        {"kind": "source-finding"},
+                        {"kind": "target-discovery-classification"},
+                    ],
+                    "derivation_argument": "Authority entails exact binding.",
+                }
+            ],
+            "alternatives_considered": [
+                {
+                    "correction_requirements": [],
+                    "assessment": {
+                        "kind": "authority-incompatible",
+                        "authority_references": [self._authority()],
+                        "incompatibility_argument": "Omission violates authority.",
+                    },
+                }
+            ],
+            "uniqueness_argument": {
+                "authority_references": [self._authority()],
+                "argument": "No authority-compatible alternative remains.",
+            },
+        }
+        realization_scope = {
+            "readable_paths": ["ZG9jcy9mb3JtYWwvUkVBRE1FLm1k"],
+            "writable_paths": ["ZG9jcy9mb3JtYWwvUkVBRE1FLm1k"],
+            "completeness_argument": {
+                "requirement_surfaces": [
+                    {
+                        "requirement_ordinal": 0,
+                        "surface_paths": ["ZG9jcy9mb3JtYWwvUkVBRE1FLm1k"],
+                        "argument": "The path contains the realization surface.",
+                    }
+                ],
+                "whole_scope_argument": "The scope covers every requirement.",
+            },
+            "minimal_write_authority_argument": {
+                "writable_path_justifications": [
+                    {
+                        "path_bytes_base64url": "ZG9jcy9mb3JtYWwvUkVBRE1FLm1k",
+                        "requirement_ordinals": [0],
+                        "necessity_argument": "Writing this path is necessary.",
+                    }
+                ],
+                "no_additional_write_authority_argument": (
+                    "No additional write authority is necessary."
+                ),
+            },
+        }
+        repair = {
+            "kind": "repair-realization-candidate",
+            "requirement_realizations": [
+                {
+                    "requirement_ordinal": 0,
+                    "kind": "patch-realized",
+                    "operation_paths": ["ZG9jcy9mb3JtYWwvUkVBRE1FLm1k"],
+                    "realization_argument": "The operation realizes the requirement.",
+                }
+            ],
+            "operations": [
+                {
+                    "path_bytes_base64url": "ZG9jcy9mb3JtYWwvUkVBRE1FLm1k",
+                    "after_state": {
+                        "kind": "blob",
+                        "mode": "100644",
+                        "content": {"encoding": "utf-8", "data": "replacement\n"},
+                    },
+                }
+            ],
+        }
+        return {
+            "materiality-assessment": materiality,
+            "refutation": refutation,
+            "discovery-classification": discovery,
+            "unique-correction-derivation": unique_correction,
+            "realization-scope-derivation": realization_scope,
+            "repair-realization": repair,
+        }
+
+    def _receipt(self, role: str) -> dict:
+        raw = {
+            "path": "formal/reviews/adjudications/output.json",
+            "sha256": "1" * 64,
+        }
+        attempts = [
+            attempt_payload(
+                "ATTEMPT-TECHNICAL",
+                outcome="technical-failure",
+                provider_model=None,
+                raw_output=None,
+                protocol_errors=[],
+            ),
+            attempt_payload(
+                "ATTEMPT-INVALID",
+                outcome="protocol-invalid",
+                provider_model="model-v1",
+                raw_output=raw,
+                protocol_errors=["schema mismatch"],
+            ),
+            attempt_payload(
+                "ATTEMPT-QUALIFIED",
+                outcome="qualified",
+                provider_model="model-v1",
+                raw_output=raw,
+                protocol_errors=[],
+            ),
+        ]
+        return {
+            "receipt_schema_version": "4.0",
+            "execution_id": "EXEC-P7",
+            "role": role,
+            "reviewer_profile_id": "profile-p7",
+            "protocol_bundle_sha256": "2" * 64,
+            "input": {
+                "prompt": {"path": "formal/reviews/prompts/prompt.md", "sha256": "3" * 64},
+                "packet": {"path": "formal/reviews/packets/packet.json", "sha256": "4" * 64},
+            },
+            "isolated_context": True,
+            "cross_reviewer_visibility_before_seal": False,
+            "tools_enabled": False,
+            "runtime": {"name": "runtime", "version": "1"},
+            "request": {"provider": "provider", "model": "model"},
+            "attempts": attempts,
+            "qualifying_attempt_id": "ATTEMPT-QUALIFIED",
+            "resolved_identity": {
+                "provider": "provider",
+                "model": "model",
+                "model_version": "model-v1",
+                "resolution_kind": "provider-reported",
+                "evidence_attempt_id": "ATTEMPT-QUALIFIED",
+            },
+        }
+
+    def test_protocol_v7_exact_bundle_validates(self) -> None:
+        bundle = self._bundle()
+        self.assertEqual([], self._errors(self.P7_META_SCHEMA, bundle))
+        self.assertEqual(7, bundle["protocol_bundle_schema_version"])
+        self.assertEqual(
+            {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v6.json",
+                "sha256": self.P6_BUNDLE_SHA,
+            },
+            bundle["predecessor"],
+        )
+        self.assertEqual(
+            [
+                "raw-review-output",
+                "execution-receipt",
+                "challenge-output",
+                "challenge-packet",
+                "adjudication-packet",
+                "adjudication-output",
+                "finding-adjudication-supplement",
+            ],
+            sorted(bundle["schemas"], key=lambda key: (
+                [
+                    "raw-review-output",
+                    "execution-receipt",
+                    "challenge-output",
+                    "challenge-packet",
+                    "adjudication-packet",
+                    "adjudication-output",
+                    "finding-adjudication-supplement",
+                ].index(key)
+            )),
+        )
+
+    def test_protocol_v7_bundle_is_canonical_json_document(self) -> None:
+        data = (ROOT / self.P7_BUNDLE).read_bytes()
+        self.assertEqual(checker._canonical_json_document_bytes(json.loads(data)), data)
+
+    def test_protocol_v7_bundle_schema_rejects_schema_key_changes(self) -> None:
+        for mutation in ("missing", "extra"):
+            with self.subTest(mutation=mutation):
+                bundle = self._bundle()
+                if mutation == "missing":
+                    del bundle["schemas"]["adjudication-output"]
+                else:
+                    bundle["schemas"]["unexpected"] = {
+                        "path": "formal/reviews/schemas/unexpected.json",
+                        "sha256": "0" * 64,
+                    }
+                self.assertTrue(self._errors(self.P7_META_SCHEMA, bundle))
+
+    def test_protocol_v7_bundle_schema_rejects_retry_policy_changes(self) -> None:
+        mutations = {
+            "legacy-field": lambda retry: retry.update(
+                {"roles_without_deterministic_output_validator": []}
+            ),
+            "roles": lambda retry: retry["deterministically_validated_roles"].reverse(),
+            "field": lambda retry: retry.update(
+                {"protocol_invalid_completion_retry_allowed": False}
+            ),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                bundle = self._bundle()
+                mutate(bundle["policies"]["retry"])
+                self.assertTrue(self._errors(self.P7_META_SCHEMA, bundle))
+
+    def test_protocol_v7_bundle_schema_rejects_supporting_acquisition_changes(self) -> None:
+        for mutation in ("mode", "profile-order"):
+            with self.subTest(mutation=mutation):
+                bundle = self._bundle()
+                acquisition = bundle["policies"]["supporting_role_acquisition"]
+                if mutation == "mode":
+                    acquisition["mode"] = "another-mode"
+                else:
+                    acquisition["profile_order"] = []
+                self.assertTrue(self._errors(self.P7_META_SCHEMA, bundle))
+
+    def test_protocol_v7_bundle_schema_rejects_closure_contract_changes(self) -> None:
+        mutations = {
+            "reordered-contracts": lambda contracts: contracts.reverse(),
+            "objective-order": lambda contracts: contracts[1][
+                "required_objectives"
+            ].reverse(),
+            "challenger": lambda contracts: contracts[5].update(
+                {"challenger_role": "challenge"}
+            ),
+            "selector-kind-pair": lambda contracts: contracts[0].update(
+                {"challenge_kind": "refutation"}
+            ),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                bundle = self._bundle()
+                mutate(bundle["policies"]["challenge"]["closure_contracts"])
+                self.assertTrue(self._errors(self.P7_META_SCHEMA, bundle))
+
+    def test_execution_receipt_v4_accepts_all_outcomes_for_all_roles(self) -> None:
+        validator = self._validator(self.RECEIPT_V4_SCHEMA)
+        for role in self.ROLES:
+            with self.subTest(role=role):
+                self.assertEqual([], list(validator.iter_errors(self._receipt(role))))
+
+    def test_execution_receipt_v4_rejects_decision_projection(self) -> None:
+        receipt = self._receipt("decision-projection")
+        self.assertTrue(self._errors(self.RECEIPT_V4_SCHEMA, receipt))
+
+    def test_historical_execution_receipt_v3_still_accepts_decision_projection(
+        self,
+    ) -> None:
+        receipt = self._receipt("decision-projection")
+        receipt["receipt_schema_version"] = "3.0"
+        receipt["attempts"] = [receipt["attempts"][-1]]
+        self.assertEqual(
+            [],
+            self._errors(
+                Path("formal/reviews/schemas/execution-receipt-v3.schema.json"),
+                receipt,
+            ),
+        )
+
+    def test_adjudication_output_accepts_all_six_task_variants(self) -> None:
+        for task, result in self._output_payloads().items():
+            with self.subTest(task=task):
+                payload = {
+                    "adjudication_output_schema_version": "1.0",
+                    "task": task,
+                    "result": result,
+                }
+                self.assertEqual(
+                    [], self._errors(self.ADJUDICATION_OUTPUT_SCHEMA, payload)
+                )
+
+    def test_materiality_requires_all_axes_and_rejects_material(self) -> None:
+        result = self._output_payloads()["materiality-assessment"]
+        for mutation in ("missing-axis", "material"):
+            with self.subTest(mutation=mutation):
+                candidate = copy.deepcopy(result)
+                if mutation == "missing-axis":
+                    del candidate[checker.MATERIALITY_AXES[0]]
+                else:
+                    candidate["material"] = False
+                payload = {
+                    "adjudication_output_schema_version": "1.0",
+                    "task": "materiality-assessment",
+                    "result": candidate,
+                }
+                self.assertTrue(
+                    self._errors(self.ADJUDICATION_OUTPUT_SCHEMA, payload)
+                )
+
+    def test_refutation_accepts_candidate_and_not_established(self) -> None:
+        for result in (
+            self._output_payloads()["refutation"],
+            {"kind": "not-established"},
+        ):
+            payload = {
+                "adjudication_output_schema_version": "1.0",
+                "task": "refutation",
+                "result": result,
+            }
+            self.assertEqual(
+                [], self._errors(self.ADJUDICATION_OUTPUT_SCHEMA, payload)
+            )
+
+    def test_discovery_rejects_disposition_basis_mismatch(self) -> None:
+        statement = self._discovery_statement("decision-required")
+        statement["disposition_basis"] = self._discovery_statement(
+            "no-normative-impact"
+        )["disposition_basis"]
+        payload = {
+            "adjudication_output_schema_version": "1.0",
+            "task": "discovery-classification",
+            "result": {
+                "earliest_unresolved_cause": {
+                    "classification_statement_ordinal": 0,
+                    "evidence_references": [{"kind": "source-finding"}],
+                    "causal_explanation": "Cause.",
+                    "upstream_exclusion_argument": "No upstream cause.",
+                },
+                "classification_statements": [statement],
+            },
+        }
+        self.assertTrue(self._errors(self.ADJUDICATION_OUTPUT_SCHEMA, payload))
+
+    def test_discovery_closure_revision_accepts_revised_or_withdrawn(self) -> None:
+        for result in (
+            {"kind": "revised-candidate", "statement": self._discovery_statement()},
+            {"kind": "not-established"},
+        ):
+            payload = {
+                "adjudication_output_schema_version": "1.0",
+                "task": "discovery-classification",
+                "result": result,
+            }
+            self.assertEqual(
+                [], self._errors(self.ADJUDICATION_OUTPUT_SCHEMA, payload)
+            )
+
+    def test_inline_exact_bytes_requires_canonical_encoding_shape(self) -> None:
+        payload = self._output_payloads()["repair-realization"]
+        content = payload["operations"][0]["after_state"]["content"]
+        content["unexpected"] = True
+        output = {
+            "adjudication_output_schema_version": "1.0",
+            "task": "repair-realization",
+            "result": payload,
+        }
+        self.assertTrue(self._errors(self.ADJUDICATION_OUTPUT_SCHEMA, output))
+
+    def test_supplement_accepts_all_three_effective_adjudications(self) -> None:
+        reference = {
+            "path": "formal/reviews/executions/receipt.json",
+            "sha256": "1" * 64,
+        }
+        variants = (
+            {
+                "kind": "qualified-non-material",
+                "materiality_assessment_execution_receipt": reference,
+                "materiality_challenge_execution_receipt": reference,
+            },
+            {
+                "kind": "qualified-refutation",
+                "materiality_assessment_execution_receipt": reference,
+                "refutation_execution_receipt": reference,
+                "refutation_challenge_execution_receipt": reference,
+            },
+            {
+                "kind": "surviving-material",
+                "materiality_assessment_execution_receipt": reference,
+                "refutation_exhaustion_terminal_receipt": reference,
+            },
+        )
+        for effective in variants:
+            with self.subTest(kind=effective["kind"]):
+                payload = {
+                    "supplement_schema_version": "1.0",
+                    "semantic_subject": {
+                        "selector": "gate-a-assurance-decomposition-v1",
+                        "sha256": "2" * 64,
+                    },
+                    "protocol": {
+                        "protocol_bundle": {
+                            "path": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+                            "sha256": "3" * 64,
+                        },
+                        "review_packet": {
+                            "path": "formal/reviews/packets/packet.json",
+                            "sha256": "4" * 64,
+                        },
+                    },
+                    "source_finding": {
+                        "review_id": "REVIEW-SOURCE",
+                        "finding_id": "FINDING-1",
+                        "substantive_finding_sha256": "5" * 64,
+                    },
+                    "adjudicating_review_id": "REVIEW-CURRENT",
+                    "supporting_executions": [
+                        reference,
+                        {
+                            "path": "formal/reviews/executions/receipt-2.json",
+                            "sha256": "6" * 64,
+                        },
+                    ],
+                    "effective_adjudication": effective,
+                }
+                self.assertEqual([], self._errors(self.SUPPLEMENT_SCHEMA, payload))
+
+
+class GateAProtocolV7InactiveCandidateTests(unittest.TestCase):
+    def test_inactive_protocol_v7_candidate_is_validated_without_becoming_current(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+            errors, summary = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+        self.assertEqual([], errors)
+        self.assertEqual(
+            "formal/reviews/protocols/gate-a-campaign-protocol-v6.json",
+            manifest["policy"]["hostile_review"]["current_protocol_bundle"]["path"],
+        )
+        self.assertFalse(summary["gate_a"]["ready"])
+
+    def test_inactive_protocol_v7_candidate_artifact_hash_mismatch_is_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            prompt = fixture_root / "formal/reviews/prompts/gate-a-repair-v2.md"
+            prompt.write_bytes(prompt.read_bytes() + b"unexpected\n")
+            errors, _ = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+        self.assertTrue(
+            any("inactive protocol v7 candidate" in error for error in errors),
+            errors,
+        )
+
+    def test_inactive_protocol_v7_candidate_wrong_predecessor_is_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            path = (
+                fixture_root
+                / "formal/reviews/protocols/gate-a-campaign-protocol-v7.json"
+            )
+            bundle = json.loads(path.read_text(encoding="utf-8"))
+            bundle["predecessor"] = {
+                "path": "formal/reviews/protocols/gate-a-campaign-protocol-v5.json",
+                "sha256": "b9dc015188b89f605bf8252bf47ff5497be54668cc274e953146577f1a76e091",
+            }
+            path.write_bytes(checker._canonical_json_document_bytes(bundle))
+            errors, _ = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+        self.assertTrue(
+            any("inactive protocol v7 candidate" in error for error in errors),
+            errors,
+        )
+
+    def test_inactive_protocol_v7_review_evidence_binding_change_is_rejected(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            path = (
+                fixture_root
+                / "formal/reviews/protocols/gate-a-campaign-protocol-v7.json"
+            )
+            bundle = json.loads(path.read_text(encoding="utf-8"))
+            bundle["meta_schemas"]["review-evidence"] = bundle["meta_schemas"][
+                "protocol-bundle"
+            ]
+            path.write_bytes(checker._canonical_json_document_bytes(bundle))
+            errors, _ = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+        self.assertTrue(
+            any("inactive protocol v7 candidate" in error for error in errors),
+            errors,
+        )
+
+
+class GateAProtocolV7ArtifactIdentityTests(unittest.TestCase):
+    def _runtime_ref(self, fixture_root: Path, reference: dict, prefix: str) -> dict:
+        runtime, _data, errors = checker.reconstruct_runtime_json_artifact_ref(
+            fixture_root,
+            reference,
+            expected_prefix=prefix,
+        )
+        self.assertEqual([], errors)
+        self.assertIsNotNone(runtime)
+        return runtime
+
+    def _minimal_packet(self, fixture_root: Path) -> dict:
+        review_ref = write_gate_a_review_packet(fixture_root)
+        review_payload = json.loads(
+            (fixture_root / review_ref["path"]).read_text(encoding="utf-8")
+        )
+        finding_payload = {
+            "subject_schema_version": 1,
+            "selector": "hostile-finding-subject-v1",
+            "finding": {
+                "finding_id": "FINDING-1",
+                "sources": [
+                    {"execution_id": "EXEC-A", "raw_finding_id": "RAW-1"}
+                ],
+                "statement": "Finding statement.",
+                "argument": "Finding argument.",
+                "counterexample": None,
+            },
+        }
+        finding = {
+            "selector": "hostile-finding-subject-v1",
+            "sha256": checker.sha256_hex(
+                checker._canonical_json_bytes(finding_payload)
+            ),
+            "payload": finding_payload,
+        }
+        subject_payload = {
+            "schema": "gate-a-finding-adjudication-subject.v1",
+            "runId": "RUN-1",
+            "semanticSubject": {
+                "selector": "gate-a-assurance-decomposition-v1",
+                "sha256": "1" * 64,
+            },
+            "currentProtocolBundle": {
+                "protocolId": "gate-a-campaign-protocol-v7",
+                "repositoryPath": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+                "sha256": "2" * 64,
+            },
+            "sourceFinding": {
+                "reviewCampaignId": "REVIEW-SOURCE",
+                "findingId": "FINDING-1",
+                "substantiveFindingSha256": finding["sha256"],
+                "normalizedFinding": {
+                    "artifactId": "sha256:" + "3" * 64,
+                    "sha256": "3" * 64,
+                    "byteLength": 1,
+                    "mediaType": "application/json",
+                    "repositoryPath": None,
+                },
+            },
+            "sourceProtocolBundle": {
+                "protocolId": "gate-a-campaign-protocol-v7",
+                "repositoryPath": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+                "sha256": "2" * 64,
+            },
+            "adjudicatingReviewCampaignId": "REVIEW-SOURCE",
+            "provenance": {"kind": "current-protocol-finding"},
+        }
+        subject = {
+            "selector": "gate-a-finding-adjudication-subject-v1",
+            "sha256": checker.sha256_hex(
+                checker._canonical_json_bytes(subject_payload)
+            ),
+            "payload": subject_payload,
+        }
+        return {
+            "adjudication_packet_schema_version": "1.0",
+            "task": "materiality-assessment",
+            "review_packet": {
+                "sha256": review_ref["sha256"],
+                "payload": review_payload,
+            },
+            "subject": subject,
+            "finding": finding,
+            "revision": {"ordinal": 0},
+            "task_input": {},
+        }
+
+    def test_repository_packet_ref_reconstructs_exact_runtime_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = self._minimal_packet(fixture_root)
+            reference = write_json_artifact(
+                fixture_root,
+                "formal/reviews/adjudication-packets/input.json",
+                payload,
+            )
+            runtime, exact_bytes, errors = checker.reconstruct_runtime_json_artifact_ref(
+                fixture_root,
+                reference,
+                expected_prefix=checker.REVIEW_ADJUDICATION_PACKETS_PREFIX,
+            )
+        self.assertEqual([], errors)
+        self.assertEqual(len(exact_bytes), runtime["byteLength"])
+        self.assertEqual("sha256:" + reference["sha256"], runtime["artifactId"])
+        self.assertIsNone(runtime["repositoryPath"])
+
+    def test_repository_raw_and_receipt_refs_reconstruct_exact_runtime_identity(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            raw = write_bytes_artifact(
+                fixture_root,
+                "formal/reviews/adjudications/output.json",
+                b'{"semantic":"exact"}\n',
+            )
+            receipt = write_bytes_artifact(
+                fixture_root,
+                "formal/reviews/executions/receipt.json",
+                b'{"receipt":"exact"}',
+            )
+            raw_runtime = self._runtime_ref(
+                fixture_root, raw, checker.REVIEW_ADJUDICATIONS_PREFIX
+            )
+            receipt_runtime = self._runtime_ref(
+                fixture_root, receipt, checker.REVIEW_EXECUTIONS_PREFIX
+            )
+        self.assertEqual(raw["sha256"], raw_runtime["sha256"])
+        self.assertEqual(receipt["sha256"], receipt_runtime["sha256"])
+
+    def test_repository_path_is_not_runtime_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            data = b'{"same":"bytes"}\n'
+            first = write_bytes_artifact(
+                fixture_root,
+                "formal/reviews/adjudication-packets/a.json",
+                data,
+            )
+            second = write_bytes_artifact(
+                fixture_root,
+                "formal/reviews/adjudication-packets/b.json",
+                data,
+            )
+            first_runtime = self._runtime_ref(
+                fixture_root, first, checker.REVIEW_ADJUDICATION_PACKETS_PREFIX
+            )
+            second_runtime = self._runtime_ref(
+                fixture_root, second, checker.REVIEW_ADJUDICATION_PACKETS_PREFIX
+            )
+        self.assertEqual(first_runtime, second_runtime)
+
+    def test_runtime_identity_shape_tampering_is_rejected(self) -> None:
+        valid = {
+            "artifactId": "sha256:" + "1" * 64,
+            "sha256": "1" * 64,
+            "byteLength": 1,
+            "mediaType": "application/json",
+            "repositoryPath": None,
+        }
+        mutations = {
+            "byteLength": 2,
+            "artifactId": "sha256:" + "2" * 64,
+            "repositoryPath": "formal/reviews/a.json",
+            "mediaType": "text/plain",
+        }
+        for field, value in mutations.items():
+            with self.subTest(field=field):
+                candidate = dict(valid)
+                candidate[field] = value
+                errors = checker._runtime_json_artifact_ref_errors(
+                    candidate, "runtime"
+                )
+                if field == "byteLength":
+                    self.assertEqual([], errors)
+                else:
+                    self.assertTrue(errors)
+
+    def test_adjudication_packet_namespace_is_exact(self) -> None:
+        paths = {
+            "formal/reviews/adjudication-packets/input.json": True,
+            "formal/reviews/packets/input.json": False,
+            "formal/reviews/challenge-packets/input.json": False,
+            "formal/reviews/adjudications/input.json": False,
+            "formal/reviews/adjudication-packets/input.txt": False,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = self._minimal_packet(fixture_root)
+            schema = json.loads(
+                (
+                    fixture_root
+                    / "formal/reviews/schemas/adjudication-packet-v1.schema.json"
+                ).read_text(encoding="utf-8")
+            )
+            validator = Draft202012Validator(schema)
+            for path, valid in paths.items():
+                with self.subTest(path=path):
+                    reference = write_json_artifact(fixture_root, path, payload)
+                    _packet, errors = checker._load_p7_adjudication_packet(
+                        fixture_root, reference, "packet", validator
+                    )
+                    self.assertEqual(valid, not errors, errors)
+
+    def test_adjudication_packet_rejects_sha_and_document_serialization_errors(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            payload = self._minimal_packet(fixture_root)
+            schema = json.loads(
+                (
+                    fixture_root
+                    / "formal/reviews/schemas/adjudication-packet-v1.schema.json"
+                ).read_text(encoding="utf-8")
+            )
+            validator = Draft202012Validator(schema)
+            canonical = checker._canonical_json_document_bytes(payload)
+            cases = {
+                "sha": (canonical, "0" * 64),
+                "missing-lf": (canonical[:-1], checker.sha256_hex(canonical[:-1])),
+                "extra-lf": (canonical + b"\n", checker.sha256_hex(canonical + b"\n")),
+                "noncanonical": (
+                    json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+                    + b"\n",
+                    None,
+                ),
+            }
+            for name, (data, declared) in cases.items():
+                with self.subTest(name=name):
+                    path = fixture_root / "formal/reviews/adjudication-packets/input.json"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(data)
+                    reference = {
+                        "path": path.relative_to(fixture_root).as_posix(),
+                        "sha256": declared or checker.sha256_hex(data),
+                    }
+                    _packet, errors = checker._load_p7_adjudication_packet(
+                        fixture_root, reference, "packet", validator
+                    )
+                    self.assertTrue(errors)
+
+    def test_adjudication_packet_rejects_symlink_and_parent_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            target = fixture_root / "packet-target.json"
+            target.write_bytes(b"{}\n")
+            link = fixture_root / "formal/reviews/adjudication-packets/link.json"
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(target)
+            for reference in (
+                {
+                    "path": "formal/reviews/adjudication-packets/link.json",
+                    "sha256": checker.sha256_hex(target.read_bytes()),
+                },
+                {
+                    "path": "formal/reviews/adjudication-packets/../packet.json",
+                    "sha256": "0" * 64,
+                },
+            ):
+                with self.subTest(path=reference["path"]):
+                    runtime, _data, errors = checker.reconstruct_runtime_json_artifact_ref(
+                        fixture_root,
+                        reference,
+                        expected_prefix=checker.REVIEW_ADJUDICATION_PACKETS_PREFIX,
+                    )
+                    self.assertIsNone(runtime)
+                    self.assertTrue(errors)
+
+    def test_packet_and_embedded_semantic_hash_use_distinct_byte_classes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            packet = self._minimal_packet(fixture_root)
+            subject_payload = packet["subject"]["payload"]
+            semantic_hash = checker.sha256_hex(
+                checker._canonical_json_bytes(subject_payload)
+            )
+            packet_bytes = checker._canonical_json_document_bytes(packet)
+            packet_hash = checker.sha256_hex(packet_bytes)
+        self.assertEqual(packet["subject"]["sha256"], semantic_hash)
+        self.assertNotEqual(semantic_hash, packet_hash)
+        self.assertTrue(packet_bytes.endswith(b"\n"))
+
+
+class GateAProtocolV7DirectChallengeSubjectTests(unittest.TestCase):
+    SELECTOR_TASKS = {
+        "gate-a-materiality-assessment-challenge-v1": "materiality-assessment",
+        "gate-a-refutation-candidate-challenge-v1": "refutation",
+        "gate-a-unique-correction-candidate-challenge-v1": (
+            "unique-correction-derivation"
+        ),
+        "gate-a-realization-scope-candidate-challenge-v1": (
+            "realization-scope-derivation"
+        ),
+        "gate-a-no-normative-impact-candidate-challenge-v1": (
+            "discovery-classification"
+        ),
+        "gate-a-repair-realization-candidate-challenge-v1": "repair-realization",
+    }
+
+    def _runtime(self, fixture_root: Path, reference: dict, prefix: str) -> dict:
+        value, _data, errors = checker.reconstruct_runtime_json_artifact_ref(
+            fixture_root,
+            reference,
+            expected_prefix=prefix,
+        )
+        self.assertEqual([], errors)
+        return value
+
+    def _content_bound(self, selector: str, payload: dict) -> dict:
+        return {
+            "selector": selector,
+            "sha256": checker.sha256_hex(checker._canonical_json_bytes(payload)),
+            "payload": payload,
+        }
+
+    def _dummy_runtime(self, character: str) -> dict:
+        digest = character * 64
+        return {
+            "artifactId": "sha256:" + digest,
+            "sha256": digest,
+            "byteLength": 1,
+            "mediaType": "application/json",
+            "repositoryPath": None,
+        }
+
+    def _supporting(self, character: str, output: dict | None = None) -> dict:
+        return {
+            "execution_receipt": self._dummy_runtime(character),
+            "raw_output": self._dummy_runtime(character),
+            "output": output or {"kind": "fixture"},
+        }
+
+    def _finding(self) -> dict:
+        payload = {
+            "subject_schema_version": 1,
+            "selector": "hostile-finding-subject-v1",
+            "finding": {
+                "finding_id": "FINDING-1",
+                "sources": [
+                    {"execution_id": "EXEC-A", "raw_finding_id": "RAW-1"}
+                ],
+                "statement": "Finding statement.",
+                "argument": "Finding argument.",
+                "counterexample": None,
+            },
+        }
+        return self._content_bound("hostile-finding-subject-v1", payload)
+
+    def _finding_subject(self, finding: dict) -> dict:
+        payload = {
+            "schema": "gate-a-finding-adjudication-subject.v1",
+            "runId": "RUN-1",
+            "semanticSubject": {
+                "selector": "gate-a-assurance-decomposition-v1",
+                "sha256": "1" * 64,
+            },
+            "currentProtocolBundle": {
+                "protocolId": "gate-a-campaign-protocol-v7",
+                "repositoryPath": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+                "sha256": "2" * 64,
+            },
+            "sourceFinding": {
+                "reviewCampaignId": "REVIEW-SOURCE",
+                "findingId": "FINDING-1",
+                "substantiveFindingSha256": finding["sha256"],
+                "normalizedFinding": self._dummy_runtime("3"),
+            },
+            "sourceProtocolBundle": {
+                "protocolId": "gate-a-campaign-protocol-v7",
+                "repositoryPath": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+                "sha256": "2" * 64,
+            },
+            "adjudicatingReviewCampaignId": "REVIEW-SOURCE",
+            "provenance": {"kind": "current-protocol-finding"},
+        }
+        return self._content_bound(
+            "gate-a-finding-adjudication-subject-v1", payload
+        )
+
+    def _surviving_subject(self) -> dict:
+        payload = {
+            "schema": "gate-a-surviving-material-resolution-subject.v1",
+            "runId": "RUN-1",
+            "findingAdjudicationSubject": self._dummy_runtime("4"),
+            "semanticSubject": {
+                "selector": "gate-a-assurance-decomposition-v1",
+                "sha256": "1" * 64,
+            },
+            "protocolBundle": {
+                "protocolId": "gate-a-campaign-protocol-v7",
+                "repositoryPath": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+                "sha256": "2" * 64,
+            },
+            "materialityAssessmentExecutionReceipt": self._dummy_runtime("5"),
+            "refutationExhaustionTerminalReceipt": self._dummy_runtime("6"),
+        }
+        return self._content_bound(
+            "gate-a-surviving-material-resolution-subject-v1", payload
+        )
+
+    def _candidate_view(
+        self,
+        fixture_root: Path,
+        coverage: str,
+        paths: list[str] | None = None,
+    ) -> dict:
+        paths = list(paths or [])
+        if coverage == "complete":
+            process = subprocess.run(
+                ["git", "-C", str(fixture_root), "mktree"],
+                input=b"",
+                capture_output=True,
+                check=True,
+            )
+            root_tree = process.stdout.decode("ascii").strip()
+            entries = []
+        else:
+            root_tree = subprocess.run(
+                ["git", "-C", str(fixture_root), "rev-parse", "HEAD^{tree}"],
+                capture_output=True,
+                check=True,
+                text=True,
+            ).stdout.strip()
+            entries = []
+            for encoded in paths:
+                raw = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+                text = raw.decode("utf-8")
+                content = (fixture_root / text).read_text(encoding="utf-8")
+                entries.append(
+                    {
+                        "path_bytes_base64url": encoded,
+                        "path_utf8": text,
+                        "state": {
+                            "kind": "blob",
+                            "mode": "100644",
+                            "content": {"encoding": "utf-8", "data": content},
+                        },
+                    }
+                )
+        payload = {
+            "schema": "gate-a-candidate-view.v1",
+            "coverage": {"kind": coverage},
+            "git_object_format": "sha1",
+            "root_tree_object_id": root_tree,
+            "entries": entries,
+        }
+        return self._content_bound("gate-a-candidate-view-v1", payload)
+
+    def _qualified_closure(self, character: str, task: str, result: dict) -> dict:
+        return {
+            "producer": self._supporting(
+                character,
+                {
+                    "adjudication_output_schema_version": "1.0",
+                    "task": task,
+                    "result": result,
+                },
+            ),
+            "challenge": self._supporting(
+                chr(ord(character) + 2),
+                {
+                    "challenge_output_schema_version": "1.0",
+                    "challenge_kind": "derivation",
+                    "objective_assessments": [],
+                    "objections": [],
+                },
+            ),
+        }
+
+    def _task_input(
+        self,
+        fixture_root: Path,
+        task: str,
+        statement: dict,
+        output_results: dict[str, dict],
+    ) -> dict:
+        unique_closure = self._qualified_closure(
+            "7",
+            "unique-correction-derivation",
+            output_results["unique-correction-derivation"],
+        )
+        scope_closure = self._qualified_closure(
+            "a",
+            "realization-scope-derivation",
+            output_results["realization-scope-derivation"],
+        )
+        if task == "materiality-assessment" or task == "discovery-classification":
+            return {}
+        if task == "refutation":
+            return {"materiality_assessment": self._supporting("7")}
+        if task == "unique-correction-derivation":
+            return {
+                "discovery_classification": self._supporting("7"),
+                "target_classification": self._content_bound(
+                    "gate-a-discovery-classification-statement-v1", statement
+                ),
+            }
+        if task == "realization-scope-derivation":
+            return {
+                "qualified_unique_correction": unique_closure,
+                "candidate_view": self._candidate_view(fixture_root, "complete"),
+            }
+        readable = output_results["realization-scope-derivation"]["readable_paths"]
+        return {
+            "qualified_unique_correction": unique_closure,
+            "qualified_realization_scope": scope_closure,
+            "candidate_view": self._candidate_view(
+                fixture_root, "readable-paths", readable
+            ),
+        }
+
+    def _fixture(self, temporary: str, selector: str) -> dict:
+        fixture_root = make_fixture(temporary)
+        schema_helpers = GateAProtocolV7SchemaTests()
+        output_results = schema_helpers._output_payloads()
+        task = self.SELECTOR_TASKS[selector]
+        if task == "discovery-classification":
+            statement = schema_helpers._discovery_statement("no-normative-impact")
+            result = {
+                "earliest_unresolved_cause": {
+                    "classification_statement_ordinal": 0,
+                    "evidence_references": [{"kind": "source-finding"}],
+                    "causal_explanation": "Earliest cause.",
+                    "upstream_exclusion_argument": "No upstream cause.",
+                },
+                "classification_statements": [statement],
+            }
+        else:
+            statement = schema_helpers._discovery_statement()
+            result = output_results[task]
+        output = {
+            "adjudication_output_schema_version": "1.0",
+            "task": task,
+            "result": result,
+        }
+        output_ref = write_json_artifact(
+            fixture_root,
+            f"formal/reviews/adjudications/{task}.json",
+            output,
+            canonical=False,
+        )
+        review_ref = write_gate_a_review_packet(fixture_root)
+        review_payload = json.loads(
+            (fixture_root / review_ref["path"]).read_text(encoding="utf-8")
+        )
+        finding = self._finding()
+        subject = (
+            self._finding_subject(finding)
+            if task in {"materiality-assessment", "refutation"}
+            else self._surviving_subject()
+        )
+        packet = {
+            "adjudication_packet_schema_version": "1.0",
+            "task": task,
+            "review_packet": {
+                "sha256": review_ref["sha256"],
+                "payload": review_payload,
+            },
+            "subject": subject,
+            "finding": finding,
+            "revision": {"ordinal": 0},
+            "task_input": self._task_input(
+                fixture_root,
+                task,
+                statement,
+                output_results,
+            ),
+        }
+        packet_ref = write_json_artifact(
+            fixture_root,
+            f"formal/reviews/adjudication-packets/{task}.json",
+            packet,
+        )
+        role = checker.P7_DIRECT_CHALLENGE_FAMILIES[selector]["role"]
+        profile_id = "profile-producer"
+        profile = {
+            "profile_id": profile_id,
+            "provider": "provider",
+            "request_model": "model",
+            "frontier_eligible": True,
+            "identity_resolution": {"kind": "provider-reported"},
+        }
+        bundle = json.loads(
+            (
+                fixture_root
+                / "formal/reviews/protocols/gate-a-campaign-protocol-v7.json"
+            ).read_text(encoding="utf-8")
+        )
+        bundle["reviewer_profiles"] = [profile]
+        bundle["policies"]["reviewer_acquisition"]["profile_order"] = [profile_id]
+        bundle_sha = checker.sha256_hex(checker._canonical_json_document_bytes(bundle))
+        receipt = build_receipt_payload(
+            execution_id="EXEC-PRODUCER",
+            role=role,
+            reviewer_profile_id=profile_id,
+            protocol_bundle_sha256=bundle_sha,
+            prompt=bundle["prompts"][
+                "repair" if role == "repair-synthesizer" else "adjudication"
+            ],
+            packet=packet_ref,
+            provider="provider",
+            model="model",
+            raw_output=output_ref,
+        )
+        receipt["receipt_schema_version"] = "4.0"
+        receipt_ref = write_receipt_payload(
+            fixture_root, receipt, f"producer-{task}"
+        )
+        bound = {
+            "execution_receipt": self._runtime(
+                fixture_root, receipt_ref, checker.REVIEW_EXECUTIONS_PREFIX
+            ),
+            "packet": {
+                "artifact": self._runtime(
+                    fixture_root,
+                    packet_ref,
+                    checker.REVIEW_ADJUDICATION_PACKETS_PREFIX,
+                ),
+                "payload": packet,
+            },
+            "raw_output": self._runtime(
+                fixture_root, output_ref, checker.REVIEW_ADJUDICATIONS_PREFIX
+            ),
+            "parsed_output": output,
+        }
+        if selector == "gate-a-no-normative-impact-candidate-challenge-v1":
+            candidate = self._content_bound(
+                "gate-a-discovery-classification-statement-v1", statement
+            )
+        else:
+            candidate = result
+        subject_payload = {
+            "subject_schema_version": 1,
+            "selector": selector,
+            "subject": subject,
+            "producer": bound,
+            "candidate": candidate,
+        }
+        contract = next(
+            contract
+            for contract in bundle["policies"]["challenge"]["closure_contracts"]
+            if contract["challenge_subject_selector"] == selector
+        )
+        challenge_packet = {
+            "challenge_packet_schema_version": "1.0",
+            "challenge_kind": contract["challenge_kind"],
+            "challenge_subject": {
+                "selector": selector,
+                "sha256": checker.sha256_hex(
+                    checker._canonical_json_bytes(subject_payload)
+                ),
+                "payload": subject_payload,
+            },
+            "required_objectives": contract["required_objectives"],
+            "review_packet": packet["review_packet"],
+        }
+        validators, validator_errors = checker._bundle_selected_validators(
+            fixture_root, bundle, "bundle"
+        )
+        self.assertEqual([], validator_errors)
+        return {
+            "root": fixture_root,
+            "bundle": bundle,
+            "bundle_sha": bundle_sha,
+            "validators": validators,
+            "receipt_ref": receipt_ref,
+            "challenge_packet": challenge_packet,
+        }
+
+    def _errors(self, fixture: dict) -> list[str]:
+        return checker._p7_challenge_packet_errors(
+            fixture["root"],
+            fixture["challenge_packet"],
+            owner_receipt_refs=[fixture["receipt_ref"]],
+            bundle=fixture["bundle"],
+            bundle_sha256=fixture["bundle_sha"],
+            validators=fixture["validators"],
+            label="challenge",
+        )
+
+    def test_all_six_direct_producer_challenge_subjects_validate(self) -> None:
+        for selector in self.SELECTOR_TASKS:
+            with self.subTest(selector=selector), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary, selector)
+                self.assertEqual([], self._errors(fixture))
+
+    def test_direct_challenge_rejects_selector_hash_role_task_and_candidate_tampering(
+        self,
+    ) -> None:
+        mutations = (
+            "payload-selector",
+            "subject-sha",
+            "subject-selector",
+            "role",
+            "packet-task",
+            "parsed-output",
+            "candidate",
+            "review-packet",
+        )
+        selector = "gate-a-refutation-candidate-challenge-v1"
+        for mutation in mutations:
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary, selector)
+                packet = fixture["challenge_packet"]
+                payload = packet["challenge_subject"]["payload"]
+                if mutation == "payload-selector":
+                    payload["selector"] = "wrong"
+                elif mutation == "subject-sha":
+                    packet["challenge_subject"]["sha256"] = "0" * 64
+                elif mutation == "subject-selector":
+                    payload["subject"]["selector"] = "wrong"
+                elif mutation == "role":
+                    payload["producer"]["parsed_output"]["task"] = "wrong"
+                elif mutation == "packet-task":
+                    payload["producer"]["packet"]["payload"]["task"] = "wrong"
+                elif mutation == "parsed-output":
+                    payload["producer"]["parsed_output"]["result"] = {
+                        "kind": "not-established"
+                    }
+                elif mutation == "candidate":
+                    payload["candidate"]["argument"] = "tampered"
+                else:
+                    packet["review_packet"]["sha256"] = "0" * 64
+                self.assertTrue(self._errors(fixture))
+
+    def test_challenger_role_must_match_exact_closure_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(
+                temporary, "gate-a-refutation-candidate-challenge-v1"
+            )
+            errors = checker._p7_challenge_packet_errors(
+                fixture["root"],
+                fixture["challenge_packet"],
+                owner_receipt_refs=[fixture["receipt_ref"]],
+                bundle=fixture["bundle"],
+                bundle_sha256=fixture["bundle_sha"],
+                validators=fixture["validators"],
+                label="challenge",
+                challenger_role="decision-necessity-challenger",
+            )
+            self.assertTrue(any("challenger role" in error for error in errors))
+
+    def test_bound_evidence_rejects_runtime_and_embedded_payload_tampering(self) -> None:
+        mutations = (
+            "receipt-byte-length",
+            "receipt-artifact-id",
+            "packet-ref",
+            "raw-ref",
+            "packet-payload",
+            "raw-parsed-output",
+            "missing-owner",
+            "duplicate-owner",
+        )
+        selector = "gate-a-refutation-candidate-challenge-v1"
+        for mutation in mutations:
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary, selector)
+                producer = fixture["challenge_packet"]["challenge_subject"]["payload"]["producer"]
+                owners = [fixture["receipt_ref"]]
+                if mutation == "receipt-byte-length":
+                    producer["execution_receipt"]["byteLength"] += 1
+                elif mutation == "receipt-artifact-id":
+                    producer["execution_receipt"]["artifactId"] = "sha256:" + "0" * 64
+                elif mutation == "packet-ref":
+                    producer["packet"]["artifact"]["byteLength"] += 1
+                elif mutation == "raw-ref":
+                    producer["raw_output"]["mediaType"] = "text/plain"
+                elif mutation == "packet-payload":
+                    producer["packet"]["payload"]["task"] = "wrong"
+                elif mutation == "raw-parsed-output":
+                    producer["parsed_output"]["task"] = "wrong"
+                elif mutation == "missing-owner":
+                    owners = []
+                else:
+                    owners = [fixture["receipt_ref"], dict(fixture["receipt_ref"])]
+                errors = checker._p7_challenge_packet_errors(
+                    fixture["root"],
+                    fixture["challenge_packet"],
+                    owner_receipt_refs=owners,
+                    bundle=fixture["bundle"],
+                    bundle_sha256=fixture["bundle_sha"],
+                    validators=fixture["validators"],
+                    label="challenge",
+                )
+                self.assertTrue(errors)
+
+    def test_materiality_challenge_requires_all_false_axes(self) -> None:
+        selector = "gate-a-materiality-assessment-challenge-v1"
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary, selector)
+            payload = fixture["challenge_packet"]["challenge_subject"]["payload"]
+            payload["candidate"][checker.MATERIALITY_AXES[0]] = True
+            self.assertTrue(self._errors(fixture))
+
+    def test_no_normative_impact_rejects_sibling_and_wrong_disposition(self) -> None:
+        selector = "gate-a-no-normative-impact-candidate-challenge-v1"
+        for mutation in ("sibling", "disposition"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary, selector)
+                payload = fixture["challenge_packet"]["challenge_subject"]["payload"]
+                if mutation == "sibling":
+                    payload["candidate"]["payload"]["statement"] = "Sibling"
+                    payload["candidate"]["sha256"] = checker.sha256_hex(
+                        checker._canonical_json_bytes(payload["candidate"]["payload"])
+                    )
+                else:
+                    payload["candidate"]["payload"]["semantic_disposition"] = (
+                        "derived-from-existing-authority"
+                    )
+                    payload["candidate"]["sha256"] = checker.sha256_hex(
+                        checker._canonical_json_bytes(payload["candidate"]["payload"])
+                    )
+                self.assertTrue(self._errors(fixture))
+
+
+class GateAProtocolV7SupplementTests(unittest.TestCase):
+    def _context(self, role: str, output: dict, packet: dict | None = None) -> dict:
+        return {
+            "receipt": {"role": role},
+            "packet": packet or {},
+            "output": output,
+        }
+
+    def _materiality(self, positive: bool) -> dict:
+        result = {axis: False for axis in checker.MATERIALITY_AXES}
+        if positive:
+            result[checker.MATERIALITY_AXES[0]] = True
+        result["rationale"] = "Rationale."
+        return self._context(
+            "materiality-assessor",
+            {
+                "task": "materiality-assessment",
+                "result": result,
+            },
+        )
+
+    def test_effective_non_material_and_refutation_are_derived_from_exact_contexts(
+        self,
+    ) -> None:
+        assessment_ref = {"path": "assessment", "sha256": "1" * 64}
+        challenge_ref = {"path": "challenge", "sha256": "2" * 64}
+        refutation_ref = {"path": "refutation", "sha256": "3" * 64}
+        non_material = {
+            "effective_adjudication": {
+                "kind": "qualified-non-material",
+                "materiality_assessment_execution_receipt": assessment_ref,
+                "materiality_challenge_execution_receipt": challenge_ref,
+            }
+        }
+        materiality_challenge = self._context(
+            "challenge",
+            {"objections": []},
+            {
+                "challenge_subject": {
+                    "selector": "gate-a-materiality-assessment-challenge-v1"
+                }
+            },
+        )
+        contexts = {
+            ("assessment", "1" * 64): self._materiality(False),
+            ("challenge", "2" * 64): materiality_challenge,
+        }
+        self.assertEqual(
+            [],
+            checker._effective_supplement_adjudication_errors(
+                non_material, contexts, "supplement"
+            ),
+        )
+        non_material["effective_adjudication"][
+            "materiality_assessment_execution_receipt"
+        ] = {"path": "positive", "sha256": "4" * 64}
+        contexts[("positive", "4" * 64)] = self._materiality(True)
+        self.assertTrue(
+            checker._effective_supplement_adjudication_errors(
+                non_material, contexts, "supplement"
+            )
+        )
+
+        qualified_refutation = {
+            "effective_adjudication": {
+                "kind": "qualified-refutation",
+                "materiality_assessment_execution_receipt": {
+                    "path": "positive",
+                    "sha256": "4" * 64,
+                },
+                "refutation_execution_receipt": refutation_ref,
+                "refutation_challenge_execution_receipt": challenge_ref,
+            }
+        }
+        contexts[("refutation", "3" * 64)] = self._context(
+            "refutation-builder",
+            {"result": {"kind": "refutation-candidate"}},
+        )
+        contexts[("challenge", "2" * 64)] = self._context(
+            "challenge",
+            {"objections": []},
+            {
+                "challenge_subject": {
+                    "selector": "gate-a-refutation-candidate-challenge-v1"
+                }
+            },
+        )
+        self.assertEqual(
+            [],
+            checker._effective_supplement_adjudication_errors(
+                qualified_refutation, contexts, "supplement"
+            ),
+        )
+        contexts[("challenge", "2" * 64)]["output"]["objections"] = [
+            {"challenge_objection_id": "OBJECTION-1"}
+        ]
+        self.assertTrue(
+            checker._effective_supplement_adjudication_errors(
+                qualified_refutation, contexts, "supplement"
+            )
+        )
+
+    def test_surviving_material_requires_lawful_refutation_exhaustion(self) -> None:
+        effective = {
+            "effective_adjudication": {
+                "kind": "surviving-material",
+                "materiality_assessment_execution_receipt": {
+                    "path": "assessment",
+                    "sha256": "1" * 64,
+                },
+                "refutation_exhaustion_terminal_receipt": {
+                    "path": "terminal",
+                    "sha256": "2" * 64,
+                },
+            }
+        }
+        contexts = {
+            ("assessment", "1" * 64): self._materiality(True),
+            ("terminal", "2" * 64): self._context(
+                "refutation-builder",
+                {"result": {"kind": "not-established"}},
+            ),
+        }
+        self.assertEqual(
+            [],
+            checker._effective_supplement_adjudication_errors(
+                effective, contexts, "supplement"
+            ),
+        )
+        contexts[("terminal", "2" * 64)]["output"]["result"] = {
+            "kind": "refutation-candidate"
+        }
+        self.assertTrue(
+            checker._effective_supplement_adjudication_errors(
+                effective, contexts, "supplement"
+            )
+        )
+
+    def test_lineage_packet_must_bind_exact_supplement_subject_protocol_and_finding(
+        self,
+    ) -> None:
+        source = finding(finding_id="F-1", status="open")
+        semantic_subject = {
+            "selector": "gate-a-assurance-decomposition-v1",
+            "sha256": "1" * 64,
+        }
+        protocol_ref = {
+            "path": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+            "sha256": "2" * 64,
+        }
+        review_ref = {
+            "path": "formal/reviews/packets/review.json",
+            "sha256": "3" * 64,
+        }
+        supplement = {
+            "semantic_subject": semantic_subject,
+            "protocol": {
+                "protocol_bundle": protocol_ref,
+                "review_packet": review_ref,
+            },
+            "source_finding": {
+                "review_id": "REVIEW-SOURCE",
+                "finding_id": "F-1",
+                "substantive_finding_sha256": checker._finding_subject_sha256(
+                    source
+                ),
+            },
+            "adjudicating_review_id": "REVIEW-CURRENT",
+        }
+        review_packet = {"packet": "exact"}
+        subject_payload = {
+            "semanticSubject": semantic_subject,
+            "currentProtocolBundle": {
+                "protocolId": "gate-a-campaign-protocol-v7",
+                "repositoryPath": protocol_ref["path"],
+                "sha256": protocol_ref["sha256"],
+            },
+            "sourceFinding": {
+                "reviewCampaignId": "REVIEW-SOURCE",
+                "findingId": "F-1",
+                "substantiveFindingSha256": checker._finding_subject_sha256(
+                    source
+                ),
+            },
+            "adjudicatingReviewCampaignId": "REVIEW-CURRENT",
+        }
+        packet = {
+            "task": "materiality-assessment",
+            "review_packet": {
+                "sha256": review_ref["sha256"],
+                "payload": review_packet,
+            },
+            "finding": {
+                "selector": checker.FINDING_SUBJECT_SELECTOR,
+                "sha256": checker._finding_subject_sha256(source),
+                "payload": checker._finding_subject_payload(source),
+            },
+            "subject": {
+                "selector": "gate-a-finding-adjudication-subject-v1",
+                "payload": subject_payload,
+            },
+        }
+        bundle = {"protocol_id": "gate-a-campaign-protocol-v7"}
+        self.assertEqual(
+            [],
+            checker._p7_lineage_packet_errors(
+                packet,
+                supplement=supplement,
+                source_finding=source,
+                bundle=bundle,
+                review_packet=review_packet,
+                label="packet",
+            ),
+        )
+        for field, replacement in (
+            ("semanticSubject", {"selector": "wrong", "sha256": "1" * 64}),
+            ("currentProtocolBundle", {"protocolId": "wrong"}),
+            ("adjudicatingReviewCampaignId", "REVIEW-WRONG"),
+        ):
+            with self.subTest(field=field):
+                mutated = copy.deepcopy(packet)
+                mutated["subject"]["payload"][field] = replacement
+                self.assertTrue(
+                    checker._p7_lineage_packet_errors(
+                        mutated,
+                        supplement=supplement,
+                        source_finding=source,
+                        bundle=bundle,
+                        review_packet=review_packet,
+                        label="packet",
+                    )
+                )
+
+    def test_supplement_loader_requires_canonical_document_and_content_addressed_name(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = root / "formal/reviews/supplements"
+            directory.mkdir(parents=True)
+            value = {"supplement_schema_version": "1.0"}
+            data = checker._canonical_json_document_bytes(value)
+            valid = directory / f"{checker.sha256_hex(data)}.json"
+            valid.write_bytes(data)
+            supplements, errors = checker.load_finding_adjudication_supplements(
+                root
+            )
+            self.assertEqual([], errors)
+            self.assertEqual([(valid, value)], supplements)
+            valid.rename(directory / "wrong.json")
+            _supplements, errors = checker.load_finding_adjudication_supplements(
+                root
+            )
+            self.assertTrue(any("filename must equal" in error for error in errors))
+
+    def test_current_protocol_supplement_overlay_controls_gate_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            source_record = make_review(
+                fixture_root,
+                review_id="REVIEW-SOURCE",
+                findings=[finding(status="open")],
+            )
+            install_protocol_bundle(fixture_root, [default_profile("EXEC-C")])
+            current_record = make_review(
+                fixture_root,
+                review_id="REVIEW-CURRENT",
+                executions=executions_for(fixture_root, ["EXEC-C", "EXEC-D"]),
+            )
+            manifest = load_manifest(fixture_root)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
+            )
+            self.assertEqual([], subject_errors)
+            requirements = checker._load_gate_a_requirements(fixture_root)
+            source = source_record["findings"][0]
+            supplement = {
+                "protocol": {
+                    "protocol_bundle": manifest["policy"]["hostile_review"][
+                        "current_protocol_bundle"
+                    ]
+                },
+                "source_finding": {
+                    "review_id": source_record["review_id"],
+                    "finding_id": source["finding_id"],
+                },
+                "effective_adjudication": {"kind": "qualified-non-material"},
+            }
+            records = [
+                (Path("source.yaml"), source_record),
+                (Path("current.yaml"), current_record),
+            ]
+            summary = checker.derive_gate_a(
+                fixture_root,
+                manifest,
+                current_subject,
+                records,
+                requirements[0],
+                requirements[1],
+                supplements=[(Path("supplement.json"), supplement)],
+            )
+            self.assertTrue(summary["ready"])
+            supplement["effective_adjudication"]["kind"] = "surviving-material"
+            summary = checker.derive_gate_a(
+                fixture_root,
+                manifest,
+                current_subject,
+                records,
+                requirements[0],
+                requirements[1],
+                supplements=[(Path("supplement.json"), supplement)],
+            )
+            self.assertFalse(summary["ready"])
+
+
+class GateAProtocolV7DecisionAndDagTests(unittest.TestCase):
+    def _bound_value(self, marker: str) -> dict:
+        digest = marker * 64
+        runtime = {
+            "artifactId": "sha256:" + digest,
+            "sha256": digest,
+            "byteLength": 1,
+            "mediaType": "application/json",
+            "repositoryPath": None,
+        }
+        return {
+            "execution_receipt": runtime,
+            "packet": {"artifact": runtime, "payload": {}},
+            "raw_output": runtime,
+            "parsed_output": {},
+        }
+
+    def _producer_context(
+        self,
+        subject: dict,
+        hypothesis: dict,
+        *,
+        ordinal: int,
+        result: dict,
+        revision: dict | None = None,
+    ) -> dict:
+        packet_revision = revision or {"ordinal": ordinal}
+        return {
+            "receipt": {"role": "derivation-builder"},
+            "packet": {
+                "task": "unique-correction-derivation",
+                "subject": subject,
+                "review_packet": {"sha256": "1" * 64, "payload": {}},
+                "revision": packet_revision,
+                "task_input": {"target_classification": hypothesis},
+            },
+            "output": {
+                "task": "unique-correction-derivation",
+                "result": result,
+            },
+        }
+
+    def _challenge_context(
+        self, challenge_subject: dict, *, objections: list[dict]
+    ) -> dict:
+        return {
+            "receipt": {"role": "challenge"},
+            "packet": {
+                "challenge_kind": "derivation",
+                "challenge_subject": challenge_subject,
+                "review_packet": {"sha256": "1" * 64, "payload": {}},
+            },
+            "output": {"objections": objections},
+        }
+
+    def _exhaustion_call(
+        self,
+        value: dict,
+        contexts: list[dict],
+        subject: dict,
+        hypothesis: dict,
+    ) -> list[str]:
+        with mock.patch.object(
+            checker,
+            "_bound_execution_evidence",
+            side_effect=[(context, []) for context in contexts],
+        ):
+            return checker._p7_unique_correction_exhaustion_errors(
+                Path("/unused"),
+                value,
+                subject=subject,
+                discovery_hypothesis=hypothesis,
+                review_packet={"sha256": "1" * 64, "payload": {}},
+                owner_receipt_refs=[],
+                bundle={},
+                bundle_sha256="2" * 64,
+                validators={},
+                label="exhaustion",
+            )
+
+    def test_unique_correction_exhaustion_k1_k2_k3_validate(self) -> None:
+        subject = {"selector": "gate-a-surviving-material-resolution-subject-v1"}
+        hypothesis = {
+            "selector": "gate-a-discovery-classification-statement-v1"
+        }
+        positive = {"kind": "unique-correction-candidate"}
+        negative = {"kind": "not-established"}
+        initial_value = self._bound_value("1")
+        challenge_value = self._bound_value("2")
+        revision_value = self._bound_value("3")
+        revised_challenge_value = self._bound_value("4")
+        initial_context = self._producer_context(
+            subject, hypothesis, ordinal=0, result=positive
+        )
+        challenge_subject = {
+            "selector": "gate-a-unique-correction-candidate-challenge-v1",
+            "sha256": "5" * 64,
+            "payload": {"candidate": positive},
+        }
+        objection = [{"challenge_objection_id": "OBJECTION-1"}]
+        initial_challenge_context = self._challenge_context(
+            challenge_subject, objections=objection
+        )
+        prior_producer = checker._bound_supporting_projection(initial_value)
+        prior_challenge = checker._bound_supporting_projection(challenge_value)
+        revision_base = {
+            "ordinal": 1,
+            "closure_subject": challenge_subject,
+            "prior_producer": prior_producer,
+            "prior_challenge": prior_challenge,
+        }
+        cases = [
+            (
+                {"kind": "initial-not-established", "producer": initial_value},
+                [
+                    self._producer_context(
+                        subject, hypothesis, ordinal=0, result=negative
+                    )
+                ],
+            ),
+            (
+                {
+                    "kind": "revision-not-established",
+                    "initial_producer": initial_value,
+                    "initial_challenge": challenge_value,
+                    "revision_producer": revision_value,
+                },
+                [
+                    initial_context,
+                    initial_challenge_context,
+                    self._producer_context(
+                        subject,
+                        hypothesis,
+                        ordinal=1,
+                        result=negative,
+                        revision=revision_base,
+                    ),
+                ],
+            ),
+            (
+                {
+                    "kind": "revised-challenge-objections",
+                    "initial_producer": initial_value,
+                    "initial_challenge": challenge_value,
+                    "revision_producer": revision_value,
+                    "revision_challenge": revised_challenge_value,
+                },
+                [
+                    initial_context,
+                    initial_challenge_context,
+                    self._producer_context(
+                        subject,
+                        hypothesis,
+                        ordinal=1,
+                        result=positive,
+                        revision=revision_base,
+                    ),
+                    self._challenge_context(
+                        {
+                            "selector": "gate-a-unique-correction-candidate-challenge-v1",
+                            "payload": {"candidate": positive},
+                        },
+                        objections=objection,
+                    ),
+                ],
+            ),
+        ]
+        for value, contexts in cases:
+            with self.subTest(kind=value["kind"]):
+                self.assertEqual(
+                    [], self._exhaustion_call(value, contexts, subject, hypothesis)
+                )
+
+    def test_unique_correction_exhaustion_rejects_unrevised_or_qualified_paths(
+        self,
+    ) -> None:
+        subject = {"selector": "gate-a-surviving-material-resolution-subject-v1"}
+        hypothesis = {
+            "selector": "gate-a-discovery-classification-statement-v1"
+        }
+        value = {
+            "kind": "revision-not-established",
+            "initial_producer": self._bound_value("1"),
+            "initial_challenge": self._bound_value("2"),
+            "revision_producer": self._bound_value("3"),
+        }
+        positive = {"kind": "unique-correction-candidate"}
+        contexts = [
+            self._producer_context(subject, hypothesis, ordinal=0, result=positive),
+            self._challenge_context(
+                {
+                    "selector": "gate-a-unique-correction-candidate-challenge-v1",
+                    "payload": {"candidate": positive},
+                },
+                objections=[],
+            ),
+            self._producer_context(subject, hypothesis, ordinal=0, result=positive),
+        ]
+        self.assertTrue(self._exhaustion_call(value, contexts, subject, hypothesis))
+        invalid = {"kind": "operational-inability"}
+        self.assertTrue(self._exhaustion_call(invalid, [], subject, hypothesis))
+
+    def test_decision_necessity_basis_must_equal_decision_required_hypothesis(
+        self,
+    ) -> None:
+        statement = GateAProtocolV7SchemaTests()._discovery_statement(
+            "decision-required"
+        )
+        hypothesis = {
+            "selector": "gate-a-discovery-classification-statement-v1",
+            "sha256": checker.sha256_hex(checker._canonical_json_bytes(statement)),
+            "payload": statement,
+        }
+        subject_payload = {"subject": "surviving"}
+        subject = {
+            "selector": "gate-a-surviving-material-resolution-subject-v1",
+            "sha256": checker.sha256_hex(
+                checker._canonical_json_bytes(subject_payload)
+            ),
+            "payload": subject_payload,
+        }
+        payload = {
+            "subject_schema_version": 1,
+            "selector": checker.P7_DECISION_NECESSITY_SELECTOR,
+            "subject": subject,
+            "discovery_hypothesis": hypothesis,
+            "unique_correction_exhaustion": {
+                "kind": "initial-not-established",
+                "producer": self._bound_value("1"),
+            },
+            "candidate": {
+                "kind": "decision-necessity-candidate",
+                "basis": statement["disposition_basis"],
+            },
+        }
+        packet = {
+            "challenge_subject": {
+                "selector": checker.P7_DECISION_NECESSITY_SELECTOR,
+                "sha256": checker.sha256_hex(
+                    checker._canonical_json_bytes(payload)
+                ),
+                "payload": payload,
+            },
+            "review_packet": {"sha256": "1" * 64, "payload": {}},
+        }
+        with mock.patch.object(
+            checker,
+            "_p7_unique_correction_exhaustion_errors",
+            return_value=[],
+        ):
+            self.assertEqual(
+                [],
+                checker._p7_decision_necessity_subject_errors(
+                    Path("/unused"), packet, [], {}, "2" * 64, {}, "decision"
+                ),
+            )
+            payload["candidate"]["basis"] = {"kind": "different"}
+            self.assertTrue(
+                checker._p7_decision_necessity_subject_errors(
+                    Path("/unused"), packet, [], {}, "2" * 64, {}, "decision"
+                )
+            )
+            payload["discovery_hypothesis"]["payload"][
+                "semantic_disposition"
+            ] = "no-normative-impact"
+            self.assertTrue(
+                checker._p7_decision_necessity_subject_errors(
+                    Path("/unused"), packet, [], {}, "2" * 64, {}, "decision"
+                )
+            )
+
+    def test_supporting_execution_dag_accepts_closed_acyclic_graph(self) -> None:
+        nodes = {
+            "A": {
+                "predecessors": set(),
+                "lineage": ("finding", "S", "P"),
+                "logical_key": ("producer", "packet-a"),
+            },
+            "B": {
+                "predecessors": {"A"},
+                "lineage": ("finding", "S", "P"),
+                "logical_key": ("challenge", "packet-b"),
+            },
+        }
+        self.assertEqual(
+            [], checker._supporting_execution_dag_errors(nodes, {"B"}, "dag")
+        )
+
+    def test_supporting_execution_dag_rejects_orphan_cycle_cross_lineage_and_duplicate(
+        self,
+    ) -> None:
+        cases = {
+            "orphan": (
+                {
+                    "A": {"predecessors": set(), "lineage": 1, "logical_key": 1},
+                    "B": {"predecessors": set(), "lineage": 1, "logical_key": 2},
+                },
+                {"A"},
+            ),
+            "cycle": (
+                {
+                    "A": {"predecessors": {"B"}, "lineage": 1, "logical_key": 1},
+                    "B": {"predecessors": {"A"}, "lineage": 1, "logical_key": 2},
+                },
+                {"A"},
+            ),
+            "cross": (
+                {
+                    "A": {"predecessors": set(), "lineage": 1, "logical_key": 1},
+                    "B": {"predecessors": {"A"}, "lineage": 2, "logical_key": 2},
+                },
+                {"B"},
+            ),
+            "duplicate": (
+                {
+                    "A": {"predecessors": set(), "lineage": 1, "logical_key": 1},
+                    "B": {"predecessors": {"A"}, "lineage": 1, "logical_key": 1},
+                },
+                {"B"},
+            ),
+        }
+        for name, (nodes, roots) in cases.items():
+            with self.subTest(name=name):
+                self.assertTrue(
+                    checker._supporting_execution_dag_errors(nodes, roots, "dag")
+                )
 
 
 if __name__ == "__main__":
