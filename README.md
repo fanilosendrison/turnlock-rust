@@ -72,6 +72,16 @@ for the full product thesis. Normative product meaning remains in the
 [TURNLOCK specification](docs/specification/turnlock-spec.md), with decision
 history in the [annotated ADR history](docs/adr/README.md).
 
+Two non-normative Product Rationale documents explain the user value:
+[TURNLOCK Product Rationale](docs/product/turnlock-product-rationale.md)
+connects executable working methods to industrialization and the scalability of
+attention, coordination, and composition. The
+[Turnlock Cloud Product Rationale](docs/product/turnlock-cloud-product-rationale.md)
+explains the possible managed-execution and run-evaluation opportunity,
+including operational scalability and systematic method improvement. Neither
+rationale is an input to normative derivation or establishes new product
+semantics; the Cloud rationale does not establish Turnlock Cloud Product Intent.
+
 ## Repository status
 
 TURNLOCK is developed specification-first: normative product meaning and
@@ -90,6 +100,10 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 
 - [Repository directives](AGENTS.md) define authority boundaries and guardrails
   for coding agents.
+- [TURNLOCK Product Rationale](docs/product/turnlock-product-rationale.md)
+  explains non-normative user value, industrialization, and coordination scalability.
+- [Turnlock Cloud Product Rationale](docs/product/turnlock-cloud-product-rationale.md)
+  explains the non-normative managed-execution and run-evaluation opportunity.
 - [Architectural vision](docs/vision/turnlock-vision.md) explains the
   non-normative long-term thesis and motivation.
 - [Future workflow run-evaluation design space](docs/vision/future-workflow-run-evaluation.md)
