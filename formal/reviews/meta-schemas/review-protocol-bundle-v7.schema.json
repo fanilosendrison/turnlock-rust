@@ -1,0 +1,520 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-protocol-bundle:7",
+  "title": "TURNLOCK hostile-review protocol bundle (schema version 7)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_bundle_schema_version",
+    "protocol_id",
+    "predecessor",
+    "review_class",
+    "meta_schemas",
+    "prompts",
+    "schemas",
+    "reviewer_profiles",
+    "policies"
+  ],
+  "properties": {
+    "protocol_bundle_schema_version": {
+      "const": 7
+    },
+    "protocol_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "predecessor": {
+      "$ref": "#/$defs/artifactReference"
+    },
+    "review_class": {
+      "const": "assurance-decomposition"
+    },
+    "meta_schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol-bundle",
+        "review-evidence"
+      ],
+      "properties": {
+        "protocol-bundle": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "review-evidence": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initial-reviewer",
+        "adjudication",
+        "challenge",
+        "repair"
+      ],
+      "properties": {
+        "initial-reviewer": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "adjudication": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "repair": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw-review-output",
+        "execution-receipt",
+        "challenge-output",
+        "challenge-packet",
+        "adjudication-packet",
+        "adjudication-output",
+        "finding-adjudication-supplement"
+      ],
+      "properties": {
+        "raw-review-output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "execution-receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge-output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "challenge-packet": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "adjudication-packet": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "adjudication-output": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "finding-adjudication-supplement": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "reviewer_profiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reviewerProfile"
+      }
+    },
+    "policies": {
+      "$ref": "#/$defs/policies"
+    }
+  },
+  "$defs": {
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "reviewerProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "provider",
+        "request_model",
+        "frontier_eligible",
+        "identity_resolution"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frontier_eligible": {
+          "type": "boolean"
+        },
+        "identity_resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "provider-reported",
+                "pinned-request-model"
+              ]
+            },
+            "request_model_is_immutable_version": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalization",
+        "retry",
+        "challenge",
+        "model_identity",
+        "decision_request",
+        "external_outcomes",
+        "artifact_lifecycle",
+        "reviewer_acquisition",
+        "supporting_role_acquisition"
+      ],
+      "properties": {
+        "normalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "semantic_merge_allowed",
+            "semantic_deduplication_allowed"
+          ],
+          "properties": {
+            "mode": {
+              "const": "one-to-one"
+            },
+            "semantic_merge_allowed": {
+              "const": false
+            },
+            "semantic_deduplication_allowed": {
+              "const": false
+            }
+          }
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "technical_retry_allowed",
+            "protocol_invalid_completion_retry_allowed",
+            "semantic_result_retry_allowed",
+            "all_completed_attempts_must_be_sealed",
+            "outcome_classification",
+            "first_protocol_valid_completion_is_terminal",
+            "deterministically_validated_roles"
+          ],
+          "properties": {
+            "technical_retry_allowed": {
+              "const": true
+            },
+            "protocol_invalid_completion_retry_allowed": {
+              "const": true
+            },
+            "semantic_result_retry_allowed": {
+              "const": false
+            },
+            "all_completed_attempts_must_be_sealed": {
+              "const": true
+            },
+            "outcome_classification": {
+              "const": "role-aware-conservative"
+            },
+            "first_protocol_valid_completion_is_terminal": {
+              "const": true
+            },
+            "deterministically_validated_roles": {
+              "const": [
+                "initial-reviewer",
+                "materiality-assessor",
+                "refutation-builder",
+                "challenge",
+                "discovery-classifier",
+                "derivation-builder",
+                "decision-necessity-challenger",
+                "repair-synthesizer"
+              ]
+            }
+          }
+        },
+        "challenge": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_closure_revisions",
+            "semantic_result_model_shopping_allowed",
+            "incidental_findings_allowed",
+            "exact_input_packet_binding_required",
+            "closure_contracts"
+          ],
+          "properties": {
+            "max_closure_revisions": {
+              "const": 1
+            },
+            "semantic_result_model_shopping_allowed": {
+              "const": false
+            },
+            "incidental_findings_allowed": {
+              "const": false
+            },
+            "exact_input_packet_binding_required": {
+              "const": true
+            },
+            "closure_contracts": {
+              "const": [
+                {
+                  "candidate_family": "materiality-assessment",
+                  "challenge_kind": "materiality",
+                  "challenge_subject_selector": "gate-a-materiality-assessment-challenge-v1",
+                  "challenger_role": "challenge",
+                  "required_objectives": [
+                    "authority_or_upstream_decision",
+                    "claim_structure",
+                    "normative_provenance",
+                    "modality_or_assurance_domain",
+                    "coverage_or_residual_assurance",
+                    "interaction_scope",
+                    "candidate_model_authorization"
+                  ],
+                  "revision_producer_role": "materiality-assessor",
+                  "revision_task": "materiality-assessment",
+                  "withdrawal": "not-permitted"
+                },
+                {
+                  "candidate_family": "refutation",
+                  "challenge_kind": "refutation",
+                  "challenge_subject_selector": "gate-a-refutation-candidate-challenge-v1",
+                  "challenger_role": "challenge",
+                  "required_objectives": [
+                    "attacked-premise-still-supported",
+                    "target-correctly-identified",
+                    "counterexample-remains-in-scope",
+                    "consequence-still-follows",
+                    "not-actually-already-accounted-for",
+                    "hidden-assumption-in-refutation",
+                    "alternative-authority-compatible-interpretation"
+                  ],
+                  "revision_producer_role": "refutation-builder",
+                  "revision_task": "refutation",
+                  "withdrawal": "not-established"
+                },
+                {
+                  "candidate_family": "unique-correction",
+                  "challenge_kind": "derivation",
+                  "challenge_subject_selector": "gate-a-unique-correction-candidate-challenge-v1",
+                  "challenger_role": "challenge",
+                  "required_objectives": [
+                    "authority-does-not-entail-correction",
+                    "materially-distinct-authority-compatible-alternative",
+                    "required-consequence-omitted",
+                    "unauthorized-semantic-effect",
+                    "hidden-assumption-in-derivation"
+                  ],
+                  "revision_producer_role": "derivation-builder",
+                  "revision_task": "unique-correction-derivation",
+                  "withdrawal": "not-established"
+                },
+                {
+                  "candidate_family": "realization-scope",
+                  "challenge_kind": "derivation",
+                  "challenge_subject_selector": "gate-a-realization-scope-candidate-challenge-v1",
+                  "challenger_role": "challenge",
+                  "required_objectives": [
+                    "realization-scope-omits-required-surface",
+                    "realization-scope-grants-unnecessary-write-authority"
+                  ],
+                  "revision_producer_role": "derivation-builder",
+                  "revision_task": "realization-scope-derivation",
+                  "withdrawal": "not-established"
+                },
+                {
+                  "candidate_family": "no-normative-impact",
+                  "challenge_kind": "normative-impact",
+                  "challenge_subject_selector": "gate-a-no-normative-impact-candidate-challenge-v1",
+                  "challenger_role": "challenge",
+                  "required_objectives": [
+                    "correction-requires-product-authority-change",
+                    "correction-selects-among-product-meanings",
+                    "missing-product-obligation-exposed",
+                    "earliest-cause-is-normative-or-upstream",
+                    "accepted-observable-behavior-would-change",
+                    "downstream-resolution-requires-product-choice",
+                    "authority-conflict-hidden-as-downstream-defect"
+                  ],
+                  "revision_producer_role": "discovery-classifier",
+                  "revision_task": "discovery-classification",
+                  "revision_task_mode": "closure-revision",
+                  "revision_target": "no-normative-impact",
+                  "withdrawal": "not-established"
+                },
+                {
+                  "candidate_family": "decision-necessity",
+                  "challenge_kind": "decision-necessity",
+                  "challenge_subject_selector": "gate-a-decision-necessity-candidate-challenge-v1",
+                  "challenger_role": "decision-necessity-challenger",
+                  "required_objectives": [
+                    "alternative-not-authority-compatible",
+                    "alternatives-not-materially-distinct",
+                    "existing-authority-selects-an-alternative",
+                    "unique-existing-authority-derivation-remains",
+                    "alleged-conflict-is-downstream-only",
+                    "alleged-conflict-resolved-by-precedence",
+                    "uncertainty-is-missing-evidence-not-product-freedom",
+                    "authority-source-is-not-controlling"
+                  ],
+                  "revision_producer_role": "discovery-classifier",
+                  "revision_task": "discovery-classification",
+                  "revision_task_mode": "closure-revision",
+                  "revision_target": "decision-necessity",
+                  "withdrawal": "not-established"
+                },
+                {
+                  "candidate_family": "repair-realization",
+                  "challenge_kind": "repair",
+                  "challenge_subject_selector": "gate-a-repair-realization-candidate-challenge-v1",
+                  "challenger_role": "challenge",
+                  "required_objectives": [
+                    "authorized-correction-not-fully-realized",
+                    "realization-exceeds-authorized-correction",
+                    "product-semantic-choice-introduced",
+                    "unrelated-cleanup-or-refactor",
+                    "hidden-assumption-in-realization",
+                    "previous-qualified-correction-broken",
+                    "already-realized-claim-not-supported",
+                    "required-candidate-change-omitted",
+                    "partial-realization-misclassified-complete"
+                  ],
+                  "revision_producer_role": "repair-synthesizer",
+                  "revision_task": "repair-realization",
+                  "withdrawal": "not-established"
+                }
+              ]
+            }
+          }
+        },
+        "model_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identity_fields",
+            "effective_duplicate_fields",
+            "provider_reported_resolution"
+          ],
+          "properties": {
+            "identity_fields": {
+              "const": [
+                "provider",
+                "model",
+                "model_version"
+              ]
+            },
+            "effective_duplicate_fields": {
+              "const": [
+                "provider",
+                "model_version"
+              ]
+            },
+            "provider_reported_resolution": {
+              "const": "provider-owned-canonical-effective-model-identity-v1"
+            }
+          }
+        },
+        "decision_request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope"
+          ],
+          "properties": {
+            "scope": {
+              "const": "full-current-subject-plus-current-protocol-plus-finding"
+            }
+          }
+        },
+        "external_outcomes": {
+          "const": [
+            "GATE-A-READY",
+            "DECISION-REQUIRED",
+            "OPERATOR-ACTION-REQUIRED"
+          ]
+        },
+        "artifact_lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "predecessor_chain_required",
+            "referenced_artifacts_immutable_by_path",
+            "protocol_changes_require_new_artifact_paths"
+          ],
+          "properties": {
+            "predecessor_chain_required": {
+              "const": true
+            },
+            "referenced_artifacts_immutable_by_path": {
+              "const": true
+            },
+            "protocol_changes_require_new_artifact_paths": {
+              "const": true
+            }
+          }
+        },
+        "reviewer_acquisition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "profile_order"
+          ],
+          "properties": {
+            "mode": {
+              "const": "minimum-effective-independent-v1"
+            },
+            "profile_order": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "supporting_role_acquisition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "const": "first-statically-qualifying-in-reviewer-acquisition-order-v1"
+            }
+          }
+        }
+      }
+    }
+  }
+}
