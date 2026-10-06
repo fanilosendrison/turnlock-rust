@@ -496,11 +496,19 @@ execution-receipt schema 3.0 remains current
 review-evidence schema 5.0 remains current
 NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
 M5-B, M5-C and M5-D remain pending construction
-no protocol-v7 schema, supplement or checker behavior is active merely because
-ADR-055 exists
+an inactive protocol-v7 candidate may be validated without becoming current
+no protocol-v7 campaign, supplement overlay or readiness behavior is active
+merely because ADR-055 or the inactive candidate exists
 ```
 
-The expected later construction synchronization reserves immutable
+The inactive protocol-v7 candidate fixes the exact adjudication-packet namespace
+as `formal/reviews/adjudication-packets/*.json`, keeps adjudication outputs under
+`formal/reviews/adjudications/*.json`, and projects immutable supplements under
+`formal/reviews/supplements/<supplement-sha256>.json`. The checker validates the
+candidate bundle and these closed namespace, identity, supporting-DAG, and
+effective-overlay contracts without selecting P7 as current.
+
+The expected later activation synchronization reserves immutable
 `ReviewContext` for initial-review production provenance and moves post-review
 adjudication/resolution cognitive work onto current resolution provenance.
 

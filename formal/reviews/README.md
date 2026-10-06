@@ -66,8 +66,15 @@ the exact immutable v5 bundle as its predecessor; v5 links v4, v4 links v3, v3
 links v2, and v2 links v1. Predecessor bundles and their referenced prompts and
 schemas are recursively checked. Published versioned protocol bundles and
 referenced prompt/schema artifacts are append-only by path and bytes. The
-protocol history is `v6 -> v5 -> v4 -> v3 -> v2 -> v1`; v1-v5 remain immutable
-history.
+active protocol history is `v6 -> v5 -> v4 -> v3 -> v2 -> v1`; v1-v5 remain
+immutable history.
+
+An inactive `gate-a-campaign-protocol-v7` candidate is also present. Its bundle,
+meta-schema, prompts, schemas, predecessor binding, repository namespaces, and
+supporting-evidence rules are mechanically validated, but it is not selected by
+`formal/verification.yaml`. It therefore does not change currentness, reviewer
+acquisition, Gate A readiness, or the active execution-receipt schema. ADR-055
+remains proposed.
 
 The published v1-v5 bundles intentionally declare:
 
@@ -91,6 +98,7 @@ formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json
 formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json
+formal/reviews/meta-schemas/review-protocol-bundle-v7.schema.json
 ```
 
 `review-evidence-v5.schema.json` is the immutable unchanged review-evidence
@@ -99,6 +107,8 @@ bundle validation semantics for bundle schema versions 1, 2, and 3.
 `review-protocol-bundle-v4.schema.json` and
 `review-protocol-bundle-v5.schema.json` define historical bundle schema versions
 4 and 5. `review-protocol-bundle-v6.schema.json` is current for schema version 6.
+`review-protocol-bundle-v7.schema.json` validates only the inactive protocol-v7
+candidate.
 
 Protocol v6 binds both exact current meta-schema artifact references into
 protocol identity `P`:
@@ -620,6 +630,7 @@ Campaign artifacts use these repository-relative conventions:
 ```text
 formal/reviews/packets/*.json
 formal/reviews/challenge-packets/*.json
+formal/reviews/adjudication-packets/*.json
 formal/reviews/prompts/*.md
 formal/reviews/protocols/*.json
 formal/reviews/schemas/*.json
@@ -628,6 +639,7 @@ formal/reviews/executions/*.json
 formal/reviews/raw/*.json
 formal/reviews/adjudications/*.json
 formal/reviews/challenges/*.json
+formal/reviews/supplements/<supplement-sha256>.json
 ```
 
 Their absence is normal while no real hostile-review campaign has been executed;
