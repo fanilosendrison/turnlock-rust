@@ -82,6 +82,8 @@ including operational scalability and systematic method improvement. Neither
 rationale is an input to normative derivation or establishes new product
 semantics; the Cloud rationale does not establish Turnlock Cloud Product Intent.
 
+[Product positioning and differentiation](docs/product/positioning.md) explains the non-normative distinction between workflow execution, run reproducibility, valid comparison, regression attribution, and method optimization without naming or rating competitors.
+
 ## Repository status
 
 TURNLOCK is developed specification-first: normative product meaning and
@@ -104,6 +106,13 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   explains non-normative user value, industrialization, and coordination scalability.
 - [Turnlock Cloud Product Rationale](docs/product/turnlock-cloud-product-rationale.md)
   explains the non-normative managed-execution and run-evaluation opportunity.
+- [Product positioning and differentiation](docs/product/positioning.md)
+  explains the non-normative distinction among TURNLOCK guarantees, managed
+  execution, run reproducibility/comparability, regression evaluation, and
+  optimization.
+- [Competitive Guarantee Watch](docs/research/competitive-watch/README.md)
+  owns the non-normative evidence process, permanent radar, and immutable dated
+  competitive reports.
 - [Architectural vision](docs/vision/turnlock-vision.md) explains the
   non-normative long-term thesis and motivation.
 - [Future workflow run-evaluation design space](docs/vision/future-workflow-run-evaluation.md)
