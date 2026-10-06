@@ -1,0 +1,1664 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-adjudication-output:1",
+  "title": "TURNLOCK hostile-review adjudication output (schema version 1.0)",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_output_schema_version",
+        "task",
+        "result"
+      ],
+      "properties": {
+        "adjudication_output_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "materiality-assessment"
+        },
+        "result": {
+          "$ref": "#/$defs/materialityResult"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_output_schema_version",
+        "task",
+        "result"
+      ],
+      "properties": {
+        "adjudication_output_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "refutation"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/refutationCandidate"
+            },
+            {
+              "$ref": "#/$defs/notEstablished"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_output_schema_version",
+        "task",
+        "result"
+      ],
+      "properties": {
+        "adjudication_output_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "discovery-classification"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/initialDiscoveryResult"
+            },
+            {
+              "$ref": "#/$defs/discoveryRevisionResult"
+            },
+            {
+              "$ref": "#/$defs/notEstablished"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_output_schema_version",
+        "task",
+        "result"
+      ],
+      "properties": {
+        "adjudication_output_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "unique-correction-derivation"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uniqueCorrectionCandidate"
+            },
+            {
+              "$ref": "#/$defs/notEstablished"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_output_schema_version",
+        "task",
+        "result"
+      ],
+      "properties": {
+        "adjudication_output_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "realization-scope-derivation"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/realizationScopeCandidate"
+            },
+            {
+              "$ref": "#/$defs/notEstablished"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_output_schema_version",
+        "task",
+        "result"
+      ],
+      "properties": {
+        "adjudication_output_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "repair-realization"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/repairRealizationCandidate"
+            },
+            {
+              "$ref": "#/$defs/notEstablished"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "authorityCitation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "role"
+          ],
+          "properties": {
+            "kind": {
+              "const": "authority-content"
+            },
+            "role": {
+              "const": "normative-spec"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "role",
+            "id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "authority-content"
+            },
+            "role": {
+              "enum": [
+                "architecture-decision",
+                "abstraction-constraint"
+              ]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "discoveryEvidenceCitation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "source-finding"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/authorityCitation"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "claim_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "assurance-claim"
+            },
+            "claim_id": {
+              "type": "string",
+              "pattern": "^TL-CLAIM-[0-9]{3}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "invariant_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "normative-coverage"
+            },
+            "invariant_id": {
+              "type": "string",
+              "pattern": "^TL-INV-[0-9]{3}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "domain_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "formal-semantic-domain"
+            },
+            "domain_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "modality"
+          ],
+          "properties": {
+            "kind": {
+              "const": "behavioral-modality"
+            },
+            "modality": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "assurance_domain"
+          ],
+          "properties": {
+            "kind": {
+              "const": "assurance-domain"
+            },
+            "assurance_domain": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "challenge_objection_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "prior-challenge-objection"
+            },
+            "challenge_objection_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "uniqueCorrectionEvidenceCitation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "source-finding"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "target-discovery-classification"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/authorityCitation"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "claim_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "assurance-claim"
+            },
+            "claim_id": {
+              "type": "string",
+              "pattern": "^TL-CLAIM-[0-9]{3}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "invariant_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "normative-coverage"
+            },
+            "invariant_id": {
+              "type": "string",
+              "pattern": "^TL-INV-[0-9]{3}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "domain_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "formal-semantic-domain"
+            },
+            "domain_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "modality"
+          ],
+          "properties": {
+            "kind": {
+              "const": "behavioral-modality"
+            },
+            "modality": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "assurance_domain"
+          ],
+          "properties": {
+            "kind": {
+              "const": "assurance-domain"
+            },
+            "assurance_domain": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "challenge_objection_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "prior-challenge-objection"
+            },
+            "challenge_objection_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "discoveryLayer": {
+      "enum": [
+        "normative-contract",
+        "decision-history",
+        "formal-model-or-analysis",
+        "verification-or-qualification-evidence",
+        "architecture-or-implementation",
+        "integration-or-conformance",
+        "repository-governance-or-documentation"
+      ]
+    },
+    "notEstablished": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "not-established"
+        }
+      }
+    },
+    "derivedBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "derivation_steps",
+        "no_alternative_remains_argument"
+      ],
+      "properties": {
+        "derivation_steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "no_alternative_remains_argument": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "decisionRequiredBasis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "alternatives",
+            "material_distinction_argument",
+            "current_authority_non_selection_argument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "product-underdetermination"
+            },
+            "alternatives": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "alternative",
+                  "authority_compatibility_argument"
+                ],
+                "properties": {
+                  "alternative": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "authority_compatibility_argument": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "material_distinction_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "current_authority_non_selection_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "positions",
+            "incompatibility_argument",
+            "precedence_amendment_supersession_unresolved_argument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "product-authority-conflict"
+            },
+            "positions": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "position",
+                  "controlling_authority"
+                ],
+                "properties": {
+                  "position": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "controlling_authority": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/authorityCitation"
+                    }
+                  }
+                }
+              }
+            },
+            "incompatibility_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "precedence_amendment_supersession_unresolved_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "noNormativeImpactBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_product_authority_not_required_argument",
+        "changed_product_authority_not_required_argument",
+        "product_meaning_selection_not_required_argument",
+        "accepted_observable_obligation_change_not_required_argument"
+      ],
+      "properties": {
+        "new_product_authority_not_required_argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changed_product_authority_not_required_argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "product_meaning_selection_not_required_argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accepted_observable_obligation_change_not_required_argument": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "authorityConflictOrUncertainBasis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "positions",
+            "conflict_argument",
+            "unresolved_authority_status_argument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "authority-conflict"
+            },
+            "positions": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "position",
+                  "authority"
+                ],
+                "properties": {
+                  "position": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "authority": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/$defs/authorityCitation"
+                    }
+                  }
+                }
+              }
+            },
+            "conflict_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "unresolved_authority_status_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "premise",
+            "why_required_for_classification"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unstated-premise"
+            },
+            "premise": {
+              "type": "string",
+              "minLength": 1
+            },
+            "why_required_for_classification": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "missing_authority",
+            "why_required_for_classification"
+          ],
+          "properties": {
+            "kind": {
+              "const": "missing-authority"
+            },
+            "missing_authority": {
+              "type": "string",
+              "minLength": 1
+            },
+            "why_required_for_classification": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "uncertain_material",
+            "provenance_uncertainty_argument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "uncertain-provenance"
+            },
+            "uncertain_material": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provenance_uncertainty_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "atomicDiscoveryClassificationStatement": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement",
+            "evidence_references",
+            "evidence_argument",
+            "existing_authority",
+            "affected_layers",
+            "semantic_disposition",
+            "disposition_basis"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence_references": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryEvidenceCitation"
+              }
+            },
+            "evidence_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "existing_authority": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/authorityCitation"
+              }
+            },
+            "affected_layers": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryLayer"
+              }
+            },
+            "semantic_disposition": {
+              "const": "derived-from-existing-authority"
+            },
+            "disposition_basis": {
+              "$ref": "#/$defs/derivedBasis"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement",
+            "evidence_references",
+            "evidence_argument",
+            "existing_authority",
+            "affected_layers",
+            "semantic_disposition",
+            "disposition_basis"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence_references": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryEvidenceCitation"
+              }
+            },
+            "evidence_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "existing_authority": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/authorityCitation"
+              }
+            },
+            "affected_layers": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryLayer"
+              }
+            },
+            "semantic_disposition": {
+              "const": "decision-required"
+            },
+            "disposition_basis": {
+              "$ref": "#/$defs/decisionRequiredBasis"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement",
+            "evidence_references",
+            "evidence_argument",
+            "existing_authority",
+            "affected_layers",
+            "semantic_disposition",
+            "disposition_basis"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence_references": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryEvidenceCitation"
+              }
+            },
+            "evidence_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "existing_authority": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/authorityCitation"
+              }
+            },
+            "affected_layers": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryLayer"
+              }
+            },
+            "semantic_disposition": {
+              "const": "no-normative-impact"
+            },
+            "disposition_basis": {
+              "$ref": "#/$defs/noNormativeImpactBasis"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statement",
+            "evidence_references",
+            "evidence_argument",
+            "existing_authority",
+            "affected_layers",
+            "semantic_disposition",
+            "disposition_basis"
+          ],
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence_references": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryEvidenceCitation"
+              }
+            },
+            "evidence_argument": {
+              "type": "string",
+              "minLength": 1
+            },
+            "existing_authority": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/authorityCitation"
+              }
+            },
+            "affected_layers": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/discoveryLayer"
+              }
+            },
+            "semantic_disposition": {
+              "const": "authority-conflict-or-uncertain"
+            },
+            "disposition_basis": {
+              "$ref": "#/$defs/authorityConflictOrUncertainBasis"
+            }
+          }
+        }
+      ]
+    },
+    "earliestUnresolvedCause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification_statement_ordinal",
+        "evidence_references",
+        "causal_explanation",
+        "upstream_exclusion_argument"
+      ],
+      "properties": {
+        "classification_statement_ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/discoveryEvidenceCitation"
+          }
+        },
+        "causal_explanation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "upstream_exclusion_argument": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "initialDiscoveryResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "earliest_unresolved_cause",
+        "classification_statements"
+      ],
+      "properties": {
+        "earliest_unresolved_cause": {
+          "$ref": "#/$defs/earliestUnresolvedCause"
+        },
+        "classification_statements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/atomicDiscoveryClassificationStatement"
+          }
+        }
+      }
+    },
+    "discoveryRevisionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "statement"
+      ],
+      "properties": {
+        "kind": {
+          "const": "revised-candidate"
+        },
+        "statement": {
+          "$ref": "#/$defs/atomicDiscoveryClassificationStatement"
+        }
+      }
+    },
+    "materialityResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_or_upstream_decision",
+        "claim_structure",
+        "normative_provenance",
+        "modality_or_assurance_domain",
+        "coverage_or_residual_assurance",
+        "interaction_scope",
+        "candidate_model_authorization",
+        "rationale"
+      ],
+      "properties": {
+        "authority_or_upstream_decision": {
+          "type": "boolean"
+        },
+        "claim_structure": {
+          "type": "boolean"
+        },
+        "normative_provenance": {
+          "type": "boolean"
+        },
+        "modality_or_assurance_domain": {
+          "type": "boolean"
+        },
+        "coverage_or_residual_assurance": {
+          "type": "boolean"
+        },
+        "interaction_scope": {
+          "type": "boolean"
+        },
+        "candidate_model_authorization": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "counterexampleDisposition": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "rationale"
+          ],
+          "properties": {
+            "outcome": {
+              "enum": [
+                "impossible",
+                "outside-scope",
+                "non-concluding"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "refutationCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ground",
+        "attacked_premise_or_inference",
+        "evidence_references",
+        "argument",
+        "counterexample_disposition"
+      ],
+      "properties": {
+        "kind": {
+          "const": "refutation-candidate"
+        },
+        "ground": {
+          "enum": [
+            "premise-false",
+            "target-misidentified",
+            "counterexample-outside-authority",
+            "consequence-does-not-follow",
+            "already-accounted-for"
+          ]
+        },
+        "attacked_premise_or_inference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "counterexample_disposition": {
+          "$ref": "#/$defs/counterexampleDisposition"
+        }
+      }
+    },
+    "correctionRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postcondition"
+      ],
+      "properties": {
+        "postcondition": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "derivationClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "requirement_ordinals",
+        "authority_references",
+        "evidence_references",
+        "derivation_argument"
+      ],
+      "properties": {
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirement_ordinals": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "authority_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/authorityCitation"
+          }
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/uniqueCorrectionEvidenceCitation"
+          }
+        },
+        "derivation_argument": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "alternativeAssessment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "authority_references",
+            "incompatibility_argument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "authority-incompatible"
+            },
+            "authority_references": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/authorityCitation"
+              }
+            },
+            "incompatibility_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "non_distinction_argument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "not-materially-distinct"
+            },
+            "non_distinction_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "correctionAlternative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correction_requirements",
+        "assessment"
+      ],
+      "properties": {
+        "correction_requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/correctionRequirement"
+          }
+        },
+        "assessment": {
+          "$ref": "#/$defs/alternativeAssessment"
+        }
+      }
+    },
+    "uniqueCorrectionCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "correction_requirements",
+        "derivation_claims",
+        "alternatives_considered",
+        "uniqueness_argument"
+      ],
+      "properties": {
+        "kind": {
+          "const": "unique-correction-candidate"
+        },
+        "correction_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/correctionRequirement"
+          }
+        },
+        "derivation_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/derivationClaim"
+          }
+        },
+        "alternatives_considered": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/correctionAlternative"
+          }
+        },
+        "uniqueness_argument": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "authority_references",
+            "argument"
+          ],
+          "properties": {
+            "authority_references": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/authorityCitation"
+              }
+            },
+            "argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "realizationScopeCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readable_paths",
+        "writable_paths",
+        "completeness_argument",
+        "minimal_write_authority_argument"
+      ],
+      "properties": {
+        "readable_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "writable_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "completeness_argument": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requirement_surfaces",
+            "whole_scope_argument"
+          ],
+          "properties": {
+            "requirement_surfaces": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "requirement_ordinal",
+                  "surface_paths",
+                  "argument"
+                ],
+                "properties": {
+                  "requirement_ordinal": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "surface_paths": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "argument": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "whole_scope_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "minimal_write_authority_argument": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "writable_path_justifications",
+            "no_additional_write_authority_argument"
+          ],
+          "properties": {
+            "writable_path_justifications": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path_bytes_base64url",
+                  "requirement_ordinals",
+                  "necessity_argument"
+                ],
+                "properties": {
+                  "path_bytes_base64url": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "requirement_ordinals": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "necessity_argument": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "no_additional_write_authority_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "inlineExactBytes": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "encoding",
+            "data"
+          ],
+          "properties": {
+            "encoding": {
+              "const": "utf-8"
+            },
+            "data": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "encoding",
+            "data"
+          ],
+          "properties": {
+            "encoding": {
+              "const": "base64url"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]*$"
+            }
+          }
+        }
+      ]
+    },
+    "repairOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_bytes_base64url",
+        "after_state"
+      ],
+      "properties": {
+        "path_bytes_base64url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "after_state": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "absent"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "mode",
+                "content"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "blob"
+                },
+                "mode": {
+                  "enum": [
+                    "100644",
+                    "100755"
+                  ]
+                },
+                "content": {
+                  "$ref": "#/$defs/inlineExactBytes"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "mode",
+                "content"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "symlink"
+                },
+                "mode": {
+                  "const": "120000"
+                },
+                "content": {
+                  "$ref": "#/$defs/inlineExactBytes"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "mode",
+                "object_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "gitlink"
+                },
+                "mode": {
+                  "const": "160000"
+                },
+                "object_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "requirementRealization": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requirement_ordinal",
+            "kind",
+            "already_realized_argument"
+          ],
+          "properties": {
+            "requirement_ordinal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "kind": {
+              "const": "already-realized"
+            },
+            "already_realized_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requirement_ordinal",
+            "kind",
+            "operation_paths",
+            "realization_argument"
+          ],
+          "properties": {
+            "requirement_ordinal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "kind": {
+              "const": "patch-realized"
+            },
+            "operation_paths": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "realization_argument": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "repairRealizationCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "requirement_realizations",
+        "operations"
+      ],
+      "properties": {
+        "kind": {
+          "const": "repair-realization-candidate"
+        },
+        "requirement_realizations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/requirementRealization"
+          }
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repairOperation"
+          }
+        }
+      }
+    }
+  }
+}

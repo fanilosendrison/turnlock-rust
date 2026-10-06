@@ -1,0 +1,1037 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:hostile-review-adjudication-packet:1",
+  "title": "TURNLOCK hostile-review canonical adjudication packet (schema version 1.0)",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_packet_schema_version",
+        "task",
+        "review_packet",
+        "subject",
+        "finding",
+        "revision",
+        "task_input"
+      ],
+      "properties": {
+        "adjudication_packet_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "materiality-assessment"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/reviewPacket"
+        },
+        "subject": {
+          "$ref": "#/$defs/findingAdjudicationSubject"
+        },
+        "finding": {
+          "$ref": "#/$defs/substantiveFinding"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "task_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_packet_schema_version",
+        "task",
+        "review_packet",
+        "subject",
+        "finding",
+        "revision",
+        "task_input"
+      ],
+      "properties": {
+        "adjudication_packet_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "refutation"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/reviewPacket"
+        },
+        "subject": {
+          "$ref": "#/$defs/findingAdjudicationSubject"
+        },
+        "finding": {
+          "$ref": "#/$defs/substantiveFinding"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "task_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "materiality_assessment"
+          ],
+          "properties": {
+            "materiality_assessment": {
+              "$ref": "#/$defs/supportingOutputEvidence"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_packet_schema_version",
+        "task",
+        "review_packet",
+        "subject",
+        "finding",
+        "revision",
+        "task_input"
+      ],
+      "properties": {
+        "adjudication_packet_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "discovery-classification"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/reviewPacket"
+        },
+        "subject": {
+          "$ref": "#/$defs/survivingMaterialResolutionSubject"
+        },
+        "finding": {
+          "$ref": "#/$defs/substantiveFinding"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "task_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_packet_schema_version",
+        "task",
+        "review_packet",
+        "subject",
+        "finding",
+        "revision",
+        "task_input"
+      ],
+      "properties": {
+        "adjudication_packet_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "unique-correction-derivation"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/reviewPacket"
+        },
+        "subject": {
+          "$ref": "#/$defs/survivingMaterialResolutionSubject"
+        },
+        "finding": {
+          "$ref": "#/$defs/substantiveFinding"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "task_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "discovery_classification",
+            "target_classification"
+          ],
+          "properties": {
+            "discovery_classification": {
+              "$ref": "#/$defs/supportingOutputEvidence"
+            },
+            "target_classification": {
+              "$ref": "#/$defs/contentBoundSemanticObject"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_packet_schema_version",
+        "task",
+        "review_packet",
+        "subject",
+        "finding",
+        "revision",
+        "task_input"
+      ],
+      "properties": {
+        "adjudication_packet_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "realization-scope-derivation"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/reviewPacket"
+        },
+        "subject": {
+          "$ref": "#/$defs/survivingMaterialResolutionSubject"
+        },
+        "finding": {
+          "$ref": "#/$defs/substantiveFinding"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "task_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "qualified_unique_correction",
+            "candidate_view"
+          ],
+          "properties": {
+            "qualified_unique_correction": {
+              "$ref": "#/$defs/qualifiedDirectProducerClosure"
+            },
+            "candidate_view": {
+              "$ref": "#/$defs/candidateView"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudication_packet_schema_version",
+        "task",
+        "review_packet",
+        "subject",
+        "finding",
+        "revision",
+        "task_input"
+      ],
+      "properties": {
+        "adjudication_packet_schema_version": {
+          "const": "1.0"
+        },
+        "task": {
+          "const": "repair-realization"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/reviewPacket"
+        },
+        "subject": {
+          "$ref": "#/$defs/survivingMaterialResolutionSubject"
+        },
+        "finding": {
+          "$ref": "#/$defs/substantiveFinding"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "task_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "qualified_unique_correction",
+            "qualified_realization_scope",
+            "candidate_view"
+          ],
+          "properties": {
+            "qualified_unique_correction": {
+              "$ref": "#/$defs/qualifiedDirectProducerClosure"
+            },
+            "qualified_realization_scope": {
+              "$ref": "#/$defs/qualifiedDirectProducerClosure"
+            },
+            "candidate_view": {
+              "$ref": "#/$defs/candidateView"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "runtimeArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "sha256",
+        "byteLength",
+        "mediaType",
+        "repositoryPath"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repositoryPath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "runtimeJsonArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "sha256",
+        "byteLength",
+        "mediaType",
+        "repositoryPath"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mediaType": {
+          "const": "application/json"
+        },
+        "repositoryPath": {
+          "const": null
+        }
+      }
+    },
+    "supportingOutputEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_receipt",
+        "raw_output",
+        "output"
+      ],
+      "properties": {
+        "execution_receipt": {
+          "$ref": "#/$defs/runtimeJsonArtifactRef"
+        },
+        "raw_output": {
+          "$ref": "#/$defs/runtimeJsonArtifactRef"
+        },
+        "output": {
+          "type": "object"
+        }
+      }
+    },
+    "contentBoundSemanticObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "sha256",
+        "payload"
+      ],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    },
+    "revision": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ordinal"
+          ],
+          "properties": {
+            "ordinal": {
+              "const": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ordinal",
+            "closure_subject",
+            "prior_producer",
+            "prior_challenge"
+          ],
+          "properties": {
+            "ordinal": {
+              "const": 1
+            },
+            "closure_subject": {
+              "$ref": "#/$defs/contentBoundSemanticObject"
+            },
+            "prior_producer": {
+              "$ref": "#/$defs/supportingOutputEvidence"
+            },
+            "prior_challenge": {
+              "$ref": "#/$defs/supportingOutputEvidence"
+            }
+          }
+        }
+      ]
+    },
+    "findingAdjudicationSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "sha256",
+        "payload"
+      ],
+      "properties": {
+        "selector": {
+          "const": "gate-a-finding-adjudication-subject-v1"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "runId",
+            "semanticSubject",
+            "currentProtocolBundle",
+            "sourceFinding",
+            "sourceProtocolBundle",
+            "adjudicatingReviewCampaignId",
+            "provenance"
+          ],
+          "properties": {
+            "schema": {
+              "const": "gate-a-finding-adjudication-subject.v1"
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "semanticSubject": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "selector",
+                "sha256"
+              ],
+              "properties": {
+                "selector": {
+                  "const": "gate-a-assurance-decomposition-v1"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "currentProtocolBundle": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "protocolId",
+                "repositoryPath",
+                "sha256"
+              ],
+              "properties": {
+                "protocolId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "repositoryPath": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "sourceFinding": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reviewCampaignId",
+                "findingId",
+                "substantiveFindingSha256",
+                "normalizedFinding"
+              ],
+              "properties": {
+                "reviewCampaignId": {
+                  "type": "string",
+                  "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+                },
+                "findingId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "substantiveFindingSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "normalizedFinding": {
+                  "$ref": "#/$defs/runtimeArtifactRef"
+                }
+              }
+            },
+            "sourceProtocolBundle": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "protocolId",
+                "repositoryPath",
+                "sha256"
+              ],
+              "properties": {
+                "protocolId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "repositoryPath": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "adjudicatingReviewCampaignId": {
+              "type": "string",
+              "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+            },
+            "provenance": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "current-protocol-finding"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "stale-protocol-finding"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "survivingMaterialResolutionSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "sha256",
+        "payload"
+      ],
+      "properties": {
+        "selector": {
+          "const": "gate-a-surviving-material-resolution-subject-v1"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "runId",
+            "findingAdjudicationSubject",
+            "semanticSubject",
+            "protocolBundle",
+            "materialityAssessmentExecutionReceipt",
+            "refutationExhaustionTerminalReceipt"
+          ],
+          "properties": {
+            "schema": {
+              "const": "gate-a-surviving-material-resolution-subject.v1"
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "findingAdjudicationSubject": {
+              "$ref": "#/$defs/runtimeArtifactRef"
+            },
+            "semanticSubject": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "selector",
+                "sha256"
+              ],
+              "properties": {
+                "selector": {
+                  "const": "gate-a-assurance-decomposition-v1"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "protocolBundle": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "protocolId",
+                "repositoryPath",
+                "sha256"
+              ],
+              "properties": {
+                "protocolId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "repositoryPath": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "materialityAssessmentExecutionReceipt": {
+              "$ref": "#/$defs/runtimeArtifactRef"
+            },
+            "refutationExhaustionTerminalReceipt": {
+              "$ref": "#/$defs/runtimeArtifactRef"
+            }
+          }
+        }
+      }
+    },
+    "substantiveFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "sha256",
+        "payload"
+      ],
+      "properties": {
+        "selector": {
+          "const": "hostile-finding-subject-v1"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject_schema_version",
+            "selector",
+            "finding"
+          ],
+          "properties": {
+            "subject_schema_version": {
+              "const": 1
+            },
+            "selector": {
+              "const": "hostile-finding-subject-v1"
+            },
+            "finding": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "finding_id",
+                "sources",
+                "statement",
+                "argument",
+                "counterexample"
+              ],
+              "properties": {
+                "finding_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "execution_id",
+                      "raw_finding_id"
+                    ],
+                    "properties": {
+                      "execution_id": {
+                        "type": "string",
+                        "pattern": "^EXEC-[A-Z0-9][A-Z0-9-]*$"
+                      },
+                      "raw_finding_id": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "statement": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "argument": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "counterexample": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "inlineExactBytes": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "encoding",
+            "data"
+          ],
+          "properties": {
+            "encoding": {
+              "const": "utf-8"
+            },
+            "data": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "encoding",
+            "data"
+          ],
+          "properties": {
+            "encoding": {
+              "const": "base64url"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]*$"
+            }
+          }
+        }
+      ]
+    },
+    "candidateView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "sha256",
+        "payload"
+      ],
+      "properties": {
+        "selector": {
+          "const": "gate-a-candidate-view-v1"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "coverage",
+            "git_object_format",
+            "root_tree_object_id",
+            "entries"
+          ],
+          "properties": {
+            "schema": {
+              "const": "gate-a-candidate-view.v1"
+            },
+            "coverage": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "complete"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "readable-paths"
+                    }
+                  }
+                }
+              ]
+            },
+            "git_object_format": {
+              "enum": [
+                "sha1",
+                "sha256"
+              ]
+            },
+            "root_tree_object_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path_bytes_base64url",
+                  "path_utf8",
+                  "state"
+                ],
+                "properties": {
+                  "path_bytes_base64url": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "path_utf8": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "state": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "absent"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "mode",
+                          "content"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "blob"
+                          },
+                          "mode": {
+                            "enum": [
+                              "100644",
+                              "100755"
+                            ]
+                          },
+                          "content": {
+                            "$ref": "#/$defs/inlineExactBytes"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "mode",
+                          "content"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "symlink"
+                          },
+                          "mode": {
+                            "const": "120000"
+                          },
+                          "content": {
+                            "$ref": "#/$defs/inlineExactBytes"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "mode",
+                          "object_id"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "const": "gitlink"
+                          },
+                          "mode": {
+                            "const": "160000"
+                          },
+                          "object_id": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "qualifiedDirectProducerClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer",
+        "challenge"
+      ],
+      "properties": {
+        "producer": {
+          "$ref": "#/$defs/supportingOutputEvidence"
+        },
+        "challenge": {
+          "$ref": "#/$defs/supportingOutputEvidence"
+        }
+      }
+    },
+    "reviewPacket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "payload"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fanilosendrison:turnlock-rust:finding-adjudication-supplement:1",
+  "title": "TURNLOCK finding adjudication supplement (schema version 1.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "supplement_schema_version",
+    "semantic_subject",
+    "protocol",
+    "source_finding",
+    "adjudicating_review_id",
+    "supporting_executions",
+    "effective_adjudication"
+  ],
+  "properties": {
+    "supplement_schema_version": {
+      "const": "1.0"
+    },
+    "semantic_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "sha256"
+      ],
+      "properties": {
+        "selector": {
+          "const": "gate-a-assurance-decomposition-v1"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_bundle",
+        "review_packet"
+      ],
+      "properties": {
+        "protocol_bundle": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "review_packet": {
+          "$ref": "#/$defs/artifactReference"
+        }
+      }
+    },
+    "source_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_id",
+        "finding_id",
+        "substantive_finding_sha256"
+      ],
+      "properties": {
+        "review_id": {
+          "type": "string",
+          "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+        },
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "substantive_finding_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "adjudicating_review_id": {
+      "type": "string",
+      "pattern": "^REVIEW-[A-Z0-9][A-Z0-9-]*$"
+    },
+    "supporting_executions": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/artifactReference"
+      }
+    },
+    "effective_adjudication": {
+      "$ref": "#/$defs/effectiveAdjudication"
+    }
+  },
+  "$defs": {
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "effectiveAdjudication": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "materiality_assessment_execution_receipt",
+            "materiality_challenge_execution_receipt"
+          ],
+          "properties": {
+            "kind": {
+              "const": "qualified-non-material"
+            },
+            "materiality_assessment_execution_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "materiality_challenge_execution_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "materiality_assessment_execution_receipt",
+            "refutation_execution_receipt",
+            "refutation_challenge_execution_receipt"
+          ],
+          "properties": {
+            "kind": {
+              "const": "qualified-refutation"
+            },
+            "materiality_assessment_execution_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "refutation_execution_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "refutation_challenge_execution_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "materiality_assessment_execution_receipt",
+            "refutation_exhaustion_terminal_receipt"
+          ],
+          "properties": {
+            "kind": {
+              "const": "surviving-material"
+            },
+            "materiality_assessment_execution_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "refutation_exhaustion_terminal_receipt": {
+              "$ref": "#/$defs/artifactReference"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
