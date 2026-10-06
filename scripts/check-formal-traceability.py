@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import base64
 import copy
 import hashlib
 import json
@@ -350,6 +351,8 @@ REVIEW_CHALLENGE_PREFIX = "formal/reviews/challenges/"
 REVIEW_CHALLENGE_SUFFIX = ".json"
 REVIEW_CHALLENGE_PACKET_PREFIX = "formal/reviews/challenge-packets/"
 REVIEW_CHALLENGE_PACKET_SUFFIX = ".json"
+REVIEW_ADJUDICATION_PACKETS_PREFIX = "formal/reviews/adjudication-packets/"
+REVIEW_ADJUDICATION_PACKET_SUFFIX = ".json"
 REVIEW_PROTOCOLS_PREFIX = "formal/reviews/protocols/"
 REVIEW_PROTOCOL_BUNDLE_SUFFIX = ".json"
 REVIEW_SCHEMAS_PREFIX = "formal/reviews/schemas/"
@@ -358,6 +361,7 @@ REVIEW_META_SCHEMA_SUFFIX = ".json"
 REVIEW_EXECUTIONS_PREFIX = "formal/reviews/executions/"
 REVIEW_EXECUTION_SUFFIX = ".json"
 REVIEW_ADJUDICATIONS_PREFIX = "formal/reviews/adjudications/"
+REVIEW_SUPPLEMENTS_PREFIX = "formal/reviews/supplements/"
 REVIEW_JSON_OUTPUT_SUFFIX = ".json"
 REVIEW_ARTIFACT_PREFIXES = (
     REVIEW_PACKET_PREFIX,
@@ -365,11 +369,13 @@ REVIEW_ARTIFACT_PREFIXES = (
     REVIEW_RAW_OUTPUT_PREFIX,
     REVIEW_CHALLENGE_PREFIX,
     REVIEW_CHALLENGE_PACKET_PREFIX,
+    REVIEW_ADJUDICATION_PACKETS_PREFIX,
     REVIEW_PROTOCOLS_PREFIX,
     REVIEW_SCHEMAS_PREFIX,
     REVIEW_META_SCHEMAS_PREFIX,
     REVIEW_EXECUTIONS_PREFIX,
     REVIEW_ADJUDICATIONS_PREFIX,
+    REVIEW_SUPPLEMENTS_PREFIX,
 )
 REVIEW_ARTIFACT_EXCLUDED_FILE_NAMES = (
     LEGACY_REVIEW_EVIDENCE_ALIAS_RELATIVE.name,
@@ -394,6 +400,18 @@ PROTOCOL_V5_META_SCHEMA_REFERENCE = {
 PROTOCOL_V6_META_SCHEMA_REFERENCE = {
     "path": "formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json",
     "sha256": "b4cfc0ca7b577e2d37f048d9cb7bb5d546c77a6dffed2100340e05d52b525e78",
+}
+PROTOCOL_V7_META_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-protocol-bundle-v7.schema.json",
+    "sha256": "f1c2c91cedd8e248962d5890834472fcbbaab32daaf2bc76eccd3e910841f4f3",
+}
+PROTOCOL_V7_BUNDLE_REFERENCE = {
+    "path": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+    "sha256": "b9c6cde1624590d43686703b5dba991ca7a8a46f65a65d047a52197c02686f94",
+}
+PROTOCOL_V7_PREDECESSOR_REFERENCE = {
+    "path": "formal/reviews/protocols/gate-a-campaign-protocol-v6.json",
+    "sha256": "841908ae137b1caaa8d0ae1035d7f888f736fda04ef70c10d33bda8383feae98",
 }
 REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
 REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
@@ -809,6 +827,152 @@ def _read_review_artifact(
     if expected_sha != sha256_hex(data):
         return None, [f"{label}: artifact sha256 does not match {raw_path}"]
     return data, []
+
+
+def reconstruct_runtime_json_artifact_ref(
+    root: Path,
+    repository_ref: object,
+    *,
+    expected_prefix: str,
+    expected_suffix: str = ".json",
+    label: str = "repository JSON artifact",
+) -> tuple[dict | None, bytes | None, list[str]]:
+    """Reconstruct runtime content identity from exact projected bytes."""
+    exact_bytes, errors = _read_review_artifact(
+        root,
+        repository_ref,
+        label,
+        expected_prefix,
+        expected_suffix,
+    )
+    if exact_bytes is None:
+        return None, None, errors
+    digest = _mapping(repository_ref).get("sha256")
+    runtime_ref = {
+        "artifactId": "sha256:" + digest,
+        "sha256": digest,
+        "byteLength": len(exact_bytes),
+        "mediaType": "application/json",
+        "repositoryPath": None,
+    }
+    return runtime_ref, exact_bytes, errors
+
+
+def _runtime_json_artifact_ref_errors(value: object, label: str) -> list[str]:
+    expected_keys = {
+        "artifactId",
+        "sha256",
+        "byteLength",
+        "mediaType",
+        "repositoryPath",
+    }
+    if not isinstance(value, dict) or set(value) != expected_keys:
+        return [f"{label}: must be an exact RuntimeJsonArtifactRefV1 object"]
+    errors: list[str] = []
+    digest = value.get("sha256")
+    if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+        errors.append(f"{label}: sha256 must be lowercase 64-hex")
+    if value.get("artifactId") != f"sha256:{digest}":
+        errors.append(f"{label}: artifactId must equal 'sha256:' + sha256")
+    byte_length = value.get("byteLength")
+    if not isinstance(byte_length, int) or isinstance(byte_length, bool) or byte_length < 0:
+        errors.append(f"{label}: byteLength must be a non-negative integer")
+    if value.get("mediaType") != "application/json":
+        errors.append(f"{label}: mediaType must be application/json")
+    if value.get("repositoryPath") is not None:
+        errors.append(f"{label}: repositoryPath must be null")
+    return errors
+
+
+def _content_bound_semantic_object_errors(
+    value: object,
+    label: str,
+    *,
+    expected_selector: str | None = None,
+) -> list[str]:
+    if not isinstance(value, dict) or set(value) != {"selector", "sha256", "payload"}:
+        return [f"{label}: must be an exact ContentBoundSemanticObjectV1 object"]
+    errors: list[str] = []
+    selector = value.get("selector")
+    if not isinstance(selector, str) or not selector:
+        errors.append(f"{label}: selector must be a non-empty string")
+    if expected_selector is not None and selector != expected_selector:
+        errors.append(f"{label}: selector must be {expected_selector}")
+    payload = value.get("payload")
+    if not isinstance(payload, dict):
+        errors.append(f"{label}: payload must be an object")
+    elif value.get("sha256") != sha256_hex(_canonical_json_bytes(payload)):
+        errors.append(f"{label}: sha256 must bind canonical JSON value payload bytes")
+    return errors
+
+
+def _parse_json_object_bytes(data: bytes, label: str) -> tuple[dict | None, list[str]]:
+    try:
+        parsed = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        return None, [f"{label}: must be valid UTF-8 JSON ({_concise_parser_error(error)})"]
+    if not isinstance(parsed, dict):
+        return None, [f"{label}: must be a JSON object"]
+    return parsed, []
+
+
+def _p7_packet_namespace(role: object) -> str | None:
+    return {
+        "initial-reviewer": REVIEW_PACKET_PREFIX,
+        "challenge": REVIEW_CHALLENGE_PACKET_PREFIX,
+        "decision-necessity-challenger": REVIEW_CHALLENGE_PACKET_PREFIX,
+        "materiality-assessor": REVIEW_ADJUDICATION_PACKETS_PREFIX,
+        "refutation-builder": REVIEW_ADJUDICATION_PACKETS_PREFIX,
+        "discovery-classifier": REVIEW_ADJUDICATION_PACKETS_PREFIX,
+        "derivation-builder": REVIEW_ADJUDICATION_PACKETS_PREFIX,
+        "repair-synthesizer": REVIEW_ADJUDICATION_PACKETS_PREFIX,
+    }.get(role)
+
+
+def _p7_output_namespace(role: object) -> str | None:
+    return {
+        "initial-reviewer": REVIEW_RAW_OUTPUT_PREFIX,
+        "challenge": REVIEW_CHALLENGE_PREFIX,
+        "decision-necessity-challenger": REVIEW_CHALLENGE_PREFIX,
+        "materiality-assessor": REVIEW_ADJUDICATIONS_PREFIX,
+        "refutation-builder": REVIEW_ADJUDICATIONS_PREFIX,
+        "discovery-classifier": REVIEW_ADJUDICATIONS_PREFIX,
+        "derivation-builder": REVIEW_ADJUDICATIONS_PREFIX,
+        "repair-synthesizer": REVIEW_ADJUDICATIONS_PREFIX,
+    }.get(role)
+
+
+def _load_p7_adjudication_packet(
+    root: Path,
+    repository_ref: object,
+    label: str,
+    validator: Draft202012Validator | None,
+) -> tuple[dict | None, list[str]]:
+    packet, errors = _load_json_object_artifact(
+        root,
+        repository_ref,
+        label,
+        REVIEW_ADJUDICATION_PACKETS_PREFIX,
+        REVIEW_ADJUDICATION_PACKET_SUFFIX,
+        require_canonical=True,
+    )
+    if packet is not None and validator is not None:
+        errors.extend(_schema_violations(validator, packet, label))
+    return packet, errors
+
+
+def _gate_a_review_packet_value(root: Path, reference: object) -> dict | None:
+    data, errors = _read_review_artifact(
+        root,
+        reference,
+        "Gate A review packet",
+        REVIEW_PACKET_PREFIX,
+        REVIEW_PACKET_SUFFIX,
+    )
+    if data is None or errors:
+        return None
+    value, parse_errors = _parse_json_object_bytes(data, "Gate A review packet")
+    return value if not parse_errors else None
 
 
 def _gate_a_review_packet_authority_errors(
@@ -1252,7 +1416,7 @@ def _statically_qualifying_reviewer_profile(profile: dict) -> bool:
 
 def _reviewer_acquisition_policy_errors(bundle: dict, label: str) -> list[str]:
     schema_version = bundle.get("protocol_bundle_schema_version")
-    if schema_version not in (5, 6):
+    if schema_version not in (5, 6, 7):
         return []
     policy = _mapping(_mapping(bundle.get("policies")).get("reviewer_acquisition"))
     errors: list[str] = []
@@ -1287,8 +1451,17 @@ def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
         errors.extend(artifact_errors)
     schemas = _mapping(bundle.get("schemas"))
     keys = ["raw-review-output", "execution-receipt", "challenge-output"]
-    if bundle.get("protocol_bundle_schema_version") in (2, 3, 4, 5, 6):
+    version = bundle.get("protocol_bundle_schema_version")
+    if version in (2, 3, 4, 5, 6, 7):
         keys.append("challenge-packet")
+    if version == 7:
+        keys.extend(
+            (
+                "adjudication-packet",
+                "adjudication-output",
+                "finding-adjudication-supplement",
+            )
+        )
     for key in keys:
         data, artifact_errors = _read_review_artifact(root, _mapping(schemas.get(key)), f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
         errors.extend(artifact_errors)
@@ -1314,7 +1487,15 @@ def _bundle_selected_validators(root: Path, bundle: dict | None, label: str) -> 
     if bundle is None:
         return validators, errors
     schemas = _mapping(bundle.get("schemas"))
-    for key in ("raw-review-output", "execution-receipt", "challenge-output", "challenge-packet"):
+    for key in (
+        "raw-review-output",
+        "execution-receipt",
+        "challenge-output",
+        "challenge-packet",
+        "adjudication-packet",
+        "adjudication-output",
+        "finding-adjudication-supplement",
+    ):
         ref = schemas.get(key)
         if ref is None:
             continue
@@ -1343,6 +1524,8 @@ def _protocol_bundle_meta_schema_reference(version: object) -> dict | None:
         return dict(PROTOCOL_V5_META_SCHEMA_REFERENCE)
     if version == 6:
         return dict(PROTOCOL_V6_META_SCHEMA_REFERENCE)
+    if version == 7:
+        return dict(PROTOCOL_V7_META_SCHEMA_REFERENCE)
     return None
 
 
@@ -1364,13 +1547,14 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, ca
     errors.extend(meta_errors)
     if validator is not None:
         errors.extend(_schema_violations(validator, bundle, label))
-    if version in (4, 5, 6):
+    if version in (4, 5, 6, 7):
         meta_schemas = _mapping(bundle.get("meta_schemas"))
         declared_protocol_bundle = _mapping(meta_schemas.get("protocol-bundle"))
         expected_protocol_bundle = {
             4: PROTOCOL_V4_META_SCHEMA_REFERENCE,
             5: PROTOCOL_V5_META_SCHEMA_REFERENCE,
             6: PROTOCOL_V6_META_SCHEMA_REFERENCE,
+            7: PROTOCOL_V7_META_SCHEMA_REFERENCE,
         }[version]
         if declared_protocol_bundle != expected_protocol_bundle:
             errors.append(
@@ -1400,10 +1584,15 @@ def _load_protocol_bundle_document(root: Path, reference: object, label: str, ca
     if isinstance(path, str): paths.add(path)
     if isinstance(protocol_id, str): ids.add(protocol_id)
     predecessor = bundle.get("predecessor")
-    if version in (2, 3, 4, 5, 6):
+    if version in (2, 3, 4, 5, 6, 7):
         if not isinstance(predecessor, dict):
             errors.append(f"{label}: schema-version-{version} bundle requires predecessor")
         else:
+            if version == 7 and predecessor != PROTOCOL_V7_PREDECESSOR_REFERENCE:
+                errors.append(
+                    f"{label}: protocol v7 predecessor must be the exact published "
+                    "v6 bundle"
+                )
             _, predecessor_errors = _load_protocol_bundle_document(root, predecessor, f"{label}: predecessor", cache, paths, ids)
             errors.extend(predecessor_errors)
     elif predecessor is not None:
@@ -1448,6 +1637,29 @@ def _current_protocol_bundle_errors(root: Path, manifest: dict, cache: dict[str,
         if hostile_review.get("evidence_schema") != evidence_binding.get("path"):
             errors.append(f"{label}: current hostile-review evidence_schema path must equal the current protocol-bound review-evidence meta-schema path")
     return reference, bundle, errors
+
+
+def _inactive_protocol_v7_candidate_errors(
+    root: Path,
+    cache: dict[str, tuple[dict | None, list[str]]],
+) -> list[str]:
+    """Validate the exact protocol-v7 candidate without selecting it as current."""
+    label = "inactive protocol v7 candidate"
+    bundle, errors = _load_protocol_bundle_document(
+        root,
+        PROTOCOL_V7_BUNDLE_REFERENCE,
+        label,
+        cache,
+    )
+    if bundle is not None:
+        if bundle.get("protocol_bundle_schema_version") != 7:
+            errors.append(f"{label}: protocol bundle schema version must be 7")
+        if bundle.get("protocol_id") != "gate-a-campaign-protocol-v7":
+            errors.append(f"{label}: protocol_id must be gate-a-campaign-protocol-v7")
+        if bundle.get("predecessor") != PROTOCOL_V7_PREDECESSOR_REFERENCE:
+            errors.append(f"{label}: predecessor must be the exact published v6 bundle")
+    return errors
+
 
 def _load_execution_receipt(
     root: Path,
@@ -1543,6 +1755,43 @@ def _validate_challenge_protocol_output(root: Path, reference: object, validator
     return output,errors
 
 
+P7_ADJUDICATION_ROLE_TASKS = {
+    "materiality-assessor": {"materiality-assessment"},
+    "refutation-builder": {"refutation"},
+    "discovery-classifier": {"discovery-classification"},
+    "derivation-builder": {
+        "unique-correction-derivation",
+        "realization-scope-derivation",
+    },
+    "repair-synthesizer": {"repair-realization"},
+}
+
+
+def _validate_adjudication_protocol_output(
+    root: Path,
+    reference: object,
+    validator: Draft202012Validator | None,
+    packet: dict | None,
+) -> tuple[dict | None, list[str]]:
+    output, errors = _load_json_object_artifact(
+        root,
+        reference,
+        "adjudication output",
+        REVIEW_ADJUDICATIONS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=False,
+    )
+    if output is None:
+        return None, errors
+    if validator is not None:
+        errors.extend(_schema_violations(validator, output, "adjudication output"))
+    if packet is None:
+        errors.append("adjudication output: canonical adjudication packet is unavailable")
+    elif output.get("task") != packet.get("task"):
+        errors.append("adjudication output: task must equal the bound adjudication packet")
+    return output, errors
+
+
 def _load_challenge_packet(root: Path, reference: object, record_packet: dict | None, record_packet_ref: dict, validator: Draft202012Validator | None, label: str) -> tuple[dict | None,list[str]]:
     packet, errors = _load_json_object_artifact(root, reference, label, REVIEW_CHALLENGE_PACKET_PREFIX, REVIEW_CHALLENGE_PACKET_SUFFIX, require_canonical=True)
     if packet is None: return None,errors
@@ -1609,7 +1858,31 @@ def _validate_execution_receipt(root: Path, receipt: dict, label: str, profile_m
         if isinstance(path,str): output_paths.append(path)
         derived: list[str] | None = None
         if role==INITIAL_REVIEWER_ROLE: _parsed,derived=_validate_initial_reviewer_protocol_output(root,raw,validators.get("raw-review-output"))
-        elif role==CHALLENGE_ROLE and challenge_packet is not None: _parsed,derived=_validate_challenge_protocol_output(root,raw,validators.get("challenge-output"),challenge_packet)
+        elif role in {CHALLENGE_ROLE, "decision-necessity-challenger"} and challenge_packet is not None: _parsed,derived=_validate_challenge_protocol_output(root,raw,validators.get("challenge-output"),challenge_packet)
+        elif (
+            receipt.get("receipt_schema_version") == "4.0"
+            and role in P7_ADJUDICATION_ROLE_TASKS
+        ):
+            packet_ref = _mapping(receipt.get("input")).get("packet")
+            packet, packet_errors = _load_p7_adjudication_packet(
+                root,
+                packet_ref,
+                f"{alabel}: adjudication packet",
+                validators.get("adjudication-packet"),
+            )
+            derived = list(packet_errors)
+            _parsed, output_errors = _validate_adjudication_protocol_output(
+                root,
+                raw,
+                validators.get("adjudication-output"),
+                packet,
+            )
+            derived.extend(output_errors)
+            if packet is not None and packet.get("task") not in P7_ADJUDICATION_ROLE_TASKS[role]:
+                derived.append(
+                    f"adjudication output: role {role!r} cannot perform task "
+                    f"{packet.get('task')!r}"
+                )
         if derived is not None:
             if outcome=="protocol-invalid" and not derived: errors.append(f"{alabel}: declared protocol-invalid but output is protocol-valid")
             if outcome=="qualified" and derived: errors.append(f"{alabel}: declared qualified but output is protocol-invalid")
@@ -1636,6 +1909,944 @@ def _validate_execution_receipt(root: Path, receipt: dict, label: str, profile_m
                     if profile.get("request_model") == "latest" and resolution.get("request_model_is_immutable_version") is True: errors.append(f"{label}: pinned-request-model request_model must not be latest")
                     if resolved.get("model_version")!=profile.get("request_model"): errors.append(f"{label}: pinned-request-model model_version must equal the profile request_model")
     return errors,qualifying
+
+def _decode_canonical_base64url(value: object, label: str) -> tuple[bytes | None, list[str]]:
+    if not isinstance(value, str) or not value:
+        return None, [f"{label}: must be a non-empty canonical base64url string"]
+    if re.fullmatch(r"[A-Za-z0-9_-]+", value) is None:
+        return None, [f"{label}: must use unpadded base64url"]
+    try:
+        decoded = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+    except ValueError:
+        return None, [f"{label}: invalid base64url"]
+    encoded = base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii")
+    if encoded != value:
+        return None, [f"{label}: base64url representation is not canonical"]
+    return decoded, []
+
+
+def _inline_exact_bytes(value: object, label: str) -> tuple[bytes | None, list[str]]:
+    if not isinstance(value, dict) or set(value) != {"encoding", "data"}:
+        return None, [f"{label}: invalid InlineExactBytesV1 shape"]
+    encoding = value.get("encoding")
+    data = value.get("data")
+    if encoding == "utf-8":
+        if not isinstance(data, str):
+            return None, [f"{label}: utf-8 data must be a string"]
+        return data.encode("utf-8"), []
+    if encoding == "base64url":
+        decoded, errors = _decode_canonical_base64url(data, f"{label}.data")
+        if decoded is not None:
+            try:
+                decoded.decode("utf-8")
+            except UnicodeDecodeError:
+                pass
+            else:
+                errors.append(f"{label}: valid UTF-8 exact bytes must use utf-8 encoding")
+        return decoded, errors
+    return None, [f"{label}: encoding must be utf-8 or base64url"]
+
+
+def _p7_discovery_output_errors(packet: dict, result: object, label: str) -> list[str]:
+    errors: list[str] = []
+    revision = _mapping(packet.get("revision"))
+    ordinal = revision.get("ordinal")
+    if isinstance(result, dict) and "classification_statements" in result:
+        statements = _sequence(result.get("classification_statements"))
+        identities = [sha256_hex(_canonical_json_bytes(statement)) for statement in statements]
+        if len(identities) != len(set(identities)):
+            errors.append(f"{label}: duplicate canonical discovery statement identity")
+        cause_ordinal = _mapping(result.get("earliest_unresolved_cause")).get(
+            "classification_statement_ordinal"
+        )
+        if not isinstance(cause_ordinal, int) or not 0 <= cause_ordinal < len(statements):
+            errors.append(f"{label}: earliest unresolved cause ordinal is out of range")
+        if ordinal != 0:
+            errors.append(f"{label}: initial discovery result requires revision ordinal 0")
+    elif _mapping(result).get("kind") == "revised-candidate":
+        if ordinal != 1:
+            errors.append(f"{label}: revised discovery candidate requires ordinal 1")
+        selector = _mapping(revision.get("closure_subject")).get("selector")
+        disposition = _mapping(_mapping(result).get("statement")).get(
+            "semantic_disposition"
+        )
+        expected = {
+            "gate-a-no-normative-impact-candidate-challenge-v1": "no-normative-impact",
+            "gate-a-decision-necessity-candidate-challenge-v1": "decision-required",
+        }.get(selector)
+        if expected is None or disposition != expected:
+            errors.append(f"{label}: targeted discovery revision changed closure family")
+    elif _mapping(result).get("kind") == "not-established":
+        if ordinal != 1:
+            errors.append(f"{label}: discovery withdrawal is allowed only for ordinal 1")
+    for node in _walk_json(result):
+        if isinstance(node, dict) and node.get("kind") == "prior-challenge-objection":
+            if ordinal != 1:
+                errors.append(f"{label}: prior-challenge citation requires ordinal 1")
+            objections = _sequence(
+                _mapping(_mapping(revision.get("prior_challenge")).get("output")).get(
+                    "objections"
+                )
+            )
+            objection_id = node.get("challenge_objection_id")
+            if sum(_mapping(item).get("challenge_objection_id") == objection_id for item in objections) != 1:
+                errors.append(f"{label}: prior challenge objection citation is not exact")
+    return errors
+
+
+def _walk_json(value: object):
+    yield value
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from _walk_json(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_json(child)
+
+
+def _p7_unique_correction_errors(result: object, label: str) -> list[str]:
+    if _mapping(result).get("kind") == "not-established":
+        return []
+    candidate = _mapping(result)
+    requirements = _sequence(candidate.get("correction_requirements"))
+    identities = [
+        sha256_hex(_canonical_json_bytes({"postcondition": _mapping(item).get("postcondition")}))
+        for item in requirements
+    ]
+    errors: list[str] = []
+    if len(identities) != len(set(identities)):
+        errors.append(f"{label}: duplicate canonical correction requirement")
+    covered: set[int] = set()
+    for claim in _sequence(candidate.get("derivation_claims")):
+        for ordinal in _sequence(_mapping(claim).get("requirement_ordinals")):
+            if not isinstance(ordinal, int) or isinstance(ordinal, bool) or not 0 <= ordinal < len(requirements):
+                errors.append(f"{label}: derivation claim requirement ordinal is invalid")
+            else:
+                covered.add(ordinal)
+    if covered != set(range(len(requirements))):
+        errors.append(f"{label}: every correction requirement must be covered")
+    return errors
+
+
+def _qualified_closure_result(closure: object) -> object:
+    closure = _mapping(closure)
+    producer = _mapping(closure.get("producer"))
+    challenge = _mapping(closure.get("challenge"))
+    challenge_output = _mapping(challenge.get("output"))
+    if challenge_output.get("objections") != []:
+        return None
+    return _mapping(producer.get("output")).get("result")
+
+
+def _p7_realization_scope_errors(packet: dict, result: object, label: str) -> list[str]:
+    if _mapping(result).get("kind") == "not-established":
+        return []
+    scope = _mapping(result)
+    readable = _sequence(scope.get("readable_paths"))
+    writable = _sequence(scope.get("writable_paths"))
+    errors: list[str] = []
+    if not set(writable).issubset(set(readable)):
+        errors.append(f"{label}: writable_paths must be a subset of readable_paths")
+    correction = _mapping(
+        _qualified_closure_result(
+            _mapping(packet.get("task_input")).get("qualified_unique_correction")
+        )
+    )
+    requirement_count = len(_sequence(correction.get("correction_requirements")))
+    surfaces = _sequence(
+        _mapping(scope.get("completeness_argument")).get("requirement_surfaces")
+    )
+    ordinals = [_mapping(item).get("requirement_ordinal") for item in surfaces]
+    if sorted(ordinal for ordinal in ordinals if isinstance(ordinal, int)) != list(range(requirement_count)) or len(ordinals) != requirement_count:
+        errors.append(f"{label}: requirement_surfaces must cover each requirement exactly once")
+    surface_paths: set[str] = set()
+    for item in surfaces:
+        for path in _sequence(_mapping(item).get("surface_paths")):
+            if path not in readable:
+                errors.append(f"{label}: surface path is outside readable_paths")
+            if isinstance(path, str):
+                surface_paths.add(path)
+    if surface_paths != set(readable):
+        errors.append(f"{label}: readable_paths must equal union of requirement surfaces")
+    justifications = _sequence(
+        _mapping(scope.get("minimal_write_authority_argument")).get(
+            "writable_path_justifications"
+        )
+    )
+    justified = [_mapping(item).get("path_bytes_base64url") for item in justifications]
+    if sorted(justified) != sorted(writable) or len(justified) != len(writable):
+        errors.append(f"{label}: every writable path requires exactly one justification")
+    for item in justifications:
+        for ordinal in _sequence(_mapping(item).get("requirement_ordinals")):
+            if not isinstance(ordinal, int) or not 0 <= ordinal < requirement_count:
+                errors.append(f"{label}: writable justification requirement ordinal is invalid")
+    review_packet = _mapping(packet.get("review_packet"))
+    controlling_paths = set()
+    for authority in _sequence(_mapping(review_packet.get("payload")).get("authority_contents")):
+        if _mapping(authority).get("role") in {
+            "normative-spec",
+            "architecture-decision",
+            "abstraction-constraint",
+        }:
+            path = _mapping(authority).get("path")
+            if isinstance(path, str):
+                controlling_paths.add(
+                    base64.urlsafe_b64encode(path.encode("utf-8")).rstrip(b"=").decode("ascii")
+                )
+    for path in writable:
+        if path in controlling_paths:
+            errors.append(f"{label}: controlling product-authority path is not writable")
+    return errors
+
+
+def _candidate_view_entry_bytes(state: object, label: str) -> tuple[bytes | None, list[str]]:
+    state = _mapping(state)
+    if state.get("kind") in {"blob", "symlink"}:
+        return _inline_exact_bytes(state.get("content"), f"{label}.content")
+    return None, []
+
+
+def _p7_candidate_view_errors(
+    root: Path,
+    candidate_view: object,
+    *,
+    expected_coverage: str,
+    expected_paths: set[str] | None,
+    label: str,
+) -> list[str]:
+    errors = _content_bound_semantic_object_errors(
+        candidate_view,
+        label,
+        expected_selector="gate-a-candidate-view-v1",
+    )
+    payload = _mapping(_mapping(candidate_view).get("payload"))
+    coverage = _mapping(payload.get("coverage")).get("kind")
+    if coverage != expected_coverage:
+        errors.append(f"{label}: coverage must be {expected_coverage}")
+    object_format = payload.get("git_object_format")
+    object_length = 40 if object_format == "sha1" else 64
+    root_tree = payload.get("root_tree_object_id")
+    if not isinstance(root_tree, str) or len(root_tree) != object_length:
+        errors.append(f"{label}: root tree object ID length is invalid")
+    entries = _sequence(payload.get("entries"))
+    decoded_paths: list[bytes] = []
+    encoded_paths: list[str] = []
+    for index, entry in enumerate(entries):
+        entry = _mapping(entry)
+        encoded = entry.get("path_bytes_base64url")
+        decoded, path_errors = _decode_canonical_base64url(encoded, f"{label}.entries[{index}].path")
+        errors.extend(path_errors)
+        if decoded is None:
+            continue
+        decoded_paths.append(decoded)
+        encoded_paths.append(encoded)
+        try:
+            utf8 = decoded.decode("utf-8")
+        except UnicodeDecodeError:
+            utf8 = None
+        if entry.get("path_utf8") != utf8:
+            errors.append(f"{label}.entries[{index}]: path_utf8 mismatch")
+        state = _mapping(entry.get("state"))
+        if state.get("kind") == "gitlink":
+            object_id = state.get("object_id")
+            if not isinstance(object_id, str) or len(object_id) != object_length:
+                errors.append(f"{label}.entries[{index}]: gitlink object ID length mismatch")
+        _bytes, byte_errors = _candidate_view_entry_bytes(state, f"{label}.entries[{index}]")
+        errors.extend(byte_errors)
+    if decoded_paths != sorted(decoded_paths) or len(decoded_paths) != len(set(decoded_paths)):
+        errors.append(f"{label}: candidate paths must be unique in canonical raw-byte order")
+    if expected_paths is not None and set(encoded_paths) != expected_paths:
+        errors.append(f"{label}: candidate view path set does not equal readable_paths")
+    if coverage == "complete":
+        if any(_mapping(entry).get("state", {}).get("kind") == "absent" for entry in entries):
+            errors.append(f"{label}: complete candidate view cannot contain absent entries")
+        if isinstance(root_tree, str):
+            process = subprocess.run(
+                ["git", "-C", str(root), "ls-tree", "-rz", "-r", root_tree],
+                capture_output=True,
+                check=False,
+            )
+            if process.returncode != 0:
+                errors.append(f"{label}: root tree object is unavailable")
+            else:
+                actual_paths = [
+                    record.split(b"\t", 1)[1]
+                    for record in process.stdout.split(b"\0")
+                    if b"\t" in record
+                ]
+                if decoded_paths != actual_paths:
+                    errors.append(f"{label}: complete candidate view is not the full tree materialization")
+    return errors
+
+
+def _p7_repair_errors(packet: dict, result: object, label: str) -> list[str]:
+    if _mapping(result).get("kind") == "not-established":
+        return []
+    repair = _mapping(result)
+    task_input = _mapping(packet.get("task_input"))
+    correction = _mapping(
+        _qualified_closure_result(task_input.get("qualified_unique_correction"))
+    )
+    requirements = _sequence(correction.get("correction_requirements"))
+    realizations = _sequence(repair.get("requirement_realizations"))
+    operations = _sequence(repair.get("operations"))
+    errors: list[str] = []
+    if len(realizations) != len(requirements) or [
+        _mapping(item).get("requirement_ordinal") for item in realizations
+    ] != list(range(len(requirements))):
+        errors.append(f"{label}: requirement realizations must be ordinal-complete")
+    operation_paths = [_mapping(item).get("path_bytes_base64url") for item in operations]
+    if operation_paths != sorted(operation_paths) or len(operation_paths) != len(set(operation_paths)):
+        errors.append(f"{label}: operation paths must be unique in canonical order")
+    scope = _mapping(
+        _qualified_closure_result(task_input.get("qualified_realization_scope"))
+    )
+    writable = set(_sequence(scope.get("writable_paths")))
+    for path in operation_paths:
+        if path not in writable:
+            errors.append(f"{label}: operation path is outside qualified writable scope")
+    referenced: set[str] = set()
+    all_already = True
+    for realization in realizations:
+        realization = _mapping(realization)
+        if realization.get("kind") == "patch-realized":
+            all_already = False
+            referenced.update(_sequence(realization.get("operation_paths")))
+    if referenced != set(operation_paths):
+        errors.append(f"{label}: patch-realized operation union must equal operations")
+    if (not operations) != all_already:
+        errors.append(f"{label}: operations must be empty iff all requirements are already-realized")
+    candidate_view = _mapping(task_input.get("candidate_view"))
+    entries = {
+        _mapping(entry).get("path_bytes_base64url"): _mapping(entry).get("state")
+        for entry in _sequence(_mapping(candidate_view.get("payload")).get("entries"))
+    }
+    for index, operation in enumerate(operations):
+        operation = _mapping(operation)
+        path = operation.get("path_bytes_base64url")
+        after = _mapping(operation.get("after_state"))
+        if after.get("kind") in {"blob", "symlink"}:
+            _bytes, inline_errors = _candidate_view_entry_bytes(after, f"{label}.operations[{index}].after_state")
+            errors.extend(inline_errors)
+        if after == entries.get(path):
+            errors.append(f"{label}: repair operation must not be a no-op")
+    return errors
+
+
+def _p7_adjudication_semantic_errors(
+    root: Path,
+    packet: dict,
+    output: dict,
+    label: str,
+) -> list[str]:
+    errors: list[str] = []
+    for field in ("subject", "finding"):
+        errors.extend(_content_bound_semantic_object_errors(packet.get(field), f"{label}.{field}"))
+    revision = _mapping(packet.get("revision"))
+    if revision.get("ordinal") == 1:
+        errors.extend(_content_bound_semantic_object_errors(revision.get("closure_subject"), f"{label}.revision.closure_subject"))
+        objections = _sequence(
+            _mapping(_mapping(revision.get("prior_challenge")).get("output")).get("objections")
+        )
+        if not objections:
+            errors.append(f"{label}: revision requires non-empty prior hostile objections")
+    task = packet.get("task")
+    result = output.get("result")
+    if task == "discovery-classification":
+        errors.extend(_p7_discovery_output_errors(packet, result, label))
+    elif task == "unique-correction-derivation":
+        errors.extend(_p7_unique_correction_errors(result, label))
+        target = _mapping(packet.get("task_input")).get("target_classification")
+        errors.extend(_content_bound_semantic_object_errors(target, f"{label}.target_classification", expected_selector="gate-a-discovery-classification-statement-v1"))
+    elif task == "realization-scope-derivation":
+        errors.extend(_p7_realization_scope_errors(packet, result, label))
+        readable = set(_sequence(_mapping(result).get("readable_paths"))) if _mapping(result).get("kind") != "not-established" else None
+        errors.extend(_p7_candidate_view_errors(root, _mapping(packet.get("task_input")).get("candidate_view"), expected_coverage="complete", expected_paths=None, label=f"{label}.candidate_view"))
+    elif task == "repair-realization":
+        errors.extend(_p7_repair_errors(packet, result, label))
+        scope = _mapping(_qualified_closure_result(_mapping(packet.get("task_input")).get("qualified_realization_scope")))
+        errors.extend(_p7_candidate_view_errors(root, _mapping(packet.get("task_input")).get("candidate_view"), expected_coverage="readable-paths", expected_paths=set(_sequence(scope.get("readable_paths"))), label=f"{label}.candidate_view"))
+    return errors
+
+
+def _bound_execution_evidence(
+    root: Path,
+    value: object,
+    label: str,
+    *,
+    owner_receipt_refs: list[dict],
+    bundle: dict,
+    bundle_sha256: str,
+    validators: dict[str, Draft202012Validator | None],
+) -> tuple[dict | None, list[str]]:
+    """Resolve and validate one closed BoundExecutionEvidenceV1 graph node."""
+    required = {"execution_receipt", "packet", "raw_output", "parsed_output"}
+    if not isinstance(value, dict) or set(value) != required:
+        return None, [f"{label}: must be an exact BoundExecutionEvidenceV1 object"]
+    errors: list[str] = []
+    receipt_runtime = value.get("execution_receipt")
+    errors.extend(_runtime_json_artifact_ref_errors(receipt_runtime, f"{label}.execution_receipt"))
+    digest = _mapping(receipt_runtime).get("sha256")
+    matching = [
+        ref
+        for ref in owner_receipt_refs
+        if isinstance(ref, dict) and ref.get("sha256") == digest
+    ]
+    if len(matching) != 1:
+        errors.append(
+            f"{label}: owning evidence root must contain exactly one receipt locator "
+            f"for bound sha256; found {len(matching)}"
+        )
+        return None, errors
+    receipt_ref = matching[0]
+    reconstructed_receipt, receipt_bytes, reconstruction_errors = (
+        reconstruct_runtime_json_artifact_ref(
+            root,
+            receipt_ref,
+            expected_prefix=REVIEW_EXECUTIONS_PREFIX,
+            expected_suffix=REVIEW_EXECUTION_SUFFIX,
+            label=f"{label}.execution_receipt",
+        )
+    )
+    errors.extend(reconstruction_errors)
+    if reconstructed_receipt != receipt_runtime:
+        errors.append(f"{label}: reconstructed receipt runtime identity does not match")
+    if receipt_bytes is None:
+        return None, errors
+    receipt, parse_errors = _parse_json_object_bytes(
+        receipt_bytes, f"{label}.execution_receipt"
+    )
+    errors.extend(parse_errors)
+    if receipt is None:
+        return None, errors
+    if receipt_bytes != _canonical_json_bytes(receipt):
+        errors.append(f"{label}: execution receipt must use canonical JSON value bytes")
+
+    packet_binding = value.get("packet")
+    if not isinstance(packet_binding, dict) or set(packet_binding) != {"artifact", "payload"}:
+        errors.append(f"{label}.packet: must contain exactly artifact and payload")
+        return None, errors
+    packet_runtime = packet_binding.get("artifact")
+    errors.extend(_runtime_json_artifact_ref_errors(packet_runtime, f"{label}.packet.artifact"))
+    role = receipt.get("role")
+    packet_prefix = _p7_packet_namespace(role)
+    if packet_prefix is None:
+        errors.append(f"{label}: role {role!r} has no P7 packet namespace")
+        return None, errors
+    packet_ref = _mapping(receipt.get("input")).get("packet")
+    reconstructed_packet, packet_bytes, packet_errors = reconstruct_runtime_json_artifact_ref(
+        root,
+        packet_ref,
+        expected_prefix=packet_prefix,
+        expected_suffix=".json",
+        label=f"{label}.packet",
+    )
+    errors.extend(packet_errors)
+    if reconstructed_packet != packet_runtime:
+        errors.append(f"{label}: reconstructed packet runtime identity does not match")
+    if packet_bytes is None:
+        return None, errors
+    packet_payload, packet_parse_errors = _parse_json_object_bytes(
+        packet_bytes, f"{label}.packet"
+    )
+    errors.extend(packet_parse_errors)
+    if packet_payload is None:
+        return None, errors
+    if packet_bytes != _canonical_json_document_bytes(packet_payload):
+        errors.append(f"{label}: packet must use canonical JSON document bytes")
+    if packet_payload != packet_binding.get("payload"):
+        errors.append(f"{label}: embedded packet payload does not equal exact packet bytes")
+
+    if role in P7_ADJUDICATION_ROLE_TASKS:
+        validator = validators.get("adjudication-packet")
+    elif role in {"challenge", "decision-necessity-challenger"}:
+        validator = validators.get("challenge-packet")
+    else:
+        validator = None
+    if validator is not None:
+        errors.extend(_schema_violations(validator, packet_payload, f"{label}.packet"))
+
+    raw_runtime = value.get("raw_output")
+    errors.extend(_runtime_json_artifact_ref_errors(raw_runtime, f"{label}.raw_output"))
+    qualifying = _unique_qualifying_attempt(receipt)
+    if qualifying is None:
+        errors.append(f"{label}: receipt must have exactly one qualified attempt")
+        return None, errors
+    raw_ref = qualifying.get("raw_output")
+    output_prefix = _p7_output_namespace(role)
+    if output_prefix is None:
+        errors.append(f"{label}: role {role!r} has no P7 output namespace")
+        return None, errors
+    reconstructed_raw, raw_bytes, raw_errors = reconstruct_runtime_json_artifact_ref(
+        root,
+        raw_ref,
+        expected_prefix=output_prefix,
+        expected_suffix=".json",
+        label=f"{label}.raw_output",
+    )
+    errors.extend(raw_errors)
+    if reconstructed_raw != raw_runtime:
+        errors.append(f"{label}: reconstructed raw-output runtime identity does not match")
+    if raw_bytes is None:
+        return None, errors
+    parsed_output, output_parse_errors = _parse_json_object_bytes(
+        raw_bytes, f"{label}.raw_output"
+    )
+    errors.extend(output_parse_errors)
+    if parsed_output is None:
+        return None, errors
+    if parsed_output != value.get("parsed_output"):
+        errors.append(f"{label}: parsed_output does not equal exact sealed raw bytes")
+    if role in P7_ADJUDICATION_ROLE_TASKS:
+        errors.extend(
+            _p7_adjudication_semantic_errors(
+                root,
+                packet_payload,
+                parsed_output,
+                f"{label}.adjudication",
+            )
+        )
+
+    receipt_errors, checked_attempt = _validate_execution_receipt(
+        root,
+        receipt,
+        f"{label}.execution_receipt",
+        _protocol_profile_map(bundle),
+        bundle_sha256,
+        validators,
+        packet_payload if role in {"challenge", "decision-necessity-challenger"} else None,
+    )
+    errors.extend(receipt_errors)
+    if checked_attempt is not qualifying:
+        errors.append(f"{label}: qualifying attempt resolution is inconsistent")
+    return {
+        "receipt": receipt,
+        "packet": packet_payload,
+        "output": parsed_output,
+        "receipt_ref": receipt_ref,
+        "execution_receipt": receipt_runtime,
+        "raw_output": raw_runtime,
+    }, errors
+
+
+P7_DIRECT_CHALLENGE_FAMILIES = {
+    "gate-a-materiality-assessment-challenge-v1": {
+        "family": "materiality-assessment",
+        "kind": "materiality",
+        "role": "materiality-assessor",
+        "task": "materiality-assessment",
+        "subject_selector": "gate-a-finding-adjudication-subject-v1",
+        "candidate_kind": None,
+    },
+    "gate-a-refutation-candidate-challenge-v1": {
+        "family": "refutation",
+        "kind": "refutation",
+        "role": "refutation-builder",
+        "task": "refutation",
+        "subject_selector": "gate-a-finding-adjudication-subject-v1",
+        "candidate_kind": "refutation-candidate",
+    },
+    "gate-a-unique-correction-candidate-challenge-v1": {
+        "family": "unique-correction",
+        "kind": "derivation",
+        "role": "derivation-builder",
+        "task": "unique-correction-derivation",
+        "subject_selector": "gate-a-surviving-material-resolution-subject-v1",
+        "candidate_kind": "unique-correction-candidate",
+    },
+    "gate-a-realization-scope-candidate-challenge-v1": {
+        "family": "realization-scope",
+        "kind": "derivation",
+        "role": "derivation-builder",
+        "task": "realization-scope-derivation",
+        "subject_selector": "gate-a-surviving-material-resolution-subject-v1",
+        "candidate_kind": None,
+    },
+    "gate-a-no-normative-impact-candidate-challenge-v1": {
+        "family": "no-normative-impact",
+        "kind": "normative-impact",
+        "role": "discovery-classifier",
+        "task": "discovery-classification",
+        "subject_selector": "gate-a-surviving-material-resolution-subject-v1",
+        "candidate_kind": "content-bound-discovery-statement",
+    },
+    "gate-a-repair-realization-candidate-challenge-v1": {
+        "family": "repair-realization",
+        "kind": "repair",
+        "role": "repair-synthesizer",
+        "task": "repair-realization",
+        "subject_selector": "gate-a-surviving-material-resolution-subject-v1",
+        "candidate_kind": "repair-realization-candidate",
+    },
+}
+P7_DECISION_NECESSITY_SELECTOR = "gate-a-decision-necessity-candidate-challenge-v1"
+
+
+def _p7_closure_contract(bundle: dict, kind: object, selector: object) -> dict | None:
+    contracts = _sequence(
+        _mapping(_mapping(bundle.get("policies")).get("challenge")).get(
+            "closure_contracts"
+        )
+    )
+    matches = [
+        contract
+        for contract in contracts
+        if isinstance(contract, dict)
+        and contract.get("challenge_kind") == kind
+        and contract.get("challenge_subject_selector") == selector
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _p7_direct_challenge_subject_errors(
+    root: Path,
+    challenge_packet: dict,
+    owner_receipt_refs: list[dict],
+    bundle: dict,
+    bundle_sha256: str,
+    validators: dict[str, Draft202012Validator | None],
+    label: str,
+) -> list[str]:
+    challenge_subject = _mapping(challenge_packet.get("challenge_subject"))
+    selector = challenge_subject.get("selector")
+    family = P7_DIRECT_CHALLENGE_FAMILIES.get(selector)
+    if family is None:
+        return [f"{label}: unknown P7 direct-producer challenge selector {selector!r}"]
+    payload = challenge_subject.get("payload")
+    errors: list[str] = []
+    if not isinstance(payload, dict) or set(payload) != {
+        "subject_schema_version",
+        "selector",
+        "subject",
+        "producer",
+        "candidate",
+    }:
+        return [f"{label}: challenge subject payload has the wrong closed shape"]
+    if payload.get("subject_schema_version") != 1:
+        errors.append(f"{label}: subject_schema_version must be 1")
+    if payload.get("selector") != selector:
+        errors.append(f"{label}: payload selector must equal challenge subject selector")
+    expected_sha = sha256_hex(_canonical_json_bytes(payload))
+    if challenge_subject.get("sha256") != expected_sha:
+        errors.append(f"{label}: challenge subject sha256 does not bind canonical payload")
+    subject = payload.get("subject")
+    errors.extend(
+        _content_bound_semantic_object_errors(
+            subject,
+            f"{label}.subject",
+            expected_selector=family["subject_selector"],
+        )
+    )
+    bound, bound_errors = _bound_execution_evidence(
+        root,
+        payload.get("producer"),
+        f"{label}.producer",
+        owner_receipt_refs=owner_receipt_refs,
+        bundle=bundle,
+        bundle_sha256=bundle_sha256,
+        validators=validators,
+    )
+    errors.extend(bound_errors)
+    if bound is None:
+        return errors
+    receipt = bound["receipt"]
+    packet = bound["packet"]
+    output = bound["output"]
+    if receipt.get("role") != family["role"]:
+        errors.append(f"{label}: producer role must be {family['role']}")
+    if packet.get("task") != family["task"]:
+        errors.append(f"{label}: producer packet task must be {family['task']}")
+    if output.get("task") != family["task"]:
+        errors.append(f"{label}: producer output task must be {family['task']}")
+    if packet.get("subject") != subject:
+        errors.append(f"{label}: producer packet subject must equal challenged subject")
+    if packet.get("review_packet") != challenge_packet.get("review_packet"):
+        errors.append(f"{label}: producer and challenge review packets must be equal")
+    result = output.get("result")
+    candidate = payload.get("candidate")
+    if family["candidate_kind"] == "content-bound-discovery-statement":
+        errors.extend(
+            _content_bound_semantic_object_errors(
+                candidate,
+                f"{label}.candidate",
+                expected_selector="gate-a-discovery-classification-statement-v1",
+            )
+        )
+        candidate_payload = _mapping(candidate).get("payload")
+        if _mapping(candidate_payload).get("semantic_disposition") != "no-normative-impact":
+            errors.append(f"{label}: discovery candidate must be no-normative-impact")
+        revision = _mapping(packet.get("revision"))
+        if revision.get("ordinal") == 0:
+            statements = _sequence(_mapping(result).get("classification_statements"))
+            if sum(statement == candidate_payload for statement in statements) != 1:
+                errors.append(f"{label}: candidate must select exactly one producer statement")
+        elif revision.get("ordinal") == 1:
+            if _mapping(result).get("kind") != "revised-candidate" or _mapping(result).get("statement") != candidate_payload:
+                errors.append(f"{label}: revised discovery candidate must equal revision output")
+            closure = _mapping(revision.get("closure_subject"))
+            if closure.get("selector") != selector:
+                errors.append(f"{label}: discovery revision must remain in the same family")
+        else:
+            errors.append(f"{label}: discovery producer revision ordinal must be 0 or 1")
+    else:
+        if candidate != result:
+            errors.append(f"{label}: candidate must equal exact producer output result")
+        candidate_kind = family["candidate_kind"]
+        if candidate_kind is not None and _mapping(result).get("kind") != candidate_kind:
+            errors.append(f"{label}: producer result must be {candidate_kind}")
+        if family["task"] == "materiality-assessment" and any(
+            _mapping(candidate).get(axis) is True for axis in MATERIALITY_AXES
+        ):
+            errors.append(f"{label}: materiality challenge requires all seven axes false")
+    return errors
+
+
+def _bound_supporting_projection(value: object) -> dict:
+    bound = _mapping(value)
+    return {
+        "execution_receipt": bound.get("execution_receipt"),
+        "raw_output": bound.get("raw_output"),
+        "output": bound.get("parsed_output"),
+    }
+
+
+def _p7_unique_correction_exhaustion_errors(
+    root: Path,
+    value: object,
+    *,
+    subject: dict,
+    discovery_hypothesis: dict,
+    review_packet: object,
+    owner_receipt_refs: list[dict],
+    bundle: dict,
+    bundle_sha256: str,
+    validators: dict[str, Draft202012Validator | None],
+    label: str,
+) -> list[str]:
+    branches = {
+        "initial-not-established": ["producer"],
+        "revision-not-established": [
+            "initial_producer",
+            "initial_challenge",
+            "revision_producer",
+        ],
+        "revised-challenge-objections": [
+            "initial_producer",
+            "initial_challenge",
+            "revision_producer",
+            "revision_challenge",
+        ],
+    }
+    if not isinstance(value, dict) or value.get("kind") not in branches:
+        return [f"{label}: unknown UniqueCorrectionExhaustionBasisV1 branch"]
+    kind = value["kind"]
+    expected_keys = {"kind", *branches[kind]}
+    if set(value) != expected_keys:
+        return [f"{label}: exhaustion branch has the wrong closed shape"]
+    errors: list[str] = []
+    resolved: dict[str, dict] = {}
+    for field in branches[kind]:
+        bound, bound_errors = _bound_execution_evidence(
+            root,
+            value.get(field),
+            f"{label}.{field}",
+            owner_receipt_refs=owner_receipt_refs,
+            bundle=bundle,
+            bundle_sha256=bundle_sha256,
+            validators=validators,
+        )
+        errors.extend(bound_errors)
+        if bound is not None:
+            resolved[field] = bound
+    if len(resolved) != len(branches[kind]):
+        return errors
+
+    def producer_errors(field: str, ordinal: int, positive: bool) -> None:
+        bound = resolved[field]
+        receipt, packet, output = bound["receipt"], bound["packet"], bound["output"]
+        if receipt.get("role") != "derivation-builder":
+            errors.append(f"{label}.{field}: role must be derivation-builder")
+        if packet.get("task") != "unique-correction-derivation" or output.get("task") != "unique-correction-derivation":
+            errors.append(f"{label}.{field}: task must be unique-correction-derivation")
+        if _mapping(packet.get("revision")).get("ordinal") != ordinal:
+            errors.append(f"{label}.{field}: revision ordinal must be {ordinal}")
+        if packet.get("subject") != subject:
+            errors.append(f"{label}.{field}: subject must equal decision-necessity subject")
+        if _mapping(packet.get("task_input")).get("target_classification") != discovery_hypothesis:
+            errors.append(f"{label}.{field}: target classification must equal discovery hypothesis")
+        if packet.get("review_packet") != review_packet:
+            errors.append(f"{label}.{field}: review packet must equal lineage review packet")
+        result = output.get("result")
+        if positive and _mapping(result).get("kind") != "unique-correction-candidate":
+            errors.append(f"{label}.{field}: result must be a unique-correction-candidate")
+        if not positive and result != {"kind": "not-established"}:
+            errors.append(f"{label}.{field}: result must be not-established")
+
+    if kind == "initial-not-established":
+        producer_errors("producer", 0, False)
+        return errors
+
+    producer_errors("initial_producer", 0, True)
+    initial_challenge = resolved["initial_challenge"]
+    initial_packet = initial_challenge["packet"]
+    if initial_challenge["receipt"].get("role") != "challenge":
+        errors.append(f"{label}.initial_challenge: role must be challenge")
+    if initial_packet.get("challenge_kind") != "derivation" or _mapping(initial_packet.get("challenge_subject")).get("selector") != "gate-a-unique-correction-candidate-challenge-v1":
+        errors.append(f"{label}.initial_challenge: must be the exact unique-correction challenge family")
+    if initial_packet.get("review_packet") != review_packet:
+        errors.append(f"{label}.initial_challenge: review packet must equal lineage review packet")
+    if not _sequence(initial_challenge["output"].get("objections")):
+        errors.append(f"{label}.initial_challenge: objections must be non-empty")
+    revision = _mapping(resolved["revision_producer"]["packet"].get("revision"))
+    producer_errors(
+        "revision_producer",
+        1,
+        kind == "revised-challenge-objections",
+    )
+    if revision.get("closure_subject") != initial_packet.get("challenge_subject"):
+        errors.append(f"{label}.revision_producer: closure subject must equal initial challenge subject")
+    if revision.get("prior_producer") != _bound_supporting_projection(value.get("initial_producer")):
+        errors.append(f"{label}.revision_producer: prior producer evidence mismatch")
+    if revision.get("prior_challenge") != _bound_supporting_projection(value.get("initial_challenge")):
+        errors.append(f"{label}.revision_producer: prior challenge evidence mismatch")
+    if kind == "revised-challenge-objections":
+        revised_challenge = resolved["revision_challenge"]
+        revised_packet = revised_challenge["packet"]
+        if revised_challenge["receipt"].get("role") != "challenge":
+            errors.append(f"{label}.revision_challenge: role must be challenge")
+        if revised_packet.get("challenge_kind") != "derivation" or _mapping(revised_packet.get("challenge_subject")).get("selector") != "gate-a-unique-correction-candidate-challenge-v1":
+            errors.append(f"{label}.revision_challenge: must be the exact unique-correction challenge family")
+        if revised_packet.get("review_packet") != review_packet:
+            errors.append(f"{label}.revision_challenge: review packet mismatch")
+        if not _sequence(revised_challenge["output"].get("objections")):
+            errors.append(f"{label}.revision_challenge: objections must be non-empty")
+        challenged = _mapping(revised_packet.get("challenge_subject")).get("payload")
+        revised_result = resolved["revision_producer"]["output"].get("result")
+        if _mapping(challenged).get("candidate") != revised_result:
+            errors.append(f"{label}.revision_challenge: candidate must equal revision output")
+    return errors
+
+
+def _p7_decision_necessity_subject_errors(
+    root: Path,
+    challenge_packet: dict,
+    owner_receipt_refs: list[dict],
+    bundle: dict,
+    bundle_sha256: str,
+    validators: dict[str, Draft202012Validator | None],
+    label: str,
+) -> list[str]:
+    challenge_subject = _mapping(challenge_packet.get("challenge_subject"))
+    payload = challenge_subject.get("payload")
+    required = {
+        "subject_schema_version",
+        "selector",
+        "subject",
+        "discovery_hypothesis",
+        "unique_correction_exhaustion",
+        "candidate",
+    }
+    if not isinstance(payload, dict) or set(payload) != required:
+        return [f"{label}: decision-necessity subject has the wrong closed shape"]
+    errors: list[str] = []
+    if payload.get("subject_schema_version") != 1:
+        errors.append(f"{label}: subject_schema_version must be 1")
+    if payload.get("selector") != P7_DECISION_NECESSITY_SELECTOR:
+        errors.append(f"{label}: payload selector mismatch")
+    if challenge_subject.get("sha256") != sha256_hex(_canonical_json_bytes(payload)):
+        errors.append(f"{label}: challenge subject sha256 mismatch")
+    subject = payload.get("subject")
+    errors.extend(_content_bound_semantic_object_errors(
+        subject,
+        f"{label}.subject",
+        expected_selector="gate-a-surviving-material-resolution-subject-v1",
+    ))
+    hypothesis = payload.get("discovery_hypothesis")
+    errors.extend(_content_bound_semantic_object_errors(
+        hypothesis,
+        f"{label}.discovery_hypothesis",
+        expected_selector="gate-a-discovery-classification-statement-v1",
+    ))
+    hypothesis_payload = _mapping(hypothesis).get("payload")
+    if _mapping(hypothesis_payload).get("semantic_disposition") != "decision-required":
+        errors.append(f"{label}: discovery hypothesis must be decision-required")
+    candidate = payload.get("candidate")
+    if not isinstance(candidate, dict) or set(candidate) != {"kind", "basis"}:
+        errors.append(f"{label}: candidate must have exact decision-necessity shape")
+    else:
+        if candidate.get("kind") != "decision-necessity-candidate":
+            errors.append(f"{label}: candidate kind mismatch")
+        if candidate.get("basis") != _mapping(hypothesis_payload).get("disposition_basis"):
+            errors.append(f"{label}: candidate basis must equal discovery disposition basis")
+    errors.extend(_p7_unique_correction_exhaustion_errors(
+        root,
+        payload.get("unique_correction_exhaustion"),
+        subject=_mapping(subject),
+        discovery_hypothesis=_mapping(hypothesis),
+        review_packet=challenge_packet.get("review_packet"),
+        owner_receipt_refs=owner_receipt_refs,
+        bundle=bundle,
+        bundle_sha256=bundle_sha256,
+        validators=validators,
+        label=f"{label}.unique_correction_exhaustion",
+    ))
+    return errors
+
+
+def _p7_challenge_packet_errors(
+    root: Path,
+    challenge_packet: dict,
+    *,
+    owner_receipt_refs: list[dict],
+    bundle: dict,
+    bundle_sha256: str,
+    validators: dict[str, Draft202012Validator | None],
+    label: str,
+    challenger_role: str | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    validator = validators.get("challenge-packet")
+    if validator is not None:
+        errors.extend(_schema_violations(validator, challenge_packet, label))
+    subject = _mapping(challenge_packet.get("challenge_subject"))
+    selector = subject.get("selector")
+    kind = challenge_packet.get("challenge_kind")
+    contract = _p7_closure_contract(bundle, kind, selector)
+    if contract is None:
+        errors.append(f"{label}: no exact P7 closure contract for kind/selector pair")
+        return errors
+    if challenge_packet.get("required_objectives") != contract.get("required_objectives"):
+        errors.append(f"{label}: required_objectives must equal exact contract sequence")
+    if challenger_role is not None and challenger_role != contract.get("challenger_role"):
+        errors.append(f"{label}: challenger role does not match exact closure contract")
+    if selector in P7_DIRECT_CHALLENGE_FAMILIES:
+        errors.extend(
+            _p7_direct_challenge_subject_errors(
+                root,
+                challenge_packet,
+                owner_receipt_refs,
+                bundle,
+                bundle_sha256,
+                validators,
+                label,
+            )
+        )
+    elif selector == P7_DECISION_NECESSITY_SELECTOR:
+        errors.extend(
+            _p7_decision_necessity_subject_errors(
+                root,
+                challenge_packet,
+                owner_receipt_refs,
+                bundle,
+                bundle_sha256,
+                validators,
+                label,
+            )
+        )
+    else:
+        errors.append(f"{label}: unknown P7 challenge selector {selector!r}")
+    return errors
+
 
 def _initial_reviewer_receipt_errors(
     record: dict,
@@ -1703,9 +2914,9 @@ def _reviewer_acquisition_conformance_errors(
     minimum_reviewers: int,
     label: str,
 ) -> list[str]:
-    """Reconstruct protocol-v5/v6 deterministic initial-reviewer acquisition."""
+    """Reconstruct deterministic initial-reviewer acquisition."""
     schema_version = bundle.get("protocol_bundle_schema_version")
-    if schema_version not in (5, 6):
+    if schema_version not in (5, 6, 7):
         return []
 
     errors: list[str] = []
@@ -2302,7 +3513,7 @@ def _review_evidence_errors(
         evidence_reference: dict = {}
         if bundle is not None:
             version = bundle.get("protocol_bundle_schema_version")
-            if version in (4, 5, 6):
+            if version in (4, 5, 6, 7):
                 evidence_reference = _mapping(
                     _mapping(bundle.get("meta_schemas")).get("review-evidence")
                 )
@@ -2723,6 +3934,636 @@ def _review_evidence_errors(
     return errors
 
 
+def load_finding_adjudication_supplements(
+    root: Path,
+) -> tuple[list[tuple[Path, dict]], list[str]]:
+    directory = root / REVIEW_SUPPLEMENTS_PREFIX.rstrip("/")
+    supplements: list[tuple[Path, dict]] = []
+    errors: list[str] = []
+    if not directory.exists():
+        return supplements, errors
+    if directory.is_symlink() or not directory.is_dir():
+        return supplements, [f"{REVIEW_SUPPLEMENTS_PREFIX.rstrip('/')}: must be a direct directory"]
+    for path in sorted(directory.iterdir()):
+        label = path.relative_to(root).as_posix()
+        if path.is_symlink() or not path.is_file():
+            errors.append(f"{label}: supplement must be a direct regular file")
+            continue
+        if path.suffix != ".json":
+            errors.append(f"{label}: supplement must use the .json suffix")
+            continue
+        try:
+            data = path.read_bytes()
+            value = json.loads(data.decode("utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            errors.append(f"{label}: invalid supplement JSON ({_concise_parser_error(error)})")
+            continue
+        if not isinstance(value, dict):
+            errors.append(f"{label}: supplement must be a JSON object")
+            continue
+        if data != _canonical_json_document_bytes(value):
+            errors.append(f"{label}: supplement must use canonical JSON document bytes")
+        expected_name = f"{sha256_hex(data)}.json"
+        if path.name != expected_name:
+            errors.append(
+                f"{label}: supplement filename must equal exact document SHA-256; "
+                f"expected {expected_name}"
+            )
+        supplements.append((path, value))
+    return supplements, errors
+
+
+def _supporting_execution_dag_errors(
+    nodes: dict[str, dict],
+    roots: set[str],
+    label: str,
+) -> list[str]:
+    errors: list[str] = []
+    for identity, node in nodes.items():
+        for predecessor in node.get("predecessors", set()):
+            if predecessor not in nodes:
+                errors.append(f"{label}: supporting DAG has missing predecessor {predecessor}")
+            elif node.get("lineage") != nodes[predecessor].get("lineage"):
+                errors.append(f"{label}: supporting DAG has a cross-lineage edge")
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(identity: str) -> None:
+        if identity in visiting:
+            errors.append(f"{label}: supporting execution DAG contains a cycle")
+            return
+        if identity in visited or identity not in nodes:
+            return
+        visiting.add(identity)
+        for predecessor in nodes[identity].get("predecessors", set()):
+            visit(predecessor)
+        visiting.remove(identity)
+        visited.add(identity)
+
+    reachable: set[str] = set()
+
+    def mark(identity: str) -> None:
+        if identity in reachable or identity not in nodes:
+            return
+        reachable.add(identity)
+        for predecessor in nodes[identity].get("predecessors", set()):
+            mark(predecessor)
+
+    for root_identity in roots:
+        visit(root_identity)
+        mark(root_identity)
+    if reachable != set(nodes):
+        errors.append(f"{label}: supporting execution DAG contains an orphan receipt")
+    logical_keys = [node.get("logical_key") for node in nodes.values()]
+    if len(logical_keys) != len(set(logical_keys)):
+        errors.append(f"{label}: duplicate logical execution for exact role and packet")
+    return errors
+
+
+def _supplement_effective_receipt_refs(supplement: dict) -> list[dict]:
+    effective = _mapping(supplement.get("effective_adjudication"))
+    return [
+        value
+        for key, value in effective.items()
+        if key != "kind" and isinstance(value, dict)
+    ]
+
+
+def _supplement_terminal_receipt_refs(supplement: dict) -> list[dict]:
+    effective = _mapping(supplement.get("effective_adjudication"))
+    terminal_field = {
+        "qualified-non-material": "materiality_challenge_execution_receipt",
+        "qualified-refutation": "refutation_challenge_execution_receipt",
+        "surviving-material": "refutation_exhaustion_terminal_receipt",
+    }.get(effective.get("kind"))
+    terminal = effective.get(terminal_field) if terminal_field is not None else None
+    return [terminal] if isinstance(terminal, dict) else []
+
+
+def _p7_lineage_packet_errors(
+    packet: dict,
+    *,
+    supplement: dict,
+    source_finding: dict,
+    bundle: dict,
+    review_packet: dict,
+    label: str,
+) -> list[str]:
+    errors: list[str] = []
+    protocol = _mapping(supplement.get("protocol"))
+    bundle_ref = _mapping(protocol.get("protocol_bundle"))
+    packet_ref = _mapping(protocol.get("review_packet"))
+    expected_review_packet = {"sha256": packet_ref.get("sha256"), "payload": review_packet}
+    if packet.get("review_packet") != expected_review_packet:
+        errors.append(f"{label}: packet is not bound to the supplement review packet")
+    if "task" not in packet:
+        return errors
+    expected_finding = {
+        "selector": FINDING_SUBJECT_SELECTOR,
+        "sha256": _finding_subject_sha256(source_finding),
+        "payload": _finding_subject_payload(source_finding),
+    }
+    if packet.get("finding") != expected_finding:
+        errors.append(f"{label}: packet finding does not equal the exact source finding")
+    subject_payload = _mapping(_mapping(packet.get("subject")).get("payload"))
+    semantic_subject = _mapping(supplement.get("semantic_subject"))
+    if subject_payload.get("semanticSubject") != semantic_subject:
+        errors.append(f"{label}: packet subject semantic identity mismatch")
+    expected_protocol = {
+        "protocolId": bundle.get("protocol_id"),
+        "repositoryPath": bundle_ref.get("path"),
+        "sha256": bundle_ref.get("sha256"),
+    }
+    protocol_field = (
+        "currentProtocolBundle"
+        if _mapping(packet.get("subject")).get("selector")
+        == "gate-a-finding-adjudication-subject-v1"
+        else "protocolBundle"
+    )
+    if subject_payload.get(protocol_field) != expected_protocol:
+        errors.append(f"{label}: packet subject protocol identity mismatch")
+    if protocol_field == "currentProtocolBundle":
+        source = _mapping(supplement.get("source_finding"))
+        source_subject = _mapping(subject_payload.get("sourceFinding"))
+        if (
+            source_subject.get("reviewCampaignId") != source.get("review_id")
+            or source_subject.get("findingId") != source.get("finding_id")
+            or source_subject.get("substantiveFindingSha256")
+            != source.get("substantive_finding_sha256")
+        ):
+            errors.append(f"{label}: packet subject source-finding identity mismatch")
+        if subject_payload.get("adjudicatingReviewCampaignId") != supplement.get(
+            "adjudicating_review_id"
+        ):
+            errors.append(f"{label}: packet subject adjudicating campaign mismatch")
+    return errors
+
+
+def _supplement_supporting_execution_graph(
+    root: Path,
+    supplement: dict,
+    *,
+    source_finding: dict,
+    bundle: dict,
+    bundle_sha256: str,
+    validators: dict[str, Draft202012Validator | None],
+    label: str,
+) -> tuple[dict[tuple[str, str], dict], list[str]]:
+    owner_refs = [
+        ref
+        for ref in _sequence(supplement.get("supporting_executions"))
+        if isinstance(ref, dict)
+    ]
+    contexts: dict[tuple[str, str], dict] = {}
+    nodes: dict[str, dict] = {}
+    errors: list[str] = []
+    review_packet_ref = _mapping(_mapping(supplement.get("protocol")).get("review_packet"))
+    review_packet_bytes, review_packet_errors = _read_review_artifact(
+        root,
+        review_packet_ref,
+        f"{label}.protocol.review_packet",
+        REVIEW_PACKET_PREFIX,
+        REVIEW_PACKET_SUFFIX,
+    )
+    errors.extend(review_packet_errors)
+    review_packet: dict = {}
+    if review_packet_bytes is not None:
+        parsed_review_packet, parse_errors = _parse_json_object_bytes(
+            review_packet_bytes, f"{label}.protocol.review_packet"
+        )
+        errors.extend(parse_errors)
+        if parsed_review_packet is not None:
+            review_packet = parsed_review_packet
+    lineage = (
+        _mapping(supplement.get("source_finding")).get("substantive_finding_sha256"),
+        _mapping(supplement.get("semantic_subject")).get("sha256"),
+        bundle_sha256,
+    )
+    for index, receipt_ref in enumerate(owner_refs):
+        receipt_runtime, receipt_bytes, receipt_errors = reconstruct_runtime_json_artifact_ref(
+            root,
+            receipt_ref,
+            expected_prefix=REVIEW_EXECUTIONS_PREFIX,
+            expected_suffix=REVIEW_EXECUTION_SUFFIX,
+            label=f"{label}.supporting_executions[{index}]",
+        )
+        errors.extend(receipt_errors)
+        if receipt_runtime is None or receipt_bytes is None:
+            continue
+        receipt, parse_errors = _parse_json_object_bytes(
+            receipt_bytes, f"{label}.supporting_executions[{index}]"
+        )
+        errors.extend(parse_errors)
+        if receipt is None:
+            continue
+        if receipt_bytes != _canonical_json_bytes(receipt):
+            errors.append(
+                f"{label}.supporting_executions[{index}]: receipt must use canonical JSON value bytes"
+            )
+        receipt_validator = validators.get("execution-receipt")
+        if receipt_validator is not None:
+            errors.extend(
+                _schema_violations(
+                    receipt_validator,
+                    receipt,
+                    f"{label}.supporting_executions[{index}]",
+                )
+            )
+        role = receipt.get("role")
+        packet_prefix = _p7_packet_namespace(role)
+        output_prefix = _p7_output_namespace(role)
+        if receipt.get("receipt_schema_version") != "4.0" or packet_prefix is None or output_prefix is None:
+            errors.append(
+                f"{label}.supporting_executions[{index}]: supplement requires a protocol-v7 receipt role"
+            )
+            continue
+        packet_ref = _mapping(receipt.get("input")).get("packet")
+        packet_runtime, packet_bytes, packet_errors = reconstruct_runtime_json_artifact_ref(
+            root,
+            packet_ref,
+            expected_prefix=packet_prefix,
+            expected_suffix=".json",
+            label=f"{label}.supporting_executions[{index}].packet",
+        )
+        errors.extend(packet_errors)
+        qualifying = _unique_qualifying_attempt(receipt)
+        if qualifying is None:
+            errors.append(
+                f"{label}.supporting_executions[{index}]: receipt has no unique qualified attempt"
+            )
+            continue
+        raw_ref = qualifying.get("raw_output")
+        raw_runtime, raw_bytes, raw_errors = reconstruct_runtime_json_artifact_ref(
+            root,
+            raw_ref,
+            expected_prefix=output_prefix,
+            expected_suffix=".json",
+            label=f"{label}.supporting_executions[{index}].raw_output",
+        )
+        errors.extend(raw_errors)
+        if packet_runtime is None or packet_bytes is None or raw_runtime is None or raw_bytes is None:
+            continue
+        packet, packet_parse_errors = _parse_json_object_bytes(
+            packet_bytes, f"{label}.supporting_executions[{index}].packet"
+        )
+        output, output_parse_errors = _parse_json_object_bytes(
+            raw_bytes, f"{label}.supporting_executions[{index}].raw_output"
+        )
+        errors.extend(packet_parse_errors)
+        errors.extend(output_parse_errors)
+        if packet is None or output is None:
+            continue
+        bound = {
+            "execution_receipt": receipt_runtime,
+            "packet": {"artifact": packet_runtime, "payload": packet},
+            "raw_output": raw_runtime,
+            "parsed_output": output,
+        }
+        context, bound_errors = _bound_execution_evidence(
+            root,
+            bound,
+            f"{label}.supporting_executions[{index}]",
+            owner_receipt_refs=owner_refs,
+            bundle=bundle,
+            bundle_sha256=bundle_sha256,
+            validators=validators,
+        )
+        errors.extend(bound_errors)
+        if context is None:
+            continue
+        errors.extend(
+            _p7_lineage_packet_errors(
+                packet,
+                supplement=supplement,
+                source_finding=source_finding,
+                bundle=bundle,
+                review_packet=review_packet,
+                label=f"{label}.supporting_executions[{index}]",
+            )
+        )
+        if role in {"challenge", "decision-necessity-challenger"}:
+            errors.extend(
+                _p7_challenge_packet_errors(
+                    root,
+                    packet,
+                    owner_receipt_refs=owner_refs,
+                    bundle=bundle,
+                    bundle_sha256=bundle_sha256,
+                    validators=validators,
+                    label=f"{label}.supporting_executions[{index}].challenge_packet",
+                    challenger_role=role,
+                )
+            )
+        key = (receipt_ref.get("path"), receipt_ref.get("sha256"))
+        contexts[key] = context
+        predecessors: set[str] = set()
+        for node in _walk_json(packet):
+            if not isinstance(node, dict):
+                continue
+            if set(node) == {
+                "execution_receipt",
+                "packet",
+                "raw_output",
+                "parsed_output",
+            } or set(node) == {"execution_receipt", "raw_output", "output"}:
+                predecessor_sha = _mapping(node.get("execution_receipt")).get("sha256")
+                if isinstance(predecessor_sha, str):
+                    predecessors.add(predecessor_sha)
+        nodes[receipt_ref.get("sha256")] = {
+            "predecessors": predecessors,
+            "lineage": lineage,
+            "logical_key": (role, _mapping(packet_runtime).get("sha256")),
+        }
+
+    contexts_by_sha = {
+        _mapping(context.get("execution_receipt")).get("sha256"): context
+        for context in contexts.values()
+    }
+    for context in contexts.values():
+        packet = _mapping(context.get("packet"))
+        for node in _walk_json(packet):
+            if not isinstance(node, dict) or set(node) != {
+                "execution_receipt",
+                "raw_output",
+                "output",
+            }:
+                continue
+            predecessor = contexts_by_sha.get(
+                _mapping(node.get("execution_receipt")).get("sha256")
+            )
+            if predecessor is None:
+                continue
+            if node.get("raw_output") != predecessor.get("raw_output"):
+                errors.append(f"{label}: supporting predecessor raw-output identity mismatch")
+            if node.get("output") != predecessor.get("output"):
+                errors.append(f"{label}: supporting predecessor parsed output mismatch")
+        revision = _mapping(packet.get("revision"))
+        if revision.get("ordinal") != 1:
+            continue
+        prior_producer = contexts_by_sha.get(
+            _mapping(_mapping(revision.get("prior_producer")).get("execution_receipt")).get("sha256")
+        )
+        prior_challenge = contexts_by_sha.get(
+            _mapping(_mapping(revision.get("prior_challenge")).get("execution_receipt")).get("sha256")
+        )
+        if prior_producer is None or prior_challenge is None:
+            continue
+        if _mapping(prior_producer.get("receipt")).get("role") != _mapping(context.get("receipt")).get("role"):
+            errors.append(f"{label}: revision producer role changed")
+        if _mapping(prior_producer.get("packet")).get("task") != packet.get("task"):
+            errors.append(f"{label}: revision producer task changed")
+        if _mapping(prior_producer.get("packet")).get("subject") != packet.get("subject"):
+            errors.append(f"{label}: revision producer subject changed")
+        if _mapping(prior_producer.get("packet")).get("review_packet") != packet.get("review_packet"):
+            errors.append(f"{label}: revision producer review packet changed")
+        challenge_packet = _mapping(prior_challenge.get("packet"))
+        if challenge_packet.get("challenge_subject") != revision.get("closure_subject"):
+            errors.append(f"{label}: revision closure subject does not equal prior challenge subject")
+        if not _sequence(_mapping(prior_challenge.get("output")).get("objections")):
+            errors.append(f"{label}: revision requires prior hostile objections")
+        challenged_producer = _mapping(
+            _mapping(challenge_packet.get("challenge_subject")).get("payload")
+        ).get("producer")
+        if _bound_supporting_projection(challenged_producer) != revision.get("prior_producer"):
+            errors.append(f"{label}: prior challenge was not bound to the revision producer")
+    root_shas = {
+        _mapping(ref).get("sha256")
+        for ref in _supplement_terminal_receipt_refs(supplement)
+        if isinstance(_mapping(ref).get("sha256"), str)
+    }
+    errors.extend(_supporting_execution_dag_errors(nodes, root_shas, label))
+    return contexts, errors
+
+
+def _materiality_axes_from_context(context: dict | None) -> list[object]:
+    result = _mapping(_mapping(context).get("output")).get("result")
+    result = _mapping(result)
+    return [result.get(axis) for axis in MATERIALITY_AXES]
+
+
+def _effective_supplement_adjudication_errors(
+    supplement: dict,
+    contexts: dict[tuple[str, str], dict],
+    label: str,
+) -> list[str]:
+    effective = _mapping(supplement.get("effective_adjudication"))
+    kind = effective.get("kind")
+    errors: list[str] = []
+
+    def context(field: str) -> dict | None:
+        ref = _mapping(effective.get(field))
+        return contexts.get((ref.get("path"), ref.get("sha256")))
+
+    materiality = context("materiality_assessment_execution_receipt")
+    materiality_axes = _materiality_axes_from_context(materiality)
+    if _mapping(materiality).get("receipt", {}).get("role") != "materiality-assessor":
+        errors.append(f"{label}: effective materiality receipt has the wrong role")
+    if kind == "qualified-non-material":
+        if materiality_axes != [False] * len(MATERIALITY_AXES):
+            errors.append(f"{label}: qualified non-material requires all materiality axes false")
+        challenge = context("materiality_challenge_execution_receipt")
+        if _mapping(challenge).get("receipt", {}).get("role") != "challenge":
+            errors.append(f"{label}: materiality challenge receipt has the wrong role")
+        if _mapping(_mapping(challenge).get("packet")).get("challenge_subject", {}).get("selector") != "gate-a-materiality-assessment-challenge-v1":
+            errors.append(f"{label}: materiality challenge selector mismatch")
+        if _mapping(_mapping(challenge).get("output")).get("objections") != []:
+            errors.append(f"{label}: qualified non-material requires zero challenge objections")
+    elif kind == "qualified-refutation":
+        if not any(axis is True for axis in materiality_axes):
+            errors.append(f"{label}: qualified refutation requires positive materiality")
+        refutation = context("refutation_execution_receipt")
+        if _mapping(refutation).get("receipt", {}).get("role") != "refutation-builder" or _mapping(_mapping(refutation).get("output")).get("result", {}).get("kind") != "refutation-candidate":
+            errors.append(f"{label}: qualified refutation requires an exact refutation candidate")
+        challenge = context("refutation_challenge_execution_receipt")
+        if _mapping(challenge).get("receipt", {}).get("role") != "challenge":
+            errors.append(f"{label}: refutation challenge receipt has the wrong role")
+        if _mapping(_mapping(challenge).get("packet")).get("challenge_subject", {}).get("selector") != "gate-a-refutation-candidate-challenge-v1":
+            errors.append(f"{label}: refutation challenge selector mismatch")
+        if _mapping(_mapping(challenge).get("output")).get("objections") != []:
+            errors.append(f"{label}: qualified refutation requires zero challenge objections")
+    elif kind == "surviving-material":
+        if not any(axis is True for axis in materiality_axes):
+            errors.append(f"{label}: surviving material requires positive materiality")
+        terminal = context("refutation_exhaustion_terminal_receipt")
+        terminal_role = _mapping(terminal).get("receipt", {}).get("role")
+        terminal_output = _mapping(_mapping(terminal).get("output"))
+        terminal_packet = _mapping(_mapping(terminal).get("packet"))
+        exhausted = (
+            terminal_role == "refutation-builder"
+            and _mapping(terminal_output.get("result")).get("kind") == "not-established"
+        ) or (
+            terminal_role == "challenge"
+            and terminal_output.get("objections") not in (None, [])
+            and _mapping(terminal_packet.get("challenge_subject")).get("selector")
+            == "gate-a-refutation-candidate-challenge-v1"
+            and _mapping(
+                _mapping(
+                    _mapping(terminal_packet.get("challenge_subject")).get("payload")
+                ).get("producer")
+            ).get("packet", {}).get("payload", {}).get("revision", {}).get("ordinal")
+            == 1
+        )
+        if not exhausted:
+            errors.append(f"{label}: terminal receipt does not establish lawful refutation exhaustion")
+    return errors
+
+
+def _finding_adjudication_supplement_errors(
+    root: Path,
+    manifest: dict,
+    records: list[tuple[Path, dict]],
+    supplements: list[tuple[Path, dict]],
+    current_subject: dict | None,
+) -> list[str]:
+    errors: list[str] = []
+    record_index = {
+        record.get("review_id"): record
+        for _path, record in records
+        if isinstance(record.get("review_id"), str)
+    }
+    bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
+    semantic_keys: Counter[tuple] = Counter()
+    receipt_owners: Counter[tuple] = Counter()
+    campaign_receipts = {
+        (_mapping(ref).get("path"), _mapping(ref).get("sha256"))
+        for _path, record in records
+        for ref in _sequence(record.get("supporting_executions"))
+    }
+    for path, supplement in supplements:
+        label = path.relative_to(root).as_posix()
+        protocol = _mapping(supplement.get("protocol"))
+        bundle_ref = _mapping(protocol.get("protocol_bundle"))
+        bundle, bundle_errors = _load_protocol_bundle_document(
+            root, bundle_ref, f"{label}: protocol bundle", bundle_cache
+        )
+        errors.extend(bundle_errors)
+        validators, validator_errors = _bundle_selected_validators(
+            root, bundle, f"{label}: protocol bundle"
+        )
+        errors.extend(validator_errors)
+        validator = validators.get("finding-adjudication-supplement")
+        if validator is not None:
+            errors.extend(_schema_violations(validator, supplement, label))
+        if bundle is None or bundle.get("protocol_bundle_schema_version") != 7:
+            errors.append(f"{label}: supplement must bind a protocol-v7 bundle")
+            continue
+        semantic_subject = _mapping(supplement.get("semantic_subject"))
+        if current_subject is not None and semantic_subject != {
+            "selector": current_subject.get("selector"),
+            "sha256": current_subject.get("sha256"),
+        }:
+            errors.append(f"{label}: supplement semantic subject is not current S")
+        source = _mapping(supplement.get("source_finding"))
+        source_record = record_index.get(source.get("review_id"))
+        source_finding = None
+        if source_record is not None:
+            matches = [
+                finding
+                for finding in _sequence(source_record.get("findings"))
+                if isinstance(finding, dict)
+                and finding.get("finding_id") == source.get("finding_id")
+            ]
+            if len(matches) == 1:
+                source_finding = matches[0]
+        if source_finding is None:
+            errors.append(f"{label}: source finding does not resolve exactly")
+            continue
+        finding_sha = _finding_subject_sha256(source_finding)
+        if source.get("substantive_finding_sha256") != finding_sha:
+            errors.append(f"{label}: substantive finding sha256 mismatch")
+        semantic_key = (
+            source.get("review_id"),
+            source.get("finding_id"),
+            finding_sha,
+            bundle_ref.get("path"),
+            bundle_ref.get("sha256"),
+        )
+        semantic_keys[semantic_key] += 1
+        review_packet_ref = _mapping(protocol.get("review_packet"))
+        review_packet_bytes, packet_errors = _read_review_artifact(
+            root,
+            review_packet_ref,
+            f"{label}: review packet",
+            REVIEW_PACKET_PREFIX,
+            REVIEW_PACKET_SUFFIX,
+        )
+        errors.extend(packet_errors)
+        if review_packet_bytes is not None:
+            packet, parse_errors = _parse_json_object_bytes(review_packet_bytes, f"{label}: review packet")
+            errors.extend(parse_errors)
+            if packet is not None:
+                subject = _mapping(packet.get("subject"))
+                if subject.get("selector") != semantic_subject.get("selector") or subject.get("sha256") != semantic_subject.get("sha256"):
+                    errors.append(f"{label}: review packet subject mismatch")
+        adjudicating_id = supplement.get("adjudicating_review_id")
+        adjudicating = record_index.get(adjudicating_id)
+        if adjudicating is None:
+            errors.append(f"{label}: adjudicating ReviewCampaign does not exist")
+        else:
+            subjects = _gate_a_derived_subjects(adjudicating.get("subjects"))
+            if len(subjects) != 1 or subjects[0].get("selector") != semantic_subject.get("selector") or subjects[0].get("sha256") != semantic_subject.get("sha256"):
+                errors.append(f"{label}: adjudicating review has wrong S")
+            if _mapping(_mapping(adjudicating.get("protocol")).get("protocol_bundle")) != bundle_ref:
+                errors.append(f"{label}: adjudicating review has wrong P")
+            if _mapping(_mapping(adjudicating.get("protocol")).get("review_packet")) != review_packet_ref:
+                errors.append(f"{label}: adjudicating review packet mismatch")
+        source_bundle = _mapping(_mapping(source_record.get("protocol")).get("protocol_bundle"))
+        if source_bundle == bundle_ref:
+            if adjudicating_id != source.get("review_id"):
+                errors.append(f"{label}: same-protocol bootstrap must use source review")
+        else:
+            current_ids = sorted(
+                review_id
+                for review_id, record in record_index.items()
+                if _mapping(_mapping(record.get("protocol")).get("protocol_bundle")) == bundle_ref
+                and len(_gate_a_derived_subjects(record.get("subjects"))) == 1
+                and _gate_a_derived_subjects(record.get("subjects"))[0].get("sha256") == semantic_subject.get("sha256")
+            )
+            if not current_ids or adjudicating_id != current_ids[0]:
+                errors.append(f"{label}: stale-source adjudicating campaign selection is not canonical")
+        refs = [_mapping(ref) for ref in _sequence(supplement.get("supporting_executions"))]
+        if refs != sorted(refs, key=lambda ref: (str(ref.get("path")), str(ref.get("sha256")))):
+            errors.append(f"{label}: supporting executions are not in canonical order")
+        ref_keys = {(ref.get("path"), ref.get("sha256")) for ref in refs}
+        if len(ref_keys) != len(refs):
+            errors.append(f"{label}: supporting execution references must be unique")
+        for key in ref_keys:
+            receipt_owners[key] += 1
+            if key in campaign_receipts:
+                errors.append(f"{label}: receipt belongs to campaign and supplement roots")
+        for effective_ref in _supplement_effective_receipt_refs(supplement):
+            key = (effective_ref.get("path"), effective_ref.get("sha256"))
+            if key not in ref_keys:
+                errors.append(f"{label}: effective adjudication receipt is outside supporting_executions")
+        effective_kind = _mapping(supplement.get("effective_adjudication")).get("kind")
+        if effective_kind not in {
+            "qualified-non-material",
+            "qualified-refutation",
+            "surviving-material",
+        }:
+            errors.append(f"{label}: invalid effective adjudication kind")
+        contexts, graph_errors = _supplement_supporting_execution_graph(
+            root,
+            supplement,
+            source_finding=source_finding,
+            bundle=bundle,
+            bundle_sha256=str(bundle_ref.get("sha256")),
+            validators=validators,
+            label=label,
+        )
+        errors.extend(graph_errors)
+        errors.extend(
+            _effective_supplement_adjudication_errors(supplement, contexts, label)
+        )
+    for key, count in semantic_keys.items():
+        if count > 1:
+            errors.append(f"duplicate supplement semantic key {key!r}")
+    for key, count in receipt_owners.items():
+        if count > 1:
+            errors.append(f"supporting receipt belongs to multiple supplement roots: {key!r}")
+    return errors
+
+
 def _concise_parser_error(error: Exception) -> str:
     if isinstance(error, json.JSONDecodeError):
         return f"{error.msg} at line {error.lineno} column {error.colno}"
@@ -3136,6 +4977,7 @@ def derive_gate_a(
     records: list[tuple[Path, dict]],
     subject_requirement: PersistentEvidenceRequirement,
     current_protocol_requirement: PersistentEvidenceRequirement,
+    supplements: list[tuple[Path, dict]] | None = None,
 ) -> dict:
     """Derive Formal-Architecture-Ready from current review evidence."""
     hostile_review = _mapping(_mapping(manifest.get("policy")).get("hostile_review"))
@@ -3177,6 +5019,13 @@ def derive_gate_a(
             "reason": "hostile assurance-decomposition review evidence required",
         }
 
+    current_supplements: dict[tuple, dict] = {}
+    for _path, supplement in supplements or []:
+        protocol_bundle = _mapping(_mapping(supplement.get("protocol")).get("protocol_bundle"))
+        source = _mapping(supplement.get("source_finding"))
+        if protocol_bundle.get("sha256") == current_bundle_sha256:
+            current_supplements[(source.get("review_id"), source.get("finding_id"))] = supplement
+
     current_re_adjudications: dict[tuple, list[dict]] = {}
     for record in current:
         for item in _sequence(record.get("re_adjudications")):
@@ -3190,7 +5039,7 @@ def derive_gate_a(
             if not isinstance(finding, dict):
                 continue
             key = (record.get("review_id"), finding.get("finding_id"))
-            if key not in current_re_adjudications:
+            if key not in current_supplements and key not in current_re_adjudications:
                 return {
                     "ready": False,
                     "reason": "stale-protocol finding requires current re-adjudication",
@@ -3206,6 +5055,16 @@ def derive_gate_a(
         for finding in _sequence(record.get("findings")):
             if not isinstance(finding, dict):
                 continue
+            key = (record.get("review_id"), finding.get("finding_id"))
+            overlay = current_supplements.get(key)
+            if overlay is not None:
+                kind = _mapping(overlay.get("effective_adjudication")).get("kind")
+                if kind in {"qualified-non-material", "qualified-refutation"}:
+                    continue
+                return {
+                    "ready": False,
+                    "reason": "surviving material hostile-review finding exists",
+                }
             if (
                 _finding_is_material(finding)
                 and finding.get("status") in GATE_A_BLOCKING_STATUSES
@@ -3220,6 +5079,15 @@ def derive_gate_a(
             if not isinstance(finding, dict):
                 continue
             key = (record.get("review_id"), finding.get("finding_id"))
+            overlay = current_supplements.get(key)
+            if overlay is not None:
+                kind = _mapping(overlay.get("effective_adjudication")).get("kind")
+                if kind in {"qualified-non-material", "qualified-refutation"}:
+                    continue
+                return {
+                    "ready": False,
+                    "reason": "surviving material hostile-review finding exists",
+                }
             items = current_re_adjudications.get(key, [])
             if not items:
                 return {
@@ -3618,11 +5486,24 @@ def collect_errors(
     current_subject, subject_errors = build_gate_a_review_subject(root, manifest)
     errors.extend(subject_errors)
 
+    candidate_bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
+    errors.extend(_inactive_protocol_v7_candidate_errors(root, candidate_bundle_cache))
+
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
+    supplements, supplement_load_errors = load_finding_adjudication_supplements(root)
+    supplement_validation_errors = _finding_adjudication_supplement_errors(
+        root,
+        manifest,
+        review_records,
+        supplements,
+        current_subject,
+    )
 
     errors.extend(review_load_errors)
     errors.extend(review_validation_errors)
+    errors.extend(supplement_load_errors)
+    errors.extend(supplement_validation_errors)
 
     gate_a_requirements = None
     if load_governance:
@@ -3635,7 +5516,12 @@ def collect_errors(
         ) as error:
             errors.append(f"Gate A evidence requirements: {error}")
 
-    if review_load_errors or review_validation_errors:
+    if (
+        review_load_errors
+        or review_validation_errors
+        or supplement_load_errors
+        or supplement_validation_errors
+    ):
         gate_a = {
             "ready": False,
             "reason": "hostile review evidence integrity failure",
@@ -3655,6 +5541,7 @@ def collect_errors(
             review_records,
             gate_a_requirements[0],
             gate_a_requirements[1],
+            supplements=supplements,
         )
     summary["gate_a"] = gate_a
 
