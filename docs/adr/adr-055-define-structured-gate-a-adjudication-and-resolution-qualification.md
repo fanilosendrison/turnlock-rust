@@ -7,9 +7,9 @@ domain: "turnlock-rust"
 severity: "strict"
 name: "Define structured Gate A adjudication and resolution qualification"
 id: "ADR-055"
-status: "proposed"
+status: "accepted"
 date: "2026-10-05"
-decision_body_sha256: "fb47a19e559f2a7c57392286c68dd77ea646698ed86ac41a21eb0d508add649e"
+decision_body_sha256: "a5d52c18003092092f06ddae9b36a7ae8d4d169922fadc0804a80049917ac2fc"
 relation_completeness: "complete"
 relations:
   clarifies: []
@@ -2937,16 +2937,12 @@ remains operationally admissible.
 The revision is bounded to the same closure family and may withdraw through the
 protocol-defined negative result rather than fabricate a new closure.
 
-### ADR status remains proposed
+### Acceptance and activation boundary
 
-Closing these construction discoveries does not activate protocol v7 and does
-not make this ADR accepted.
+The concrete protocol-v7 artifact set required by this ADR has been constructed
+and mechanically validated while protocol v6 remained current.
 
-Before ADR-055 may transition from `proposed` to `accepted`, the concrete
-protocol-v7 artifact set must be constructed and mechanically validated against
-these decisions.
-
-That construction includes at minimum:
+That validated construction includes at minimum:
 
 ```text
 review-protocol-bundle meta-schema v7
@@ -2965,26 +2961,35 @@ historical protocol-v1 through protocol-v6 regression validation
 explicit inactive-P7 conformance validation while P6 remains current
 ```
 
-Concrete construction may expose another material assurance ambiguity.
+That construction satisfied the precondition for accepting ADR-055.
 
-If that occurs, STOP and route that discovery explicitly.
+Acceptance of this ADR does not itself activate protocol v7.
 
-A coding agent MUST NOT resolve a newly discovered semantic/protocol ambiguity
-by inventing schema fields, challenge policy, reviewer policy, branch behavior,
-overlay semantics, or evidence meaning.
+Protocol activation remains a distinct mechanically visible transition through
+the exact `current_protocol_bundle` selected by `formal/verification.yaml`.
 
-Until the complete protocol-v7 artifact set validates and ADR-055 is explicitly
-accepted:
+Construction must first synchronize NIB-S and the dependent Module Briefs with
+this accepted protocol authority and validate that synchronized construction.
+
+Until that later synchronization is accepted and protocol v7 is explicitly
+selected as current:
 
 ```text
 gate-a-campaign-protocol-v6 remains current
 execution-receipt schema 3.0 remains current
 review-evidence schema 5.0 remains current
 NIB-S 10.0.0 remains active
+current Module Brief versions remain active
 M5-B remains pending
 M5-C remains pending
 M5-D remains pending
 ```
+
+The published protocol-v7 artifact set remains immutable while inactive.
+
+Any newly discovered semantic or protocol ambiguity during subsequent
+construction still requires an explicit STOP and classification rather than
+being resolved by implementation choice.
 
 ## Alternatives considered
 
