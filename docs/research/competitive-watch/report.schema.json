@@ -1,0 +1,954 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/fanilosendrison/turnlock-rust/blob/main/docs/research/competitive-watch/report.schema.json",
+  "title": "TURNLOCK Competitive Watch Report",
+  "description": "Structural contract for new TURNLOCK and Turnlock Cloud competitive-watch reports. Cross-report continuity and truthfulness require separate validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "methodology_version",
+    "report_id",
+    "report_kind",
+    "generated_at",
+    "period_start",
+    "period_end",
+    "previous_report_ids",
+    "corrects",
+    "basis",
+    "summary",
+    "coverage",
+    "actors",
+    "findings",
+    "evidence",
+    "new_entrants",
+    "trajectories",
+    "open_questions",
+    "positioning_implications",
+    "discovery",
+    "radar_continuity"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "methodology_version": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "report_id": {
+      "$ref": "#/$defs/reportId"
+    },
+    "report_kind": {
+      "enum": [
+        "baseline",
+        "daily",
+        "weekly",
+        "alert",
+        "correction"
+      ]
+    },
+    "generated_at": {
+      "$ref": "#/$defs/dateTime"
+    },
+    "period_start": {
+      "$ref": "#/$defs/nullableDateTime"
+    },
+    "period_end": {
+      "$ref": "#/$defs/dateTime"
+    },
+    "previous_report_ids": {
+      "$ref": "#/$defs/reportIdArray"
+    },
+    "corrects": {
+      "$ref": "#/$defs/reportIdArray"
+    },
+    "basis": {
+      "$ref": "#/$defs/basis"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coverage"
+      }
+    },
+    "actors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/actor"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "new_entrants": {
+      "$ref": "#/$defs/idArray"
+    },
+    "trajectories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "positioning_implications": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "discovery": {
+      "$ref": "#/$defs/discovery"
+    },
+    "radar_continuity": {
+      "$ref": "#/$defs/radarContinuity"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "actors": {
+            "contains": {
+              "properties": {
+                "monitoring": {
+                  "properties": {
+                    "monitoring_status": {
+                      "const": "user_stopped"
+                    }
+                  },
+                  "required": [
+                    "monitoring_status"
+                  ]
+                }
+              },
+              "required": [
+                "monitoring"
+              ]
+            }
+          }
+        },
+        "required": [
+          "actors"
+        ]
+      },
+      "then": {
+        "properties": {
+          "radar_continuity": {
+            "properties": {
+              "user_instruction_refs": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "user_instruction_refs"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullableDateTime": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "reportId": {
+      "type": "string",
+      "pattern": "^TCW-[0-9]{8}T[0-9]{6}Z$"
+    },
+    "idArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "reportIdArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/reportId"
+      }
+    },
+    "axisId": {
+      "enum": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5",
+        "C6",
+        "C7",
+        "C8"
+      ]
+    },
+    "basisSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "ref",
+        "role"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "ref": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "role": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turnlock_repository",
+        "turnlock_commit",
+        "sources",
+        "turnlock_cloud_status",
+        "history_available"
+      ],
+      "properties": {
+        "turnlock_repository": {
+          "const": "fanilosendrison/turnlock-rust"
+        },
+        "turnlock_commit": {
+          "type": "string",
+          "pattern": "^(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})$"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/basisSource"
+          }
+        },
+        "turnlock_cloud_status": {
+          "type": "string"
+        },
+        "history_available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "status",
+        "from_cursor",
+        "to_cursor",
+        "reason"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_checked"
+          ]
+        },
+        "from_cursor": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "to_cursor": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "rating": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "scope",
+        "rationale",
+        "evidence_ids",
+        "confidence",
+        "external_dependencies"
+      ],
+      "properties": {
+        "level": {
+          "enum": [
+            "U",
+            "L0",
+            "L1",
+            "L2",
+            "L3",
+            "L4"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "rationale": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "external_dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "axisAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_id",
+        "assessment",
+        "scope",
+        "evidence_ids",
+        "remaining_gaps"
+      ],
+      "properties": {
+        "axis_id": {
+          "$ref": "#/$defs/axisId"
+        },
+        "assessment": {
+          "enum": [
+            "supported",
+            "partial",
+            "announced",
+            "limited",
+            "unknown",
+            "not_applicable"
+          ]
+        },
+        "scope": {
+          "type": "string"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "remaining_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "first_seen_at",
+        "first_evaluated_at",
+        "last_signal_check_at",
+        "last_code_inspection_at",
+        "last_evaluated_at",
+        "next_review_due_at",
+        "monitoring_status",
+        "actor_lifecycle",
+        "coverage_status",
+        "admission_reason",
+        "related_actor_ids",
+        "pending_investigations"
+      ],
+      "properties": {
+        "first_seen_at": {
+          "$ref": "#/$defs/nullableDateTime"
+        },
+        "first_evaluated_at": {
+          "$ref": "#/$defs/nullableDateTime"
+        },
+        "last_signal_check_at": {
+          "$ref": "#/$defs/nullableDateTime"
+        },
+        "last_code_inspection_at": {
+          "$ref": "#/$defs/nullableDateTime"
+        },
+        "last_evaluated_at": {
+          "$ref": "#/$defs/nullableDateTime"
+        },
+        "next_review_due_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "monitoring_status": {
+          "enum": [
+            "seed_pending",
+            "permanent",
+            "user_stopped"
+          ]
+        },
+        "actor_lifecycle": {
+          "enum": [
+            "unknown",
+            "active",
+            "dormant",
+            "discontinued",
+            "acquired",
+            "renamed"
+          ]
+        },
+        "coverage_status": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_checked",
+            "overdue"
+          ]
+        },
+        "admission_reason": {
+          "type": "string"
+        },
+        "related_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "pending_investigations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_id",
+        "component_id",
+        "display_name",
+        "last_observed_at",
+        "revalidated_this_run",
+        "availability",
+        "roles",
+        "ratings",
+        "axes",
+        "summary",
+        "monitoring"
+      ],
+      "properties": {
+        "actor_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "component_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "last_observed_at": {
+          "$ref": "#/$defs/nullableDateTime"
+        },
+        "revalidated_this_run": {
+          "type": "boolean"
+        },
+        "availability": {
+          "enum": [
+            "unknown",
+            "announcement",
+            "proposal",
+            "merged",
+            "prerelease",
+            "released",
+            "available_service"
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "competitor",
+              "complement",
+              "supplier",
+              "signal_consumer",
+              "research"
+            ]
+          }
+        },
+        "ratings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "turnlock_core_guarantees",
+            "managed_execution",
+            "run_signal_reproducibility",
+            "evaluation_optimization_downstream"
+          ],
+          "properties": {
+            "turnlock_core_guarantees": {
+              "$ref": "#/$defs/rating"
+            },
+            "managed_execution": {
+              "$ref": "#/$defs/rating"
+            },
+            "run_signal_reproducibility": {
+              "$ref": "#/$defs/rating"
+            },
+            "evaluation_optimization_downstream": {
+              "$ref": "#/$defs/rating"
+            }
+          }
+        },
+        "axes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/axisAssessment"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "monitoring": {
+          "$ref": "#/$defs/monitoring"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "actor_id",
+        "component_id",
+        "title",
+        "lifecycle",
+        "change_causes",
+        "previous_finding_refs",
+        "axes",
+        "evidence_ids",
+        "observed_change",
+        "guarantee_effect",
+        "downstream_effect",
+        "remaining_gap",
+        "next_investigation"
+      ],
+      "properties": {
+        "finding_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "component_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "title": {
+          "type": "string"
+        },
+        "lifecycle": {
+          "enum": [
+            "new",
+            "strengthened",
+            "weakened",
+            "unchanged",
+            "corrected",
+            "superseded",
+            "closed"
+          ]
+        },
+        "change_causes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "implementation_change",
+              "new_evidence",
+              "assessment_correction",
+              "turnlock_baseline_change",
+              "methodology_change"
+            ]
+          }
+        },
+        "previous_finding_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^TCW-[0-9]{8}T[0-9]{6}Z#[^#]+$"
+          }
+        },
+        "axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/axisId"
+          }
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "observed_change": {
+          "type": "string"
+        },
+        "guarantee_effect": {
+          "type": "string"
+        },
+        "downstream_effect": {
+          "type": "string"
+        },
+        "remaining_gap": {
+          "type": "string"
+        },
+        "next_investigation": {
+          "type": "string"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "environment",
+        "result",
+        "artifact_reference"
+      ],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "result": {
+          "type": "string"
+        },
+        "artifact_reference": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "actor_id",
+        "kind",
+        "source_url",
+        "observed_at",
+        "event_at",
+        "source_published_at",
+        "repository_revision",
+        "path_or_locator",
+        "claim_supported",
+        "limitations",
+        "execution"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "claim",
+            "documentation",
+            "source_inspection",
+            "tests_inspected",
+            "reproduced",
+            "proof_artifact"
+          ]
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "event_at": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_published_at": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "repository_revision": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "path_or_locator": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "claim_supported": {
+          "type": "string"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "execution": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/execution"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "reproduced"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "execution": {
+                "$ref": "#/$defs/execution"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "source_inspection",
+                  "tests_inspected"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "repository_revision": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "path_or_locator": {
+                "$ref": "#/$defs/nonEmptyString"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "discoverySearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "query",
+        "searched_at",
+        "coverage",
+        "result_summary",
+        "evidence_ids"
+      ],
+      "properties": {
+        "channel": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "searched_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "coverage": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "result_summary": {
+          "type": "string"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/idArray"
+        }
+      }
+    },
+    "discovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "searches",
+        "admitted_actor_ids",
+        "pending_candidates",
+        "duplicates_and_lineage",
+        "limitations"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_performed"
+          ]
+        },
+        "searches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/discoverySearch"
+          }
+        },
+        "admitted_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "pending_candidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "duplicates_and_lineage": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "complete"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "searches": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "radarContinuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "previous_actor_ids",
+        "newly_admitted_actor_ids",
+        "current_actor_ids",
+        "overdue_actor_ids",
+        "user_stopped_actor_ids",
+        "user_instruction_refs",
+        "reconciliation_notes"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "verified",
+            "history_incomplete",
+            "validation_failed"
+          ]
+        },
+        "previous_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "newly_admitted_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "current_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "overdue_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "user_stopped_actor_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "user_instruction_refs": {
+          "$ref": "#/$defs/idArray"
+        },
+        "reconciliation_notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
