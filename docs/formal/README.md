@@ -441,12 +441,12 @@ for those products.
 It does not own finding adjudication, resolution qualification, assurance
 repository projection, or `CandidateReviewReadiness`.
 
-### Proposed M5 adjudication / resolution protocol evolution
+### Accepted M5 adjudication / resolution protocol evolution
 
-ADR-055 remains proposed construction authority for the next Gate A
+ADR-055 is accepted protocol authority for the next Gate A
 hostile-review protocol evolution.
 
-It proposes protocol v7 structured contracts for M5-B review-evidence
+It defines protocol v7 structured contracts for M5-B review-evidence
 adjudication and M5-C resolution qualification, including deterministic
 supporting-role acquisition, structured adjudication packets/outputs,
 candidate-bound realization, explicit already-realized repair qualification,
@@ -486,7 +486,9 @@ schema-5 re_adjudications[] member
 Historical schema-5 `re_adjudications[]` remain valid for the protocol versions
 that produced them.
 
-ADR-055 is still proposed and is not yet active protocol authority.
+ADR-055 is accepted protocol authority, while protocol v7 remains inactive until
+runner-contract synchronization is accepted and `formal/verification.yaml`
+explicitly selects it as current.
 
 Therefore:
 
@@ -498,7 +500,7 @@ NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
 M5-B, M5-C and M5-D remain pending construction
 an inactive protocol-v7 candidate may be validated without becoming current
 no protocol-v7 campaign, supplement overlay or readiness behavior is active
-merely because ADR-055 or the inactive candidate exists
+merely because the accepted ADR or inactive candidate exists
 ```
 
 The inactive protocol-v7 candidate fixes the exact adjudication-packet namespace

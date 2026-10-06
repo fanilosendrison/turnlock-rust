@@ -71,10 +71,12 @@ immutable history.
 
 An inactive `gate-a-campaign-protocol-v7` candidate is also present. Its bundle,
 meta-schema, prompts, schemas, predecessor binding, repository namespaces, and
-supporting-evidence rules are mechanically validated, but it is not selected by
-`formal/verification.yaml`. It therefore does not change currentness, reviewer
-acquisition, Gate A readiness, or the active execution-receipt schema. ADR-055
-remains proposed.
+supporting-evidence rules are mechanically validated, and ADR-055 is accepted.
+Protocol v7 is not selected by `formal/verification.yaml`; protocol v6 remains
+current and execution-receipt schema 3.0 remains active. Acceptance alone does
+not affect currentness, reviewer acquisition, Gate A readiness, or active
+evidence interpretation. Runner-contract synchronization remains pending before
+activation.
 
 The published v1-v5 bundles intentionally declare:
 
