@@ -406,6 +406,158 @@ recording execution evidence is not the same as proving semantic correctness.
 No reproducibility, replay, comparison, or run-proof guarantee is part of the
 TURNLOCK core as a consequence of this note.
 
+### 3.7 Layered reproducibility profiles
+
+A future evaluation layer may need to express reproducibility as a profile
+rather than one Boolean property.
+
+Illustratively:
+
+```text
+R0 — observed execution
+sufficient boundary execution truth exists for the declared observation scope
+
+R1 — method identity reproducible
+the exact governing workflow definitions required by the profile are established
+
+R2 — condition comparison established
+required effective conditions have property-specific equality, difference,
+control, or explicit unknown treatment
+
+R3 — environment rematerializable
+a managed realization can recreate the environment facts required by the profile
+
+R4 — control replayable
+declared workflow progression can be replayed using recorded boundary outcomes
+under a defined replay contract
+
+R5 — output reproducible
+the underlying execution resources themselves support the declared output
+reproduction guarantee
+```
+
+The names and levels are illustrative only. This document does not accept them,
+require monotonic implication among them, define the determinant set, or require
+TURNLOCK Core to implement any profile.
+
+In particular:
+
+```text
+durable workflow replay
+!=
+fresh semantic-output reproducibility
+```
+
+A replay engine may reproduce workflow decisions by reusing historical outputs
+from nondeterministic activities while a new model or agent call remains
+stochastic.
+
+### 3.8 Comparison eligibility and property-relative determinant coverage
+
+A future comparison facility could make eligibility a first-class result before
+computing an improvement or regression conclusion.
+
+For a property `P`, an evaluation contract could identify required determinants
+and the treatment permitted for each one.
+
+Conceptually:
+
+```text
+determinants required for P
+        ↓
+for every determinant:
+    established equal
+    OR explicitly controlled
+    OR paired / blocked / normalized under the evaluation design
+    OR modeled as varying
+    OR explicit unknown / unavailable
+        ↓
+comparison eligibility assessment
+```
+
+Absence of evidence for a difference MUST NOT be treated as evidence of equality
+under such a future profile.
+
+This could let an evaluator distinguish:
+
+```text
+score difference observed
+```
+
+from:
+
+```text
+comparison supports a method-level conclusion for property P
+```
+
+No determinant registry, equality operator, comparison algorithm, status
+vocabulary, or statistical method is selected here.
+
+### 3.9 Regression attribution
+
+A future evaluator may benefit from separating several possible sources of an
+observed degradation:
+
+```text
+workflow / method definition
+realized control path
+model or execution realization
+environment
+input or dataset
+evaluator
+resource efficiency
+residual stochastic or unexplained variation
+```
+
+The useful question is not only:
+
+```text
+Did the score decrease?
+```
+
+but also:
+
+```text
+What conclusion does the available evidence justify about why it decreased?
+```
+
+A possible result can therefore remain attribution-underdetermined when the
+observations establish degradation but do not justify assigning it to the
+method.
+
+This distinction could support safer CI regression gates, workflow promotion,
+model/provider changes, and historical analysis. It establishes no current
+TURNLOCK or Turnlock Cloud guarantee.
+
+### 3.10 Optimization and promotion under controlled evidence
+
+An optimizer can generate or select workflow variants without TURNLOCK owning
+optimization policy.
+
+A stronger future evaluation loop could require the external optimization /
+promotion actor to consume an explicitly qualified comparison result:
+
+```text
+candidate workflow generation
+→ governed execution under its own stable binding
+→ property-specific comparison eligibility
+→ evaluation with uncertainty
+→ explicit promotion / rejection policy
+→ later invocation under the selected workflow
+```
+
+The creation or selection of a candidate workflow is authorship. It MUST NOT
+retroactively rebind an already accepted invocation under current TURNLOCK
+semantics.
+
+Where known conditions can be controlled, paired, blocked, stratified, or
+normalized, a future evaluator may be able to reduce residual unexplained
+variance and increase information per execution. This can improve optimization
+efficiency without making stochastic systems deterministic.
+
+This document selects no optimizer, search method, promotion rule, causal model,
+power threshold, confidence threshold, or automatic rollback mechanism.
+
 ## 4. Architectural hypothesis, not accepted architecture
 
 The design hypothesis worth retaining is:
