@@ -260,6 +260,47 @@ in general recover it from the current workflow file or a conversational
 summary. An equivalent capture capability can preserve such information; this
 is not a claim of proprietary exclusivity.
 
+## Why Core matters to later reproducibility and evaluation
+
+TURNLOCK Core does not currently promise replay, cross-run comparability, or
+reproducibility. Those stronger outcomes require separate contracts and, where
+durable history is needed, a surrounding system that actually captures and
+retains the required information.
+
+Core nevertheless owns information that can become impossible to establish
+retrospectively if it is discarded while TURNLOCK possesses it. Two examples
+are especially important:
+
+```text
+the governing workflow definition of an accepted invocation
+
+the effective execution conditions TURNLOCK selected, bound,
+explicitly supplied, or resolved for particular execution scopes
+```
+
+Those facts do not by themselves make two runs comparable. They are possible
+inputs to a later comparison contract.
+
+The distinction is:
+
+```text
+preserve execution-time truth that TURNLOCK actually knows
+!=
+declare that two runs are comparable
+!=
+declare that a method improved or regressed
+```
+
+A later evaluator may need to know which method governed a run, what was
+actually realized, which conditions differed, and which candidate conditions
+remain unknown. If required execution-time information was never preserved or
+made capturable when it existed, a later system cannot in general guarantee
+that it can reconstruct the missing fact with equivalent meaning.
+
+This is a responsibility-boundary observation, not a new Core guarantee.
+Another runtime with equivalent binding, inspection, and provenance
+responsibilities could provide the same foundation.
+
 ## Inspection supports refinement, not a correctness oracle
 
 TURNLOCK's inspectability contract covers realized execution or realized-prefix
