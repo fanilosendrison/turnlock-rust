@@ -401,6 +401,54 @@ Managed execution does not automatically make runs reproducible, comparable,
 deterministic, or valid experiments. This relationship does not strengthen
 current TURNLOCK inspectability or execution-condition provenance semantics.
 
+## 11A. Managed execution as a possible experimental-control substrate
+
+A managed execution system can potentially know or control more of the concrete
+realization than a purely external evaluator.
+
+Examples may include:
+
+```text
+base image or environment identity
+workspace materialization basis
+toolchain realization
+selected execution-resource configuration
+scoped credentials or capability configuration
+network / service configuration known to the managed layer
+resource allocation
+```
+
+This creates a possible experimental-control opportunity:
+
+```text
+more known or controlled execution conditions
+        ↓
+stronger property-specific pairing / blocking / normalization
+        ↓
+less unexplained variation where the evaluation design justifies it
+        ↓
+potentially more information per execution
+```
+
+Managed execution does not automatically establish equality of these conditions,
+make every relevant external determinant observable, or make two runs
+comparable. A fresh environment is not necessarily the same environment, and
+recreating a container or VM image does not reproduce opaque external services,
+LLM outputs, human actions, or every harness-internal fact.
+
+A managed layer may also need to preserve the distinction between:
+- an environment that can be rematerialized;
+- a historical environment whose exact relevant state was captured;
+- and a condition whose historical value is unavailable.
+
+External effects create an additional boundary. Destroying disposable compute
+does not prove whether an ambiguous external effect occurred. A future
+evaluation layer must not manufacture certainty merely because the environment
+no longer exists.
+
+This remains a future design opportunity only. It creates no managed-execution,
+reproducibility, persistence, capture, or comparison requirement.
+
 ## 12. Possible future Turnlock Cloud relationship
 
 Some combination of:
