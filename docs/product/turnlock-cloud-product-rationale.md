@@ -263,6 +263,162 @@ artifacts, while observations can inform the next revision. This can complement
 improvements in the underlying models without depending on a particular model
 improvement forecast.
 
+## Reproducibility is layered rather than Boolean
+
+For agentic methods, `reproducible` can describe several materially different
+properties. A possible future product should avoid collapsing them into one
+undifferentiated claim.
+
+Illustratively:
+
+```text
+method reproducibility
+→ establish the exact governing workflow definitions
+
+condition reproducibility / comparability
+→ establish the equality, difference, control, or unknown status
+  of conditions relevant to a declared property
+
+environment reproducibility
+→ rematerialize the relevant managed execution environment
+  under an explicit profile
+
+control replay
+→ reproduce workflow progression using recorded boundary outcomes
+  where the replay contract permits it
+
+output reproducibility
+→ reproduce the outputs of the underlying computation or cognition
+  only where those resources actually support that guarantee
+```
+
+A system may satisfy a lower layer without satisfying a higher one. Replaying a
+durable event history by reusing previously recorded nondeterministic results,
+for example, is not evidence that a fresh LLM or agent execution would produce
+the same output.
+
+No layer or profile in this illustration is accepted by this rationale. The
+point is that stronger future guarantees should state exactly what is reproduced
+and under which assumptions.
+
+## Comparison eligibility comes before regression judgment
+
+An observed score difference between two groups of runs does not by itself
+establish that a workflow method improved or regressed.
+
+A future comparison facility could first ask a property-relative question:
+
+```text
+Are execution sets A and B comparable for property P?
+```
+
+The answer can depend on determinants selected by the evaluation contract, such
+as:
+
+```text
+governing workflow definition
+inputs or dataset version
+evaluator definition
+model / provider realization
+model parameters
+tool and harness realization
+workspace / repository state
+relevant environment
+other property-specific execution conditions
+```
+
+A determinant can be established equal, established different and explicitly
+controlled, paired, blocked, normalized, modeled as varying, or unavailable /
+unknown. Missing information must not be converted into evidence of equality.
+
+A future product could therefore distinguish:
+
+```text
+comparison eligible
+comparison eligible under declared controls / assumptions
+comparison eligibility undetermined
+comparison ineligible for the requested property
+```
+
+These labels are illustrative only and create no status vocabulary.
+
+The user value is not merely another regression dashboard. It is the possibility
+of refusing to attribute a score difference to the method when the available
+execution evidence does not justify that conclusion.
+
+## Regression can occur at different layers
+
+A richer evaluation system could distinguish several classes of change instead
+of reducing every degradation to one score:
+
+```text
+method regression
+→ the executable method itself changed adversely for the property
+
+execution regression
+→ the realized progression changed adversely even when the authored method
+  remains the same
+
+realization regression
+→ the effective model, tool, harness, provider, environment, or other execution
+  realization changed adversely
+
+result regression
+→ comparable executions produce worse evaluated outcomes
+
+efficiency regression
+→ comparable outcomes require materially more time, tokens, turns, compute,
+  retries, or another explicitly selected resource
+```
+
+These categories can overlap and require a supplied evaluation contract. They
+are not accepted Cloud semantics.
+
+A useful future distinction could be:
+
+```text
+observed regression
+!=
+method-attributable regression
+```
+
+When attribution cannot be established, the system should preserve that
+uncertainty instead of manufacturing causal confidence from correlation.
+
+## Optimization quality depends on evaluation-signal validity
+
+Workflow generation and optimization are not unique capabilities. An optimizer
+can already search over prompts, programs, policies, or workflow variants.
+
+The stronger opportunity is to avoid optimizing an invalid comparison signal.
+
+Conceptually:
+
+```text
+generate candidate W2
+        ↓
+establish comparison eligibility for property P
+        ↓
+run controlled / paired / otherwise justified evaluation
+        ↓
+preserve uncertainty and relevant condition differences
+        ↓
+apply an explicit promotion policy
+        ↓
+possibly author or promote W2 for later invocations
+```
+
+If the evaluator, dataset, model realization, environment, or another material
+determinant changed without appropriate treatment, a higher observed score need
+not mean that the method improved. An optimizer that ignores such confounding can
+select noise or realization drift.
+
+A future Turnlock Cloud could therefore make method optimization more reliable
+by improving the interpretability of the signal used for selection. This does
+not make optimization policy a TURNLOCK Core responsibility, guarantee causal
+identification, eliminate stochastic variation, or imply that Turnlock Cloud
+must implement its own optimizer.
+
 ## Experimental efficiency rather than promised determinism
 
 Managed execution could make more concrete execution conditions known or
@@ -281,6 +437,20 @@ stochastic; valid comparison and reproducibility are not automatic consequences
 of managed execution.
 
 ## Capabilities requiring an equivalent surrounding system
+
+Some guarantees are impossible to create retrospectively once their necessary
+execution-time information has been irreversibly lost. For example, a later
+system cannot establish that an unknown condition was identical across two past
+runs merely because no difference was recorded. It cannot guarantee the exact
+governing definition of a historical invocation if that binding was never
+preserved, and it cannot recover condition-specific provenance that was never
+captured and no longer exists.
+
+This is an information requirement, not an exclusivity claim. TURNLOCK plus a
+future Cloud product is one possible architecture; another system with
+equivalent observation-time binding, capture, retention, comparison, and
+evaluation responsibilities could provide equivalent guarantees for future
+executions.
 
 TURNLOCK Core cannot supply physical capacity, isolation, environment lifecycle,
 durable history, or an experimental discipline merely by defining orchestration.
