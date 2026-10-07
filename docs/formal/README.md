@@ -490,6 +490,9 @@ ADR-055 remains accepted authority for the published protocol-v7 structured
 adjudication design. ADR-056 is accepted authority for the next Gate A
 hostile-review protocol evolution.
 
+The stable non-authoritative protocol-v8 construction sequence is documented in
+[`gate-a-protocol-v8-construction-plan.md`](gate-a-protocol-v8-construction-plan.md).
+
 Protocol v7 is an immutable validated predecessor and regression artifact. Under
 ADR-056 it is permanently inactive and MUST NOT subsequently be selected as
 current.
