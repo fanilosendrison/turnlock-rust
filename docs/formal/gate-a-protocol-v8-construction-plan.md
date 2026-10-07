@@ -394,6 +394,31 @@ AND
 protocol v6 remains current
 ```
 
+## C1–C6 authority boundary
+
+C1-C6 are architect-owned pre-publication design closure.
+
+They may mechanically derive only what is uniquely determined by ADR-055,
+ADR-056, and existing accepted authority.
+
+If closing C1-C6 requires choosing between materially different protocol
+meanings:
+
+```text
+STOP
+→ classify the discovery as decision-required
+→ obtain an accepted ADR
+→ resume from the earliest affected construction stage
+```
+
+Construction choices that do not create protocol meaning may be closed in
+C1-C6 and materialized later.
+
+The complete authoritative protocol-v8 artifact representation is published
+only at C7. Before that publication, a C1-C6 design closure is a construction
+input, not independent hostile-review protocol authority. An accepted ADR
+required to resolve a material choice remains the authority for that choice.
+
 ---
 
 ## C1 — Close the SemanticQuestionContract catalog
@@ -721,6 +746,8 @@ Determine exactly which published P7 artifacts can remain unchanged and which re
 The audit must separately classify:
 
 ```text
+SemanticQuestionContract catalog/registry representation
+PredicateRevision / qualification-contract representation
 semantic output schemas
 adjudication packet schema
 challenge packet schema
@@ -775,10 +802,9 @@ changing only provenance locator/root ownership cannot change QLEK
 
 Publish the concrete immutable protocol-v8 artifact set required by the closed C1-C6 architecture.
 
-At minimum this includes a new:
+At minimum this includes:
 
 ```text
-formal/reviews/meta-schemas/review-protocol-bundle-v8.schema.json
 formal/reviews/protocols/gate-a-campaign-protocol-v8.json
 ```
 
@@ -788,7 +814,19 @@ with exact predecessor:
 formal/reviews/protocols/gate-a-campaign-protocol-v7.json
 ```
 
-and every new immutable schema/prompt/contract artifact actually required by C6.
+and every new immutable meta-schema, schema, prompt, semantic-contract,
+predicate/qualification-contract, or other protocol artifact actually required
+by the closed C1-C6 design.
+
+If C6 determines that the protocol-bundle interpretation structure changes,
+publish a new:
+
+```text
+formal/reviews/meta-schemas/review-protocol-bundle-v8.schema.json
+```
+
+Otherwise, the P8 bundle may bind the exact unchanged historical protocol-bundle
+meta-schema whose interpretation structure remains sufficient.
 
 Do not create new versions of unchanged artifacts without cause.
 
