@@ -423,6 +423,9 @@ required to resolve a material choice remains the authority for that choice.
 
 ## C1 — Close the SemanticQuestionContract catalog
 
+The C1 construction closure is documented in
+[`gate-a-protocol-v8-semantic-question-contract-catalog.md`](gate-a-protocol-v8-semantic-question-contract-catalog.md).
+
 Before any protocol-v8 packet schema or QLEK serialization is designed, define the exact immutable semantic-question contracts for every protocol-v8 semantic family.
 
 The catalog must cover at least:
