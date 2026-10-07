@@ -486,9 +486,19 @@ schema-5 re_adjudications[] member
 Historical schema-5 `re_adjudications[]` remain valid for the protocol versions
 that produced them.
 
-ADR-055 is accepted protocol authority, while protocol v7 remains inactive until
-runner-contract synchronization is accepted and `formal/verification.yaml`
-explicitly selects it as current.
+ADR-055 remains accepted authority for the published protocol-v7 structured
+adjudication design. ADR-056 is accepted authority for the next Gate A
+hostile-review protocol evolution.
+
+Protocol v7 is an immutable validated predecessor and regression artifact. Under
+ADR-056 it is permanently inactive and MUST NOT subsequently be selected as
+current.
+
+Protocol v8 is the next activation candidate, but no protocol-v8 artifact is
+current merely because ADR-056 is accepted. Protocol v6 remains current until
+the complete protocol-v8 construction and synchronization required by ADR-056 is
+accepted and `formal/verification.yaml` explicitly selects the exact immutable
+protocol-v8 bundle.
 
 Therefore:
 
@@ -498,9 +508,10 @@ execution-receipt schema 3.0 remains current
 review-evidence schema 5.0 remains current
 NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
 M5-B, M5-C and M5-D remain pending construction
-an inactive protocol-v7 candidate may be validated without becoming current
-no protocol-v7 campaign, supplement overlay or readiness behavior is active
-merely because the accepted ADR or inactive candidate exists
+protocol v7 remains immutable, mechanically validated and permanently inactive
+protocol v8 remains unconstructed and is not current
+no protocol-v7 or protocol-v8 campaign, semantic-admission, supplement,
+resolution or readiness behavior becomes active merely because ADR-056 is accepted
 ```
 
 The inactive protocol-v7 candidate fixes the exact adjudication-packet namespace
@@ -510,9 +521,10 @@ as `formal/reviews/adjudication-packets/*.json`, keeps adjudication outputs unde
 candidate bundle and these closed namespace, identity, supporting-DAG, and
 effective-overlay contracts without selecting P7 as current.
 
-The expected later activation synchronization reserves immutable
-`ReviewContext` for initial-review production provenance and moves post-review
-adjudication/resolution cognitive work onto current resolution provenance.
+Future protocol-v8 construction and synchronization under ADR-056 must preserve
+immutable `ReviewContext` for initial-review production provenance and preserve
+the accepted separation of post-review adjudication/resolution provenance from
+initial-review production provenance.
 
 `FindingAdjudicationSubject` bootstraps the exact materiality/refutation lineage.
 
@@ -521,8 +533,8 @@ qualified refutation may then be promoted to the separate surviving-material
 resolution boundary.
 
 Where later adjudication belongs to an immutable source campaign rather than the
-same not-yet-projected campaign record, the future P7 construction uses an
-append-only finding-adjudication supplement rather than rewriting the source
+same not-yet-projected campaign record, the accepted adjudication architecture
+uses an append-only finding-adjudication overlay rather than rewriting the source
 campaign or creating a synthetic writable campaign.
 
 Campaign currentness remains defined only over real ReviewCampaign records.
