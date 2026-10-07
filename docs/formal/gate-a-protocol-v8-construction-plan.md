@@ -568,6 +568,9 @@ declares that value semantic
 
 ## C3 — Close SemanticAdmission authority and execution fencing
 
+The C3 construction closure is documented in
+[`gate-a-protocol-v8-semantic-admission-authority-execution-fencing.md`](gate-a-protocol-v8-semantic-admission-authority-execution-fencing.md).
+
 Define the exact authoritative state semantics required for:
 
 ```text

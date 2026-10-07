@@ -496,6 +496,9 @@ The C1 SemanticQuestionContract construction closure is documented in
 [`gate-a-protocol-v8-semantic-question-contract-catalog.md`](gate-a-protocol-v8-semantic-question-contract-catalog.md).
 The C2 semantic-identity-algebra construction closure is documented in
 [`gate-a-protocol-v8-semantic-identity-algebra.md`](gate-a-protocol-v8-semantic-identity-algebra.md).
+The C3 SemanticAdmission-authority and execution-fencing construction closure is
+documented in
+[`gate-a-protocol-v8-semantic-admission-authority-execution-fencing.md`](gate-a-protocol-v8-semantic-admission-authority-execution-fencing.md).
 
 Protocol v7 is an immutable validated predecessor and regression artifact. Under
 ADR-056 it is permanently inactive and MUST NOT subsequently be selected as
