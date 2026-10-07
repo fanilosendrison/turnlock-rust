@@ -9,7 +9,7 @@ name: "Define global semantic-question identity and single-admission resolution 
 id: "ADR-056"
 status: "proposed"
 date: "2026-10-06"
-decision_body_sha256: "bf6c01ea0052b7889ac0b287efaf0dccbb9350f05b4e79b6fb1fa4b6815f082d"
+decision_body_sha256: "ede8ed439aa8ba9c457b19084b125ca49f56369fbd0754ec4550d15fa794fb09"
 relation_completeness: "complete"
 relations:
   clarifies:
@@ -427,6 +427,83 @@ It MUST NOT derive semantic identity by taking an arbitrary execution packet and
 
 Protocol-v8 construction MUST preserve the structured semantic families accepted by ADR-055.
 
+For protocol v8, `FA` and `SM` are normative semantic projections.
+
+They do not imply standalone persisted artifacts.
+
+#### Finding-adjudication basis `FA`
+
+`FA` is the exact semantic authority closure for adjudicating one historical finding under the current semantic-question/protocol authority.
+
+It MUST commit, directly or transitively:
+
+```text
+exact current semantic subject S
+
+exact current protocol identity P and exact semantic-question authority
+required by the applicable contract
+
+exact controlling review-authority closure exposed to that question
+
+exact source-finding semantic identity:
+    source ReviewCampaignId
+    source FindingId
+    substantiveFindingSha256
+
+exact canonical substantive finding value
+```
+
+For the protocol-v8 initial families defined by this ADR, exact current protocol identity `P` is part of that semantic authority closure.
+
+The controlling review-authority closure MUST bind the exact authority/value content required by the semantic-question contract.
+
+The review packet `ArtifactRef`, review-packet repository path, or complete review-packet artifact SHA MUST NOT substitute for the authority/value closure merely because protocol-v7 execution packets carried that projection.
+
+The following are provenance-only for the protocol-v8 initial families defined by this ADR and MUST NOT affect `FA` merely because protocol-v7 subjects, packets, or evidence carried them:
+
+```text
+GateARunId
+
+adjudicating ReviewCampaignId
+
+execution-root or evidence-root ownership
+
+execution receipt identity
+
+raw-output identity or locator
+
+artifact/storage locator
+
+provenance.kind
+
+sourceProtocolBundle when it denotes only the historical protocol
+under which the source finding was produced
+```
+
+If a later accepted `SemanticQuestionContractRevision` classifies one of those values as semantic input, that later contract MUST state the exact dependency explicitly.
+
+Protocol-v8 construction MUST NOT infer such a dependency from protocol-v7 packet shape, receipt ownership, or provenance.
+
+#### Surviving-material basis `SM`
+
+`SM` is the exact semantic basis for post-adjudication resolution of one finding that remains surviving-material.
+
+It MUST commit, directly or transitively:
+
+```text
+exact FA
+
+exact qualified-positive-materiality semantic fact
+
+exact refutation-exhaustion-without-qualified-refutation semantic fact
+```
+
+The materiality and refutation-exhaustion components are semantic facts.
+
+Their origin execution receipts, raw-output locators, evidence-root owners, or supplement-local receipt membership MUST NOT define `SM`.
+
+Two evidence/provenance graphs that establish the same exact qualified-positive-materiality fact and the same exact refutation-exhaustion-without-qualified-refutation fact under the same exact `FA` yield the same `SM`.
+
 For an exact finding-adjudication basis `FA`, an exact surviving-material basis `SM`, and exact qualified predecessor facts, initial questions are conceptually bound as follows.
 
 #### Materiality
@@ -584,7 +661,7 @@ The exhaustion fact MUST be derivable from exact semantic admissions/challenges.
 
 It MUST NOT be identified merely by an arbitrary list of receipt locators.
 
-### 11. SemanticAdmission is a protocol-global single-assignment fact
+### 11. SemanticAdmission is globally single-assignment within one coherent Authoritative History domain
 
 For every exact QLEK `K`, protocol v8 defines a partial immutable binding:
 
@@ -1525,7 +1602,7 @@ exact SemanticQuestionContract revisions
 
 exact logical-input/QLEK construction rules
 
-protocol-global SemanticAdmission authority
+SemanticAdmission authority global across the coherent Authoritative History domain
 
 QLEK-bound execution authorization/fencing/recovery integration
 
@@ -1814,8 +1891,9 @@ After acceptance of this ADR, the next architecture/construction work is:
 
 3. define exact typed LogicalQuestionDescriptor/QLEK construction;
 
-4. define the protocol-global SemanticAdmission authoritative mutation
-   and its origin-evidence binding;
+4. define the globally single-assignment SemanticAdmission authoritative
+   mutation within the coherent Authoritative History domain and its
+   origin-evidence binding;
 
 5. bind existing M2/M4 execution authorization, Arm, uncertainty,
    recovery, and replacement-safety semantics to QLEK admission authority;
