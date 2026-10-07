@@ -494,6 +494,8 @@ The stable non-authoritative protocol-v8 construction sequence is documented in
 [`gate-a-protocol-v8-construction-plan.md`](gate-a-protocol-v8-construction-plan.md).
 The C1 SemanticQuestionContract construction closure is documented in
 [`gate-a-protocol-v8-semantic-question-contract-catalog.md`](gate-a-protocol-v8-semantic-question-contract-catalog.md).
+The C2 semantic-identity-algebra construction closure is documented in
+[`gate-a-protocol-v8-semantic-identity-algebra.md`](gate-a-protocol-v8-semantic-identity-algebra.md).
 
 Protocol v7 is an immutable validated predecessor and regression artifact. Under
 ADR-056 it is permanently inactive and MUST NOT subsequently be selected as

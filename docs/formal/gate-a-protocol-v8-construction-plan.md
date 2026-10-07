@@ -504,6 +504,9 @@ No schema serialization is selected merely to make this gate easier.
 
 ## C2 — Close semantic identity algebra
 
+The C2 construction closure is documented in
+[`gate-a-protocol-v8-semantic-identity-algebra.md`](gate-a-protocol-v8-semantic-identity-algebra.md).
+
 Using the C1 contracts, define exact construction rules for:
 
 ```text
