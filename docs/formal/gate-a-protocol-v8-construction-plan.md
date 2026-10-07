@@ -641,6 +641,9 @@ absence of Admission(K) alone never authorizes unsafe redispatch
 
 ## C4 — Close SemanticFact and qualification resolution
 
+The C4 construction closure is documented in
+[`gate-a-protocol-v8-semantic-fact-qualification-resolution.md`](gate-a-protocol-v8-semantic-fact-qualification-resolution.md).
+
 Define the exact protocol-v8 semantic fact substrate needed by downstream questions.
 
 At minimum close:
