@@ -598,6 +598,1055 @@ def _canonical_json_document_bytes(value: object) -> bytes:
     return _canonical_json_bytes(value) + b"\n"
 
 
+_PROTOCOL_V8_E1_IDENTITY_DOMAINS = frozenset(
+    {
+        "turnlock.semantic-value.v1",
+        "turnlock.logical-question.v1",
+        "turnlock.semantic-admission.v1",
+        "turnlock.semantic-fact.v1",
+        "turnlock.qualification-key.v1",
+    }
+)
+_PROTOCOL_V8_E1_IDENTITY_FRAME = "turnlock.identity-frame.v1"
+_PROTOCOL_V8_E1_SEMANTIC_VALUE_TYPE = re.compile(
+    r"^turnlock\.semantic-value:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$"
+)
+_PROTOCOL_V8_E1_SQC_ID = re.compile(
+    r"^turnlock\.sqc:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$"
+)
+_PROTOCOL_V8_E1_PREDICATE_ID = re.compile(
+    r"^turnlock\.predicate:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$"
+)
+_PROTOCOL_V8_E1_QUALIFICATION_ID = re.compile(
+    r"^turnlock\.qualification:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$"
+)
+_PROTOCOL_V8_E1_SEMANTIC_VALUE_ID = re.compile(
+    r"^semantic-value-sha256:[0-9a-f]{64}$"
+)
+_PROTOCOL_V8_E1_QLEK = re.compile(r"^qlek-sha256:[0-9a-f]{64}$")
+_PROTOCOL_V8_E1_ADMISSION_ID = re.compile(
+    r"^semantic-admission-sha256:[0-9a-f]{64}$"
+)
+_PROTOCOL_V8_E1_FACT_ID = re.compile(
+    r"^semantic-fact-sha256:[0-9a-f]{64}$"
+)
+_PROTOCOL_V8_E1_QUALIFICATION_KEY = re.compile(
+    r"^qualification-key-sha256:[0-9a-f]{64}$"
+)
+
+
+def _protocol_v8_e1_decimal_integer_bytes(value: int) -> bytes:
+    """Serialize one mathematical integer without Python decimal digit limits."""
+    if type(value) is not int:
+        raise TypeError("semantic integer must have exact Python int type")
+    if value == 0:
+        return b"0"
+
+    negative = value < 0
+    remaining = -value if negative else value
+    base = 1_000_000_000
+    chunks: list[int] = []
+
+    while remaining:
+        remaining, chunk = divmod(remaining, base)
+        chunks.append(chunk)
+
+    rendered = str(chunks[-1])
+    if len(chunks) > 1:
+        rendered += "".join(
+            f"{chunk:09d}"
+            for chunk in reversed(chunks[:-1])
+        )
+    if negative:
+        rendered = "-" + rendered
+    return rendered.encode("ascii")
+
+
+def _protocol_v8_e1_semantic_value_errors(
+    value: object,
+    label: str,
+    seen: set[int] | None = None,
+) -> list[str]:
+    """Validate the exact C2 CanonicalJsonValueV1 domain."""
+    errors: list[str] = []
+    if seen is None:
+        seen = set()
+
+    if value is None or type(value) is bool or type(value) is int:
+        return errors
+
+    if type(value) is float:
+        return [f"{label}: floating-point semantic values are forbidden"]
+
+    if type(value) is str:
+        if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
+            errors.append(
+                f"{label}: Unicode surrogate code points are forbidden"
+            )
+        return errors
+
+    if type(value) is list:
+        identity = id(value)
+        if identity in seen:
+            return [f"{label}: recursive semantic arrays are forbidden"]
+        seen.add(identity)
+        try:
+            for index, item in enumerate(value):
+                errors.extend(
+                    _protocol_v8_e1_semantic_value_errors(
+                        item,
+                        f"{label}[{index}]",
+                        seen,
+                    )
+                )
+        finally:
+            seen.remove(identity)
+        return errors
+
+    if type(value) is dict:
+        identity = id(value)
+        if identity in seen:
+            return [f"{label}: recursive semantic objects are forbidden"]
+        seen.add(identity)
+        try:
+            for key, item in value.items():
+                if type(key) is not str:
+                    errors.append(
+                        f"{label}: semantic object keys must be strings"
+                    )
+                    continue
+                errors.extend(
+                    _protocol_v8_e1_semantic_value_errors(
+                        key,
+                        f"{label} object key",
+                        seen,
+                    )
+                )
+                errors.extend(
+                    _protocol_v8_e1_semantic_value_errors(
+                        item,
+                        f"{label}.{key}",
+                        seen,
+                    )
+                )
+        finally:
+            seen.remove(identity)
+        return errors
+
+    return [
+        f"{label}: unsupported semantic JSON value type "
+        f"{type(value).__name__}"
+    ]
+
+
+def _protocol_v8_e1_json_string_bytes(value: str) -> bytes:
+    errors = _protocol_v8_e1_semantic_value_errors(
+        value,
+        "semantic JSON string",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _protocol_v8_e1_canonical_json_value_bytes(value: object) -> bytes:
+    """Implement CanonicalJsonValueBytesV1 without integer-width limits."""
+    errors = _protocol_v8_e1_semantic_value_errors(
+        value,
+        "semantic JSON value",
+    )
+    if errors:
+        raise ValueError(errors[0])
+
+    def encode(item: object) -> bytes:
+        if item is None:
+            return b"null"
+        if type(item) is bool:
+            return b"true" if item else b"false"
+        if type(item) is int:
+            return _protocol_v8_e1_decimal_integer_bytes(item)
+        if type(item) is str:
+            return _protocol_v8_e1_json_string_bytes(item)
+        if type(item) is list:
+            return b"[" + b",".join(encode(child) for child in item) + b"]"
+        if type(item) is dict:
+            ordered = sorted(
+                item.items(),
+                key=lambda pair: pair[0].encode("utf-8"),
+            )
+            return b"{" + b",".join(
+                _protocol_v8_e1_json_string_bytes(key)
+                + b":"
+                + encode(child)
+                for key, child in ordered
+            ) + b"}"
+        raise AssertionError("validated semantic JSON type became unreachable")
+
+    return encode(value)
+
+
+def _protocol_v8_e1_parse_decimal_integer(text: str) -> int:
+    negative = text.startswith("-")
+    digits = text[1:] if negative else text
+    value = 0
+    for offset in range(0, len(digits), 9):
+        chunk = digits[offset : offset + 9]
+        value = value * (10 ** len(chunk)) + int(chunk)
+    return -value if negative else value
+
+
+def _protocol_v8_e1_reject_float(_text: str) -> object:
+    raise ValueError("floating-point semantic JSON numbers are forbidden")
+
+
+def _protocol_v8_e1_reject_constant(_text: str) -> object:
+    raise ValueError("non-finite semantic JSON numbers are forbidden")
+
+
+def _protocol_v8_e1_object_from_pairs(
+    pairs: list[tuple[str, object]],
+) -> dict:
+    result: dict = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(
+                f"duplicate semantic JSON object key {key!r}"
+            )
+        result[key] = value
+    return result
+
+
+def _protocol_v8_e1_parse_canonical_json_value(data: bytes) -> object:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError("semantic JSON must be valid UTF-8") from error
+
+    try:
+        value = json.loads(
+            text,
+            parse_int=_protocol_v8_e1_parse_decimal_integer,
+            parse_float=_protocol_v8_e1_reject_float,
+            parse_constant=_protocol_v8_e1_reject_constant,
+            object_pairs_hook=_protocol_v8_e1_object_from_pairs,
+        )
+    except (json.JSONDecodeError, ValueError) as error:
+        raise ValueError(f"invalid semantic JSON: {error}") from error
+
+    errors = _protocol_v8_e1_semantic_value_errors(
+        value,
+        "semantic JSON value",
+    )
+    if errors:
+        raise ValueError(errors[0])
+
+    canonical = _protocol_v8_e1_canonical_json_value_bytes(value)
+    if canonical != data:
+        raise ValueError("semantic JSON is not canonical C2 serialization")
+    return value
+
+
+def _protocol_v8_e1_identity_hash(domain: str, payload: object) -> str:
+    if domain not in _PROTOCOL_V8_E1_IDENTITY_DOMAINS:
+        raise ValueError(f"unsupported protocol-v8 identity domain {domain!r}")
+    framed = {
+        "domain": domain,
+        "frame": _PROTOCOL_V8_E1_IDENTITY_FRAME,
+        "payload": payload,
+    }
+    return hashlib.sha256(
+        _protocol_v8_e1_canonical_json_value_bytes(framed)
+    ).hexdigest()
+
+
+def _protocol_v8_e1_semantic_value_id(
+    value_type: str,
+    value: object,
+) -> str:
+    if type(value_type) is not str or _PROTOCOL_V8_E1_SEMANTIC_VALUE_TYPE.fullmatch(value_type) is None:
+        raise ValueError("invalid SemanticValueTypeRevisionId")
+    _protocol_v8_e1_canonical_json_value_bytes(value)
+    return "semantic-value-sha256:" + _protocol_v8_e1_identity_hash(
+        "turnlock.semantic-value.v1",
+        {
+            "valueType": value_type,
+            "value": value,
+        },
+    )
+
+
+def _protocol_v8_e1_qlek(descriptor: dict) -> str:
+    return "qlek-sha256:" + _protocol_v8_e1_identity_hash(
+        "turnlock.logical-question.v1",
+        descriptor,
+    )
+
+
+def _protocol_v8_e1_semantic_admission_id(
+    qlek: str,
+    semantic_candidate: object,
+) -> str:
+    if type(qlek) is not str or _PROTOCOL_V8_E1_QLEK.fullmatch(qlek) is None:
+        raise ValueError("invalid QLEK")
+    _protocol_v8_e1_canonical_json_value_bytes(semantic_candidate)
+    return "semantic-admission-sha256:" + _protocol_v8_e1_identity_hash(
+        "turnlock.semantic-admission.v1",
+        {
+            "qlek": qlek,
+            "semanticCandidate": semantic_candidate,
+        },
+    )
+
+
+def _protocol_v8_e1_fact_id(descriptor: dict) -> str:
+    if type(descriptor) is not dict or set(descriptor) != {"schema", "predicateRevision", "arguments"}:
+        raise ValueError("invalid SemanticFactDescriptorV1 shape")
+    if descriptor.get("schema") != "turnlock.semantic-fact-descriptor.v1":
+        raise ValueError("invalid SemanticFactDescriptorV1 schema")
+    predicate = descriptor.get("predicateRevision")
+    if type(predicate) is not str or _PROTOCOL_V8_E1_PREDICATE_ID.fullmatch(predicate) is None:
+        raise ValueError("invalid PredicateRevisionId")
+    if type(descriptor.get("arguments")) is not dict:
+        raise ValueError("SemanticFactDescriptorV1 arguments must be an object")
+    _protocol_v8_e1_canonical_json_value_bytes(descriptor)
+    return "semantic-fact-sha256:" + _protocol_v8_e1_identity_hash(
+        "turnlock.semantic-fact.v1",
+        descriptor,
+    )
+
+
+def _protocol_v8_e1_qualification_key(descriptor: dict) -> str:
+    if type(descriptor) is not dict or set(descriptor) != {"schema", "qualificationContract", "anchorAdmission", "additionalInputs"}:
+        raise ValueError("invalid QualificationKeyDescriptorV1 shape")
+    if descriptor.get("schema") != "turnlock.qualification-key-descriptor.v1":
+        raise ValueError("invalid QualificationKeyDescriptorV1 schema")
+    qualification = descriptor.get("qualificationContract")
+    if type(qualification) is not str or _PROTOCOL_V8_E1_QUALIFICATION_ID.fullmatch(qualification) is None:
+        raise ValueError("invalid QualificationContractRevisionId")
+    anchor = descriptor.get("anchorAdmission")
+    if type(anchor) is not dict or set(anchor) != {"kind", "admissionId"} or anchor.get("kind") != "semantic-admission":
+        raise ValueError("invalid qualification anchorAdmission")
+    admission_id = anchor.get("admissionId")
+    if type(admission_id) is not str or _PROTOCOL_V8_E1_ADMISSION_ID.fullmatch(admission_id) is None:
+        raise ValueError("invalid qualification anchor SemanticAdmissionId")
+    if type(descriptor.get("additionalInputs")) is not dict:
+        raise ValueError("QualificationKeyDescriptorV1 additionalInputs must be an object")
+    _protocol_v8_e1_canonical_json_value_bytes(descriptor)
+    return "qualification-key-sha256:" + _protocol_v8_e1_identity_hash(
+        "turnlock.qualification-key.v1",
+        descriptor,
+    )
+
+
+def _protocol_v8_e1_contract_map(
+    root: Path,
+) -> tuple[dict[str, dict], list[str]]:
+    catalog, errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_SQC_CATALOG_REFERENCE,
+        "inactive protocol v8 E1 SemanticQuestionContract catalog",
+        REVIEW_CONTRACTS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=True,
+    )
+    if catalog is None:
+        return {}, errors
+
+    contracts: dict[str, dict] = {}
+    for index, entry in enumerate(_sequence(catalog.get("contracts"))):
+        label = f"inactive protocol v8 E1 contracts[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{label}: entry must be a mapping")
+            continue
+        revision_id = entry.get("revision_id")
+        if not isinstance(revision_id, str):
+            errors.append(f"{label}: revision_id must be a string")
+            continue
+        if revision_id in contracts:
+            errors.append(f"{label}: duplicate revision_id {revision_id!r}")
+            continue
+        contracts[revision_id] = entry
+    return contracts, errors
+
+
+def _protocol_v8_e1_exact_keys(
+    value: object,
+    expected: set[str],
+    label: str,
+) -> list[str]:
+    if type(value) is not dict:
+        return [f"{label}: value must be an object"]
+    actual = set(value)
+    if actual != expected:
+        return [
+            f"{label}: key set must be exactly {sorted(expected)!r}; "
+            f"found {sorted(actual)!r}"
+        ]
+    return []
+
+
+def _protocol_v8_e1_ref_errors(
+    value: object,
+    descriptor: dict,
+    label: str,
+) -> list[str]:
+    kind = descriptor.get("kind")
+
+    if kind == "semantic-value":
+        errors = _protocol_v8_e1_exact_keys(
+            value,
+            {"kind", "valueType", "valueId"},
+            label,
+        )
+        if errors:
+            return errors
+        assert isinstance(value, dict)
+        if value.get("kind") != "semantic-value":
+            errors.append(f"{label}: kind must be semantic-value")
+        if value.get("valueType") != descriptor.get("value_type"):
+            errors.append(f"{label}: valueType does not match the SQC contract")
+        value_id = value.get("valueId")
+        if type(value_id) is not str or _PROTOCOL_V8_E1_SEMANTIC_VALUE_ID.fullmatch(value_id) is None:
+            errors.append(f"{label}: valueId must be an exact SemanticValueId")
+        return errors
+
+    if kind == "semantic-admission":
+        errors = _protocol_v8_e1_exact_keys(
+            value,
+            {"kind", "admissionId"},
+            label,
+        )
+        if errors:
+            return errors
+        assert isinstance(value, dict)
+        if value.get("kind") != "semantic-admission":
+            errors.append(f"{label}: kind must be semantic-admission")
+        admission_id = value.get("admissionId")
+        if type(admission_id) is not str or _PROTOCOL_V8_E1_ADMISSION_ID.fullmatch(admission_id) is None:
+            errors.append(f"{label}: admissionId must be an exact SemanticAdmissionId")
+        return errors
+
+    if kind == "semantic-fact":
+        errors = _protocol_v8_e1_exact_keys(
+            value,
+            {"kind", "predicateRevision", "factId"},
+            label,
+        )
+        if errors:
+            return errors
+        assert isinstance(value, dict)
+        if value.get("kind") != "semantic-fact":
+            errors.append(f"{label}: kind must be semantic-fact")
+        if value.get("predicateRevision") != descriptor.get("predicate_revision"):
+            errors.append(
+                f"{label}: predicateRevision does not match the SQC contract"
+            )
+        fact_id = value.get("factId")
+        if type(fact_id) is not str or _PROTOCOL_V8_E1_FACT_ID.fullmatch(fact_id) is None:
+            errors.append(f"{label}: factId must be an exact FactId")
+        return errors
+
+    if kind == "exact-authority":
+        errors = _protocol_v8_e1_exact_keys(
+            value,
+            {"kind", "authorityType", "authorityId"},
+            label,
+        )
+        if errors:
+            return errors
+        assert isinstance(value, dict)
+        if value.get("kind") != "exact-authority":
+            errors.append(f"{label}: kind must be exact-authority")
+        if value.get("authorityType") != descriptor.get("authority_type"):
+            errors.append(
+                f"{label}: authorityType does not match the SQC contract"
+            )
+        authority_id = value.get("authorityId")
+        if type(authority_id) is not str or not authority_id:
+            errors.append(f"{label}: authorityId must be a non-empty string")
+        return errors
+
+    return [f"{label}: unsupported SQC logical input kind {kind!r}"]
+
+
+def _protocol_v8_e1_descriptor_errors(
+    contracts: dict[str, dict],
+    descriptor: object,
+    label: str,
+) -> list[str]:
+    errors = _protocol_v8_e1_semantic_value_errors(descriptor, label)
+    if errors:
+        return errors
+    errors.extend(
+        _protocol_v8_e1_exact_keys(
+            descriptor,
+            {"schema", "semanticQuestionContract", "exactLogicalInput"},
+            label,
+        )
+    )
+    if errors:
+        return errors
+    assert isinstance(descriptor, dict)
+
+    if descriptor.get("schema") != "turnlock.logical-question-descriptor.v1":
+        errors.append(
+            f"{label}: schema must be turnlock.logical-question-descriptor.v1"
+        )
+
+    contract_id = descriptor.get("semanticQuestionContract")
+    contract = contracts.get(contract_id) if isinstance(contract_id, str) else None
+    if contract is None:
+        errors.append(f"{label}: semanticQuestionContract is not an exact P8 SQC")
+        return errors
+
+    exact_input = descriptor.get("exactLogicalInput")
+    if type(exact_input) is not dict:
+        errors.append(f"{label}: exactLogicalInput must be an object")
+        return errors
+
+    logical_input = _mapping(_mapping(contract.get("definition")).get("logical_input"))
+    expected_names = set(logical_input)
+    if set(exact_input) != expected_names:
+        errors.append(
+            f"{label}: exactLogicalInput keys must equal the selected SQC input keys"
+        )
+        return errors
+
+    for name in sorted(expected_names):
+        input_descriptor = logical_input.get(name)
+        if not isinstance(input_descriptor, dict):
+            errors.append(
+                f"{label}.{name}: SQC catalog logical input descriptor is invalid"
+            )
+            continue
+        errors.extend(
+            _protocol_v8_e1_ref_errors(
+                exact_input.get(name),
+                input_descriptor,
+                f"{label}.exactLogicalInput.{name}",
+            )
+        )
+    return errors
+
+
+def _protocol_v8_e1_recompute_structural_qlek(
+    contracts: dict[str, dict],
+    descriptor: object,
+) -> tuple[str | None, list[str]]:
+    """Recompute structural QLEK; later E2/E3 must resolve every direct ref."""
+    errors = _protocol_v8_e1_descriptor_errors(
+        contracts,
+        descriptor,
+        "protocol-v8 LogicalQuestionDescriptor",
+    )
+    if errors:
+        return None, errors
+    assert isinstance(descriptor, dict)
+    return _protocol_v8_e1_qlek(descriptor), []
+
+
+def _protocol_v8_e1_candidate_variant(
+    definition: dict,
+    candidate: object,
+) -> str | None:
+    if definition.get("question_kind") == "challenge":
+        return "ChallengeSemanticValue"
+
+    if isinstance(candidate, dict) and candidate.get("kind") == "not-established":
+        return "NotEstablished"
+
+    execution = _mapping(definition.get("execution"))
+    task = execution.get("task")
+    if task == "materiality-assessment":
+        return "MaterialityAssessmentValue"
+    if task == "refutation":
+        return "RefutationCandidate"
+    if task == "discovery-classification":
+        if isinstance(candidate, dict) and candidate.get("kind") == "revised-candidate":
+            return "RevisedDiscoveryStatement"
+        return "DiscoveryClassificationValue"
+    if task == "unique-correction-derivation":
+        return "UniqueCorrectionCandidate"
+    if task == "realization-scope-derivation":
+        return "RealizationScopeCandidate"
+    if task == "repair-realization":
+        return "RepairRealizationCandidate"
+    return None
+
+
+def _protocol_v8_e1_challenge_semantic_errors(
+    definition: dict,
+    output: dict,
+    label: str,
+) -> list[str]:
+    errors: list[str] = []
+    challenge = _mapping(definition.get("challenge"))
+    expected_kind = challenge.get("challenge_kind")
+    if output.get("challenge_kind") != expected_kind:
+        errors.append(f"{label}: challenge_kind does not match the selected SQC")
+
+    expected_objectives = list(_sequence(challenge.get("objectives")))
+    assessments = [
+        item
+        for item in _sequence(output.get("objective_assessments"))
+        if isinstance(item, dict)
+    ]
+    actual_objectives = [item.get("objective") for item in assessments]
+    if actual_objectives != expected_objectives:
+        errors.append(
+            f"{label}: objective_assessments must use the exact ordered SQC objectives"
+        )
+
+    objections = [
+        item
+        for item in _sequence(output.get("objections"))
+        if isinstance(item, dict)
+    ]
+    objection_by_id: dict[str, dict] = {}
+    for objection in objections:
+        objection_id = objection.get("challenge_objection_id")
+        if not isinstance(objection_id, str):
+            continue
+        if objection_id in objection_by_id:
+            errors.append(f"{label}: duplicate challenge_objection_id {objection_id!r}")
+            continue
+        objection_by_id[objection_id] = objection
+
+    listed: set[str] = set()
+    for assessment in assessments:
+        objective = assessment.get("objective")
+        for objection_id in _sequence(assessment.get("objection_ids")):
+            if not isinstance(objection_id, str):
+                continue
+            if objection_id in listed:
+                errors.append(f"{label}: objection {objection_id!r} listed more than once")
+            listed.add(objection_id)
+            objection = objection_by_id.get(objection_id)
+            if objection is None:
+                errors.append(f"{label}: unknown objection {objection_id!r}")
+            elif objection.get("objective") != objective:
+                errors.append(
+                    f"{label}: objection {objection_id!r} objective does not match its assessment"
+                )
+
+    for objection_id in sorted(set(objection_by_id) - listed):
+        errors.append(f"{label}: objection {objection_id!r} is not assessed")
+    return errors
+
+
+def _protocol_v8_e1_project_semantic_candidate(
+    contract: dict,
+    output: object,
+    validator: Draft202012Validator,
+    label: str,
+) -> tuple[object | None, list[str]]:
+    errors = [
+        f"{label}: output schema violation: {error.message}"
+        for error in validator.iter_errors(output)
+    ]
+    if errors:
+        return None, errors
+    if not isinstance(output, dict):
+        return None, [f"{label}: protocol output must be an object"]
+
+    definition = _mapping(contract.get("definition"))
+    question_kind = definition.get("question_kind")
+
+    if question_kind == "challenge":
+        errors.extend(
+            _protocol_v8_e1_challenge_semantic_errors(
+                definition,
+                output,
+                label,
+            )
+        )
+        if errors:
+            return None, errors
+        candidate: object = {
+            "objective_assessments": copy.deepcopy(output.get("objective_assessments")),
+            "objections": copy.deepcopy(output.get("objections")),
+        }
+    else:
+        expected_task = _mapping(definition.get("execution")).get("task")
+        if output.get("task") != expected_task:
+            errors.append(f"{label}: task does not match the selected SQC")
+            return None, errors
+        candidate = copy.deepcopy(output.get("result"))
+
+    candidate_errors = _protocol_v8_e1_semantic_value_errors(
+        candidate,
+        f"{label} semantic candidate",
+    )
+    if candidate_errors:
+        return None, errors + candidate_errors
+
+    variant = _protocol_v8_e1_candidate_variant(definition, candidate)
+    allowed = _sequence(definition.get("semantic_result_variants"))
+    if variant is None or variant not in allowed:
+        errors.append(
+            f"{label}: projected semantic candidate variant {variant!r} "
+            "is not permitted by the selected SQC"
+        )
+        return None, errors
+    return candidate, errors
+
+
+def _protocol_v8_e1_sample_input(input_descriptor: dict) -> dict:
+    kind = input_descriptor.get("kind")
+    if kind == "semantic-value":
+        return {
+            "kind": "semantic-value",
+            "valueType": input_descriptor.get("value_type"),
+            "valueId": "semantic-value-sha256:" + "0" * 64,
+        }
+    if kind == "semantic-admission":
+        return {
+            "kind": "semantic-admission",
+            "admissionId": "semantic-admission-sha256:" + "1" * 64,
+        }
+    if kind == "semantic-fact":
+        return {
+            "kind": "semantic-fact",
+            "predicateRevision": input_descriptor.get("predicate_revision"),
+            "factId": "semantic-fact-sha256:" + "2" * 64,
+        }
+    if kind == "exact-authority":
+        return {
+            "kind": "exact-authority",
+            "authorityType": input_descriptor.get("authority_type"),
+            "authorityId": "candidate-revision-test",
+        }
+    raise ValueError(f"unsupported sample input kind {kind!r}")
+
+
+def _protocol_v8_e1_output_validators(
+    root: Path,
+) -> tuple[dict[str, Draft202012Validator], list[str]]:
+    bundle, errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_BUNDLE_REFERENCE,
+        "inactive protocol v8 E1 bundle",
+        REVIEW_PROTOCOLS_PREFIX,
+        REVIEW_PROTOCOL_BUNDLE_SUFFIX,
+        require_canonical=True,
+    )
+    if bundle is None:
+        return {}, errors
+    validators, validator_errors = _bundle_selected_validators(
+        root,
+        bundle,
+        "inactive protocol v8 E1 bundle",
+    )
+    errors.extend(validator_errors)
+    result: dict[str, Draft202012Validator] = {}
+    for key in ("adjudication-output", "challenge-output"):
+        validator = validators.get(key)
+        if validator is None:
+            errors.append(f"inactive protocol v8 E1: missing {key} validator")
+        else:
+            result[key] = validator
+    return result, errors
+
+
+def _inactive_protocol_v8_e1_semantic_identity_errors(root: Path) -> list[str]:
+    """Exercise the exact C2/C1 identity and structural-QLEK reference oracle."""
+    errors: list[str] = []
+
+    huge = 10 ** 5000 + 7
+    huge_bytes = _protocol_v8_e1_canonical_json_value_bytes(huge)
+    if len(huge_bytes) != 5001 or not huge_bytes.endswith(b"7"):
+        errors.append("inactive protocol v8 E1: arbitrary-precision integer serialization failed")
+    else:
+        try:
+            round_trip = _protocol_v8_e1_parse_canonical_json_value(huge_bytes)
+        except ValueError as error:
+            errors.append(f"inactive protocol v8 E1: huge integer parse failed: {error}")
+        else:
+            if round_trip != huge:
+                errors.append("inactive protocol v8 E1: huge integer round-trip changed value")
+
+    invalid_values: list[tuple[str, object]] = [
+        ("float", 1.0),
+        ("surrogate", "\ud800"),
+        ("non-string-key", {1: "x"}),
+    ]
+    recursive: list[object] = []
+    recursive.append(recursive)
+    invalid_values.append(("recursive", recursive))
+    for name, value in invalid_values:
+        if not _protocol_v8_e1_semantic_value_errors(value, name):
+            errors.append(f"inactive protocol v8 E1: {name} semantic value was not rejected")
+
+    for name, data in (
+        ("duplicate-key", b'{"a":1,"a":2}'),
+        ("NaN", b'NaN'),
+        ("negative-zero", b'-0'),
+    ):
+        try:
+            _protocol_v8_e1_parse_canonical_json_value(data)
+        except ValueError:
+            pass
+        else:
+            errors.append(f"inactive protocol v8 E1: {name} JSON was not rejected")
+
+    try:
+        _protocol_v8_e1_identity_hash("turnlock.unknown.v1", {})
+    except ValueError:
+        pass
+    else:
+        errors.append("inactive protocol v8 E1: unknown identity domain was accepted")
+
+    composed = _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:Test@1",
+        "é",
+    )
+    decomposed = _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:Test@1",
+        "e\u0301",
+    )
+    if composed == decomposed:
+        errors.append("inactive protocol v8 E1: Unicode normalization changed identity")
+
+    if _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:Test@1",
+        [1, 2],
+    ) == _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:Test@1",
+        [2, 1],
+    ):
+        errors.append("inactive protocol v8 E1: array ordering did not affect identity")
+
+    if _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:Test@1",
+        {"x": 1, "s": "é"},
+    ) != (
+        "semantic-value-sha256:"
+        "ac25a4a9320254a912b73fb570fb2ce0df1ae1fe23bef947ef2ef6885d3ee0e0"
+    ):
+        errors.append("inactive protocol v8 E1: SemanticValueId test vector mismatch")
+
+    finding_basis = {
+        "schema": "turnlock.finding-adjudication-basis.v1",
+        "semanticSubject": {
+            "selector": "gate-a-assurance-decomposition-v1",
+            "sha256": "0" * 64,
+        },
+        "currentProtocol": {
+            "protocolId": "gate-a-campaign-protocol-v8",
+            "bundleSha256": "1" * 64,
+        },
+        "sourceFinding": {
+            "reviewCampaignId": "REVIEW-TEST",
+            "findingId": "F-1",
+            "substantiveFindingSha256": "2" * 64,
+        },
+    }
+    finding_basis_id = _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:FindingAdjudicationBasis@1",
+        finding_basis,
+    )
+    if finding_basis_id != (
+        "semantic-value-sha256:"
+        "7553e7df2a659ef9897fd2c699660a98abf99d3c2997c5a4c1390299a2ac4753"
+    ):
+        errors.append("inactive protocol v8 E1: FindingAdjudicationBasis identity mismatch")
+
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    errors.extend(contract_errors)
+    if len(contracts) != 20:
+        errors.append("inactive protocol v8 E1: expected exactly 20 SQC contracts")
+
+    descriptor = {
+        "schema": "turnlock.logical-question-descriptor.v1",
+        "semanticQuestionContract": "turnlock.sqc:MaterialityAssessmentInitial@1",
+        "exactLogicalInput": {
+            "findingAdjudicationBasis": {
+                "kind": "semantic-value",
+                "valueType": "turnlock.semantic-value:FindingAdjudicationBasis@1",
+                "valueId": finding_basis_id,
+            }
+        },
+    }
+    qlek, qlek_errors = _protocol_v8_e1_recompute_structural_qlek(contracts, descriptor)
+    errors.extend(qlek_errors)
+    if qlek != (
+        "qlek-sha256:"
+        "865adc7398f25c140ce32008eb321570452ce54f5bb544a886fd67c3aa52012f"
+    ):
+        errors.append("inactive protocol v8 E1: MaterialityAssessmentInitial QLEK mismatch")
+
+    candidate = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "test",
+    }
+    admission_id = _protocol_v8_e1_semantic_admission_id(qlek or "", candidate)
+    if admission_id != (
+        "semantic-admission-sha256:"
+        "50d5e8d5100a59311a140bd883f721769fabab9262ee2eeb598e9d7a10e02c1c"
+    ):
+        errors.append("inactive protocol v8 E1: SemanticAdmissionId vector mismatch")
+
+    qualification_descriptor = {
+        "schema": "turnlock.qualification-key-descriptor.v1",
+        "qualificationContract": "turnlock.qualification:MaterialityAssessmentQualification@1",
+        "anchorAdmission": {
+            "kind": "semantic-admission",
+            "admissionId": admission_id,
+        },
+        "additionalInputs": {},
+    }
+    qualification_key = _protocol_v8_e1_qualification_key(qualification_descriptor)
+    if qualification_key != (
+        "qualification-key-sha256:"
+        "e1cc7da47bacb3042f8db303d01b0a7ae2b4a7b8a156496e90a8331ea36acdb2"
+    ):
+        errors.append("inactive protocol v8 E1: QualificationKey vector mismatch")
+
+    fact_descriptor = {
+        "schema": "turnlock.semantic-fact-descriptor.v1",
+        "predicateRevision": "turnlock.predicate:QualifiedPositiveMateriality@1",
+        "arguments": {
+            "qualification": {
+                "kind": "qualification-key",
+                "qualificationContract": "turnlock.qualification:MaterialityAssessmentQualification@1",
+                "qualificationKey": qualification_key,
+            }
+        },
+    }
+    if _protocol_v8_e1_fact_id(fact_descriptor) != (
+        "semantic-fact-sha256:"
+        "c9941247235f54717e3a042e2b23c0055f7c3d44b3371317fe199e620eef475c"
+    ):
+        errors.append("inactive protocol v8 E1: FactId vector mismatch")
+
+    for contract_id, contract in sorted(contracts.items()):
+        logical_input = _mapping(_mapping(contract.get("definition")).get("logical_input"))
+        sample_input = {
+            name: _protocol_v8_e1_sample_input(input_descriptor)
+            for name, input_descriptor in logical_input.items()
+            if isinstance(input_descriptor, dict)
+        }
+        sample_descriptor = {
+            "schema": "turnlock.logical-question-descriptor.v1",
+            "semanticQuestionContract": contract_id,
+            "exactLogicalInput": sample_input,
+        }
+        sample_errors = _protocol_v8_e1_descriptor_errors(
+            contracts,
+            sample_descriptor,
+            f"inactive protocol v8 E1 {contract_id}",
+        )
+        errors.extend(sample_errors)
+
+        extra = copy.deepcopy(sample_descriptor)
+        extra["exactLogicalInput"]["runId"] = "RUN-ANTI-CHEAT"
+        if not _protocol_v8_e1_descriptor_errors(contracts, extra, "extra provenance"):
+            errors.append(f"inactive protocol v8 E1: {contract_id} accepted extra runId input")
+
+        if logical_input:
+            missing = copy.deepcopy(sample_descriptor)
+            first_name = next(iter(logical_input))
+            del missing["exactLogicalInput"][first_name]
+            if not _protocol_v8_e1_descriptor_errors(contracts, missing, "missing input"):
+                errors.append(f"inactive protocol v8 E1: {contract_id} accepted missing input")
+
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(validator_errors)
+    adjudication_validator = validators.get("adjudication-output")
+    challenge_validator = validators.get("challenge-output")
+
+    refutation_contract = contracts.get("turnlock.sqc:RefutationInitial@1")
+    discovery_contract = contracts.get("turnlock.sqc:DiscoveryClassificationInitial@1")
+    materiality_challenge = contracts.get("turnlock.sqc:MaterialityChallenge@1")
+
+    if adjudication_validator is not None and refutation_contract is not None:
+        refutation_output = {
+            "adjudication_output_schema_version": "1.0",
+            "task": "refutation",
+            "result": {"kind": "not-established"},
+        }
+        projected, projection_errors = _protocol_v8_e1_project_semantic_candidate(
+            refutation_contract,
+            refutation_output,
+            adjudication_validator,
+            "inactive protocol v8 E1 refutation output",
+        )
+        errors.extend(projection_errors)
+        if projected != {"kind": "not-established"}:
+            errors.append("inactive protocol v8 E1: Refutation NotEstablished projection mismatch")
+
+    if adjudication_validator is not None and discovery_contract is not None:
+        discovery_negative = {
+            "adjudication_output_schema_version": "1.0",
+            "task": "discovery-classification",
+            "result": {"kind": "not-established"},
+        }
+        _projected, projection_errors = _protocol_v8_e1_project_semantic_candidate(
+            discovery_contract,
+            discovery_negative,
+            adjudication_validator,
+            "inactive protocol v8 E1 discovery output",
+        )
+        if not projection_errors:
+            errors.append("inactive protocol v8 E1: initial Discovery accepted NotEstablished")
+
+    if challenge_validator is not None and materiality_challenge is not None:
+        objectives = list(
+            _sequence(
+                _mapping(_mapping(materiality_challenge.get("definition")).get("challenge")).get("objectives")
+            )
+        )
+        challenge_output = {
+            "challenge_output_schema_version": "1.0",
+            "challenge_kind": "materiality",
+            "objective_assessments": [
+                {"objective": objective, "objection_ids": []}
+                for objective in objectives
+            ],
+            "objections": [],
+        }
+        projected, projection_errors = _protocol_v8_e1_project_semantic_candidate(
+            materiality_challenge,
+            challenge_output,
+            challenge_validator,
+            "inactive protocol v8 E1 challenge output",
+        )
+        errors.extend(projection_errors)
+        expected_candidate = {
+            "objective_assessments": challenge_output["objective_assessments"],
+            "objections": [],
+        }
+        if projected != expected_candidate:
+            errors.append("inactive protocol v8 E1: ChallengeSemanticValue projection mismatch")
+        if isinstance(projected, dict) and "challenge_kind" in projected:
+            errors.append("inactive protocol v8 E1: challenge_kind leaked into semantic candidate")
+
+        reversed_output = copy.deepcopy(challenge_output)
+        reversed_output["objective_assessments"] = list(
+            reversed(reversed_output["objective_assessments"])
+        )
+        _projected, reversed_errors = _protocol_v8_e1_project_semantic_candidate(
+            materiality_challenge,
+            reversed_output,
+            challenge_validator,
+            "inactive protocol v8 E1 reversed challenge objectives",
+        )
+        if not reversed_errors:
+            errors.append("inactive protocol v8 E1: challenge objective order was not enforced")
+
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -6334,6 +7383,7 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_projection_schema_errors(root))
     errors.extend(_inactive_protocol_v8_prompt_errors(root))
     errors.extend(_inactive_protocol_v8_candidate_errors(root, candidate_bundle_cache))
+    errors.extend(_inactive_protocol_v8_e1_semantic_identity_errors(root))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
