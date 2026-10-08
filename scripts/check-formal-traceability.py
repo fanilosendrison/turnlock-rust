@@ -475,6 +475,18 @@ PROTOCOL_V8_REPAIR_PROMPT_V3_REFERENCE = {
     "path": "formal/reviews/prompts/gate-a-repair-v3.md",
     "sha256": "3b42a6e99d85aebc29574d6130709ef641a4cc80595249e4623710db4a547e1c",
 }
+PROTOCOL_V8_META_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-protocol-bundle-v8.schema.json",
+    "sha256": "179687faf37035245ddf117c9604621ebef1d104e07ae31f66eb042589097801",
+}
+PROTOCOL_V8_BUNDLE_REFERENCE = {
+    "path": "formal/reviews/protocols/gate-a-campaign-protocol-v8.json",
+    "sha256": "e83bb163519e6f278d6111b1d53f0218e0a3c0fece11ead91c1548d5d13219f5",
+}
+PROTOCOL_V8_PREDECESSOR_REFERENCE = {
+    "path": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+    "sha256": "b9c6cde1624590d43686703b5dba991ca7a8a46f65a65d047a52197c02686f94",
+}
 
 PROTOCOL_V8_SQC_REVISION_IDS = (
     "turnlock.sqc:DecisionNecessityChallenge@1",
@@ -1527,7 +1539,7 @@ def _statically_qualifying_reviewer_profile(profile: dict) -> bool:
 
 def _reviewer_acquisition_policy_errors(bundle: dict, label: str) -> list[str]:
     schema_version = bundle.get("protocol_bundle_schema_version")
-    if schema_version not in (5, 6, 7):
+    if schema_version not in (5, 6, 7, 8):
         return []
     policy = _mapping(_mapping(bundle.get("policies")).get("reviewer_acquisition"))
     errors: list[str] = []
@@ -1556,39 +1568,114 @@ def _reviewer_acquisition_policy_errors(bundle: dict, label: str) -> list[str]:
 def _protocol_bundle_errors(root: Path, bundle: dict, label: str) -> list[str]:
     """Validate every immutable artifact referenced by one bundle."""
     errors: list[str] = []
+
     prompts = _mapping(bundle.get("prompts"))
     for key in ("initial-reviewer", "adjudication", "challenge", "repair"):
-        _, artifact_errors = _read_review_artifact(root, _mapping(prompts.get(key)), f"{label}: prompts.{key}", REVIEW_PROMPT_PREFIX, REVIEW_PROMPT_SUFFIX)
-        errors.extend(artifact_errors)
-    schemas = _mapping(bundle.get("schemas"))
-    keys = ["raw-review-output", "execution-receipt", "challenge-output"]
-    version = bundle.get("protocol_bundle_schema_version")
-    if version in (2, 3, 4, 5, 6, 7):
-        keys.append("challenge-packet")
-    if version == 7:
-        keys.extend(
-            (
-                "adjudication-packet",
-                "adjudication-output",
-                "finding-adjudication-supplement",
-            )
+        _, artifact_errors = _read_review_artifact(
+            root,
+            _mapping(prompts.get(key)),
+            f"{label}: prompts.{key}",
+            REVIEW_PROMPT_PREFIX,
+            REVIEW_PROMPT_SUFFIX,
         )
-    for key in keys:
-        data, artifact_errors = _read_review_artifact(root, _mapping(schemas.get(key)), f"{label}: schemas.{key}", REVIEW_SCHEMAS_PREFIX, REVIEW_JSON_OUTPUT_SUFFIX)
         errors.extend(artifact_errors)
+
+    schemas = _mapping(bundle.get("schemas"))
+    version = bundle.get("protocol_bundle_schema_version")
+
+    if version == 8:
+        keys = sorted(schemas)
+    else:
+        keys = [
+            "raw-review-output",
+            "execution-receipt",
+            "challenge-output",
+        ]
+
+        if version in (2, 3, 4, 5, 6, 7):
+            keys.append("challenge-packet")
+
+        if version == 7:
+            keys.extend(
+                (
+                    "adjudication-packet",
+                    "adjudication-output",
+                    "finding-adjudication-supplement",
+                )
+            )
+
+    for key in keys:
+        data, artifact_errors = _read_review_artifact(
+            root,
+            _mapping(schemas.get(key)),
+            f"{label}: schemas.{key}",
+            REVIEW_SCHEMAS_PREFIX,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+        )
+        errors.extend(artifact_errors)
+
         if data is not None:
             try:
                 schema = json.loads(data.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError) as error:
-                errors.append(f"{label}: schemas.{key} must be valid JSON ({_concise_parser_error(error)})")
+                errors.append(
+                    f"{label}: schemas.{key} must be valid JSON "
+                    f"({_concise_parser_error(error)})"
+                )
             else:
                 _validator_value, schema_errors = _validator(schema)
-                errors.extend(f"{label}: schemas.{key}: {error}" for error in schema_errors)
-    profile_ids = [profile.get("profile_id") for profile in _sequence(bundle.get("reviewer_profiles")) if isinstance(profile, dict) and isinstance(profile.get("profile_id"), str)]
+                errors.extend(
+                    f"{label}: schemas.{key}: {error}"
+                    for error in schema_errors
+                )
+
+    if version == 8:
+        semantic_contracts = _mapping(
+            bundle.get("semantic_contracts")
+        )
+
+        for key in (
+            "questions",
+            "predicates",
+            "qualifications",
+        ):
+            _catalog, artifact_errors = (
+                _load_json_object_artifact(
+                    root,
+                    _mapping(semantic_contracts.get(key)),
+                    f"{label}: semantic_contracts.{key}",
+                    REVIEW_CONTRACTS_PREFIX,
+                    REVIEW_JSON_OUTPUT_SUFFIX,
+                    require_canonical=True,
+                )
+            )
+            errors.extend(artifact_errors)
+
+    profile_ids = [
+        profile.get("profile_id")
+        for profile in _sequence(
+            bundle.get("reviewer_profiles")
+        )
+        if (
+            isinstance(profile, dict)
+            and isinstance(profile.get("profile_id"), str)
+        )
+    ]
+
     for profile_id, count in Counter(profile_ids).items():
         if count > 1:
-            errors.append(f"{label}: duplicate reviewer profile_id {profile_id!r}")
-    errors.extend(_reviewer_acquisition_policy_errors(bundle, label))
+            errors.append(
+                f"{label}: duplicate reviewer profile_id "
+                f"{profile_id!r}"
+            )
+
+    errors.extend(
+        _reviewer_acquisition_policy_errors(
+            bundle,
+            label,
+        )
+    )
+
     return errors
 
 
@@ -1625,91 +1712,262 @@ def _bundle_selected_validators(root: Path, bundle: dict | None, label: str) -> 
     return validators, errors
 
 
-def _protocol_bundle_meta_schema_reference(version: object) -> dict | None:
+def _protocol_bundle_meta_schema_reference(
+    version: object,
+) -> dict | None:
     """Select the immutable meta-schema for one protocol-bundle schema version."""
     if version in (1, 2, 3):
-        return dict(LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE)
+        return dict(
+            LEGACY_PROTOCOL_BUNDLE_META_SCHEMA_REFERENCE
+        )
+
     if version == 4:
         return dict(PROTOCOL_V4_META_SCHEMA_REFERENCE)
+
     if version == 5:
         return dict(PROTOCOL_V5_META_SCHEMA_REFERENCE)
+
     if version == 6:
         return dict(PROTOCOL_V6_META_SCHEMA_REFERENCE)
+
     if version == 7:
         return dict(PROTOCOL_V7_META_SCHEMA_REFERENCE)
+
+    if version == 8:
+        return dict(PROTOCOL_V8_META_SCHEMA_REFERENCE)
+
     return None
 
 
-def _load_protocol_bundle_document(root: Path, reference: object, label: str, cache: dict[str, tuple[dict | None, list[str]]], chain_paths: set[str] | None = None, chain_ids: set[str] | None = None) -> tuple[dict | None, list[str]]:
+def _load_protocol_bundle_document(
+    root: Path,
+    reference: object,
+    label: str,
+    cache: dict[
+        str,
+        tuple[dict | None, list[str]],
+    ],
+    chain_paths: set[str] | None = None,
+    chain_ids: set[str] | None = None,
+) -> tuple[dict | None, list[str]]:
     bundle_reference = _mapping(reference)
     cache_key = bundle_reference.get("sha256")
+
     # Cache only fully checked acyclic chains.
-    if chain_paths is None and isinstance(cache_key, str) and cache_key in cache:
+    if (
+        chain_paths is None
+        and isinstance(cache_key, str)
+        and cache_key in cache
+    ):
         return cache[cache_key]
-    bundle, errors = _load_json_object_artifact(root, bundle_reference, label, REVIEW_PROTOCOLS_PREFIX, REVIEW_PROTOCOL_BUNDLE_SUFFIX, require_canonical=True)
+
+    bundle, errors = _load_json_object_artifact(
+        root,
+        bundle_reference,
+        label,
+        REVIEW_PROTOCOLS_PREFIX,
+        REVIEW_PROTOCOL_BUNDLE_SUFFIX,
+        require_canonical=True,
+    )
+
     if bundle is None:
         return None, errors
-    version = bundle.get("protocol_bundle_schema_version")
-    meta_reference = _protocol_bundle_meta_schema_reference(version)
+
+    version = bundle.get(
+        "protocol_bundle_schema_version"
+    )
+
+    meta_reference = (
+        _protocol_bundle_meta_schema_reference(
+            version
+        )
+    )
+
     if meta_reference is None:
-        errors.append(f"{label}: unsupported hostile-review protocol bundle schema version {version!r}")
+        errors.append(
+            f"{label}: unsupported hostile-review "
+            f"protocol bundle schema version {version!r}"
+        )
         return bundle, errors
-    validator, meta_errors = _load_meta_schema_validator(root, meta_reference, f"{label}: protocol-bundle meta-schema")
+
+    validator, meta_errors = (
+        _load_meta_schema_validator(
+            root,
+            meta_reference,
+            f"{label}: protocol-bundle meta-schema",
+        )
+    )
+
     errors.extend(meta_errors)
+
     if validator is not None:
-        errors.extend(_schema_violations(validator, bundle, label))
-    if version in (4, 5, 6, 7):
-        meta_schemas = _mapping(bundle.get("meta_schemas"))
-        declared_protocol_bundle = _mapping(meta_schemas.get("protocol-bundle"))
+        errors.extend(
+            _schema_violations(
+                validator,
+                bundle,
+                label,
+            )
+        )
+
+    if version in (4, 5, 6, 7, 8):
+        meta_schemas = _mapping(
+            bundle.get("meta_schemas")
+        )
+
+        declared_protocol_bundle = _mapping(
+            meta_schemas.get("protocol-bundle")
+        )
+
         expected_protocol_bundle = {
             4: PROTOCOL_V4_META_SCHEMA_REFERENCE,
             5: PROTOCOL_V5_META_SCHEMA_REFERENCE,
             6: PROTOCOL_V6_META_SCHEMA_REFERENCE,
             7: PROTOCOL_V7_META_SCHEMA_REFERENCE,
+            8: PROTOCOL_V8_META_SCHEMA_REFERENCE,
         }[version]
-        if declared_protocol_bundle != expected_protocol_bundle:
+
+        if (
+            declared_protocol_bundle
+            != expected_protocol_bundle
+        ):
             errors.append(
-                f"{label}: protocol v{version} must bind the exact published "
+                f"{label}: protocol v{version} must "
+                "bind the exact published "
                 "protocol-bundle meta-schema"
             )
-        declared_review_evidence = _mapping(meta_schemas.get("review-evidence"))
-        if declared_review_evidence != LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE:
+
+        declared_review_evidence = _mapping(
+            meta_schemas.get("review-evidence")
+        )
+
+        expected_review_evidence = (
+            PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE
+            if version == 8
+            else LEGACY_REVIEW_EVIDENCE_META_SCHEMA_REFERENCE
+        )
+
+        if (
+            declared_review_evidence
+            != expected_review_evidence
+        ):
             errors.append(
-                f"{label}: protocol v{version} must bind the exact published "
+                f"{label}: protocol v{version} must "
+                "bind the exact published "
                 "review-evidence meta-schema"
             )
-        for key in ("protocol-bundle", "review-evidence"):
-            _, binding_errors = _load_meta_schema_validator(root, _mapping(meta_schemas.get(key)), f"{label}: meta_schemas.{key}")
+
+        for key in (
+            "protocol-bundle",
+            "review-evidence",
+        ):
+            _, binding_errors = (
+                _load_meta_schema_validator(
+                    root,
+                    _mapping(
+                        meta_schemas.get(key)
+                    ),
+                    f"{label}: meta_schemas.{key}",
+                )
+            )
             errors.extend(binding_errors)
-    errors.extend(_protocol_bundle_errors(root, bundle, label))
+
+    errors.extend(
+        _protocol_bundle_errors(
+            root,
+            bundle,
+            label,
+        )
+    )
+
     path = _mapping(reference).get("path")
     protocol_id = bundle.get("protocol_id")
+
     paths = set(chain_paths or ())
     ids = set(chain_ids or ())
-    if isinstance(path, str) and path in paths:
-        errors.append(f"{label}: protocol predecessor cycle or duplicate bundle path")
+
+    if (
+        isinstance(path, str)
+        and path in paths
+    ):
+        errors.append(
+            f"{label}: protocol predecessor cycle "
+            "or duplicate bundle path"
+        )
         return bundle, errors
-    if isinstance(protocol_id, str) and protocol_id in ids:
-        errors.append(f"{label}: duplicate protocol_id in predecessor chain {protocol_id!r}")
+
+    if (
+        isinstance(protocol_id, str)
+        and protocol_id in ids
+    ):
+        errors.append(
+            f"{label}: duplicate protocol_id in "
+            f"predecessor chain {protocol_id!r}"
+        )
         return bundle, errors
-    if isinstance(path, str): paths.add(path)
-    if isinstance(protocol_id, str): ids.add(protocol_id)
+
+    if isinstance(path, str):
+        paths.add(path)
+
+    if isinstance(protocol_id, str):
+        ids.add(protocol_id)
+
     predecessor = bundle.get("predecessor")
-    if version in (2, 3, 4, 5, 6, 7):
+
+    if version in (2, 3, 4, 5, 6, 7, 8):
         if not isinstance(predecessor, dict):
-            errors.append(f"{label}: schema-version-{version} bundle requires predecessor")
+            errors.append(
+                f"{label}: schema-version-{version} "
+                "bundle requires predecessor"
+            )
         else:
-            if version == 7 and predecessor != PROTOCOL_V7_PREDECESSOR_REFERENCE:
+            if (
+                version == 7
+                and predecessor
+                != PROTOCOL_V7_PREDECESSOR_REFERENCE
+            ):
                 errors.append(
-                    f"{label}: protocol v7 predecessor must be the exact published "
-                    "v6 bundle"
+                    f"{label}: protocol v7 predecessor "
+                    "must be the exact published v6 bundle"
                 )
-            _, predecessor_errors = _load_protocol_bundle_document(root, predecessor, f"{label}: predecessor", cache, paths, ids)
+
+            if (
+                version == 8
+                and predecessor
+                != PROTOCOL_V8_PREDECESSOR_REFERENCE
+            ):
+                errors.append(
+                    f"{label}: protocol v8 predecessor "
+                    "must be the exact published v7 bundle"
+                )
+
+            _, predecessor_errors = (
+                _load_protocol_bundle_document(
+                    root,
+                    predecessor,
+                    f"{label}: predecessor",
+                    cache,
+                    paths,
+                    ids,
+                )
+            )
+
             errors.extend(predecessor_errors)
+
     elif predecessor is not None:
-        errors.append(f"{label}: schema-version-1 bundle must not declare predecessor")
-    if chain_paths is None and isinstance(cache_key, str):
-        cache[cache_key] = (bundle, list(errors))
+        errors.append(
+            f"{label}: schema-version-1 bundle "
+            "must not declare predecessor"
+        )
+
+    if (
+        chain_paths is None
+        and isinstance(cache_key, str)
+    ):
+        cache[cache_key] = (
+            bundle,
+            list(errors),
+        )
+
     return bundle, errors
 
 
@@ -2023,6 +2281,224 @@ def _inactive_protocol_v8_prompt_errors(
             errors.append(
                 f"{label}: CR characters are forbidden"
             )
+
+    return errors
+
+
+def _protocol_v8_question_realization_errors(
+    root: Path,
+    bundle: dict,
+    label: str,
+) -> list[str]:
+    """Derive P8 question realizations from the selected exact SQC catalog."""
+    errors: list[str] = []
+
+    semantic_contracts = _mapping(
+        bundle.get("semantic_contracts")
+    )
+
+    catalog, catalog_errors = (
+        _load_json_object_artifact(
+            root,
+            _mapping(
+                semantic_contracts.get(
+                    "questions"
+                )
+            ),
+            f"{label}: semantic question catalog",
+            REVIEW_CONTRACTS_PREFIX,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+            require_canonical=True,
+        )
+    )
+
+    errors.extend(catalog_errors)
+
+    if catalog is None:
+        return errors
+
+    expected: list[dict] = []
+
+    for index, entry in enumerate(
+        _sequence(catalog.get("contracts"))
+    ):
+        entry_label = (
+            f"{label}: semantic question "
+            f"catalog contracts[{index}]"
+        )
+
+        if not isinstance(entry, dict):
+            errors.append(
+                f"{entry_label} must be a mapping"
+            )
+            continue
+
+        revision_id = entry.get(
+            "revision_id"
+        )
+
+        if not isinstance(revision_id, str):
+            errors.append(
+                f"{entry_label}.revision_id "
+                "must be a string"
+            )
+            continue
+
+        definition = _mapping(
+            entry.get("definition")
+        )
+
+        question_kind = definition.get(
+            "question_kind"
+        )
+
+        family = definition.get("family")
+
+        if question_kind == "challenge":
+            prompt = "challenge"
+            output_schema = "challenge-output"
+
+        elif family == "repair-realization":
+            prompt = "repair"
+            output_schema = "adjudication-output"
+
+        else:
+            prompt = "adjudication"
+            output_schema = "adjudication-output"
+
+        expected.append(
+            {
+                "semantic_question_contract":
+                    revision_id,
+                "packet_schema":
+                    "cognitive-execution-packet",
+                "prompt":
+                    prompt,
+                "output_schema":
+                    output_schema,
+            }
+        )
+
+    actual = _sequence(
+        bundle.get("question_realizations")
+    )
+
+    if actual != expected:
+        errors.append(
+            f"{label}: question_realizations "
+            "must equal the exact realization "
+            "mapping mechanically derived from "
+            "the selected SQC catalog"
+        )
+
+    return errors
+
+
+def _inactive_protocol_v8_candidate_errors(
+    root: Path,
+    cache: dict[
+        str,
+        tuple[dict | None, list[str]],
+    ],
+) -> list[str]:
+    """Validate the exact protocol-v8 candidate without selecting it as current."""
+    label = "inactive protocol v8 candidate"
+
+    bundle, errors = (
+        _load_protocol_bundle_document(
+            root,
+            PROTOCOL_V8_BUNDLE_REFERENCE,
+            label,
+            cache,
+        )
+    )
+
+    if bundle is None:
+        return errors
+
+    if (
+        bundle.get(
+            "protocol_bundle_schema_version"
+        )
+        != 8
+    ):
+        errors.append(
+            f"{label}: protocol bundle schema "
+            "version must be 8"
+        )
+
+    if (
+        bundle.get("protocol_id")
+        != "gate-a-campaign-protocol-v8"
+    ):
+        errors.append(
+            f"{label}: protocol_id must be "
+            "gate-a-campaign-protocol-v8"
+        )
+
+    if (
+        bundle.get("predecessor")
+        != PROTOCOL_V8_PREDECESSOR_REFERENCE
+    ):
+        errors.append(
+            f"{label}: predecessor must be "
+            "the exact published v7 bundle"
+        )
+
+    semantic_contracts = _mapping(
+        bundle.get("semantic_contracts")
+    )
+
+    expected_semantic_contracts = {
+        "questions":
+            PROTOCOL_V8_SQC_CATALOG_REFERENCE,
+        "predicates":
+            PROTOCOL_V8_PREDICATE_CATALOG_REFERENCE,
+        "qualifications":
+            PROTOCOL_V8_QUALIFICATION_CATALOG_REFERENCE,
+    }
+
+    if (
+        semantic_contracts
+        != expected_semantic_contracts
+    ):
+        errors.append(
+            f"{label}: semantic_contracts must "
+            "bind the exact C7-A catalogs"
+        )
+
+    policies = _mapping(
+        bundle.get("policies")
+    )
+
+    if "challenge" in policies:
+        errors.append(
+            f"{label}: policies.challenge is "
+            "forbidden in protocol v8"
+        )
+
+    schemas = _mapping(
+        bundle.get("schemas")
+    )
+
+    for forbidden_key in (
+        "adjudication-packet",
+        "challenge-packet",
+    ):
+        if forbidden_key in schemas:
+            errors.append(
+                f"{label}: schemas."
+                f"{forbidden_key} is forbidden "
+                "in protocol v8"
+            )
+
+    errors.extend(
+        _protocol_v8_question_realization_errors(
+            root,
+            bundle,
+            label,
+        )
+    )
 
     return errors
 
@@ -5857,6 +6333,7 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_contract_foundation_errors(root))
     errors.extend(_inactive_protocol_v8_projection_schema_errors(root))
     errors.extend(_inactive_protocol_v8_prompt_errors(root))
+    errors.extend(_inactive_protocol_v8_candidate_errors(root, candidate_bundle_cache))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
