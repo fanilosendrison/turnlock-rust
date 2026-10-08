@@ -463,6 +463,18 @@ PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE = {
     "path": "formal/reviews/meta-schemas/review-evidence-v6.schema.json",
     "sha256": "d91fa2e6fe3f3e00065cf5631ea8737de9e4f314ea52d945517f27c968770c63",
 }
+PROTOCOL_V8_ADJUDICATION_PROMPT_V3_REFERENCE = {
+    "path": "formal/reviews/prompts/gate-a-adjudication-v3.md",
+    "sha256": "19f40526aea2ffaae324859b3f1fd21e516d7230b237d3a31234f3678dd8770f",
+}
+PROTOCOL_V8_CHALLENGE_PROMPT_V2_REFERENCE = {
+    "path": "formal/reviews/prompts/gate-a-challenge-v2.md",
+    "sha256": "386f44d5f790f80821ab90170828469da844b3fd6d26852963b0c72b487d7edd",
+}
+PROTOCOL_V8_REPAIR_PROMPT_V3_REFERENCE = {
+    "path": "formal/reviews/prompts/gate-a-repair-v3.md",
+    "sha256": "3b42a6e99d85aebc29574d6130709ef641a4cc80595249e4623710db4a547e1c",
+}
 
 PROTOCOL_V8_SQC_REVISION_IDS = (
     "turnlock.sqc:DecisionNecessityChallenge@1",
@@ -1945,6 +1957,72 @@ def _inactive_protocol_v8_projection_schema_errors(
             f"{label}: {error}"
             for error in schema_errors
         )
+
+    return errors
+
+
+def _inactive_protocol_v8_prompt_errors(
+    root: Path,
+) -> list[str]:
+    """Validate the exact inactive protocol-v8 C7-C prompts."""
+    errors: list[str] = []
+
+    specs = (
+        (
+            "adjudication prompt v3",
+            PROTOCOL_V8_ADJUDICATION_PROMPT_V3_REFERENCE,
+            "# Gate A adjudication prompt — v3\n",
+        ),
+        (
+            "challenge prompt v2",
+            PROTOCOL_V8_CHALLENGE_PROMPT_V2_REFERENCE,
+            "# Gate A challenge prompt — v2\n",
+        ),
+        (
+            "repair prompt v3",
+            PROTOCOL_V8_REPAIR_PROMPT_V3_REFERENCE,
+            "# Gate A repair prompt — v3\n",
+        ),
+    )
+
+    for name, reference, expected_heading in specs:
+        label = f"inactive protocol v8 C7-C {name}"
+
+        data, artifact_errors = _read_review_artifact(
+            root,
+            reference,
+            label,
+            REVIEW_PROMPT_PREFIX,
+            REVIEW_PROMPT_SUFFIX,
+        )
+
+        errors.extend(artifact_errors)
+
+        if data is None:
+            continue
+
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            errors.append(
+                f"{label}: prompt must be valid UTF-8"
+            )
+            continue
+
+        if not text.startswith(expected_heading):
+            errors.append(
+                f"{label}: prompt heading does not match exact C7-C prompt"
+            )
+
+        if not text.endswith("\n"):
+            errors.append(
+                f"{label}: prompt must end with exactly one LF"
+            )
+
+        if "\r" in text:
+            errors.append(
+                f"{label}: CR characters are forbidden"
+            )
 
     return errors
 
@@ -5778,6 +5856,7 @@ def collect_errors(
     errors.extend(_inactive_protocol_v7_candidate_errors(root, candidate_bundle_cache))
     errors.extend(_inactive_protocol_v8_contract_foundation_errors(root))
     errors.extend(_inactive_protocol_v8_projection_schema_errors(root))
+    errors.extend(_inactive_protocol_v8_prompt_errors(root))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
