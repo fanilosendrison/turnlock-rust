@@ -692,6 +692,9 @@ that fact can be mechanically reconstructed without same-root receipt ownership
 
 ## C5 — Close candidate-bound identity and CandidateView construction
 
+The C5 construction closure is documented in
+[`gate-a-protocol-v8-candidate-bound-identity-candidate-view.md`](gate-a-protocol-v8-candidate-bound-identity-candidate-view.md).
+
 Define the exact protocol-v8 construction contract relating:
 
 ```text

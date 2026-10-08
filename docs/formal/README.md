@@ -502,6 +502,9 @@ documented in
 The C4 SemanticFact and qualification-resolution construction closure is
 documented in
 [`gate-a-protocol-v8-semantic-fact-qualification-resolution.md`](gate-a-protocol-v8-semantic-fact-qualification-resolution.md).
+The C5 candidate-bound identity and CandidateView construction closure is
+documented in
+[`gate-a-protocol-v8-candidate-bound-identity-candidate-view.md`](gate-a-protocol-v8-candidate-bound-identity-candidate-view.md).
 
 Protocol v7 is an immutable validated predecessor and regression artifact. Under
 ADR-056 it is permanently inactive and MUST NOT subsequently be selected as
