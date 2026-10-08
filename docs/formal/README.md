@@ -506,6 +506,10 @@ The C5 candidate-bound identity and CandidateView construction closure is
 documented in
 [`gate-a-protocol-v8-candidate-bound-identity-candidate-view.md`](gate-a-protocol-v8-candidate-bound-identity-candidate-view.md).
 
+The C6 packet, receipt, and evidence-projection construction closure is
+documented in
+[`gate-a-protocol-v8-packet-receipt-evidence-projections.md`](gate-a-protocol-v8-packet-receipt-evidence-projections.md).
+
 Protocol v7 is an immutable validated predecessor and regression artifact. Under
 ADR-056 it is permanently inactive and MUST NOT subsequently be selected as
 current.
