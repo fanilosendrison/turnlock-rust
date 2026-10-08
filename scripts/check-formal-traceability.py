@@ -443,6 +443,26 @@ PROTOCOL_V8_QUALIFICATION_CATALOG_REFERENCE = {
     "path": "formal/reviews/contracts/gate-a-qualification-contracts-v8.json",
     "sha256": "3be09c8de68f70e2c5cfe1409f417dfffc38bc62502df0036c4bc073bfafd2f1",
 }
+PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/cognitive-execution-packet-v1.schema.json",
+    "sha256": "93deddfd3b69c1e69f208b15df594e74d57e47d2f074143f364cb7c300a841fc",
+}
+PROTOCOL_V8_SEMANTIC_QUESTION_BINDING_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/semantic-question-binding-v1.schema.json",
+    "sha256": "fae52d48d08df8e9c3d7cafc74899913f4cc5655fb0a7ac8eb594df6edece15e",
+}
+PROTOCOL_V8_SEMANTIC_ADMISSION_ORIGIN_WITNESS_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/semantic-admission-origin-witness-v1.schema.json",
+    "sha256": "acdcf78b6862080f5147df525bc919e2b8eb6eb94b3c920fee8b9886e582607b",
+}
+PROTOCOL_V8_FINDING_ADJUDICATION_SUPPLEMENT_V2_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/finding-adjudication-supplement-v2.schema.json",
+    "sha256": "001050946c7275ba768676ea4dc8c24dfc2af5b1b285475864d050cbfe95991a",
+}
+PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/meta-schemas/review-evidence-v6.schema.json",
+    "sha256": "d91fa2e6fe3f3e00065cf5631ea8737de9e4f314ea52d945517f27c968770c63",
+}
 
 PROTOCOL_V8_SQC_REVISION_IDS = (
     "turnlock.sqc:DecisionNecessityChallenge@1",
@@ -1854,6 +1874,77 @@ def _inactive_protocol_v8_contract_foundation_errors(
             errors.append(
                 f"{label}: duplicate revision_id is forbidden"
             )
+
+    return errors
+
+
+def _inactive_protocol_v8_projection_schema_errors(
+    root: Path,
+) -> list[str]:
+    """Validate the exact inactive protocol-v8 C7-B projection schemas."""
+    errors: list[str] = []
+
+    specs = (
+        (
+            "cognitive execution packet schema",
+            PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE,
+            REVIEW_SCHEMAS_PREFIX,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-cognitive-execution-packet:1",
+        ),
+        (
+            "semantic question binding schema",
+            PROTOCOL_V8_SEMANTIC_QUESTION_BINDING_SCHEMA_REFERENCE,
+            REVIEW_SCHEMAS_PREFIX,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-semantic-question-binding:1",
+        ),
+        (
+            "SemanticAdmission origin witness schema",
+            PROTOCOL_V8_SEMANTIC_ADMISSION_ORIGIN_WITNESS_SCHEMA_REFERENCE,
+            REVIEW_SCHEMAS_PREFIX,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-semantic-admission-origin-witness:1",
+        ),
+        (
+            "finding adjudication supplement v2 schema",
+            PROTOCOL_V8_FINDING_ADJUDICATION_SUPPLEMENT_V2_SCHEMA_REFERENCE,
+            REVIEW_SCHEMAS_PREFIX,
+            "urn:fanilosendrison:turnlock-rust:finding-adjudication-supplement:2",
+        ),
+        (
+            "review evidence v6 meta-schema",
+            PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE,
+            REVIEW_META_SCHEMAS_PREFIX,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-evidence:6",
+        ),
+    )
+
+    for name, reference, prefix, expected_id in specs:
+        label = f"inactive protocol v8 C7-B {name}"
+
+        schema, artifact_errors = _load_json_object_artifact(
+            root,
+            reference,
+            label,
+            prefix,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+            require_canonical=True,
+        )
+
+        errors.extend(artifact_errors)
+
+        if schema is None:
+            continue
+
+        if schema.get("$id") != expected_id:
+            errors.append(
+                f"{label}: $id must equal the exact C7-B schema identity"
+            )
+
+        _validator_value, schema_errors = _validator(schema)
+
+        errors.extend(
+            f"{label}: {error}"
+            for error in schema_errors
+        )
 
     return errors
 
@@ -5686,6 +5777,7 @@ def collect_errors(
     candidate_bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
     errors.extend(_inactive_protocol_v7_candidate_errors(root, candidate_bundle_cache))
     errors.extend(_inactive_protocol_v8_contract_foundation_errors(root))
+    errors.extend(_inactive_protocol_v8_projection_schema_errors(root))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
