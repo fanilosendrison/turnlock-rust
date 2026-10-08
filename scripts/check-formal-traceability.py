@@ -356,6 +356,7 @@ REVIEW_ADJUDICATION_PACKET_SUFFIX = ".json"
 REVIEW_PROTOCOLS_PREFIX = "formal/reviews/protocols/"
 REVIEW_PROTOCOL_BUNDLE_SUFFIX = ".json"
 REVIEW_SCHEMAS_PREFIX = "formal/reviews/schemas/"
+REVIEW_CONTRACTS_PREFIX = "formal/reviews/contracts/"
 REVIEW_META_SCHEMAS_PREFIX = "formal/reviews/meta-schemas/"
 REVIEW_META_SCHEMA_SUFFIX = ".json"
 REVIEW_EXECUTIONS_PREFIX = "formal/reviews/executions/"
@@ -372,6 +373,7 @@ REVIEW_ARTIFACT_PREFIXES = (
     REVIEW_ADJUDICATION_PACKETS_PREFIX,
     REVIEW_PROTOCOLS_PREFIX,
     REVIEW_SCHEMAS_PREFIX,
+    REVIEW_CONTRACTS_PREFIX,
     REVIEW_META_SCHEMAS_PREFIX,
     REVIEW_EXECUTIONS_PREFIX,
     REVIEW_ADJUDICATIONS_PREFIX,
@@ -413,6 +415,83 @@ PROTOCOL_V7_PREDECESSOR_REFERENCE = {
     "path": "formal/reviews/protocols/gate-a-campaign-protocol-v6.json",
     "sha256": "841908ae137b1caaa8d0ae1035d7f888f736fda04ef70c10d33bda8383feae98",
 }
+PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/semantic-identity-v1.schema.json",
+    "sha256": "fc9e6a4dc241508c50a1d1671c9f43bd04ab257a8d0ad5b6319ba5522966a3f3",
+}
+PROTOCOL_V8_SQC_CATALOG_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/semantic-question-contract-catalog-v1.schema.json",
+    "sha256": "dca83227b9a4c6c8bde3dbce381027a94079648fd1fec1ead861c57219bdd8ca",
+}
+PROTOCOL_V8_PREDICATE_CATALOG_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/predicate-revision-catalog-v1.schema.json",
+    "sha256": "da100b5f6ca9d40bdf7e07a1560d9ef0ede321c7bb4f9fb3977aa9d815fae20e",
+}
+PROTOCOL_V8_QUALIFICATION_CATALOG_SCHEMA_REFERENCE = {
+    "path": "formal/reviews/schemas/qualification-contract-catalog-v1.schema.json",
+    "sha256": "cb490d4a530f2438d051134f5ca588ecfa42fd5b24bf1bbb2e75cdaa1e40d5a3",
+}
+PROTOCOL_V8_SQC_CATALOG_REFERENCE = {
+    "path": "formal/reviews/contracts/gate-a-semantic-question-contracts-v8.json",
+    "sha256": "ad347de040e6b48730af346532d97a6553a8604bbdf1fb4dd45abe3d41336daf",
+}
+PROTOCOL_V8_PREDICATE_CATALOG_REFERENCE = {
+    "path": "formal/reviews/contracts/gate-a-predicate-revisions-v8.json",
+    "sha256": "895007928cf71e56c2e1908e2b8540a99ef92b8725eb9a4feb9167053b74d788",
+}
+PROTOCOL_V8_QUALIFICATION_CATALOG_REFERENCE = {
+    "path": "formal/reviews/contracts/gate-a-qualification-contracts-v8.json",
+    "sha256": "3be09c8de68f70e2c5cfe1409f417dfffc38bc62502df0036c4bc073bfafd2f1",
+}
+
+PROTOCOL_V8_SQC_REVISION_IDS = (
+    "turnlock.sqc:DecisionNecessityChallenge@1",
+    "turnlock.sqc:DiscoveryClassificationInitial@1",
+    "turnlock.sqc:DiscoveryDecisionRequiredRevision@1",
+    "turnlock.sqc:DiscoveryNoNormativeImpactRevision@1",
+    "turnlock.sqc:MaterialityAssessmentInitial@1",
+    "turnlock.sqc:MaterialityAssessmentRevision@1",
+    "turnlock.sqc:MaterialityChallenge@1",
+    "turnlock.sqc:NoNormativeImpactChallenge@1",
+    "turnlock.sqc:RealizationScopeChallenge@1",
+    "turnlock.sqc:RealizationScopeInitial@1",
+    "turnlock.sqc:RealizationScopeRevision@1",
+    "turnlock.sqc:RefutationChallenge@1",
+    "turnlock.sqc:RefutationInitial@1",
+    "turnlock.sqc:RefutationRevision@1",
+    "turnlock.sqc:RepairRealizationChallenge@1",
+    "turnlock.sqc:RepairRealizationInitial@1",
+    "turnlock.sqc:RepairRealizationRevision@1",
+    "turnlock.sqc:UniqueCorrectionChallenge@1",
+    "turnlock.sqc:UniqueCorrectionInitial@1",
+    "turnlock.sqc:UniqueCorrectionRevision@1",
+)
+
+PROTOCOL_V8_PREDICATE_REVISION_IDS = (
+    "turnlock.predicate:AcceptedRealizationScope@1",
+    "turnlock.predicate:AcceptedRepairRealization@1",
+    "turnlock.predicate:AcceptedUniqueCorrection@1",
+    "turnlock.predicate:DecisionNecessityCandidate@1",
+    "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+    "turnlock.predicate:QualifiedDecisionNecessity@1",
+    "turnlock.predicate:QualifiedNoNormativeImpact@1",
+    "turnlock.predicate:QualifiedNonMateriality@1",
+    "turnlock.predicate:QualifiedPositiveMateriality@1",
+    "turnlock.predicate:QualifiedRefutation@1",
+    "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+    "turnlock.predicate:TargetedDiscoveryStatement@1",
+    "turnlock.predicate:UniqueCorrectionExhaustion@1",
+)
+
+PROTOCOL_V8_QUALIFICATION_REVISION_IDS = (
+    "turnlock.qualification:DecisionNecessityQualification@1",
+    "turnlock.qualification:MaterialityAssessmentQualification@1",
+    "turnlock.qualification:NoNormativeImpactQualification@1",
+    "turnlock.qualification:RealizationScopeQualification@1",
+    "turnlock.qualification:RefutationQualification@1",
+    "turnlock.qualification:RepairRealizationQualification@1",
+    "turnlock.qualification:UniqueCorrectionQualification@1",
+)
 REFUTATION_CHALLENGE_SELECTOR = "hostile-refutation-challenge-v1"
 REFUTATION_CHALLENGE_SUBJECT_SCHEMA_VERSION = 1
 MATERIALITY_CHALLENGE_SELECTOR = "hostile-materiality-challenge-v1"
@@ -1658,6 +1737,124 @@ def _inactive_protocol_v7_candidate_errors(
             errors.append(f"{label}: protocol_id must be gate-a-campaign-protocol-v7")
         if bundle.get("predecessor") != PROTOCOL_V7_PREDECESSOR_REFERENCE:
             errors.append(f"{label}: predecessor must be the exact published v6 bundle")
+    return errors
+
+
+def _inactive_protocol_v8_contract_foundation_errors(
+    root: Path,
+) -> list[str]:
+    """Validate the exact inactive protocol-v8 C7-A semantic foundation."""
+    errors: list[str] = []
+
+    schema_specs = (
+        (
+            "semantic identity schema",
+            PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-semantic-identity:1",
+        ),
+        (
+            "SemanticQuestionContract catalog schema",
+            PROTOCOL_V8_SQC_CATALOG_SCHEMA_REFERENCE,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-semantic-question-contract-catalog:1",
+        ),
+        (
+            "PredicateRevision catalog schema",
+            PROTOCOL_V8_PREDICATE_CATALOG_SCHEMA_REFERENCE,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-predicate-revision-catalog:1",
+        ),
+        (
+            "QualificationContractRevision catalog schema",
+            PROTOCOL_V8_QUALIFICATION_CATALOG_SCHEMA_REFERENCE,
+            "urn:fanilosendrison:turnlock-rust:hostile-review-qualification-contract-catalog:1",
+        ),
+    )
+
+    for name, reference, expected_id in schema_specs:
+        label = f"inactive protocol v8 C7-A {name}"
+        schema, artifact_errors = _load_json_object_artifact(
+            root,
+            reference,
+            label,
+            REVIEW_SCHEMAS_PREFIX,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+            require_canonical=True,
+        )
+        errors.extend(artifact_errors)
+        if schema is None:
+            continue
+
+        if schema.get("$id") != expected_id:
+            errors.append(
+                f"{label}: $id must equal the exact C7-A schema identity"
+            )
+
+        _validator_value, schema_errors = _validator(schema)
+        errors.extend(f"{label}: {error}" for error in schema_errors)
+
+    catalog_specs = (
+        (
+            "SemanticQuestionContract catalog",
+            PROTOCOL_V8_SQC_CATALOG_REFERENCE,
+            "contracts",
+            PROTOCOL_V8_SQC_REVISION_IDS,
+        ),
+        (
+            "PredicateRevision catalog",
+            PROTOCOL_V8_PREDICATE_CATALOG_REFERENCE,
+            "predicates",
+            PROTOCOL_V8_PREDICATE_REVISION_IDS,
+        ),
+        (
+            "QualificationContractRevision catalog",
+            PROTOCOL_V8_QUALIFICATION_CATALOG_REFERENCE,
+            "qualifications",
+            PROTOCOL_V8_QUALIFICATION_REVISION_IDS,
+        ),
+    )
+
+    for name, reference, field, expected_ids in catalog_specs:
+        label = f"inactive protocol v8 C7-A {name}"
+        catalog, artifact_errors = _load_json_object_artifact(
+            root,
+            reference,
+            label,
+            REVIEW_CONTRACTS_PREFIX,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+            require_canonical=True,
+        )
+        errors.extend(artifact_errors)
+        if catalog is None:
+            continue
+
+        if catalog.get("catalog_schema_version") != "1.0":
+            errors.append(
+                f"{label}: catalog_schema_version must be exactly '1.0'"
+            )
+
+        entries = _sequence(catalog.get(field))
+        revision_ids = [
+            entry.get("revision_id")
+            for entry in entries
+            if isinstance(entry, dict)
+        ]
+
+        if len(entries) != len(expected_ids):
+            errors.append(
+                f"{label}: {field} must contain exactly "
+                f"{len(expected_ids)} entries"
+            )
+
+        if revision_ids != list(expected_ids):
+            errors.append(
+                f"{label}: revision IDs and lexical ordering must equal "
+                "the exact C7-A catalog"
+            )
+
+        if len(revision_ids) != len(set(revision_ids)):
+            errors.append(
+                f"{label}: duplicate revision_id is forbidden"
+            )
+
     return errors
 
 
@@ -5488,6 +5685,7 @@ def collect_errors(
 
     candidate_bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
     errors.extend(_inactive_protocol_v7_candidate_errors(root, candidate_bundle_cache))
+    errors.extend(_inactive_protocol_v8_contract_foundation_errors(root))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
