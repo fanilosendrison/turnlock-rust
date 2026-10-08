@@ -754,6 +754,9 @@ without naming one exact CandidateRevision
 
 ## C6 — Close protocol-v8 packet, receipt, and evidence projections
 
+The C6 construction closure is documented in
+[`gate-a-protocol-v8-packet-receipt-evidence-projections.md`](gate-a-protocol-v8-packet-receipt-evidence-projections.md).
+
 Only after C1-C5 are closed may protocol-v8 serialization be selected.
 
 Determine exactly which published P7 artifacts can remain unchanged and which require new immutable versions.
