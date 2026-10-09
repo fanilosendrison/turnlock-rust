@@ -1647,6 +1647,1888 @@ def _inactive_protocol_v8_e1_semantic_identity_errors(root: Path) -> list[str]:
     return errors
 
 
+
+_PROTOCOL_V8_E2_CLEARANCE_REASONS = frozenset(
+    {
+        "proven-not-executed",
+        "terminal-technical-failure-no-completion",
+        "protocol-invalid-completion",
+    }
+)
+_PROTOCOL_V8_E2_VALIDATED_WITNESS_MARKER = object()
+
+
+def _protocol_v8_e2_new_state() -> dict:
+    """Create one disposable C3 reference state; it is not a runtime storage schema."""
+    return {
+        "coordination_epoch": 0,
+        "generation_high_water": {},
+        "effective_authority": {},
+        "authority_grants": [],
+        "executions": {},
+        "admissions": {},
+        "conflicts": {},
+        "imported_unarmed_selection_required": set(),
+    }
+
+
+def _protocol_v8_e2_require_qlek(qlek: object) -> str:
+    if type(qlek) is not str or _PROTOCOL_V8_E1_QLEK.fullmatch(qlek) is None:
+        raise ValueError("E2 requires an exact QLEK")
+    return qlek
+
+
+def _protocol_v8_e2_execution_ids(
+    state: dict,
+    qlek: str,
+) -> list[str]:
+    return sorted(
+        execution_id
+        for execution_id, execution in state["executions"].items()
+        if execution.get("qlek") == qlek
+    )
+
+
+def _protocol_v8_e2_active_unarmed_ids(
+    state: dict,
+    qlek: str,
+) -> list[str]:
+    return sorted(
+        execution_id
+        for execution_id in _protocol_v8_e2_execution_ids(state, qlek)
+        if (
+            state["executions"][execution_id].get("armed") is not True
+            and state["executions"][execution_id].get("retired_unarmed") is not True
+        )
+    )
+
+
+def _protocol_v8_e2_pending_completion_ids(
+    state: dict,
+    qlek: str,
+) -> list[str]:
+    return sorted(
+        execution_id
+        for execution_id in _protocol_v8_e2_execution_ids(state, qlek)
+        if (
+            state["executions"][execution_id].get("terminal_kind")
+            == "protocol-valid"
+            and state["executions"][execution_id].get("completion_reconciled")
+            is not True
+        )
+    )
+
+
+def _protocol_v8_e2_unreconciled_hazard(
+    state: dict,
+    execution_id: str,
+) -> bool:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        return False
+
+    if execution.get("hazard_clearance") in _PROTOCOL_V8_E2_CLEARANCE_REASONS:
+        return False
+
+    if (
+        execution.get("terminal_kind") == "protocol-valid"
+        and execution.get("completion_reconciled") is True
+    ):
+        return False
+
+    return True
+
+
+def _protocol_v8_e2_unreconciled_hazard_ids(
+    state: dict,
+    qlek: str,
+) -> list[str]:
+    return sorted(
+        execution_id
+        for execution_id in _protocol_v8_e2_execution_ids(state, qlek)
+        if _protocol_v8_e2_unreconciled_hazard(state, execution_id)
+    )
+
+
+def _protocol_v8_e2_replacement_candidates(
+    state: dict,
+    qlek: str,
+) -> list[str]:
+    return sorted(
+        execution_id
+        for execution_id in _protocol_v8_e2_execution_ids(state, qlek)
+        if (
+            state["executions"][execution_id].get("armed") is True
+            and state["executions"][execution_id].get("hazard_clearance")
+            in _PROTOCOL_V8_E2_CLEARANCE_REASONS
+            and state["executions"][execution_id].get("terminal_kind")
+            != "protocol-valid"
+            and state["executions"][execution_id].get("replaced_by") is None
+        )
+    )
+
+
+def _protocol_v8_e2_consumable_admission(
+    state: dict,
+    qlek: str,
+) -> bool:
+    qlek = _protocol_v8_e2_require_qlek(qlek)
+    admission = state["admissions"].get(qlek)
+
+    if not isinstance(admission, dict):
+        return False
+
+    if qlek in state["conflicts"]:
+        return False
+
+    if not admission.get("witnesses"):
+        return False
+
+    return not _protocol_v8_e2_unreconciled_hazard_ids(state, qlek)
+
+
+def _protocol_v8_e2_t1_acquire_authority(
+    state: dict,
+    qlek: str,
+    generation: int,
+) -> dict:
+    """Reference T1. Generation has no minimum; it is only monotone per epoch."""
+    qlek = _protocol_v8_e2_require_qlek(qlek)
+
+    if type(generation) is not int:
+        raise ValueError("AdmissionAuthority generation must be an exact integer")
+
+    if qlek in state["conflicts"]:
+        return {"status": "conflict"}
+
+    admission = state["admissions"].get(qlek)
+    if isinstance(admission, dict):
+        return {
+            "status": "reuse",
+            "admission": copy.deepcopy(admission),
+            "consumable": _protocol_v8_e2_consumable_admission(state, qlek),
+        }
+
+    pending = _protocol_v8_e2_pending_completion_ids(state, qlek)
+    if pending:
+        return {
+            "status": "reconcile",
+            "execution_ids": pending,
+        }
+
+    hazards = _protocol_v8_e2_unreconciled_hazard_ids(state, qlek)
+    if hazards:
+        return {
+            "status": "blocked-hazard",
+            "execution_ids": hazards,
+        }
+
+    if qlek in state["imported_unarmed_selection_required"]:
+        return {"status": "blocked-unarmed-selection"}
+
+    unarmed = _protocol_v8_e2_active_unarmed_ids(state, qlek)
+    if len(unarmed) > 1:
+        return {
+            "status": "blocked-unarmed-selection",
+            "execution_ids": unarmed,
+        }
+
+    previous = state["generation_high_water"].get(qlek)
+    if previous is not None and generation <= previous:
+        raise ValueError(
+            "AdmissionAuthority generation must increase strictly within one epoch"
+        )
+
+    state["generation_high_water"][qlek] = generation
+    handle = {
+        "qlek": qlek,
+        "epoch": state["coordination_epoch"],
+        "generation": generation,
+    }
+    state["effective_authority"][qlek] = copy.deepcopy(handle)
+    state["authority_grants"].append(copy.deepcopy(handle))
+
+    return {
+        "status": "authority",
+        "handle": handle,
+        "execution_id": unarmed[0] if unarmed else None,
+    }
+
+
+def _protocol_v8_e2_current_handle(
+    state: dict,
+    qlek: str,
+    generation: int,
+) -> dict:
+    handle = state["effective_authority"].get(qlek)
+    expected = {
+        "qlek": qlek,
+        "epoch": state["coordination_epoch"],
+        "generation": generation,
+    }
+    if handle != expected:
+        raise ValueError("AdmissionAuthority handle is stale or ineffective")
+    return handle
+
+
+def _protocol_v8_e2_t2_authorize_execution(
+    state: dict,
+    qlek: str,
+    generation: int,
+    execution_id: str,
+    *,
+    outer_authorized: bool,
+    replacement_of: str | None = None,
+    replacement_authorized: bool = False,
+) -> dict:
+    """Reference T2; create+SemanticExecutionBinding is atomic."""
+    qlek = _protocol_v8_e2_require_qlek(qlek)
+
+    if type(execution_id) is not str or not execution_id:
+        raise ValueError("semantic Execution identity must be a non-empty string")
+
+    _protocol_v8_e2_current_handle(state, qlek, generation)
+
+    if qlek in state["conflicts"]:
+        raise ValueError("semantic conflict blocks execution authorization")
+
+    if qlek in state["admissions"]:
+        raise ValueError("Admission(K) blocks execution authorization")
+
+    if _protocol_v8_e2_pending_completion_ids(state, qlek):
+        raise ValueError("completion awaiting admission blocks execution authorization")
+
+    if _protocol_v8_e2_unreconciled_hazard_ids(state, qlek):
+        raise ValueError("unreconciled semantic hazard blocks execution authorization")
+
+    if qlek in state["imported_unarmed_selection_required"]:
+        raise ValueError("post-merge unarmed trajectory selection is unresolved")
+
+    unarmed = _protocol_v8_e2_active_unarmed_ids(state, qlek)
+    if unarmed:
+        if unarmed != [execution_id]:
+            raise ValueError("existing unarmed trajectory must be resumed exactly")
+        execution = state["executions"][execution_id]
+        if execution.get("qlek") != qlek:
+            raise ValueError("SemanticExecutionBinding cannot be retargeted")
+        return execution
+
+    existing = state["executions"].get(execution_id)
+    if existing is not None:
+        if existing.get("qlek") != qlek:
+            raise ValueError("one Execution cannot bind to two QLEKs")
+        raise ValueError("retired or armed Execution cannot be re-authorized as new")
+
+    if outer_authorized is not True:
+        raise ValueError("outer Execution authorization is required")
+
+    replacements = _protocol_v8_e2_replacement_candidates(state, qlek)
+    if len(replacements) > 1:
+        raise ValueError("ambiguous cleared predecessor executions fail closed")
+
+    if replacements:
+        if (
+            replacement_authorized is not True
+            or replacement_of != replacements[0]
+        ):
+            raise ValueError(
+                "hazard clearance does not itself authorize semantic replacement"
+            )
+    elif replacement_of is not None or replacement_authorized:
+        raise ValueError("unexpected replacement authority without predecessor")
+
+    execution = {
+        "qlek": qlek,
+        "armed": False,
+        "arm_epoch": None,
+        "arm_generation": None,
+        "maybe_sent": False,
+        "terminal_kind": None,
+        "semantic_candidate": None,
+        "completion_reconciled": False,
+        "witness_reconciled": False,
+        "hazard_clearance": None,
+        "unresolvable": False,
+        "superseded": False,
+        "retired_unarmed": False,
+        "replaced_by": None,
+        "imported": False,
+    }
+    state["executions"][execution_id] = execution
+
+    if replacements:
+        state["executions"][replacements[0]]["replaced_by"] = execution_id
+
+    return execution
+
+
+def _protocol_v8_e2_t3_arm_execution(
+    state: dict,
+    qlek: str,
+    generation: int,
+    execution_id: str,
+) -> dict:
+    """Reference T3; normal Arm + SemanticArmBinding is one mutation."""
+    qlek = _protocol_v8_e2_require_qlek(qlek)
+    _protocol_v8_e2_current_handle(state, qlek, generation)
+
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("qlek") != qlek:
+        raise ValueError("Arm requires the exact SemanticExecutionBinding")
+
+    if execution.get("armed") is True:
+        raise ValueError("semantic Execution may Arm at most once")
+
+    if execution.get("retired_unarmed") is True:
+        raise ValueError("retired unarmed Execution cannot Arm")
+
+    if qlek in state["conflicts"]:
+        raise ValueError("semantic conflict blocks Arm")
+
+    if qlek in state["admissions"]:
+        raise ValueError("Admission(K) blocks Arm")
+
+    if _protocol_v8_e2_pending_completion_ids(state, qlek):
+        raise ValueError("completion awaiting admission blocks Arm")
+
+    if _protocol_v8_e2_unreconciled_hazard_ids(state, qlek):
+        raise ValueError("unreconciled semantic hazard blocks Arm")
+
+    if qlek in state["imported_unarmed_selection_required"]:
+        raise ValueError("post-merge unarmed trajectory selection is unresolved")
+
+    if _protocol_v8_e2_active_unarmed_ids(state, qlek) != [execution_id]:
+        raise ValueError("Arm must target the one exact lawful unarmed trajectory")
+
+    execution["armed"] = True
+    execution["arm_epoch"] = state["coordination_epoch"]
+    execution["arm_generation"] = generation
+
+    # Safety after Arm is durable history, not continued live-handle possession.
+    state["effective_authority"].pop(qlek, None)
+    return execution
+
+
+def _protocol_v8_e2_retire_unarmed(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict):
+        raise ValueError("unknown semantic Execution")
+    if execution.get("armed") is True:
+        raise ValueError("Armed Execution cannot be retired as never-dispatched")
+    execution["retired_unarmed"] = True
+
+
+def _protocol_v8_e2_mark_maybe_sent(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        raise ValueError("MAYBE-SENT requires prior Semantic Arm")
+    if execution.get("terminal_kind") is not None:
+        raise ValueError("terminal semantic Execution cannot become MAYBE-SENT")
+    execution["maybe_sent"] = True
+
+
+def _protocol_v8_e2_record_protocol_valid_completion(
+    state: dict,
+    execution_id: str,
+    semantic_candidate: object,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        raise ValueError("protocol-valid completion requires prior Semantic Arm")
+    if execution.get("unresolvable") is True:
+        raise ValueError("current-backend UNRESOLVABLE cannot later acquire completion")
+    if execution.get("terminal_kind") is not None:
+        raise ValueError("first protocol-valid completion is terminal")
+    candidate_errors = _protocol_v8_e1_semantic_value_errors(
+        semantic_candidate,
+        "E2 semantic candidate",
+    )
+    if candidate_errors:
+        raise ValueError(candidate_errors[0])
+    execution["terminal_kind"] = "protocol-valid"
+    execution["semantic_candidate"] = copy.deepcopy(semantic_candidate)
+
+
+def _protocol_v8_e2_record_protocol_invalid_completion(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        raise ValueError("protocol-invalid completion requires prior Semantic Arm")
+    if execution.get("unresolvable") is True:
+        raise ValueError("current-backend UNRESOLVABLE cannot later acquire completion")
+    if execution.get("terminal_kind") is not None:
+        raise ValueError("semantic Execution already has terminal completion truth")
+    execution["terminal_kind"] = "protocol-invalid"
+    execution["hazard_clearance"] = "protocol-invalid-completion"
+
+
+def _protocol_v8_e2_record_terminal_technical_failure(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        raise ValueError("terminal technical failure requires prior Semantic Arm")
+    if execution.get("unresolvable") is True:
+        raise ValueError("current-backend UNRESOLVABLE cannot later acquire completion")
+    if execution.get("terminal_kind") is not None:
+        raise ValueError("semantic Execution already has terminal completion truth")
+    execution["terminal_kind"] = "technical-failure-no-completion"
+    execution["hazard_clearance"] = "terminal-technical-failure-no-completion"
+
+
+def _protocol_v8_e2_record_pne(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        raise ValueError("PROVEN-NOT-EXECUTED requires prior Semantic Arm")
+    if execution.get("terminal_kind") == "protocol-valid":
+        raise ValueError("PNE cannot erase a protocol-valid completion")
+    if execution.get("unresolvable") is True:
+        raise ValueError("current-backend UNRESOLVABLE cannot later become PNE")
+    execution["hazard_clearance"] = "proven-not-executed"
+
+
+def _protocol_v8_e2_record_unresolvable(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict) or execution.get("armed") is not True:
+        raise ValueError("UNRESOLVABLE requires prior Semantic Arm")
+    if execution.get("terminal_kind") is not None:
+        raise ValueError("completed semantic Execution is not UNRESOLVABLE")
+    execution["unresolvable"] = True
+
+
+def _protocol_v8_e2_record_supersession(
+    state: dict,
+    execution_id: str,
+) -> None:
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict):
+        raise ValueError("unknown semantic Execution")
+    execution["superseded"] = True
+
+
+def _protocol_v8_e2_internal_witness(
+    execution_id: str,
+    execution: dict,
+    admission_id: str,
+    candidate: object,
+) -> dict:
+    return {
+        "execution_id": execution_id,
+        "qlek": execution["qlek"],
+        "semantic_candidate": copy.deepcopy(candidate),
+        "admission_id": admission_id,
+        "arm_generation": execution["arm_generation"],
+        # Epoch is reference-machine coordination state only and is never serialized
+        # into the public C6 origin-witness representation.
+        "arm_epoch": execution["arm_epoch"],
+    }
+
+
+def _protocol_v8_e2_conflict_add(
+    state: dict,
+    qlek: str,
+    admission_record: dict,
+) -> None:
+    conflict = state["conflicts"].setdefault(qlek, {})
+    conflict[admission_record["admission_id"]] = copy.deepcopy(admission_record)
+    state["admissions"].pop(qlek, None)
+
+
+def _protocol_v8_e2_t4_reconcile_completion(
+    state: dict,
+    execution_id: str,
+) -> dict:
+    """Reference T4. First Admission + first witness is one atomic mutation."""
+    execution = state["executions"].get(execution_id)
+    if not isinstance(execution, dict):
+        raise ValueError("unknown semantic Execution")
+    if execution.get("armed") is not True:
+        raise ValueError("completion reconciliation requires prior Semantic Arm")
+    if execution.get("terminal_kind") != "protocol-valid":
+        raise ValueError("no protocol-valid semantic completion to reconcile")
+
+    qlek = execution["qlek"]
+    candidate = copy.deepcopy(execution["semantic_candidate"])
+    admission_id = _protocol_v8_e1_semantic_admission_id(qlek, candidate)
+    witness = _protocol_v8_e2_internal_witness(
+        execution_id,
+        execution,
+        admission_id,
+        candidate,
+    )
+    incoming = {
+        "qlek": qlek,
+        "candidate": candidate,
+        "admission_id": admission_id,
+        "witnesses": [witness],
+    }
+
+    if qlek in state["conflicts"]:
+        _protocol_v8_e2_conflict_add(state, qlek, incoming)
+        status = "conflict"
+    else:
+        existing = state["admissions"].get(qlek)
+        if existing is None:
+            state["admissions"][qlek] = copy.deepcopy(incoming)
+            status = "admitted"
+        elif existing.get("candidate") == candidate:
+            known = {
+                item.get("execution_id")
+                for item in existing.get("witnesses", [])
+                if isinstance(item, dict)
+            }
+            if execution_id not in known:
+                existing["witnesses"].append(copy.deepcopy(witness))
+            status = "converged"
+        else:
+            _protocol_v8_e2_conflict_add(state, qlek, existing)
+            _protocol_v8_e2_conflict_add(state, qlek, incoming)
+            status = "conflict"
+
+    execution["completion_reconciled"] = True
+    execution["witness_reconciled"] = True
+    return {
+        "status": status,
+        "qlek": qlek,
+        "admission_id": admission_id,
+    }
+
+
+def _protocol_v8_e2_validated_witness_token(
+    qlek: str,
+    admission_id: str,
+    candidate: object,
+    origin_execution_id: str,
+) -> dict:
+    return {
+        "_marker": _PROTOCOL_V8_E2_VALIDATED_WITNESS_MARKER,
+        "qlek": qlek,
+        "admission_id": admission_id,
+        "semantic_candidate": copy.deepcopy(candidate),
+        "origin_execution_id": origin_execution_id,
+    }
+
+
+def _protocol_v8_e2_require_validated_witness_token(
+    token: object,
+    qlek: str,
+    candidate: object,
+) -> dict:
+    if not isinstance(token, dict):
+        raise ValueError("imported Admission requires a validated origin witness")
+    if token.get("_marker") is not _PROTOCOL_V8_E2_VALIDATED_WITNESS_MARKER:
+        raise ValueError("imported Admission witness token is not checker-validated")
+    if token.get("qlek") != qlek:
+        raise ValueError("imported witness QLEK mismatch")
+    expected_id = _protocol_v8_e1_semantic_admission_id(qlek, candidate)
+    if token.get("admission_id") != expected_id:
+        raise ValueError("imported witness SemanticAdmissionId mismatch")
+    if token.get("semantic_candidate") != candidate:
+        raise ValueError("imported witness candidate mismatch")
+    return token
+
+
+def _protocol_v8_e2_t5_reconcile_external_history(
+    state: dict,
+    qlek: str,
+    *,
+    semantic_candidate: object | None = None,
+    validated_origin_witness: object | None = None,
+    imported_armed: list[dict] | None = None,
+    imported_unarmed: list[str] | None = None,
+) -> dict:
+    """Reference T5; no model inference and no post-merge trajectory selection."""
+    qlek = _protocol_v8_e2_require_qlek(qlek)
+
+    has_admission = semantic_candidate is not None
+    if has_admission:
+        candidate_errors = _protocol_v8_e1_semantic_value_errors(
+            semantic_candidate,
+            "imported semantic candidate",
+        )
+        if candidate_errors:
+            raise ValueError(candidate_errors[0])
+        token = _protocol_v8_e2_require_validated_witness_token(
+            validated_origin_witness,
+            qlek,
+            semantic_candidate,
+        )
+    else:
+        if validated_origin_witness is not None:
+            raise ValueError("origin witness without imported Admission is invalid")
+        token = None
+
+    # Every pre-merge live authority becomes ineffective. Generation comparability
+    # does not cross the reconciliation epoch.
+    state["coordination_epoch"] += 1
+    state["effective_authority"].clear()
+    state["generation_high_water"] = {}
+
+    for execution_id in imported_unarmed or []:
+        if type(execution_id) is not str or not execution_id:
+            raise ValueError("imported unarmed Execution identity must be non-empty")
+        if execution_id in state["executions"]:
+            raise ValueError("duplicate imported Execution identity")
+        state["executions"][execution_id] = {
+            "qlek": qlek,
+            "armed": False,
+            "arm_epoch": None,
+            "arm_generation": None,
+            "maybe_sent": False,
+            "terminal_kind": None,
+            "semantic_candidate": None,
+            "completion_reconciled": False,
+            "witness_reconciled": False,
+            "hazard_clearance": None,
+            "unresolvable": False,
+            "superseded": False,
+            "retired_unarmed": False,
+            "replaced_by": None,
+            "imported": True,
+        }
+
+    for item in imported_armed or []:
+        if not isinstance(item, dict):
+            raise ValueError("imported Armed execution must be an object")
+        if set(item) != {"execution_id", "arm_generation"}:
+            raise ValueError("imported Armed execution shape is invalid")
+        execution_id = item.get("execution_id")
+        generation = item.get("arm_generation")
+        if type(execution_id) is not str or not execution_id:
+            raise ValueError("imported Armed Execution identity must be non-empty")
+        if type(generation) is not int:
+            raise ValueError("imported arm_generation must be an exact integer")
+        if execution_id in state["executions"]:
+            raise ValueError("duplicate imported Execution identity")
+        state["executions"][execution_id] = {
+            "qlek": qlek,
+            "armed": True,
+            "arm_epoch": None,
+            "arm_generation": generation,
+            "maybe_sent": True,
+            "terminal_kind": None,
+            "semantic_candidate": None,
+            "completion_reconciled": False,
+            "witness_reconciled": False,
+            "hazard_clearance": None,
+            "unresolvable": False,
+            "superseded": False,
+            "retired_unarmed": False,
+            "replaced_by": None,
+            "imported": True,
+        }
+
+    if len(_protocol_v8_e2_active_unarmed_ids(state, qlek)) > 1:
+        state["imported_unarmed_selection_required"].add(qlek)
+
+    if not has_admission:
+        return {
+            "status": "history-merged",
+            "qlek": qlek,
+            "admission_id": None,
+        }
+
+    assert token is not None
+    admission_id = _protocol_v8_e1_semantic_admission_id(
+        qlek,
+        semantic_candidate,
+    )
+    external_witness = {
+        "execution_id": token["origin_execution_id"],
+        "qlek": qlek,
+        "semantic_candidate": copy.deepcopy(semantic_candidate),
+        "admission_id": admission_id,
+        "external_validated": True,
+    }
+    incoming = {
+        "qlek": qlek,
+        "candidate": copy.deepcopy(semantic_candidate),
+        "admission_id": admission_id,
+        "witnesses": [external_witness],
+    }
+
+    if qlek in state["conflicts"]:
+        _protocol_v8_e2_conflict_add(state, qlek, incoming)
+        status = "conflict"
+    else:
+        existing = state["admissions"].get(qlek)
+        if existing is None:
+            state["admissions"][qlek] = copy.deepcopy(incoming)
+            status = "imported"
+        elif existing.get("candidate") == semantic_candidate:
+            known = {
+                (
+                    item.get("execution_id"),
+                    item.get("admission_id"),
+                )
+                for item in existing.get("witnesses", [])
+                if isinstance(item, dict)
+            }
+            witness_key = (
+                external_witness["execution_id"],
+                external_witness["admission_id"],
+            )
+            if witness_key not in known:
+                existing["witnesses"].append(external_witness)
+            status = "converged"
+        else:
+            _protocol_v8_e2_conflict_add(state, qlek, existing)
+            _protocol_v8_e2_conflict_add(state, qlek, incoming)
+            status = "conflict"
+
+    return {
+        "status": status,
+        "qlek": qlek,
+        "admission_id": admission_id,
+    }
+
+
+def _protocol_v8_e2_artifact_ref_errors(
+    value: object,
+    label: str,
+) -> list[str]:
+    if type(value) is not dict or set(value) != {"path", "sha256"}:
+        return [f"{label}: ArtifactRef shape must be exactly path + sha256"]
+    errors: list[str] = []
+    path = value.get("path")
+    digest = value.get("sha256")
+    if type(path) is not str or not path:
+        errors.append(f"{label}: ArtifactRef path must be non-empty")
+    if (
+        type(digest) is not str
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+    ):
+        errors.append(f"{label}: ArtifactRef sha256 must be lowercase hex")
+    return errors
+
+
+def _protocol_v8_e2_binding_errors(
+    contracts: dict[str, dict],
+    binding: object,
+    label: str,
+) -> tuple[str | None, list[str]]:
+    errors = _protocol_v8_e1_exact_keys(
+        binding,
+        {
+            "semantic_question_binding_schema_version",
+            "logical_question_descriptor",
+            "qlek",
+            "semantic_values",
+        },
+        label,
+    )
+    if errors:
+        return None, errors
+    assert isinstance(binding, dict)
+
+    if binding.get("semantic_question_binding_schema_version") != "1.0":
+        errors.append(f"{label}: schema version must be 1.0")
+
+    descriptor = binding.get("logical_question_descriptor")
+    recomputed, descriptor_errors = _protocol_v8_e1_recompute_structural_qlek(
+        contracts,
+        descriptor,
+    )
+    errors.extend(descriptor_errors)
+    if recomputed is not None and binding.get("qlek") != recomputed:
+        errors.append(f"{label}: qlek does not match exact descriptor")
+
+    semantic_values = binding.get("semantic_values")
+    if type(semantic_values) is not list:
+        errors.append(f"{label}: semantic_values must be an array")
+        return recomputed, errors
+
+    resolved: list[tuple[str, str]] = []
+    refs_by_id: dict[str, dict] = {}
+    for index, item in enumerate(semantic_values):
+        item_label = f"{label}.semantic_values[{index}]"
+        item_errors = _protocol_v8_e1_exact_keys(
+            item,
+            {"ref", "value"},
+            item_label,
+        )
+        errors.extend(item_errors)
+        if item_errors or not isinstance(item, dict):
+            continue
+
+        ref = item.get("ref")
+        value = item.get("value")
+        if type(ref) is not dict or set(ref) != {"kind", "valueType", "valueId"}:
+            errors.append(f"{item_label}: ref must be exact SemanticValueRefV1")
+            continue
+        if ref.get("kind") != "semantic-value":
+            errors.append(f"{item_label}: ref.kind must be semantic-value")
+            continue
+        value_type = ref.get("valueType")
+        value_id = ref.get("valueId")
+        try:
+            recomputed_id = _protocol_v8_e1_semantic_value_id(
+                value_type,
+                value,
+            )
+        except (TypeError, ValueError) as error:
+            errors.append(f"{item_label}: {error}")
+            continue
+        if value_id != recomputed_id:
+            errors.append(f"{item_label}: valueId does not match exact value")
+        if value_id in refs_by_id:
+            errors.append(f"{item_label}: duplicate semantic value preimage")
+        refs_by_id[value_id] = ref
+        resolved.append((value_type, value_id))
+
+    if resolved != sorted(resolved):
+        errors.append(
+            f"{label}: semantic_values must be ordered by (valueType, valueId)"
+        )
+
+    direct_value_ids: set[str] = set()
+    if isinstance(descriptor, dict):
+        exact_input = _mapping(descriptor.get("exactLogicalInput"))
+        for value in exact_input.values():
+            if isinstance(value, dict) and value.get("kind") == "semantic-value":
+                value_id = value.get("valueId")
+                if isinstance(value_id, str):
+                    direct_value_ids.add(value_id)
+
+    missing_direct = sorted(direct_value_ids - set(refs_by_id))
+    if missing_direct:
+        errors.append(
+            f"{label}: direct SemanticValueRef preimages are missing: {missing_direct!r}"
+        )
+
+    # E4 will close transitive semantic-value closure beyond these direct refs.
+    return recomputed, errors
+
+
+def _protocol_v8_e2_load_receipt_validator(
+    root: Path,
+    bundle: dict,
+) -> tuple[Draft202012Validator | None, list[str]]:
+    ref = _mapping(_mapping(bundle.get("schemas")).get("execution-receipt"))
+    schema, errors = _load_json_object_artifact(
+        root,
+        ref,
+        "inactive protocol v8 E2 execution receipt schema",
+        REVIEW_SCHEMAS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=False,
+    )
+    if schema is None:
+        return None, errors
+    validator, validator_errors = _validator(schema)
+    errors.extend(
+        f"inactive protocol v8 E2 execution receipt schema: {error}"
+        for error in validator_errors
+    )
+    return validator, errors
+
+
+def _protocol_v8_e2_question_realization_map(
+    bundle: dict,
+) -> dict[str, dict]:
+    result: dict[str, dict] = {}
+    for item in _sequence(bundle.get("question_realizations")):
+        if not isinstance(item, dict):
+            continue
+        contract_id = item.get("semantic_question_contract")
+        if isinstance(contract_id, str):
+            result[contract_id] = item
+    return result
+
+
+def _protocol_v8_e2_origin_witness_errors(
+    root: Path,
+    contracts: dict[str, dict],
+    bundle: dict,
+    witness: object,
+    binding: object,
+    receipt: object,
+    *,
+    binding_ref: dict,
+    receipt_ref: dict,
+    execution_bindings: dict[str, str],
+    arm_bindings: dict[str, dict],
+    parsed_outputs: dict[str, object],
+) -> tuple[dict | None, list[str]]:
+    """Cross-bind C6 witness to C3 history. E4 closes packet/value transitive projection."""
+    label = "inactive protocol v8 E2 origin witness"
+    errors = _protocol_v8_e1_exact_keys(
+        witness,
+        {
+            "origin_witness_schema_version",
+            "semantic_admission",
+            "semantic_question_binding",
+            "execution_receipt",
+            "attempt_bindings",
+            "origin_execution_id",
+        },
+        label,
+    )
+    if errors:
+        return None, errors
+    assert isinstance(witness, dict)
+
+    if witness.get("origin_witness_schema_version") != "1.0":
+        errors.append(f"{label}: schema version must be 1.0")
+
+    errors.extend(
+        _protocol_v8_e2_artifact_ref_errors(
+            witness.get("semantic_question_binding"),
+            f"{label}.semantic_question_binding",
+        )
+    )
+    errors.extend(
+        _protocol_v8_e2_artifact_ref_errors(
+            witness.get("execution_receipt"),
+            f"{label}.execution_receipt",
+        )
+    )
+    if witness.get("semantic_question_binding") != binding_ref:
+        errors.append(f"{label}: semantic_question_binding ArtifactRef mismatch")
+    if witness.get("execution_receipt") != receipt_ref:
+        errors.append(f"{label}: execution_receipt ArtifactRef mismatch")
+
+    qlek, binding_errors = _protocol_v8_e2_binding_errors(
+        contracts,
+        binding,
+        f"{label} binding",
+    )
+    errors.extend(binding_errors)
+
+    admission = witness.get("semantic_admission")
+    admission_errors = _protocol_v8_e1_exact_keys(
+        admission,
+        {"admission_id", "qlek", "semantic_candidate"},
+        f"{label}.semantic_admission",
+    )
+    errors.extend(admission_errors)
+    if admission_errors or not isinstance(admission, dict):
+        return None, errors
+
+    if qlek is not None and admission.get("qlek") != qlek:
+        errors.append(f"{label}: Admission QLEK does not match binding QLEK")
+
+    candidate = admission.get("semantic_candidate")
+    candidate_errors = _protocol_v8_e1_semantic_value_errors(
+        candidate,
+        f"{label}.semantic_candidate",
+    )
+    errors.extend(candidate_errors)
+
+    if qlek is not None and not candidate_errors:
+        expected_admission_id = _protocol_v8_e1_semantic_admission_id(
+            qlek,
+            candidate,
+        )
+        if admission.get("admission_id") != expected_admission_id:
+            errors.append(f"{label}: SemanticAdmissionId mismatch")
+    else:
+        expected_admission_id = None
+
+    if not isinstance(receipt, dict):
+        errors.append(f"{label}: receipt must be an object")
+        return None, errors
+
+    receipt_validator, receipt_validator_errors = (
+        _protocol_v8_e2_load_receipt_validator(root, bundle)
+    )
+    errors.extend(receipt_validator_errors)
+    if receipt_validator is not None:
+        errors.extend(_schema_violations(receipt_validator, receipt, f"{label} receipt"))
+
+    if receipt.get("protocol_bundle_sha256") != PROTOCOL_V8_BUNDLE_REFERENCE["sha256"]:
+        errors.append(f"{label}: receipt protocol_bundle_sha256 must equal P8")
+
+    descriptor = _mapping(_mapping(binding).get("logical_question_descriptor"))
+    contract_id = descriptor.get("semanticQuestionContract")
+    contract = contracts.get(contract_id) if isinstance(contract_id, str) else None
+    if contract is None:
+        errors.append(f"{label}: binding does not select an exact P8 SQC")
+        return None, errors
+
+    definition = _mapping(contract.get("definition"))
+    expected_role = _mapping(definition.get("execution")).get("role")
+    if receipt.get("role") != expected_role:
+        errors.append(f"{label}: receipt role does not match selected SQC")
+
+    realizations = _protocol_v8_e2_question_realization_map(bundle)
+    realization = realizations.get(contract_id)
+    if realization is None:
+        errors.append(f"{label}: no P8 question realization for selected SQC")
+    else:
+        prompt_key = realization.get("prompt")
+        expected_prompt = _mapping(_mapping(bundle.get("prompts")).get(prompt_key))
+        if _mapping(receipt.get("input")).get("prompt") != expected_prompt:
+            errors.append(f"{label}: receipt prompt does not match P8 realization")
+
+    attempts = [
+        item
+        for item in _sequence(receipt.get("attempts"))
+        if isinstance(item, dict)
+    ]
+    attempt_ids = [
+        item.get("attempt_id")
+        for item in attempts
+        if isinstance(item.get("attempt_id"), str)
+    ]
+    if len(attempt_ids) != len(attempts) or len(attempt_ids) != len(set(attempt_ids)):
+        errors.append(f"{label}: receipt attempt_id values must be unique strings")
+
+    qualified = [
+        item
+        for item in attempts
+        if item.get("outcome") == "qualified"
+    ]
+    qualifying = qualified[0] if len(qualified) == 1 else None
+    if len(qualified) != 1:
+        errors.append(f"{label}: receipt must contain exactly one qualified attempt")
+    if qualifying is not None:
+        if receipt.get("qualifying_attempt_id") != qualifying.get("attempt_id"):
+            errors.append(f"{label}: qualifying_attempt_id mismatch")
+        if attempts and attempts[-1] is not qualifying:
+            errors.append(f"{label}: qualified attempt must be final")
+
+    origin_execution_id = witness.get("origin_execution_id")
+    if qualifying is not None and origin_execution_id != qualifying.get("attempt_id"):
+        errors.append(
+            f"{label}: origin_execution_id must equal receipt.qualifying_attempt_id"
+        )
+
+    attempt_bindings = witness.get("attempt_bindings")
+    if type(attempt_bindings) is not list or not attempt_bindings:
+        errors.append(f"{label}: attempt_bindings must be a non-empty array")
+        bindings_by_execution: dict[str, dict] = {}
+    else:
+        bindings_by_execution = {}
+        for index, item in enumerate(attempt_bindings):
+            item_label = f"{label}.attempt_bindings[{index}]"
+            item_errors = _protocol_v8_e1_exact_keys(
+                item,
+                {"execution_id", "qlek", "arm_generation"},
+                item_label,
+            )
+            errors.extend(item_errors)
+            if item_errors or not isinstance(item, dict):
+                continue
+            execution_id = item.get("execution_id")
+            if type(execution_id) is not str or not execution_id:
+                errors.append(f"{item_label}: execution_id must be non-empty")
+                continue
+            if execution_id in bindings_by_execution:
+                errors.append(f"{item_label}: duplicate execution_id")
+                continue
+            if item.get("qlek") != qlek:
+                errors.append(f"{item_label}: every receipt attempt must bind same QLEK")
+            if type(item.get("arm_generation")) is not int:
+                errors.append(f"{item_label}: arm_generation must be exact integer")
+            bindings_by_execution[execution_id] = item
+
+    if set(bindings_by_execution) != set(attempt_ids):
+        errors.append(
+            f"{label}: attempt_bindings must cover every receipt attempt exactly once"
+        )
+
+    for execution_id in attempt_ids:
+        if execution_bindings.get(execution_id) != qlek:
+            errors.append(
+                f"{label}: authoritative SemanticExecutionBinding mismatch for "
+                f"{execution_id!r}"
+            )
+        authoritative_arm = arm_bindings.get(execution_id)
+        witness_arm = bindings_by_execution.get(execution_id)
+        if not isinstance(authoritative_arm, dict):
+            errors.append(
+                f"{label}: missing authoritative SemanticArmBinding for "
+                f"{execution_id!r}"
+            )
+            continue
+        if (
+            authoritative_arm.get("qlek") != qlek
+            or not isinstance(witness_arm, dict)
+            or witness_arm.get("qlek") != qlek
+            or authoritative_arm.get("generation")
+            != witness_arm.get("arm_generation")
+        ):
+            errors.append(
+                f"{label}: witness Arm binding does not match authoritative history "
+                f"for {execution_id!r}"
+            )
+
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(validator_errors)
+    if realization is not None:
+        output_schema = realization.get("output_schema")
+        output_validator = validators.get(output_schema)
+    else:
+        output_validator = None
+
+    projected_qualifying = None
+    for attempt in attempts:
+        execution_id = attempt.get("attempt_id")
+        outcome = attempt.get("outcome")
+
+        if outcome == "technical-failure":
+            if execution_id in parsed_outputs:
+                errors.append(
+                    f"{label}: technical-failure attempt must not have parsed output"
+                )
+            continue
+
+        if execution_id not in parsed_outputs:
+            errors.append(
+                f"{label}: completed attempt {execution_id!r} lacks sealed parsed output"
+            )
+            continue
+
+        if output_validator is None:
+            errors.append(f"{label}: missing output validator for P8 realization")
+            continue
+
+        projected, projection_errors = _protocol_v8_e1_project_semantic_candidate(
+            contract,
+            parsed_outputs[execution_id],
+            output_validator,
+            f"{label} attempt {execution_id!r}",
+        )
+
+        if outcome == "protocol-invalid":
+            if not projection_errors:
+                errors.append(
+                    f"{label}: protocol-invalid attempt is actually protocol-valid"
+                )
+        elif outcome == "qualified":
+            if projection_errors:
+                errors.extend(projection_errors)
+            else:
+                projected_qualifying = projected
+        else:
+            errors.append(f"{label}: unknown receipt attempt outcome {outcome!r}")
+
+    if qualifying is not None and projected_qualifying != candidate:
+        errors.append(
+            f"{label}: qualifying raw output does not deterministically derive "
+            "the admitted candidate"
+        )
+
+    if errors or qlek is None or expected_admission_id is None:
+        return None, errors
+
+    return (
+        _protocol_v8_e2_validated_witness_token(
+            qlek,
+            expected_admission_id,
+            candidate,
+            origin_execution_id,
+        ),
+        [],
+    )
+
+
+def _protocol_v8_e2_expect_rejected(
+    action,
+    errors: list[str],
+    label: str,
+) -> None:
+    try:
+        action()
+    except ValueError:
+        return
+    errors.append(f"inactive protocol v8 E2: expected rejection: {label}")
+
+
+def _inactive_protocol_v8_e2_execution_admission_errors(root: Path) -> list[str]:
+    """Exercise the exact C3 execution/admission reference machine."""
+    errors: list[str] = []
+
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    errors.extend(contract_errors)
+
+    bundle, bundle_errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_BUNDLE_REFERENCE,
+        "inactive protocol v8 E2 bundle",
+        REVIEW_PROTOCOLS_PREFIX,
+        REVIEW_PROTOCOL_BUNDLE_SUFFIX,
+        require_canonical=True,
+    )
+    errors.extend(bundle_errors)
+    if bundle is None:
+        return errors
+
+    finding_basis = {
+        "schema": "turnlock.finding-adjudication-basis.v1",
+        "semanticSubject": {
+            "selector": "gate-a-assurance-decomposition-v1",
+            "sha256": "0" * 64,
+        },
+        "currentProtocol": {
+            "protocolId": "gate-a-campaign-protocol-v8",
+            "bundleSha256": PROTOCOL_V8_BUNDLE_REFERENCE["sha256"],
+        },
+        "sourceFinding": {
+            "reviewCampaignId": "REVIEW-E2",
+            "findingId": "F-E2",
+            "substantiveFindingSha256": "2" * 64,
+        },
+    }
+    finding_basis_id = _protocol_v8_e1_semantic_value_id(
+        "turnlock.semantic-value:FindingAdjudicationBasis@1",
+        finding_basis,
+    )
+    descriptor = {
+        "schema": "turnlock.logical-question-descriptor.v1",
+        "semanticQuestionContract": "turnlock.sqc:MaterialityAssessmentInitial@1",
+        "exactLogicalInput": {
+            "findingAdjudicationBasis": {
+                "kind": "semantic-value",
+                "valueType": "turnlock.semantic-value:FindingAdjudicationBasis@1",
+                "valueId": finding_basis_id,
+            }
+        },
+    }
+    qlek, qlek_errors = _protocol_v8_e1_recompute_structural_qlek(
+        contracts,
+        descriptor,
+    )
+    errors.extend(qlek_errors)
+    if qlek is None:
+        return errors
+
+    candidate = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "e2",
+    }
+
+    # No generation minimum; only strict monotonicity in one epoch.
+    state = _protocol_v8_e2_new_state()
+    first = _protocol_v8_e2_t1_acquire_authority(state, qlek, -7)
+    if first.get("status") != "authority":
+        errors.append("inactive protocol v8 E2: negative initial generation rejected")
+    _protocol_v8_e2_t2_authorize_execution(
+        state,
+        qlek,
+        -7,
+        "E-STABLE",
+        outer_authorized=True,
+    )
+    second = _protocol_v8_e2_t1_acquire_authority(state, qlek, 2)
+    if second.get("execution_id") != "E-STABLE":
+        errors.append("inactive protocol v8 E2: unarmed trajectory was not retained")
+    _protocol_v8_e2_expect_rejected(
+        lambda: _protocol_v8_e2_t3_arm_execution(
+            state,
+            qlek,
+            -7,
+            "E-STABLE",
+        ),
+        errors,
+        "stale generation Arm",
+    )
+    _protocol_v8_e2_t3_arm_execution(
+        state,
+        qlek,
+        2,
+        "E-STABLE",
+    )
+    blocked = _protocol_v8_e2_t1_acquire_authority(state, qlek, 3)
+    if blocked.get("status") != "blocked-hazard":
+        errors.append("inactive protocol v8 E2: Armed execution did not block sibling sampling")
+
+    _protocol_v8_e2_record_pne(state, "E-STABLE")
+    third = _protocol_v8_e2_t1_acquire_authority(state, qlek, 3)
+    if third.get("status") != "authority":
+        errors.append("inactive protocol v8 E2: PNE did not permit fresh authority")
+    _protocol_v8_e2_expect_rejected(
+        lambda: _protocol_v8_e2_t2_authorize_execution(
+            state,
+            qlek,
+            3,
+            "E-REPLACEMENT",
+            outer_authorized=True,
+        ),
+        errors,
+        "PNE used as automatic replacement authority",
+    )
+    _protocol_v8_e2_t2_authorize_execution(
+        state,
+        qlek,
+        3,
+        "E-REPLACEMENT",
+        outer_authorized=True,
+        replacement_of="E-STABLE",
+        replacement_authorized=True,
+    )
+
+    # UNRESOLVABLE and supersession do not clear hazard.
+    unresolved = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t1_acquire_authority(unresolved, qlek, 0)
+    _protocol_v8_e2_t2_authorize_execution(
+        unresolved,
+        qlek,
+        0,
+        "E-UNRESOLVABLE",
+        outer_authorized=True,
+    )
+    _protocol_v8_e2_t3_arm_execution(
+        unresolved,
+        qlek,
+        0,
+        "E-UNRESOLVABLE",
+    )
+    _protocol_v8_e2_mark_maybe_sent(unresolved, "E-UNRESOLVABLE")
+    _protocol_v8_e2_record_unresolvable(unresolved, "E-UNRESOLVABLE")
+    _protocol_v8_e2_record_supersession(unresolved, "E-UNRESOLVABLE")
+    unresolved_result = _protocol_v8_e2_t1_acquire_authority(
+        unresolved,
+        qlek,
+        1,
+    )
+    if unresolved_result.get("status") != "blocked-hazard":
+        errors.append("inactive protocol v8 E2: UNRESOLVABLE/supersession cleared hazard")
+    _protocol_v8_e2_expect_rejected(
+        lambda: _protocol_v8_e2_record_protocol_valid_completion(
+            unresolved,
+            "E-UNRESOLVABLE",
+            candidate,
+        ),
+        errors,
+        "UNRESOLVABLE acquired magical later completion",
+    )
+
+    # Protocol-valid completion blocks new sampling and reconciles atomically.
+    completed = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t1_acquire_authority(completed, qlek, 11)
+    _protocol_v8_e2_t2_authorize_execution(
+        completed,
+        qlek,
+        11,
+        "E-COMPLETE",
+        outer_authorized=True,
+    )
+    _protocol_v8_e2_t3_arm_execution(
+        completed,
+        qlek,
+        11,
+        "E-COMPLETE",
+    )
+    _protocol_v8_e2_record_supersession(completed, "E-COMPLETE")
+    _protocol_v8_e2_record_protocol_valid_completion(
+        completed,
+        "E-COMPLETE",
+        candidate,
+    )
+    pending = _protocol_v8_e2_t1_acquire_authority(completed, qlek, 12)
+    if pending.get("status") != "reconcile":
+        errors.append("inactive protocol v8 E2: pending completion did not block sampling")
+    result = _protocol_v8_e2_t4_reconcile_completion(
+        completed,
+        "E-COMPLETE",
+    )
+    if result.get("status") != "admitted":
+        errors.append("inactive protocol v8 E2: first completion did not create Admission")
+    admission = completed["admissions"].get(qlek)
+    if not isinstance(admission, dict) or len(admission.get("witnesses", [])) != 1:
+        errors.append("inactive protocol v8 E2: first Admission lacks atomic first witness")
+    if not _protocol_v8_e2_consumable_admission(completed, qlek):
+        errors.append("inactive protocol v8 E2: reconciled native Admission not consumable")
+    reuse = _protocol_v8_e2_t1_acquire_authority(completed, qlek, 12)
+    if reuse.get("status") != "reuse":
+        errors.append("inactive protocol v8 E2: admitted QLEK did not reuse Admission")
+
+    # Build exact C6 audit projections for a two-attempt receipt.
+    materiality_contract = contracts.get(
+        "turnlock.sqc:MaterialityAssessmentInitial@1"
+    )
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(validator_errors)
+    adjudication_validator = validators.get("adjudication-output")
+
+    binding = {
+        "semantic_question_binding_schema_version": "1.0",
+        "logical_question_descriptor": descriptor,
+        "qlek": qlek,
+        "semantic_values": [
+            {
+                "ref": {
+                    "kind": "semantic-value",
+                    "valueType": "turnlock.semantic-value:FindingAdjudicationBasis@1",
+                    "valueId": finding_basis_id,
+                },
+                "value": finding_basis,
+            }
+        ],
+    }
+    binding_ref = {
+        "path": "__C7_E2_IN_MEMORY__/binding",
+        "sha256": "3" * 64,
+    }
+    receipt_ref = {
+        "path": "__C7_E2_IN_MEMORY__/receipt",
+        "sha256": "4" * 64,
+    }
+    packet_ref = {
+        "path": "__C7_E2_IN_MEMORY__/packet",
+        "sha256": "5" * 64,
+    }
+    raw_ref = {
+        "path": "__C7_E2_IN_MEMORY__/qualified-output",
+        "sha256": "6" * 64,
+    }
+    qualified_output = {
+        "adjudication_output_schema_version": "1.0",
+        "task": "materiality-assessment",
+        "result": candidate,
+    }
+    if adjudication_validator is not None and materiality_contract is not None:
+        projected, projected_errors = _protocol_v8_e1_project_semantic_candidate(
+            materiality_contract,
+            qualified_output,
+            adjudication_validator,
+            "inactive protocol v8 E2 qualified output",
+        )
+        errors.extend(projected_errors)
+        if projected != candidate:
+            errors.append("inactive protocol v8 E2: sample candidate projection mismatch")
+
+    receipt = {
+        "receipt_schema_version": "4.0",
+        "execution_id": "LOGICAL-E2",
+        "role": "materiality-assessor",
+        "reviewer_profile_id": "PROFILE-E2",
+        "protocol_bundle_sha256": PROTOCOL_V8_BUNDLE_REFERENCE["sha256"],
+        "input": {
+            "prompt": _mapping(bundle.get("prompts")).get("adjudication"),
+            "packet": packet_ref,
+        },
+        "isolated_context": True,
+        "cross_reviewer_visibility_before_seal": False,
+        "tools_enabled": False,
+        "runtime": {
+            "name": "e2-test-runtime",
+            "version": "1",
+        },
+        "request": {
+            "provider": "provider-a",
+            "model": "model-a",
+        },
+        "attempts": [
+            {
+                "attempt_id": "ATTEMPT-E2-A",
+                "call_id": "CALL-E2-A",
+                "outcome": "technical-failure",
+                "started_at": "t0",
+                "ended_at": "t1",
+                "provider_model": None,
+                "provider_response_id": None,
+                "termination": "technical",
+                "transport_attempt_count": 1,
+                "raw_output": None,
+                "protocol_errors": [],
+            },
+            {
+                "attempt_id": "ATTEMPT-E2-B",
+                "call_id": "CALL-E2-B",
+                "outcome": "qualified",
+                "started_at": "t2",
+                "ended_at": "t3",
+                "provider_model": "model-a-v1",
+                "provider_response_id": "response-e2",
+                "termination": "complete",
+                "transport_attempt_count": 1,
+                "raw_output": raw_ref,
+                "protocol_errors": [],
+            },
+        ],
+        "qualifying_attempt_id": "ATTEMPT-E2-B",
+        "resolved_identity": {
+            "provider": "provider-a",
+            "model": "model-a",
+            "model_version": "model-a-v1",
+            "resolution_kind": "provider-reported",
+            "evidence_attempt_id": "ATTEMPT-E2-B",
+        },
+    }
+    admission_id = _protocol_v8_e1_semantic_admission_id(qlek, candidate)
+    witness = {
+        "origin_witness_schema_version": "1.0",
+        "semantic_admission": {
+            "admission_id": admission_id,
+            "qlek": qlek,
+            "semantic_candidate": candidate,
+        },
+        "semantic_question_binding": binding_ref,
+        "execution_receipt": receipt_ref,
+        "attempt_bindings": [
+            {
+                "execution_id": "ATTEMPT-E2-A",
+                "qlek": qlek,
+                "arm_generation": -9,
+            },
+            {
+                "execution_id": "ATTEMPT-E2-B",
+                "qlek": qlek,
+                "arm_generation": 4,
+            },
+        ],
+        "origin_execution_id": "ATTEMPT-E2-B",
+    }
+    token, witness_errors = _protocol_v8_e2_origin_witness_errors(
+        root,
+        contracts,
+        bundle,
+        witness,
+        binding,
+        receipt,
+        binding_ref=binding_ref,
+        receipt_ref=receipt_ref,
+        execution_bindings={
+            "ATTEMPT-E2-A": qlek,
+            "ATTEMPT-E2-B": qlek,
+        },
+        arm_bindings={
+            "ATTEMPT-E2-A": {
+                "qlek": qlek,
+                "generation": -9,
+            },
+            "ATTEMPT-E2-B": {
+                "qlek": qlek,
+                "generation": 4,
+            },
+        },
+        parsed_outputs={
+            "ATTEMPT-E2-B": qualified_output,
+        },
+    )
+    errors.extend(witness_errors)
+    if token is None:
+        errors.append("inactive protocol v8 E2: lawful origin witness was not validated")
+        return errors
+
+    wrong_qlek_witness = copy.deepcopy(witness)
+    wrong_qlek_witness["attempt_bindings"][0]["qlek"] = (
+        "qlek-sha256:" + "f" * 64
+    )
+    _token, wrong_qlek_errors = _protocol_v8_e2_origin_witness_errors(
+        root,
+        contracts,
+        bundle,
+        wrong_qlek_witness,
+        binding,
+        receipt,
+        binding_ref=binding_ref,
+        receipt_ref=receipt_ref,
+        execution_bindings={
+            "ATTEMPT-E2-A": qlek,
+            "ATTEMPT-E2-B": qlek,
+        },
+        arm_bindings={
+            "ATTEMPT-E2-A": {"qlek": qlek, "generation": -9},
+            "ATTEMPT-E2-B": {"qlek": qlek, "generation": 4},
+        },
+        parsed_outputs={"ATTEMPT-E2-B": qualified_output},
+    )
+    if not wrong_qlek_errors:
+        errors.append("inactive protocol v8 E2: retry attempt was allowed to switch QLEK")
+
+    wrong_origin = copy.deepcopy(witness)
+    wrong_origin["origin_execution_id"] = "ATTEMPT-E2-A"
+    _token, wrong_origin_errors = _protocol_v8_e2_origin_witness_errors(
+        root,
+        contracts,
+        bundle,
+        wrong_origin,
+        binding,
+        receipt,
+        binding_ref=binding_ref,
+        receipt_ref=receipt_ref,
+        execution_bindings={
+            "ATTEMPT-E2-A": qlek,
+            "ATTEMPT-E2-B": qlek,
+        },
+        arm_bindings={
+            "ATTEMPT-E2-A": {"qlek": qlek, "generation": -9},
+            "ATTEMPT-E2-B": {"qlek": qlek, "generation": 4},
+        },
+        parsed_outputs={"ATTEMPT-E2-B": qualified_output},
+    )
+    if not wrong_origin_errors:
+        errors.append("inactive protocol v8 E2: non-qualifying origin_execution_id accepted")
+
+    wrong_candidate = copy.deepcopy(witness)
+    wrong_candidate["semantic_admission"]["semantic_candidate"]["rationale"] = "other"
+    wrong_candidate["semantic_admission"]["admission_id"] = (
+        _protocol_v8_e1_semantic_admission_id(
+            qlek,
+            wrong_candidate["semantic_admission"]["semantic_candidate"],
+        )
+    )
+    _token, wrong_candidate_errors = _protocol_v8_e2_origin_witness_errors(
+        root,
+        contracts,
+        bundle,
+        wrong_candidate,
+        binding,
+        receipt,
+        binding_ref=binding_ref,
+        receipt_ref=receipt_ref,
+        execution_bindings={
+            "ATTEMPT-E2-A": qlek,
+            "ATTEMPT-E2-B": qlek,
+        },
+        arm_bindings={
+            "ATTEMPT-E2-A": {"qlek": qlek, "generation": -9},
+            "ATTEMPT-E2-B": {"qlek": qlek, "generation": 4},
+        },
+        parsed_outputs={"ATTEMPT-E2-B": qualified_output},
+    )
+    if not wrong_candidate_errors:
+        errors.append("inactive protocol v8 E2: witness candidate was trusted over raw output")
+
+    # Bare imports are invalid; validated imports converge or conflict exactly.
+    imported = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_expect_rejected(
+        lambda: _protocol_v8_e2_t5_reconcile_external_history(
+            imported,
+            qlek,
+            semantic_candidate=candidate,
+            validated_origin_witness={},
+        ),
+        errors,
+        "bare imported Admission without lawful witness",
+    )
+    first_import = _protocol_v8_e2_t5_reconcile_external_history(
+        imported,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=token,
+    )
+    if first_import.get("status") != "imported":
+        errors.append("inactive protocol v8 E2: lawful imported Admission not established")
+
+    # Same exact value converges with additional provenance.
+    token_same = _protocol_v8_e2_validated_witness_token(
+        qlek,
+        admission_id,
+        candidate,
+        "ATTEMPT-E2-C",
+    )
+    same_import = _protocol_v8_e2_t5_reconcile_external_history(
+        imported,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=token_same,
+    )
+    if same_import.get("status") != "converged":
+        errors.append("inactive protocol v8 E2: same K + same V did not converge")
+    if len(imported["admissions"][qlek]["witnesses"]) != 2:
+        errors.append("inactive protocol v8 E2: same-value provenance was not retained")
+
+    # Different exact value conflicts and removes any automatic winner.
+    candidate_two = copy.deepcopy(candidate)
+    candidate_two["rationale"] = "different"
+    token_two = _protocol_v8_e2_validated_witness_token(
+        qlek,
+        _protocol_v8_e1_semantic_admission_id(qlek, candidate_two),
+        candidate_two,
+        "ATTEMPT-E2-D",
+    )
+    conflict_result = _protocol_v8_e2_t5_reconcile_external_history(
+        imported,
+        qlek,
+        semantic_candidate=candidate_two,
+        validated_origin_witness=token_two,
+    )
+    if conflict_result.get("status") != "conflict":
+        errors.append("inactive protocol v8 E2: same K + different V did not conflict")
+    if qlek in imported["admissions"] or qlek not in imported["conflicts"]:
+        errors.append("inactive protocol v8 E2: conflict retained an automatic winner")
+    if _protocol_v8_e2_consumable_admission(imported, qlek):
+        errors.append("inactive protocol v8 E2: conflicted Admission became consumable")
+    if _protocol_v8_e2_t1_acquire_authority(imported, qlek, 0).get("status") != "conflict":
+        errors.append("inactive protocol v8 E2: conflict did not block new authority")
+
+    # Imported Admission is quarantined by unresolved pre-existing hazard.
+    quarantined = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t1_acquire_authority(quarantined, qlek, 8)
+    _protocol_v8_e2_t2_authorize_execution(
+        quarantined,
+        qlek,
+        8,
+        "LOCAL-HAZARD",
+        outer_authorized=True,
+    )
+    _protocol_v8_e2_t3_arm_execution(
+        quarantined,
+        qlek,
+        8,
+        "LOCAL-HAZARD",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        quarantined,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=token,
+    )
+    if _protocol_v8_e2_consumable_admission(quarantined, qlek):
+        errors.append("inactive protocol v8 E2: imported Admission ignored local hazard")
+    _protocol_v8_e2_record_pne(quarantined, "LOCAL-HAZARD")
+    if not _protocol_v8_e2_consumable_admission(quarantined, qlek):
+        errors.append("inactive protocol v8 E2: cleared imported hazard kept Admission quarantined")
+
+    # T5 invalidates every pre-merge live handle, even for another K.
+    other_descriptor = copy.deepcopy(descriptor)
+    other_descriptor["exactLogicalInput"]["findingAdjudicationBasis"]["valueId"] = (
+        "semantic-value-sha256:" + "9" * 64
+    )
+    other_qlek, other_errors = _protocol_v8_e1_recompute_structural_qlek(
+        contracts,
+        other_descriptor,
+    )
+    errors.extend(other_errors)
+    if other_qlek is not None:
+        epoch_state = _protocol_v8_e2_new_state()
+        _protocol_v8_e2_t1_acquire_authority(epoch_state, other_qlek, -3)
+        _protocol_v8_e2_t2_authorize_execution(
+            epoch_state,
+            other_qlek,
+            -3,
+            "PREMERGE-E",
+            outer_authorized=True,
+        )
+        _protocol_v8_e2_t5_reconcile_external_history(
+            epoch_state,
+            qlek,
+            semantic_candidate=candidate,
+            validated_origin_witness=token,
+        )
+        _protocol_v8_e2_expect_rejected(
+            lambda: _protocol_v8_e2_t3_arm_execution(
+                epoch_state,
+                other_qlek,
+                -3,
+                "PREMERGE-E",
+            ),
+            errors,
+            "pre-merge live authority remained effective",
+        )
+
+    # Multiple imported unarmed trajectories are not semantically selected in E2.
+    unarmed_merge = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t5_reconcile_external_history(
+        unarmed_merge,
+        qlek,
+        imported_unarmed=["IMPORTED-U1", "IMPORTED-U2"],
+    )
+    if (
+        _protocol_v8_e2_t1_acquire_authority(
+            unarmed_merge,
+            qlek,
+            1,
+        ).get("status")
+        != "blocked-unarmed-selection"
+    ):
+        errors.append("inactive protocol v8 E2: imported unarmed ambiguity was not blocked")
+    if qlek not in unarmed_merge["imported_unarmed_selection_required"]:
+        errors.append("inactive protocol v8 E2: imported unarmed ambiguity was auto-selected")
+
+    # Imported unresolved Armed trajectory keeps an otherwise valid Admission non-consumable.
+    imported_hazard = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t5_reconcile_external_history(
+        imported_hazard,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=token,
+        imported_armed=[
+            {
+                "execution_id": "IMPORTED-ARMED",
+                "arm_generation": -101,
+            }
+        ],
+    )
+    if _protocol_v8_e2_consumable_admission(imported_hazard, qlek):
+        errors.append("inactive protocol v8 E2: unresolved imported Arm did not quarantine Admission")
+    _protocol_v8_e2_record_unresolvable(imported_hazard, "IMPORTED-ARMED")
+    if _protocol_v8_e2_consumable_admission(imported_hazard, qlek):
+        errors.append("inactive protocol v8 E2: UNRESOLVABLE cleared imported hazard")
+
+    imported_same = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t5_reconcile_external_history(
+        imported_same,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=token,
+        imported_armed=[
+            {
+                "execution_id": "IMPORTED-SAME",
+                "arm_generation": -17,
+            }
+        ],
+    )
+    _protocol_v8_e2_record_protocol_valid_completion(
+        imported_same,
+        "IMPORTED-SAME",
+        candidate,
+    )
+    same_reconcile = _protocol_v8_e2_t4_reconcile_completion(
+        imported_same,
+        "IMPORTED-SAME",
+    )
+    if same_reconcile.get("status") != "converged":
+        errors.append("inactive protocol v8 E2: imported same-value hazard did not converge")
+    if not _protocol_v8_e2_consumable_admission(imported_same, qlek):
+        errors.append("inactive protocol v8 E2: reconciled same-value imported hazard remained quarantined")
+
+    imported_different = _protocol_v8_e2_new_state()
+    _protocol_v8_e2_t5_reconcile_external_history(
+        imported_different,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=token,
+        imported_armed=[
+            {
+                "execution_id": "IMPORTED-DIFFERENT",
+                "arm_generation": -19,
+            }
+        ],
+    )
+    _protocol_v8_e2_record_protocol_valid_completion(
+        imported_different,
+        "IMPORTED-DIFFERENT",
+        candidate_two,
+    )
+    different_reconcile = _protocol_v8_e2_t4_reconcile_completion(
+        imported_different,
+        "IMPORTED-DIFFERENT",
+    )
+    if different_reconcile.get("status") != "conflict":
+        errors.append("inactive protocol v8 E2: imported conflicting hazard did not conflict")
+    if qlek in imported_different["admissions"]:
+        errors.append("inactive protocol v8 E2: imported conflict retained automatic winner")
+
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -7384,6 +9266,7 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_prompt_errors(root))
     errors.extend(_inactive_protocol_v8_candidate_errors(root, candidate_bundle_cache))
     errors.extend(_inactive_protocol_v8_e1_semantic_identity_errors(root))
+    errors.extend(_inactive_protocol_v8_e2_execution_admission_errors(root))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
