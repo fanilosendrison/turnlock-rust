@@ -3529,6 +3529,1077 @@ def _inactive_protocol_v8_e2_execution_admission_errors(root: Path) -> list[str]
     return errors
 
 
+def _protocol_v8_e3a_new_closure(
+    e2_state: dict,
+) -> dict:
+    """Create disposable semantic identity/dependency closure state."""
+    return {
+        "e2_state": e2_state,
+        "questions": {},
+        "semantic_values": {},
+        "exact_authorities": {},
+        "qualification_descriptors": {},
+        "fact_descriptors": {},
+    }
+
+
+def _protocol_v8_e3a_catalog_maps(
+    root: Path,
+) -> tuple[dict[str, dict], dict[str, dict], list[str]]:
+    """Load exact catalog-owned Predicate and Qualification inventories."""
+    errors: list[str] = []
+    specifications = (
+        (
+            "PredicateRevision",
+            PROTOCOL_V8_PREDICATE_CATALOG_REFERENCE,
+            "predicates",
+            13,
+        ),
+        (
+            "QualificationContractRevision",
+            PROTOCOL_V8_QUALIFICATION_CATALOG_REFERENCE,
+            "qualifications",
+            7,
+        ),
+    )
+    maps: list[dict[str, dict]] = []
+    for name, reference, field, expected_count in specifications:
+        catalog, load_errors = _load_json_object_artifact(
+            root,
+            reference,
+            f"inactive protocol v8 E3-A {name} catalog",
+            REVIEW_CONTRACTS_PREFIX,
+            REVIEW_JSON_OUTPUT_SUFFIX,
+            require_canonical=True,
+        )
+        errors.extend(load_errors)
+        entries = _sequence(_mapping(catalog).get(field))
+        if len(entries) != expected_count:
+            errors.append(
+                f"inactive protocol v8 E3-A: expected exactly {expected_count} "
+                f"{name} entries"
+            )
+        entry_map: dict[str, dict] = {}
+        for index, entry in enumerate(entries):
+            label = f"inactive protocol v8 E3-A {name} catalog {field}[{index}]"
+            if not isinstance(entry, dict):
+                errors.append(f"{label}: entry must be a mapping")
+                continue
+            revision_id = entry.get("revision_id")
+            if not isinstance(revision_id, str):
+                errors.append(f"{label}: revision_id must be a string")
+                continue
+            if revision_id in entry_map:
+                errors.append(f"{label}: duplicate revision_id {revision_id!r}")
+                continue
+            entry_map[revision_id] = entry
+        maps.append(entry_map)
+    return maps[0], maps[1], errors
+
+
+def _protocol_v8_e3a_register_preimage(
+    index: dict,
+    identity: object,
+    preimage: object,
+) -> None:
+    """Retain every distinct canonical preimage; never choose a collision winner."""
+    encoded = _protocol_v8_e1_canonical_json_value_bytes(preimage)
+    preimages = index.setdefault(identity, [])
+    for existing in preimages:
+        if _protocol_v8_e1_canonical_json_value_bytes(existing) == encoded:
+            return
+    preimages.append(copy.deepcopy(preimage))
+
+
+def _protocol_v8_e3a_unique_preimage(
+    index: dict,
+    identity: object,
+    label: str,
+) -> object:
+    preimages = index.get(identity)
+    if not isinstance(preimages, list) or not preimages:
+        raise ValueError(f"{label}: dangling reference")
+    canonical: dict[bytes, object] = {}
+    for preimage in preimages:
+        canonical.setdefault(
+            _protocol_v8_e1_canonical_json_value_bytes(preimage),
+            preimage,
+        )
+    if len(canonical) != 1:
+        raise ValueError(f"{label}: IDENTITY-HASH-COLLISION")
+    return copy.deepcopy(next(iter(canonical.values())))
+
+
+def _protocol_v8_e3a_register_question(
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: object,
+    *,
+    claimed_qlek: str | None = None,
+) -> str:
+    qlek, errors = _protocol_v8_e1_recompute_structural_qlek(
+        contracts,
+        descriptor,
+    )
+    if errors or qlek is None:
+        raise ValueError(errors[0] if errors else "invalid LogicalQuestionDescriptor")
+    if claimed_qlek is not None and claimed_qlek != qlek:
+        raise ValueError("claimed QLEK does not equal recomputed structural QLEK")
+    _protocol_v8_e3a_register_preimage(
+        closure["questions"],
+        qlek,
+        descriptor,
+    )
+    return qlek
+
+
+def _protocol_v8_e3a_register_semantic_value(
+    closure: dict,
+    value_type: str,
+    value: object,
+    *,
+    claimed_ref: object | None = None,
+) -> dict:
+    errors = _protocol_v8_e1_semantic_value_errors(
+        value,
+        "protocol-v8 E3-A SemanticValue",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    value_id = _protocol_v8_e1_semantic_value_id(value_type, value)
+    reference = {
+        "kind": "semantic-value",
+        "valueType": value_type,
+        "valueId": value_id,
+    }
+    if claimed_ref is not None and claimed_ref != reference:
+        raise ValueError("claimed SemanticValueRef does not match recomputed identity")
+    _protocol_v8_e3a_register_preimage(
+        closure["semantic_values"],
+        value_id,
+        {"valueType": value_type, "value": value},
+    )
+    return reference
+
+
+def _protocol_v8_e3a_register_exact_authority(
+    closure: dict,
+    authority_ref: object,
+) -> tuple[str, str]:
+    errors = _protocol_v8_e1_exact_keys(
+        authority_ref,
+        {"kind", "authorityType", "authorityId"},
+        "protocol-v8 E3-A ExactAuthorityRef",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(authority_ref, dict)
+    authority_type = authority_ref.get("authorityType")
+    authority_id = authority_ref.get("authorityId")
+    if authority_ref.get("kind") != "exact-authority":
+        raise ValueError("ExactAuthorityRef kind must be exact-authority")
+    if not isinstance(authority_type, str) or not authority_type:
+        raise ValueError("ExactAuthorityRef authorityType must be non-empty")
+    if not isinstance(authority_id, str) or not authority_id:
+        raise ValueError("ExactAuthorityRef authorityId must be non-empty")
+    key = (authority_type, authority_id)
+    closure["exact_authorities"][key] = copy.deepcopy(authority_ref)
+    return key
+
+
+def _protocol_v8_e3a_admission_index(
+    closure: dict,
+) -> dict[str, list[dict]]:
+    """Build an identity index over effective and conflicted E2 Admissions."""
+    index: dict[str, list[dict]] = {}
+    state = closure["e2_state"]
+    records: list[tuple[object, object]] = list(state["admissions"].items())
+    for qlek, branches in state["conflicts"].items():
+        if not isinstance(branches, dict):
+            raise ValueError("E2 conflict branches must be a mapping")
+        records.extend((qlek, record) for record in branches.values())
+    for qlek, record in records:
+        qlek = _protocol_v8_e2_require_qlek(qlek)
+        if not isinstance(record, dict):
+            raise ValueError("E2 Admission record must be a mapping")
+        candidate = record.get("candidate")
+        candidate_errors = _protocol_v8_e1_semantic_value_errors(
+            candidate,
+            "protocol-v8 E3-A Admission candidate",
+        )
+        if candidate_errors:
+            raise ValueError(candidate_errors[0])
+        admission_id = _protocol_v8_e1_semantic_admission_id(qlek, candidate)
+        if record.get("admission_id") != admission_id:
+            raise ValueError("SemanticAdmissionId mismatch in E2 reference state")
+        _protocol_v8_e3a_register_preimage(
+            index,
+            admission_id,
+            {
+                "qlek": qlek,
+                "candidate": candidate,
+                "admission_id": admission_id,
+            },
+        )
+    return index
+
+
+def _protocol_v8_e3a_qualification_descriptor_errors(
+    qualification_catalog: dict[str, dict],
+    descriptor: object,
+    label: str,
+) -> list[str]:
+    errors = _protocol_v8_e1_semantic_value_errors(descriptor, label)
+    if errors:
+        return errors
+    errors.extend(
+        _protocol_v8_e1_exact_keys(
+            descriptor,
+            {
+                "schema",
+                "qualificationContract",
+                "anchorAdmission",
+                "additionalInputs",
+            },
+            label,
+        )
+    )
+    if errors:
+        return errors
+    assert isinstance(descriptor, dict)
+    if descriptor.get("schema") != "turnlock.qualification-key-descriptor.v1":
+        errors.append(f"{label}: invalid QualificationKeyDescriptorV1 schema")
+    contract_id = descriptor.get("qualificationContract")
+    contract = qualification_catalog.get(contract_id)
+    if contract is None:
+        errors.append(f"{label}: unknown QualificationContractRevisionId")
+        return errors
+    errors.extend(
+        _protocol_v8_e1_ref_errors(
+            descriptor.get("anchorAdmission"),
+            {"kind": "semantic-admission"},
+            f"{label}.anchorAdmission",
+        )
+    )
+    additional = descriptor.get("additionalInputs")
+    if not isinstance(additional, dict):
+        errors.append(f"{label}: additionalInputs must be an object")
+        return errors
+    cases = _sequence(_mapping(contract.get("definition")).get("cases"))
+    key_sets: dict[frozenset[str], list[dict]] = {}
+    for case in cases:
+        if not isinstance(case, dict):
+            errors.append(f"{label}: qualification catalog case must be a mapping")
+            continue
+        declared = case.get("additional_inputs")
+        if not isinstance(declared, dict):
+            errors.append(f"{label}: qualification case additional_inputs must be an object")
+            continue
+        key_sets.setdefault(frozenset(declared), []).append(case)
+    if any(len(declarations) != 1 for declarations in key_sets.values()):
+        errors.append(f"{label}: catalog integrity failure: duplicate additional-input key set")
+        return errors
+    matches = key_sets.get(frozenset(additional), [])
+    if not matches:
+        errors.append(f"{label}: additionalInputs key set matches no catalog case")
+        return errors
+    declared = _mapping(matches[0].get("additional_inputs"))
+    for name in sorted(declared, key=lambda item: item.encode("utf-8")):
+        input_descriptor = declared[name]
+        if not isinstance(input_descriptor, dict):
+            errors.append(f"{label}.{name}: invalid catalog input descriptor")
+            continue
+        errors.extend(
+            _protocol_v8_e1_ref_errors(
+                additional.get(name),
+                input_descriptor,
+                f"{label}.additionalInputs.{name}",
+            )
+        )
+    return errors
+
+
+def _protocol_v8_e3a_register_qualification_descriptor(
+    closure: dict,
+    qualification_catalog: dict[str, dict],
+    descriptor: object,
+    *,
+    claimed_ref: object | None = None,
+) -> dict:
+    errors = _protocol_v8_e3a_qualification_descriptor_errors(
+        qualification_catalog,
+        descriptor,
+        "protocol-v8 E3-A QualificationKeyDescriptor",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(descriptor, dict)
+    qualification_key = _protocol_v8_e1_qualification_key(descriptor)
+    reference = {
+        "kind": "qualification-key",
+        "qualificationContract": descriptor["qualificationContract"],
+        "qualificationKey": qualification_key,
+    }
+    if claimed_ref is not None and claimed_ref != reference:
+        raise ValueError("claimed QualificationKeyRef does not match recomputed identity")
+    _protocol_v8_e3a_register_preimage(
+        closure["qualification_descriptors"],
+        qualification_key,
+        descriptor,
+    )
+    return reference
+
+
+def _protocol_v8_e3a_fact_descriptor_errors(
+    predicate_catalog: dict[str, dict],
+    descriptor: object,
+    label: str,
+) -> list[str]:
+    errors = _protocol_v8_e1_semantic_value_errors(descriptor, label)
+    if errors:
+        return errors
+    errors.extend(
+        _protocol_v8_e1_exact_keys(
+            descriptor,
+            {"schema", "predicateRevision", "arguments"},
+            label,
+        )
+    )
+    if errors:
+        return errors
+    assert isinstance(descriptor, dict)
+    if descriptor.get("schema") != "turnlock.semantic-fact-descriptor.v1":
+        errors.append(f"{label}: invalid SemanticFactDescriptorV1 schema")
+    predicate_id = descriptor.get("predicateRevision")
+    predicate = predicate_catalog.get(predicate_id)
+    if predicate is None:
+        errors.append(f"{label}: unknown PredicateRevisionId")
+        return errors
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict):
+        errors.append(f"{label}: arguments must be an object")
+        return errors
+    declarations = _mapping(_mapping(predicate.get("definition")).get("arguments"))
+    if set(arguments) != set(declarations):
+        errors.append(f"{label}: argument keys must equal the exact Predicate catalog keys")
+        return errors
+    for name in sorted(declarations, key=lambda item: item.encode("utf-8")):
+        declaration = declarations[name]
+        value = arguments.get(name)
+        argument_label = f"{label}.arguments.{name}"
+        if not isinstance(declaration, dict):
+            errors.append(f"{argument_label}: invalid catalog argument descriptor")
+            continue
+        kind = declaration.get("kind")
+        if kind == "qualification-key":
+            argument_errors = _protocol_v8_e1_exact_keys(
+                value,
+                {"kind", "qualificationContract", "qualificationKey"},
+                argument_label,
+            )
+            if argument_errors:
+                errors.extend(argument_errors)
+                continue
+            assert isinstance(value, dict)
+            if value.get("kind") != "qualification-key":
+                errors.append(f"{argument_label}: kind must be qualification-key")
+            if value.get("qualificationContract") != declaration.get("qualification_contract"):
+                errors.append(f"{argument_label}: QualificationContract mismatch")
+            key = value.get("qualificationKey")
+            if type(key) is not str or _PROTOCOL_V8_E1_QUALIFICATION_KEY.fullmatch(key) is None:
+                errors.append(f"{argument_label}: invalid QualificationKey")
+        elif kind in {
+            "semantic-value",
+            "semantic-admission",
+            "semantic-fact",
+            "exact-authority",
+        }:
+            errors.extend(
+                _protocol_v8_e1_ref_errors(
+                    value,
+                    declaration,
+                    argument_label,
+                )
+            )
+        elif kind == "canonical-value":
+            errors.extend(
+                _protocol_v8_e1_semantic_value_errors(value, argument_label)
+            )
+        else:
+            errors.append(f"{argument_label}: unsupported catalog argument kind {kind!r}")
+    return errors
+
+
+def _protocol_v8_e3a_register_fact_descriptor(
+    closure: dict,
+    predicate_catalog: dict[str, dict],
+    descriptor: object,
+    *,
+    claimed_ref: object | None = None,
+) -> dict:
+    errors = _protocol_v8_e3a_fact_descriptor_errors(
+        predicate_catalog,
+        descriptor,
+        "protocol-v8 E3-A SemanticFactDescriptor",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(descriptor, dict)
+    fact_id = _protocol_v8_e1_fact_id(descriptor)
+    reference = {
+        "kind": "semantic-fact",
+        "predicateRevision": descriptor["predicateRevision"],
+        "factId": fact_id,
+    }
+    if claimed_ref is not None and claimed_ref != reference:
+        raise ValueError("claimed SemanticFactRef does not match recomputed identity")
+    _protocol_v8_e3a_register_preimage(
+        closure["fact_descriptors"],
+        fact_id,
+        descriptor,
+    )
+    return reference
+
+
+def _protocol_v8_e3a_resolve_semantic_value(
+    closure: dict,
+    reference: object,
+) -> dict:
+    errors = _protocol_v8_e1_exact_keys(
+        reference,
+        {"kind", "valueType", "valueId"},
+        "protocol-v8 E3-A SemanticValueRef",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(reference, dict)
+    if reference.get("kind") != "semantic-value":
+        raise ValueError("SemanticValueRef kind mismatch")
+    value_id = reference.get("valueId")
+    if type(value_id) is not str or _PROTOCOL_V8_E1_SEMANTIC_VALUE_ID.fullmatch(value_id) is None:
+        raise ValueError("invalid SemanticValueId")
+    preimage = _protocol_v8_e3a_unique_preimage(
+        closure["semantic_values"], value_id, "dangling semantic-value ref"
+    )
+    assert isinstance(preimage, dict)
+    if preimage.get("valueType") != reference.get("valueType"):
+        raise ValueError("SemanticValueRef valueType mismatch")
+    if _protocol_v8_e1_semantic_value_id(preimage["valueType"], preimage.get("value")) != value_id:
+        raise ValueError("SemanticValueId/preimage mismatch")
+    return preimage
+
+
+def _protocol_v8_e3a_resolve_admission_identity(
+    closure: dict,
+    reference: object,
+) -> dict:
+    errors = _protocol_v8_e1_exact_keys(
+        reference,
+        {"kind", "admissionId"},
+        "protocol-v8 E3-A SemanticAdmissionRef",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(reference, dict)
+    admission_id = reference.get("admissionId")
+    if reference.get("kind") != "semantic-admission":
+        raise ValueError("SemanticAdmissionRef kind mismatch")
+    if type(admission_id) is not str or _PROTOCOL_V8_E1_ADMISSION_ID.fullmatch(admission_id) is None:
+        raise ValueError("invalid SemanticAdmissionId")
+    preimage = _protocol_v8_e3a_unique_preimage(
+        _protocol_v8_e3a_admission_index(closure),
+        admission_id,
+        "dangling semantic-admission ref",
+    )
+    assert isinstance(preimage, dict)
+    if _protocol_v8_e1_semantic_admission_id(preimage["qlek"], preimage.get("candidate")) != admission_id:
+        raise ValueError("SemanticAdmissionId/preimage mismatch")
+    return preimage
+
+
+def _protocol_v8_e3a_resolve_qualification_identity(
+    closure: dict,
+    reference: object,
+) -> dict:
+    errors = _protocol_v8_e1_exact_keys(
+        reference,
+        {"kind", "qualificationContract", "qualificationKey"},
+        "protocol-v8 E3-A QualificationKeyRef",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(reference, dict)
+    key = reference.get("qualificationKey")
+    if reference.get("kind") != "qualification-key":
+        raise ValueError("QualificationKeyRef kind mismatch")
+    if type(key) is not str or _PROTOCOL_V8_E1_QUALIFICATION_KEY.fullmatch(key) is None:
+        raise ValueError("invalid QualificationKey")
+    descriptor = _protocol_v8_e3a_unique_preimage(
+        closure["qualification_descriptors"], key, "dangling qualification-key ref"
+    )
+    assert isinstance(descriptor, dict)
+    if descriptor.get("qualificationContract") != reference.get("qualificationContract"):
+        raise ValueError("QualificationKeyRef QualificationContract mismatch")
+    if _protocol_v8_e1_qualification_key(descriptor) != key:
+        raise ValueError("QualificationKey/descriptor mismatch")
+    return descriptor
+
+
+def _protocol_v8_e3a_resolve_fact_identity(
+    closure: dict,
+    reference: object,
+) -> dict:
+    errors = _protocol_v8_e1_exact_keys(
+        reference,
+        {"kind", "predicateRevision", "factId"},
+        "protocol-v8 E3-A SemanticFactRef",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(reference, dict)
+    fact_id = reference.get("factId")
+    if reference.get("kind") != "semantic-fact":
+        raise ValueError("SemanticFactRef kind mismatch")
+    if type(fact_id) is not str or _PROTOCOL_V8_E1_FACT_ID.fullmatch(fact_id) is None:
+        raise ValueError("invalid FactId")
+    descriptor = _protocol_v8_e3a_unique_preimage(
+        closure["fact_descriptors"], fact_id, "dangling FactRef"
+    )
+    assert isinstance(descriptor, dict)
+    if descriptor.get("predicateRevision") != reference.get("predicateRevision"):
+        raise ValueError("FactRef predicate mismatch")
+    if _protocol_v8_e1_fact_id(descriptor) != fact_id:
+        raise ValueError("FactId/descriptor mismatch")
+    return descriptor
+
+
+def _protocol_v8_e3a_resolve_exact_authority(
+    closure: dict,
+    reference: object,
+) -> dict:
+    errors = _protocol_v8_e1_exact_keys(
+        reference,
+        {"kind", "authorityType", "authorityId"},
+        "protocol-v8 E3-A ExactAuthorityRef",
+    )
+    if errors:
+        raise ValueError(errors[0])
+    assert isinstance(reference, dict)
+    if reference.get("kind") != "exact-authority":
+        raise ValueError("ExactAuthorityRef kind mismatch")
+    key = (reference.get("authorityType"), reference.get("authorityId"))
+    registered = closure["exact_authorities"].get(key)
+    if registered != reference:
+        raise ValueError("ExactAuthorityRef not explicitly registered")
+    return copy.deepcopy(registered)
+
+
+def _protocol_v8_e3a_resolve_qlek(
+    closure: dict,
+    contracts: dict[str, dict],
+    qlek: object,
+) -> dict:
+    qlek = _protocol_v8_e2_require_qlek(qlek)
+    descriptor = _protocol_v8_e3a_unique_preimage(
+        closure["questions"], qlek, "QLEK with no exact descriptor preimage"
+    )
+    recomputed, errors = _protocol_v8_e1_recompute_structural_qlek(
+        contracts,
+        descriptor,
+    )
+    if errors or recomputed != qlek:
+        raise ValueError(errors[0] if errors else "QLEK/descriptor mismatch")
+    assert isinstance(descriptor, dict)
+    return descriptor
+
+
+def _protocol_v8_e3a_admission_consumable(
+    closure: dict,
+    admission_ref: object,
+) -> bool:
+    admission = _protocol_v8_e3a_resolve_admission_identity(
+        closure,
+        admission_ref,
+    )
+    qlek = admission["qlek"]
+    effective = closure["e2_state"]["admissions"].get(qlek)
+    if not isinstance(effective, dict):
+        return False
+    if effective.get("admission_id") != admission.get("admission_id"):
+        return False
+    return _protocol_v8_e2_consumable_admission(
+        closure["e2_state"],
+        qlek,
+    )
+
+
+def _protocol_v8_e3a_extract_references(
+    value: object,
+) -> list[dict]:
+    if isinstance(value, dict):
+        shapes = {
+            "semantic-value": {"kind", "valueType", "valueId"},
+            "semantic-admission": {"kind", "admissionId"},
+            "semantic-fact": {"kind", "predicateRevision", "factId"},
+            "qualification-key": {"kind", "qualificationContract", "qualificationKey"},
+            "exact-authority": {"kind", "authorityType", "authorityId"},
+        }
+        kind = value.get("kind")
+        if kind in shapes and set(value) == shapes[kind]:
+            return [copy.deepcopy(value)]
+        result: list[dict] = []
+        for key in sorted(value, key=lambda item: item.encode("utf-8")):
+            result.extend(_protocol_v8_e3a_extract_references(value[key]))
+        return result
+    if isinstance(value, list):
+        result = []
+        for item in value:
+            result.extend(_protocol_v8_e3a_extract_references(item))
+        return result
+    return []
+
+
+def _protocol_v8_e3a_reference_node(
+    closure: dict,
+    reference: dict,
+) -> tuple:
+    kind = reference["kind"]
+    if kind == "semantic-value":
+        _protocol_v8_e3a_resolve_semantic_value(closure, reference)
+        return ("semantic-value", reference["valueId"])
+    if kind == "semantic-admission":
+        _protocol_v8_e3a_resolve_admission_identity(closure, reference)
+        return ("semantic-admission", reference["admissionId"])
+    if kind == "qualification-key":
+        _protocol_v8_e3a_resolve_qualification_identity(closure, reference)
+        return ("qualification-key", reference["qualificationKey"])
+    if kind == "semantic-fact":
+        _protocol_v8_e3a_resolve_fact_identity(closure, reference)
+        return ("semantic-fact", reference["factId"])
+    if kind == "exact-authority":
+        _protocol_v8_e3a_resolve_exact_authority(closure, reference)
+        return (
+            "exact-authority",
+            reference["authorityType"],
+            reference["authorityId"],
+        )
+    raise ValueError(f"unsupported semantic reference kind {kind!r}")
+
+
+def _protocol_v8_e3a_node_dependencies(
+    closure: dict,
+    contracts: dict[str, dict],
+    node: tuple,
+) -> list[tuple]:
+    kind = node[0]
+    if kind == "semantic-value":
+        preimage = _protocol_v8_e3a_resolve_semantic_value(
+            closure,
+            {
+                "kind": "semantic-value",
+                "valueType": _protocol_v8_e3a_unique_preimage(
+                    closure["semantic_values"], node[1], "semantic-value"
+                )["valueType"],
+                "valueId": node[1],
+            },
+        )
+        references = _protocol_v8_e3a_extract_references(preimage["value"])
+    elif kind == "qlek":
+        descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, node[1])
+        references = _protocol_v8_e3a_extract_references(
+            descriptor["exactLogicalInput"]
+        )
+    elif kind == "semantic-admission":
+        admission = _protocol_v8_e3a_resolve_admission_identity(
+            closure,
+            {"kind": "semantic-admission", "admissionId": node[1]},
+        )
+        return [("qlek", admission["qlek"])]
+    elif kind == "qualification-key":
+        descriptor = _protocol_v8_e3a_resolve_qualification_identity(
+            closure,
+            {
+                "kind": "qualification-key",
+                "qualificationContract": _protocol_v8_e3a_unique_preimage(
+                    closure["qualification_descriptors"], node[1], "qualification-key"
+                )["qualificationContract"],
+                "qualificationKey": node[1],
+            },
+        )
+        references = _protocol_v8_e3a_extract_references(
+            descriptor["anchorAdmission"]
+        ) + _protocol_v8_e3a_extract_references(descriptor["additionalInputs"])
+    elif kind == "semantic-fact":
+        descriptor = _protocol_v8_e3a_resolve_fact_identity(
+            closure,
+            {
+                "kind": "semantic-fact",
+                "predicateRevision": _protocol_v8_e3a_unique_preimage(
+                    closure["fact_descriptors"], node[1], "semantic-fact"
+                )["predicateRevision"],
+                "factId": node[1],
+            },
+        )
+        references = _protocol_v8_e3a_extract_references(descriptor["arguments"])
+    elif kind == "exact-authority":
+        _protocol_v8_e3a_resolve_exact_authority(
+            closure,
+            {
+                "kind": "exact-authority",
+                "authorityType": node[1],
+                "authorityId": node[2],
+            },
+        )
+        return []
+    else:
+        raise ValueError(f"unsupported semantic dependency node {node!r}")
+    return [
+        _protocol_v8_e3a_reference_node(closure, reference)
+        for reference in references
+    ]
+
+
+def _protocol_v8_e3a_resolve_dependency_graph(
+    closure: dict,
+    contracts: dict[str, dict],
+    roots: list[tuple],
+    dependency_function=None,
+) -> set[tuple]:
+    active: set[tuple] = set()
+    resolved: set[tuple] = set()
+    dependencies = dependency_function or (
+        lambda node: _protocol_v8_e3a_node_dependencies(closure, contracts, node)
+    )
+
+    def visit(node: tuple) -> None:
+        if node in active:
+            raise ValueError(f"unlawful semantic dependency cycle at {node!r}")
+        if node in resolved:
+            return
+        active.add(node)
+        try:
+            for dependency in dependencies(node):
+                visit(dependency)
+        finally:
+            active.remove(node)
+        resolved.add(node)
+
+    for root in roots:
+        visit(root)
+    return resolved
+
+
+def _protocol_v8_e3a_expect_rejected(
+    action,
+    errors: list[str],
+    label: str,
+    required_text: str | None = None,
+) -> None:
+    try:
+        action()
+    except ValueError as error:
+        if required_text is not None and required_text not in str(error):
+            errors.append(
+                f"inactive protocol v8 E3-A: {label} rejected without {required_text!r}"
+            )
+        return
+    errors.append(f"inactive protocol v8 E3-A: expected rejection: {label}")
+
+
+def _inactive_protocol_v8_e3a_semantic_closure_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise identity/preimage resolution without establishing Fact truth."""
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    errors.extend(catalog_errors)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    errors.extend(contract_errors)
+    if errors:
+        return errors
+
+    state = _protocol_v8_e2_new_state()
+    closure = _protocol_v8_e3a_new_closure(state)
+    finding_basis = {
+        "schema": "turnlock.finding-adjudication-basis.v1",
+        "semanticSubject": {
+            "selector": "gate-a-assurance-decomposition-v1",
+            "sha256": "0" * 64,
+        },
+        "currentProtocol": {
+            "protocolId": "gate-a-campaign-protocol-v8",
+            "bundleSha256": PROTOCOL_V8_BUNDLE_REFERENCE["sha256"],
+        },
+        "sourceFinding": {
+            "reviewCampaignId": "REVIEW-E3-A",
+            "findingId": "F-E3-A",
+            "substantiveFindingSha256": "3" * 64,
+        },
+    }
+    finding_ref = _protocol_v8_e3a_register_semantic_value(
+        closure,
+        "turnlock.semantic-value:FindingAdjudicationBasis@1",
+        finding_basis,
+    )
+    question = {
+        "schema": "turnlock.logical-question-descriptor.v1",
+        "semanticQuestionContract": "turnlock.sqc:MaterialityAssessmentInitial@1",
+        "exactLogicalInput": {"findingAdjudicationBasis": finding_ref},
+    }
+    qlek = _protocol_v8_e3a_register_question(closure, contracts, question)
+    candidate = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "e3-a identity chain only",
+    }
+    _protocol_v8_e2_t1_acquire_authority(state, qlek, -3)
+    _protocol_v8_e2_t2_authorize_execution(
+        state, qlek, -3, "E-E3-A", outer_authorized=True
+    )
+    _protocol_v8_e2_t3_arm_execution(state, qlek, -3, "E-E3-A")
+    _protocol_v8_e2_record_protocol_valid_completion(state, "E-E3-A", candidate)
+    admission_result = _protocol_v8_e2_t4_reconcile_completion(state, "E-E3-A")
+    admission_ref = {
+        "kind": "semantic-admission",
+        "admissionId": admission_result["admission_id"],
+    }
+    if not _protocol_v8_e3a_admission_consumable(closure, admission_ref):
+        errors.append("inactive protocol v8 E3-A: sample Admission is not consumable")
+
+    qualification_descriptor = {
+        "schema": "turnlock.qualification-key-descriptor.v1",
+        "qualificationContract": "turnlock.qualification:MaterialityAssessmentQualification@1",
+        "anchorAdmission": admission_ref,
+        "additionalInputs": {},
+    }
+    qualification_ref = _protocol_v8_e3a_register_qualification_descriptor(
+        closure,
+        qualifications,
+        qualification_descriptor,
+    )
+    fact_descriptor = {
+        "schema": "turnlock.semantic-fact-descriptor.v1",
+        "predicateRevision": "turnlock.predicate:QualifiedPositiveMateriality@1",
+        "arguments": {"qualification": qualification_ref},
+    }
+    fact_ref = _protocol_v8_e3a_register_fact_descriptor(
+        closure,
+        predicates,
+        fact_descriptor,
+    )
+    resolved = _protocol_v8_e3a_resolve_dependency_graph(
+        closure,
+        contracts,
+        [("semantic-fact", fact_ref["factId"])],
+    )
+    expected = {
+        ("semantic-fact", fact_ref["factId"]),
+        ("qualification-key", qualification_ref["qualificationKey"]),
+        ("semantic-admission", admission_ref["admissionId"]),
+        ("qlek", qlek),
+        ("semantic-value", finding_ref["valueId"]),
+    }
+    if resolved != expected:
+        errors.append("inactive protocol v8 E3-A: acyclic identity closure mismatch")
+
+    dangling_fact = {
+        "kind": "semantic-fact",
+        "predicateRevision": fact_ref["predicateRevision"],
+        "factId": "semantic-fact-sha256:" + "a" * 64,
+    }
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_fact_identity(closure, dangling_fact),
+        errors,
+        "dangling FactRef",
+    )
+    wrong_predicate = dict(fact_ref)
+    wrong_predicate["predicateRevision"] = "turnlock.predicate:QualifiedNonMateriality@1"
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_fact_identity(closure, wrong_predicate),
+        errors,
+        "FactRef predicate mismatch",
+    )
+    forged_fact = dict(fact_ref)
+    forged_fact["factId"] = "semantic-fact-sha256:" + "b" * 64
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_register_fact_descriptor(
+            closure, predicates, fact_descriptor, claimed_ref=forged_fact
+        ),
+        errors,
+        "forged FactId",
+    )
+    wrong_qualification = copy.deepcopy(fact_descriptor)
+    wrong_qualification["arguments"]["qualification"]["qualificationContract"] = (
+        "turnlock.qualification:RefutationQualification@1"
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_register_fact_descriptor(
+            closure, predicates, wrong_qualification
+        ),
+        errors,
+        "wrong QualificationContract",
+    )
+    dangling_qualification = dict(qualification_ref)
+    dangling_qualification["qualificationKey"] = "qualification-key-sha256:" + "c" * 64
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_qualification_identity(
+            closure, dangling_qualification
+        ),
+        errors,
+        "dangling QualificationKeyRef",
+    )
+
+    _protocol_v8_e3a_register_fact_descriptor(closure, predicates, fact_descriptor)
+    _protocol_v8_e3a_register_qualification_descriptor(
+        closure, qualifications, qualification_descriptor
+    )
+    if len(closure["fact_descriptors"][fact_ref["factId"]]) != 1:
+        errors.append("inactive protocol v8 E3-A: duplicate Fact preimage was not idempotent")
+    if len(closure["qualification_descriptors"][qualification_ref["qualificationKey"]]) != 1:
+        errors.append("inactive protocol v8 E3-A: duplicate Qualification preimage was not idempotent")
+
+    collision_id = "semantic-fact-sha256:" + "d" * 64
+    collision_ref = {
+        "kind": "semantic-fact",
+        "predicateRevision": fact_ref["predicateRevision"],
+        "factId": collision_id,
+    }
+    closure["fact_descriptors"][collision_id] = [
+        fact_descriptor,
+        {
+            **fact_descriptor,
+            "arguments": {"qualification": dangling_qualification},
+        },
+    ]
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_fact_identity(closure, collision_ref),
+        errors,
+        "synthetic Fact identity collision",
+        "IDENTITY-HASH-COLLISION",
+    )
+
+    qualification_collision = "qualification-key-sha256:" + "e" * 64
+    qualification_collision_ref = {
+        "kind": "qualification-key",
+        "qualificationContract": qualification_ref["qualificationContract"],
+        "qualificationKey": qualification_collision,
+    }
+    closure["qualification_descriptors"][qualification_collision] = [
+        qualification_descriptor,
+        {**qualification_descriptor, "additionalInputs": {"x": admission_ref}},
+    ]
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_qualification_identity(
+            closure, qualification_collision_ref
+        ),
+        errors,
+        "synthetic Qualification identity collision",
+        "IDENTITY-HASH-COLLISION",
+    )
+
+    node_a = ("exact-authority", "synthetic", "A")
+    node_b = ("exact-authority", "synthetic", "B")
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_dependency_graph(
+            closure,
+            contracts,
+            [node_a],
+            lambda node: [node_b] if node == node_a else [node_a],
+        ),
+        errors,
+        "exact-node dependency cycle",
+        "unlawful semantic dependency cycle",
+    )
+
+    conflict_state = _protocol_v8_e2_new_state()
+    conflict_closure = _protocol_v8_e3a_new_closure(conflict_state)
+    candidate_two = {**candidate, "claim_structure": True}
+    first_id = _protocol_v8_e1_semantic_admission_id(qlek, candidate)
+    second_id = _protocol_v8_e1_semantic_admission_id(qlek, candidate_two)
+    first_token = _protocol_v8_e2_validated_witness_token(
+        qlek, first_id, candidate, "IMPORTED-E3-A-1"
+    )
+    second_token = _protocol_v8_e2_validated_witness_token(
+        qlek, second_id, candidate_two, "IMPORTED-E3-A-2"
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        conflict_state,
+        qlek,
+        semantic_candidate=candidate,
+        validated_origin_witness=first_token,
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        conflict_state,
+        qlek,
+        semantic_candidate=candidate_two,
+        validated_origin_witness=second_token,
+    )
+    for admission_id in (first_id, second_id):
+        branch_ref = {"kind": "semantic-admission", "admissionId": admission_id}
+        try:
+            _protocol_v8_e3a_resolve_admission_identity(conflict_closure, branch_ref)
+        except ValueError as error:
+            errors.append(f"inactive protocol v8 E3-A: conflict branch did not resolve: {error}")
+        if _protocol_v8_e3a_admission_consumable(conflict_closure, branch_ref):
+            errors.append("inactive protocol v8 E3-A: conflict branch became consumable")
+
+    provenance_one = _protocol_v8_e3a_register_fact_descriptor(
+        closure, predicates, fact_descriptor
+    )
+    provenance_two = _protocol_v8_e3a_register_fact_descriptor(
+        closure, predicates, copy.deepcopy(fact_descriptor)
+    )
+    if provenance_one["factId"] != provenance_two["factId"]:
+        errors.append("inactive protocol v8 E3-A: provenance changed Fact identity")
+
+    value_type_mismatch = dict(finding_ref)
+    value_type_mismatch["valueType"] = "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_semantic_value(closure, value_type_mismatch),
+        errors,
+        "SemanticValueRef valueType mismatch",
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_qlek(
+            closure, contracts, "qlek-sha256:" + "f" * 64
+        ),
+        errors,
+        "dangling QLEK",
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_exact_authority(
+            closure,
+            {
+                "kind": "exact-authority",
+                "authorityType": "candidate-revision",
+                "authorityId": "UNREGISTERED",
+            },
+        ),
+        errors,
+        "unregistered ExactAuthorityRef",
+    )
+
+    malformed_state = _protocol_v8_e2_new_state()
+    malformed_state["admissions"][qlek] = {
+        "qlek": qlek,
+        "candidate": candidate,
+        "admission_id": "semantic-admission-sha256:" + "0" * 64,
+        "witnesses": [{}],
+    }
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_admission_index(
+            _protocol_v8_e3a_new_closure(malformed_state)
+        ),
+        errors,
+        "SemanticAdmissionId mismatch",
+    )
+    return errors
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -9267,6 +10338,9 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_candidate_errors(root, candidate_bundle_cache))
     errors.extend(_inactive_protocol_v8_e1_semantic_identity_errors(root))
     errors.extend(_inactive_protocol_v8_e2_execution_admission_errors(root))
+    errors.extend(
+        _inactive_protocol_v8_e3a_semantic_closure_errors(root)
+    )
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
