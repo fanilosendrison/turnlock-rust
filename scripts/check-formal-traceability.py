@@ -4600,6 +4600,1997 @@ def _inactive_protocol_v8_e3a_semantic_closure_errors(
     )
     return errors
 
+
+def _protocol_v8_e3b_case_map(
+    qualification_catalog: dict[str, dict],
+) -> tuple[dict[str, dict], list[str]]:
+    """Derive the complete qualification-case dispatch inventory from C4."""
+    errors: list[str] = []
+    cases: dict[str, dict] = {}
+    total = 0
+    for qualification_id, qualification in qualification_catalog.items():
+        definition = _mapping(qualification.get("definition"))
+        for index, case in enumerate(_sequence(definition.get("cases"))):
+            total += 1
+            label = f"inactive protocol v8 E3-B {qualification_id} cases[{index}]"
+            if not isinstance(case, dict):
+                errors.append(f"{label}: case must be a mapping")
+                continue
+            case_id = case.get("case_id")
+            predicate_id = case.get("derives_predicate")
+            additional = case.get("additional_inputs")
+            if not isinstance(case_id, str) or not case_id:
+                errors.append(f"{label}: case_id must be a non-empty string")
+                continue
+            if not isinstance(predicate_id, str) or not predicate_id:
+                errors.append(f"{label}: derives_predicate must be non-empty")
+            if not isinstance(additional, dict):
+                errors.append(f"{label}: additional_inputs must be an object")
+            if case_id in cases:
+                errors.append(f"{label}: duplicate case_id {case_id!r}")
+                continue
+            cases[case_id] = {
+                "qualification_contract": qualification_id,
+                "case": case,
+                "qualification": qualification,
+            }
+    if total != 8:
+        errors.append("inactive protocol v8 E3-B: expected exactly 8 qualification cases")
+    if any(not isinstance(item, str) or not item for item in qualification_catalog):
+        errors.append("inactive protocol v8 E3-B: invalid Qualification revision_id")
+    return cases, errors
+
+
+def _protocol_v8_e3b_case_for_descriptor(
+    qualification_catalog: dict[str, dict],
+    descriptor: dict,
+) -> dict:
+    """Select one catalog case solely by its exact additional-input key set."""
+    contract_id = descriptor.get("qualificationContract")
+    qualification = qualification_catalog.get(contract_id)
+    if not isinstance(qualification, dict):
+        raise ValueError("unknown QualificationContractRevisionId")
+    additional = descriptor.get("additionalInputs")
+    if not isinstance(additional, dict):
+        raise ValueError("QualificationKey additionalInputs must be an object")
+    matches = [
+        case
+        for case in _sequence(_mapping(qualification.get("definition")).get("cases"))
+        if isinstance(case, dict)
+        and isinstance(case.get("additional_inputs"), dict)
+        and set(case["additional_inputs"]) == set(additional)
+    ]
+    if not matches:
+        raise ValueError("qualification case integrity failure: no exact case match")
+    if len(matches) != 1:
+        raise ValueError("qualification catalog integrity failure: ambiguous case match")
+    return {
+        "qualification_contract": contract_id,
+        "case": matches[0],
+        "qualification": qualification,
+    }
+
+
+def _protocol_v8_e3b_admission_context(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    admission_ref: object,
+    validators: dict[str, Draft202012Validator],
+) -> dict:
+    """Resolve and independently revalidate one exact producer Admission."""
+    reference_errors = _protocol_v8_e1_ref_errors(
+        admission_ref,
+        {"kind": "semantic-admission"},
+        "protocol-v8 E3-B SemanticAdmissionRef",
+    )
+    if reference_errors:
+        raise ValueError(reference_errors[0])
+    assert isinstance(admission_ref, dict)
+    admission_id = admission_ref["admissionId"]
+    cache = closure.setdefault("_e3b_admission_contexts", {})
+    cached = cache.get(admission_id)
+    if isinstance(cached, dict):
+        context = copy.deepcopy(cached)
+    else:
+        record = _protocol_v8_e3a_resolve_admission_identity(closure, admission_ref)
+        qlek = record.get("qlek")
+        descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, qlek)
+        contract_id = descriptor.get("semanticQuestionContract")
+        contract = contracts.get(contract_id)
+        if not isinstance(contract, dict):
+            raise ValueError("Admission QLEK references unknown SemanticQuestionContract")
+        definition = _mapping(contract.get("definition"))
+        candidate = record.get("candidate")
+        if definition.get("question_kind") == "challenge":
+            if not isinstance(candidate, dict) or set(candidate) != {
+                "objective_assessments",
+                "objections",
+            }:
+                raise ValueError("challenge Admission candidate has invalid exact key set")
+            challenge_kind = _mapping(definition.get("challenge")).get("challenge_kind")
+            output = {
+                "challenge_output_schema_version": "1.0",
+                "challenge_kind": challenge_kind,
+                "objective_assessments": copy.deepcopy(candidate["objective_assessments"]),
+                "objections": copy.deepcopy(candidate["objections"]),
+            }
+            validator = validators.get("challenge-output")
+        else:
+            task = _mapping(definition.get("execution")).get("task")
+            output = {
+                "adjudication_output_schema_version": "1.0",
+                "task": task,
+                "result": copy.deepcopy(candidate),
+            }
+            validator = validators.get("adjudication-output")
+        if validator is None:
+            raise ValueError("exact P8 output validator is unavailable")
+        projected, projection_errors = _protocol_v8_e1_project_semantic_candidate(
+            contract,
+            output,
+            validator,
+            "inactive protocol v8 E3-B Admission candidate",
+        )
+        if projection_errors:
+            raise ValueError(projection_errors[0])
+        if projected != candidate:
+            raise ValueError("Admission candidate differs from exact E1 projection")
+        context = {
+            "reference": copy.deepcopy(admission_ref),
+            "record": record,
+            "qlek": qlek,
+            "descriptor": descriptor,
+            "contract_id": contract_id,
+            "contract": contract,
+            "candidate": copy.deepcopy(candidate),
+        }
+        # The cache is a disposable validated-preimage optimization. Current
+        # consumability is deliberately recomputed from mutable C3 history below.
+        cache[admission_id] = copy.deepcopy(context)
+    effective = closure["e2_state"]["admissions"].get(context["qlek"])
+    context["currently_consumable"] = (
+        isinstance(effective, dict)
+        and effective.get("admission_id") == admission_id
+        and _protocol_v8_e2_consumable_admission(
+            closure["e2_state"], context["qlek"]
+        )
+    )
+    return context
+
+
+def _protocol_v8_e3b_fact_dependency(
+    closure: dict,
+    fact_ref: object,
+    fact_dependency_resolver,
+) -> dict:
+    """Resolve a claimed predecessor Fact through the staged E3-C boundary."""
+    if fact_dependency_resolver is None:
+        raise ValueError("E3-C fact dependency resolver required")
+    result = fact_dependency_resolver(copy.deepcopy(fact_ref))
+    if not isinstance(result, dict) or set(result) != {
+        "reference",
+        "descriptor",
+        "reconstructible",
+        "consumable",
+    }:
+        raise ValueError("Fact dependency resolver returned invalid exact result shape")
+    if result.get("reference") != fact_ref:
+        raise ValueError("Fact dependency resolver returned mismatched reference")
+    resolved = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    if result.get("descriptor") != resolved:
+        raise ValueError("Fact dependency resolver returned mismatched descriptor")
+    if result.get("reconstructible") is not True:
+        raise ValueError("claimed Fact dependency is not reconstructible")
+    if type(result.get("consumable")) is not bool:
+        raise ValueError("Fact dependency consumable must be an exact bool")
+    return copy.deepcopy(result)
+
+
+def _protocol_v8_e3b_producer_admission_of_fact(
+    fact_ref: object,
+    fact_dependency_resolver,
+) -> dict:
+    """Implement the two published C4 producerAdmission(F) projections."""
+    if fact_dependency_resolver is None:
+        raise ValueError("E3-C fact dependency resolver required")
+    resolved = fact_dependency_resolver(copy.deepcopy(fact_ref))
+    if not isinstance(resolved, dict) or set(resolved) != {
+        "reference",
+        "descriptor",
+        "reconstructible",
+        "consumable",
+    }:
+        raise ValueError("Fact dependency resolver returned invalid exact result shape")
+    if resolved.get("reference") != fact_ref:
+        raise ValueError("Fact dependency resolver returned mismatched reference")
+    if resolved.get("reconstructible") is not True:
+        raise ValueError("claimed Fact dependency is not reconstructible")
+    if type(resolved.get("consumable")) is not bool:
+        raise ValueError("Fact dependency consumable must be an exact bool")
+    descriptor = resolved.get("descriptor")
+    if not isinstance(descriptor, dict):
+        raise ValueError("Fact dependency descriptor is invalid")
+    predicate = descriptor.get("predicateRevision")
+    arguments = _mapping(descriptor.get("arguments"))
+    if predicate == "turnlock.predicate:TargetedDiscoveryStatement@1":
+        producer = arguments.get("producerDiscovery")
+    elif predicate == "turnlock.predicate:DecisionRequiredDiscoveryStatement@1":
+        targeted_ref = arguments.get("targetedDiscoveryStatement")
+        targeted = fact_dependency_resolver(copy.deepcopy(targeted_ref))
+        if not isinstance(targeted, dict) or set(targeted) != {
+            "reference",
+            "descriptor",
+            "reconstructible",
+            "consumable",
+        }:
+            raise ValueError("Fact dependency resolver returned invalid exact result shape")
+        if targeted.get("reference") != targeted_ref:
+            raise ValueError("Fact dependency resolver returned mismatched reference")
+        if targeted.get("reconstructible") is not True:
+            raise ValueError("claimed Fact dependency is not reconstructible")
+        if type(targeted.get("consumable")) is not bool:
+            raise ValueError("Fact dependency consumable must be an exact bool")
+        targeted_descriptor = targeted.get("descriptor")
+        if (
+            not isinstance(targeted_descriptor, dict)
+            or targeted_descriptor.get("predicateRevision")
+            != "turnlock.predicate:TargetedDiscoveryStatement@1"
+        ):
+            raise ValueError("DecisionRequiredDiscoveryStatement has invalid target")
+        producer = _mapping(targeted_descriptor.get("arguments")).get(
+            "producerDiscovery"
+        )
+    else:
+        raise ValueError("unsupported published C4 producer-admission-of-fact contract")
+    reference_errors = _protocol_v8_e1_ref_errors(
+        producer,
+        {"kind": "semantic-admission"},
+        "protocol-v8 E3-B producerAdmission(F)",
+    )
+    if reference_errors:
+        raise ValueError(reference_errors[0])
+    return copy.deepcopy(producer)
+
+
+def _protocol_v8_e3b_materiality_axes(
+    contracts: dict[str, dict],
+    anchor_context: dict,
+) -> list[str]:
+    """Derive materiality axes from the unique C1 challenge contract."""
+    anchor_family = _mapping(anchor_context["contract"].get("definition")).get(
+        "family"
+    )
+    matches: list[dict] = []
+    for contract in contracts.values():
+        definition = _mapping(contract.get("definition"))
+        if definition.get("question_kind") != "challenge":
+            continue
+        if definition.get("family") != anchor_family:
+            continue
+        challenge = _mapping(definition.get("challenge"))
+        target_name = challenge.get("target_input")
+        target = _mapping(_mapping(definition.get("logical_input")).get(target_name))
+        if anchor_context["contract_id"] in _sequence(target.get("producer_contracts")):
+            matches.append(contract)
+    if len(matches) != 1:
+        raise ValueError("materiality challenge contract must resolve exactly once")
+    objectives = _sequence(
+        _mapping(_mapping(matches[0].get("definition")).get("challenge")).get(
+            "objectives"
+        )
+    )
+    if (
+        len(objectives) != 7
+        or any(not isinstance(item, str) or not item for item in objectives)
+        or len(set(objectives)) != len(objectives)
+    ):
+        raise ValueError("materiality challenge objectives are invalid")
+    return list(objectives)
+
+
+def _protocol_v8_e3b_challenge_result(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    qualification_descriptor: dict,
+    qualification_case: dict,
+    anchor_context: dict,
+    target_ref: object,
+    validators: dict[str, Draft202012Validator],
+    require_current_consumability: bool,
+) -> bool:
+    """Return whether the exact required challenge closes with zero objections."""
+    declarations = _mapping(qualification_case.get("additional_inputs"))
+    challenge_inputs = [
+        (name, declaration)
+        for name, declaration in declarations.items()
+        if isinstance(declaration, dict)
+        and declaration.get("kind") == "semantic-admission"
+    ]
+    if len(challenge_inputs) != 1:
+        raise ValueError("challenge qualification case must declare exactly one challenge")
+    name, declaration = challenge_inputs[0]
+    challenge_ref = _mapping(qualification_descriptor.get("additionalInputs")).get(name)
+    challenge_context = _protocol_v8_e3b_admission_context(
+        root, closure, contracts, challenge_ref, validators
+    )
+    if challenge_context["contract_id"] not in _sequence(
+        declaration.get("producer_contracts")
+    ):
+        return False
+    definition = _mapping(challenge_context["contract"].get("definition"))
+    if definition.get("question_kind") != "challenge":
+        raise ValueError("challenge producer is not a challenge contract")
+    challenge = _mapping(definition.get("challenge"))
+    target_name = challenge.get("target_input")
+    logical_input = _mapping(definition.get("logical_input"))
+    expected: dict[str, object] = {}
+    qualification_inputs = _mapping(qualification_descriptor.get("additionalInputs"))
+    for input_name in logical_input:
+        if input_name == target_name:
+            expected[input_name] = copy.deepcopy(target_ref)
+        elif input_name in qualification_inputs:
+            expected[input_name] = copy.deepcopy(qualification_inputs[input_name])
+        else:
+            return False
+    if _mapping(challenge_context["descriptor"]).get("exactLogicalInput") != expected:
+        return False
+    if require_current_consumability and not challenge_context["currently_consumable"]:
+        return False
+    return _mapping(challenge_context["candidate"]).get("objections") == []
+
+
+def _protocol_v8_e3b_case_positive_materiality(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    axes = _protocol_v8_e3b_materiality_axes(contracts, anchor)
+    return any(anchor["candidate"].get(axis) is True for axis in axes)
+
+
+def _protocol_v8_e3b_case_qualified_non_materiality(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    axes = _protocol_v8_e3b_materiality_axes(contracts, anchor)
+    if any(anchor["candidate"].get(axis) is not False for axis in axes):
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root,
+        closure,
+        contracts,
+        descriptor,
+        case,
+        anchor,
+        descriptor["anchorAdmission"],
+        validators,
+        require_current_consumability,
+    )
+
+
+def _protocol_v8_e3b_case_qualified_refutation(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    if anchor["candidate"] == {"kind": "not-established"}:
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root, closure, contracts, descriptor, case, anchor,
+        descriptor["anchorAdmission"], validators, require_current_consumability
+    )
+
+
+def _protocol_v8_e3b_case_qualified_no_normative_impact(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    targeted_ref = descriptor["additionalInputs"]["targetedDiscoveryStatement"]
+    targeted = dependency(targeted_ref)
+    if require_current_consumability and not targeted["consumable"]:
+        return False
+    targeted_descriptor = targeted["descriptor"]
+    if targeted_descriptor.get("predicateRevision") != (
+        "turnlock.predicate:TargetedDiscoveryStatement@1"
+    ):
+        return False
+    arguments = _mapping(targeted_descriptor.get("arguments"))
+    statement = _mapping(arguments.get("statement"))
+    if statement.get("semantic_disposition") != "no-normative-impact":
+        return False
+    if descriptor["anchorAdmission"] != arguments.get("producerDiscovery"):
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root, closure, contracts, descriptor, case, anchor,
+        targeted_ref, validators, require_current_consumability
+    )
+
+
+def _protocol_v8_e3b_case_qualified_decision_necessity(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    inputs = descriptor["additionalInputs"]
+    s_ref = inputs["survivingMaterialBasis"]
+    d_ref = inputs["decisionRequiredStatement"]
+    u_ref = inputs["uniqueCorrectionExhaustion"]
+    n_ref = inputs["decisionNecessityCandidate"]
+    d_result = dependency(d_ref)
+    u_result = dependency(u_ref)
+    n_result = dependency(n_ref)
+    if require_current_consumability and not all(
+        result["consumable"] for result in (d_result, u_result, n_result)
+    ):
+        return False
+    if d_result["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1"
+    ):
+        return False
+    if u_result["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:UniqueCorrectionExhaustion@1"
+    ):
+        return False
+    if n_result["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:DecisionNecessityCandidate@1"
+    ):
+        return False
+    t_ref = _mapping(d_result["descriptor"].get("arguments")).get(
+        "targetedDiscoveryStatement"
+    )
+    t_result = dependency(t_ref)
+    if require_current_consumability and not t_result["consumable"]:
+        return False
+    if t_result["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:TargetedDiscoveryStatement@1"
+    ):
+        return False
+    t_arguments = _mapping(t_result["descriptor"].get("arguments"))
+    if descriptor["anchorAdmission"] != t_arguments.get("producerDiscovery"):
+        return False
+    if _mapping(anchor["descriptor"].get("exactLogicalInput")).get(
+        "survivingMaterialBasis"
+    ) != s_ref:
+        return False
+    if _mapping(u_result["descriptor"].get("arguments")).get(
+        "targetedDiscoveryStatement"
+    ) != t_ref:
+        return False
+    if _mapping(n_result["descriptor"].get("arguments")) != {
+        "survivingMaterialBasis": s_ref,
+        "decisionRequiredStatement": d_ref,
+        "uniqueCorrectionExhaustion": u_ref,
+    }:
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root, closure, contracts, descriptor, case, anchor,
+        n_ref, validators, require_current_consumability
+    )
+
+
+def _protocol_v8_e3b_case_accepted_unique_correction(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    if anchor["candidate"] == {"kind": "not-established"}:
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root, closure, contracts, descriptor, case, anchor,
+        descriptor["anchorAdmission"], validators, require_current_consumability
+    )
+
+
+def _protocol_v8_e3b_case_accepted_realization_scope(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    if anchor["candidate"] == {"kind": "not-established"}:
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root, closure, contracts, descriptor, case, anchor,
+        descriptor["anchorAdmission"], validators, require_current_consumability
+    )
+
+
+def _protocol_v8_e3b_case_accepted_repair_realization(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: dict,
+    case: dict,
+    anchor: dict,
+    validators: dict[str, Draft202012Validator],
+    dependency,
+    require_current_consumability: bool,
+) -> bool:
+    if anchor["candidate"] == {"kind": "not-established"}:
+        return False
+    return _protocol_v8_e3b_challenge_result(
+        root, closure, contracts, descriptor, case, anchor,
+        descriptor["anchorAdmission"], validators, require_current_consumability
+    )
+
+
+def _protocol_v8_e3b_derive_qualification_fact(
+    closure: dict,
+    predicates: dict[str, dict],
+    qualification_ref: dict,
+    descriptor: dict,
+    case_record: dict,
+) -> dict:
+    """Derive the one catalog-selected qualification-result Predicate."""
+    predicate_id = _mapping(case_record.get("case")).get("derives_predicate")
+    predicate = predicates.get(predicate_id)
+    if not isinstance(predicate, dict):
+        raise ValueError("qualification case derives unknown PredicateRevision")
+    definition = _mapping(predicate.get("definition"))
+    derivation = _mapping(definition.get("derivation"))
+    contract_id = descriptor.get("qualificationContract")
+    if (
+        derivation.get("kind") != "qualification-result"
+        or derivation.get("qualification_contract") != contract_id
+    ):
+        raise ValueError("Predicate/Qualification catalog derivation mismatch")
+    arguments = _mapping(definition.get("arguments"))
+    if set(arguments) != {"qualification"}:
+        raise ValueError("qualification-result Predicate arguments mismatch")
+    declaration = _mapping(arguments.get("qualification"))
+    if (
+        declaration.get("kind") != "qualification-key"
+        or declaration.get("qualification_contract") != contract_id
+    ):
+        raise ValueError("Predicate qualification argument cross-binding mismatch")
+    fact_descriptor = {
+        "schema": "turnlock.semantic-fact-descriptor.v1",
+        "predicateRevision": predicate_id,
+        "arguments": {"qualification": copy.deepcopy(qualification_ref)},
+    }
+    return _protocol_v8_e3a_register_fact_descriptor(
+        closure, predicates, fact_descriptor
+    )
+
+
+def _protocol_v8_e3b_reduce_qualification(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    qualification_ref: object,
+    *,
+    fact_dependency_resolver=None,
+    require_current_consumability: bool,
+) -> dict | None:
+    """Reduce one exact C4 QualificationKey to zero or one positive Fact."""
+    if type(require_current_consumability) is not bool:
+        raise ValueError("require_current_consumability must be an exact bool")
+    case_map, case_errors = _protocol_v8_e3b_case_map(qualifications)
+    if case_errors:
+        raise ValueError(case_errors[0])
+    handlers = {
+        "positive-materiality": _protocol_v8_e3b_case_positive_materiality,
+        "qualified-non-materiality": _protocol_v8_e3b_case_qualified_non_materiality,
+        "qualified-refutation": _protocol_v8_e3b_case_qualified_refutation,
+        "qualified-no-normative-impact": _protocol_v8_e3b_case_qualified_no_normative_impact,
+        "qualified-decision-necessity": _protocol_v8_e3b_case_qualified_decision_necessity,
+        "accepted-unique-correction": _protocol_v8_e3b_case_accepted_unique_correction,
+        "accepted-realization-scope": _protocol_v8_e3b_case_accepted_realization_scope,
+        "accepted-repair-realization": _protocol_v8_e3b_case_accepted_repair_realization,
+    }
+    if set(case_map) != set(handlers):
+        raise ValueError("catalog/implementation integrity failure")
+    descriptor = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    case_record = _protocol_v8_e3b_case_for_descriptor(
+        qualifications, descriptor
+    )
+    case = case_record["case"]
+    case_id = case.get("case_id")
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(validator_errors[0])
+        # Validator compilation is a disposable technical cache, never semantic
+        # authority or runtime persistence.
+        closure["_e3b_output_validators"] = validators
+    anchor = _protocol_v8_e3b_admission_context(
+        root,
+        closure,
+        contracts,
+        descriptor.get("anchorAdmission"),
+        validators,
+    )
+
+    def dependency(reference: object) -> dict:
+        return _protocol_v8_e3b_fact_dependency(
+            closure, reference, fact_dependency_resolver
+        )
+
+    anchor_definition = _mapping(
+        _mapping(case_record["qualification"].get("definition")).get("anchor")
+    )
+    anchor_kind = anchor_definition.get("kind")
+    if anchor_kind == "direct-semantic-admission":
+        if anchor["contract_id"] not in _sequence(
+            anchor_definition.get("producer_contracts")
+        ):
+            return None
+    elif anchor_kind == "producer-admission-of-fact":
+        source_name = anchor_definition.get("source_input")
+        source_ref = _mapping(descriptor.get("additionalInputs")).get(source_name)
+        source = dependency(source_ref)
+        if source["descriptor"].get("predicateRevision") != anchor_definition.get(
+            "predicate_revision"
+        ):
+            return None
+        if require_current_consumability and not source["consumable"]:
+            return None
+        producer = _protocol_v8_e3b_producer_admission_of_fact(
+            source_ref, dependency
+        )
+        if descriptor.get("anchorAdmission") != producer:
+            return None
+        if anchor["contract_id"] not in _sequence(
+            anchor_definition.get("producer_contracts")
+        ):
+            return None
+    else:
+        raise ValueError("unsupported published C4 qualification anchor kind")
+    if require_current_consumability and not anchor["currently_consumable"]:
+        return None
+    established = handlers[case_id](
+        root,
+        closure,
+        contracts,
+        descriptor,
+        case,
+        anchor,
+        validators,
+        dependency,
+        require_current_consumability,
+    )
+    if not established:
+        return None
+    fact_ref = _protocol_v8_e3b_derive_qualification_fact(
+        closure,
+        predicates,
+        qualification_ref,
+        descriptor,
+        case_record,
+    )
+    return {
+        "case_id": case_id,
+        "qualification": copy.deepcopy(qualification_ref),
+        "fact": fact_ref,
+    }
+
+
+def _protocol_v8_e3b_test_admit(
+    closure: dict,
+    contracts: dict[str, dict],
+    contract_id: str,
+    exact_logical_input: dict,
+    candidate: object,
+) -> dict:
+    """Create one exact in-memory Admission through T1/T2/T3/completion/T4."""
+    descriptor = {
+        "schema": "turnlock.logical-question-descriptor.v1",
+        "semanticQuestionContract": contract_id,
+        "exactLogicalInput": copy.deepcopy(exact_logical_input),
+    }
+    qlek = _protocol_v8_e3a_register_question(closure, contracts, descriptor)
+    counter = closure.setdefault("_e3b_test_execution_counter", 0) + 1
+    closure["_e3b_test_execution_counter"] = counter
+    execution_id = f"E-E3-B-{counter}"
+    state = closure["e2_state"]
+    _protocol_v8_e2_t1_acquire_authority(state, qlek, counter)
+    _protocol_v8_e2_t2_authorize_execution(
+        state, qlek, counter, execution_id, outer_authorized=True
+    )
+    _protocol_v8_e2_t3_arm_execution(state, qlek, counter, execution_id)
+    _protocol_v8_e2_record_protocol_valid_completion(
+        state, execution_id, candidate
+    )
+    result = _protocol_v8_e2_t4_reconcile_completion(state, execution_id)
+    return {
+        "kind": "semantic-admission",
+        "admissionId": result["admission_id"],
+    }
+
+
+def _protocol_v8_e3b_test_challenge_candidate(
+    challenge_contract: dict,
+    zero_objections: bool,
+) -> dict:
+    """Build an exact self-check-only ChallengeSemanticValue."""
+    objectives = list(
+        _sequence(
+            _mapping(
+                _mapping(challenge_contract.get("definition")).get("challenge")
+            ).get("objectives")
+        )
+    )
+    assessments = [
+        {"objective": objective, "objection_ids": []}
+        for objective in objectives
+    ]
+    objections: list[dict] = []
+    if not zero_objections:
+        objection_id = "O-E3-B-1"
+        assessments[0]["objection_ids"] = [objection_id]
+        objections = [
+            {
+                "challenge_objection_id": objection_id,
+                "objective": objectives[0],
+                "statement": "test objection",
+                "argument": "test objection argument",
+                "evidence_references": ["E-E3-B-1"],
+            }
+        ]
+    return {
+        "objective_assessments": assessments,
+        "objections": objections,
+    }
+
+
+def _protocol_v8_e3b_test_qualification(
+    closure: dict,
+    qualifications: dict[str, dict],
+    contract_id: str,
+    anchor: dict,
+    additional: dict,
+) -> dict:
+    return _protocol_v8_e3a_register_qualification_descriptor(
+        closure,
+        qualifications,
+        {
+            "schema": "turnlock.qualification-key-descriptor.v1",
+            "qualificationContract": contract_id,
+            "anchorAdmission": copy.deepcopy(anchor),
+            "additionalInputs": copy.deepcopy(additional),
+        },
+    )
+
+
+def _protocol_v8_e3b_test_fact(
+    closure: dict,
+    predicates: dict[str, dict],
+    predicate_id: str,
+    arguments: dict,
+) -> dict:
+    return _protocol_v8_e3a_register_fact_descriptor(
+        closure,
+        predicates,
+        {
+            "schema": "turnlock.semantic-fact-descriptor.v1",
+            "predicateRevision": predicate_id,
+            "arguments": copy.deepcopy(arguments),
+        },
+    )
+
+
+def _inactive_protocol_v8_e3b_qualification_reducer_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise all eight exact qualification cases in disposable C3 state."""
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(catalog_errors)
+    errors.extend(contract_errors)
+    errors.extend(validator_errors)
+    case_map, case_errors = _protocol_v8_e3b_case_map(qualifications)
+    errors.extend(case_errors)
+    handlers = {
+        "positive-materiality",
+        "qualified-non-materiality",
+        "qualified-refutation",
+        "qualified-no-normative-impact",
+        "qualified-decision-necessity",
+        "accepted-unique-correction",
+        "accepted-realization-scope",
+        "accepted-repair-realization",
+    }
+    if len(qualifications) != 7:
+        errors.append("inactive protocol v8 E3-B: expected 7 QualificationContracts")
+    if len(case_map) != 8 or set(case_map) != handlers:
+        errors.append("inactive protocol v8 E3-B: reducer handler coverage mismatch")
+    derived = [
+        _mapping(record.get("case")).get("derives_predicate")
+        for record in case_map.values()
+    ]
+    if len(set(derived)) != 8:
+        errors.append("inactive protocol v8 E3-B: case output Predicates are not unique")
+    for case_id, record in case_map.items():
+        predicate_id = _mapping(record.get("case")).get("derives_predicate")
+        predicate = predicates.get(predicate_id)
+        derivation = _mapping(_mapping(predicate).get("definition")).get("derivation")
+        if not isinstance(derivation, dict) or (
+            derivation.get("kind") != "qualification-result"
+            or derivation.get("qualification_contract")
+            != record.get("qualification_contract")
+        ):
+            errors.append(
+                f"inactive protocol v8 E3-B: {case_id} Predicate cross-binding mismatch"
+            )
+    if errors:
+        return errors
+
+    state = _protocol_v8_e2_new_state()
+    closure = _protocol_v8_e3a_new_closure(state)
+
+    def semantic_value(value_type: str, label: str) -> dict:
+        return _protocol_v8_e3a_register_semantic_value(
+            closure, value_type, {"test": label}
+        )
+
+    finding_ref = semantic_value(
+        "turnlock.semantic-value:FindingAdjudicationBasis@1", "finding-1"
+    )
+    finding_ref_two = semantic_value(
+        "turnlock.semantic-value:FindingAdjudicationBasis@1", "finding-2"
+    )
+    finding_ref_three = semantic_value(
+        "turnlock.semantic-value:FindingAdjudicationBasis@1", "finding-3"
+    )
+    surviving_ref = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1", "surviving-1"
+    )
+    surviving_ref_two = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1", "surviving-2"
+    )
+    candidate_view = semantic_value(
+        "turnlock.semantic-value:CandidateView@1", "candidate-view"
+    )
+    candidate_revision = {
+        "kind": "exact-authority",
+        "authorityType": "turnlock.authority:candidate-revision.v2",
+        "authorityId": "C-E3-B-1",
+    }
+    _protocol_v8_e3a_register_exact_authority(closure, candidate_revision)
+
+    positive_materiality = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "e3-b positive materiality",
+    }
+    all_false_materiality = {
+        "authority_or_upstream_decision": False,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "e3-b qualified non-materiality",
+    }
+    refutation_candidate = {
+        "kind": "refutation-candidate",
+        "ground": "premise-false",
+        "attacked_premise_or_inference": "required premise",
+        "evidence_references": ["E-E3-B"],
+        "argument": "exact authority refutes the required premise",
+        "counterexample_disposition": None,
+    }
+    unique_correction_candidate = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [
+            {"postcondition": "required semantic state"}
+        ],
+        "derivation_claims": [
+            {
+                "claim": "existing authority entails the required semantic state",
+                "requirement_ordinals": [0],
+                "authority_references": [
+                    {"kind": "authority-content", "role": "normative-spec"}
+                ],
+                "evidence_references": [{"kind": "source-finding"}],
+                "derivation_argument": (
+                    "the controlling authority entails this requirement"
+                ),
+            }
+        ],
+        "alternatives_considered": [],
+        "uniqueness_argument": {
+            "authority_references": [
+                {"kind": "authority-content", "role": "normative-spec"}
+            ],
+            "argument": (
+                "no materially distinct authority-compatible correction remains"
+            ),
+        },
+    }
+    realization_scope_candidate = {
+        "readable_paths": [],
+        "writable_paths": [],
+        "completeness_argument": {
+            "requirement_surfaces": [],
+            "whole_scope_argument": "complete test scope",
+        },
+        "minimal_write_authority_argument": {
+            "writable_path_justifications": [],
+            "no_additional_write_authority_argument": (
+                "no additional write authority"
+            ),
+        },
+    }
+    repair_realization_candidate = {
+        "kind": "repair-realization-candidate",
+        "requirement_realizations": [],
+        "operations": [],
+    }
+    nni_statement = {
+        "statement": "downstream correction requires no product authority change",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": (
+            "the cited finding and authority establish the classification"
+        ),
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": (
+                "no new product authority is required"
+            ),
+            "changed_product_authority_not_required_argument": (
+                "no existing product authority must change"
+            ),
+            "product_meaning_selection_not_required_argument": (
+                "no product meaning selection is required"
+            ),
+            "accepted_observable_obligation_change_not_required_argument": (
+                "accepted observable obligations remain unchanged"
+            ),
+        },
+    }
+    decision_statement = {
+        "statement": "current product authority leaves two materially distinct outcomes",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": (
+            "the cited evidence exposes the unresolved product choice"
+        ),
+        "existing_authority": [],
+        "affected_layers": ["normative-contract"],
+        "semantic_disposition": "decision-required",
+        "disposition_basis": {
+            "kind": "product-underdetermination",
+            "alternatives": [
+                {
+                    "alternative": "A",
+                    "authority_compatibility_argument": (
+                        "A is compatible with current authority"
+                    ),
+                },
+                {
+                    "alternative": "B",
+                    "authority_compatibility_argument": (
+                        "B is compatible with current authority"
+                    ),
+                },
+            ],
+            "material_distinction_argument": "A and B differ materially",
+            "current_authority_non_selection_argument": (
+                "current authority selects neither A nor B"
+            ),
+        },
+    }
+
+    def discovery_candidate(statement: dict) -> dict:
+        return {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": (
+                    "the test statement is the earliest unresolved cause"
+                ),
+                "upstream_exclusion_argument": "no earlier unresolved cause exists",
+            },
+            "classification_statements": [copy.deepcopy(statement)],
+        }
+
+    def challenge(
+        target_closure: dict,
+        contract_id: str,
+        logical_input: dict,
+        zero_objections: bool,
+    ) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            target_closure,
+            contracts,
+            contract_id,
+            logical_input,
+            _protocol_v8_e3b_test_challenge_candidate(
+                contracts[contract_id], zero_objections
+            ),
+        )
+
+    def qualification(
+        target_closure: dict,
+        contract_id: str,
+        anchor: dict,
+        additional: dict,
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            target_closure, qualifications, contract_id, anchor, additional
+        )
+
+    def reduce(
+        target_closure: dict,
+        reference: dict,
+        *,
+        resolver=None,
+        current: bool = False,
+    ) -> dict | None:
+        return _protocol_v8_e3b_reduce_qualification(
+            root,
+            target_closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            fact_dependency_resolver=resolver,
+            require_current_consumability=current,
+        )
+
+    def expect_none(label: str, action) -> None:
+        try:
+            result = action()
+        except ValueError as error:
+            errors.append(f"inactive protocol v8 E3-B: {label} raised: {error}")
+            return
+        if result is not None:
+            errors.append(f"inactive protocol v8 E3-B: {label} derived a Fact")
+
+    successes: list[dict] = []
+    materiality_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": finding_ref},
+        positive_materiality,
+    )
+    positive_q = qualification(
+        closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        materiality_anchor,
+        {},
+    )
+    positive_result = reduce(closure, positive_q)
+    if positive_result is None:
+        errors.append("inactive protocol v8 E3-B: positive Materiality did not reduce")
+        return errors
+    successes.append(positive_result)
+    if positive_result["case_id"] != "positive-materiality":
+        errors.append("inactive protocol v8 E3-B: positive Materiality case mismatch")
+    qpm_ref = positive_result["fact"]
+    qpm_descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, qpm_ref)
+    if (
+        qpm_descriptor.get("predicateRevision")
+        != "turnlock.predicate:QualifiedPositiveMateriality@1"
+        or qpm_descriptor.get("arguments") != {"qualification": positive_q}
+    ):
+        errors.append("inactive protocol v8 E3-B: QPM descriptor mismatch")
+    if reduce(closure, positive_q)["fact"] != qpm_ref:
+        errors.append("inactive protocol v8 E3-B: provenance changed Fact identity")
+
+    positive_challenge = challenge(
+        closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        {"challengedMaterialityAssessment": materiality_anchor},
+        True,
+    )
+    positive_nonmaterial_q = qualification(
+        closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        materiality_anchor,
+        {"materialityChallenge": positive_challenge},
+    )
+    expect_none(
+        "positive assessment used for QualifiedNonMateriality",
+        lambda: reduce(closure, positive_nonmaterial_q),
+    )
+
+    all_false_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": finding_ref_two},
+        all_false_materiality,
+    )
+    all_false_positive_q = qualification(
+        closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        all_false_anchor,
+        {},
+    )
+    expect_none(
+        "all-false assessment used for QualifiedPositiveMateriality",
+        lambda: reduce(closure, all_false_positive_q),
+    )
+    materiality_objection_closure = copy.deepcopy(closure)
+    zero_materiality_challenge = challenge(
+        closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        {"challengedMaterialityAssessment": all_false_anchor},
+        True,
+    )
+    nonmaterial_q = qualification(
+        closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        all_false_anchor,
+        {"materialityChallenge": zero_materiality_challenge},
+    )
+    nonmaterial_result = reduce(closure, nonmaterial_q)
+    if nonmaterial_result is None:
+        errors.append("inactive protocol v8 E3-B: non-materiality did not reduce")
+        return errors
+    successes.append(nonmaterial_result)
+    objection = challenge(
+        materiality_objection_closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        {"challengedMaterialityAssessment": all_false_anchor},
+        False,
+    )
+    objection_q = qualification(
+        materiality_objection_closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        all_false_anchor,
+        {"materialityChallenge": objection},
+    )
+    expect_none(
+        "non-empty Materiality objections",
+        lambda: reduce(materiality_objection_closure, objection_q),
+    )
+
+    refutation_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RefutationInitial@1",
+        {
+            "findingAdjudicationBasis": finding_ref,
+            "qualifiedPositiveMateriality": qpm_ref,
+        },
+        refutation_candidate,
+    )
+    refutation_objection_closure = copy.deepcopy(closure)
+    refutation_challenge = challenge(
+        closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        {"challengedRefutation": refutation_anchor},
+        True,
+    )
+    refutation_q = qualification(
+        closure,
+        "turnlock.qualification:RefutationQualification@1",
+        refutation_anchor,
+        {"refutationChallenge": refutation_challenge},
+    )
+    refutation_result = reduce(closure, refutation_q)
+    if refutation_result is None:
+        errors.append("inactive protocol v8 E3-B: Refutation did not reduce")
+        return errors
+    successes.append(refutation_result)
+    refutation_objection = challenge(
+        refutation_objection_closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        {"challengedRefutation": refutation_anchor},
+        False,
+    )
+    refutation_objection_q = qualification(
+        refutation_objection_closure,
+        "turnlock.qualification:RefutationQualification@1",
+        refutation_anchor,
+        {"refutationChallenge": refutation_objection},
+    )
+    expect_none(
+        "non-empty Refutation objections",
+        lambda: reduce(refutation_objection_closure, refutation_objection_q),
+    )
+    refutation_negative = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RefutationInitial@1",
+        {
+            "findingAdjudicationBasis": finding_ref_two,
+            "qualifiedPositiveMateriality": qpm_ref,
+        },
+        {"kind": "not-established"},
+    )
+    negative_refutation_challenge = challenge(
+        closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        {"challengedRefutation": refutation_negative},
+        True,
+    )
+    negative_refutation_q = qualification(
+        closure,
+        "turnlock.qualification:RefutationQualification@1",
+        refutation_negative,
+        {"refutationChallenge": negative_refutation_challenge},
+    )
+    expect_none(
+        "NotEstablished Refutation",
+        lambda: reduce(closure, negative_refutation_q),
+    )
+    other_refutation = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RefutationInitial@1",
+        {
+            "findingAdjudicationBasis": finding_ref_three,
+            "qualifiedPositiveMateriality": qpm_ref,
+        },
+        refutation_candidate,
+    )
+    other_refutation_challenge = challenge(
+        closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        {"challengedRefutation": other_refutation},
+        True,
+    )
+    wrong_refutation_target_q = qualification(
+        closure,
+        "turnlock.qualification:RefutationQualification@1",
+        refutation_anchor,
+        {"refutationChallenge": other_refutation_challenge},
+    )
+    expect_none(
+        "Refutation challenge targets another Admission",
+        lambda: reduce(closure, wrong_refutation_target_q),
+    )
+
+    nni_discovery = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": surviving_ref},
+        discovery_candidate(nni_statement),
+    )
+    decision_discovery = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": surviving_ref_two},
+        discovery_candidate(decision_statement),
+    )
+    nni_t = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": nni_discovery, "statement": nni_statement},
+    )
+    decision_t = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": decision_discovery, "statement": decision_statement},
+    )
+    support: dict[str, bool] = {
+        nni_t["factId"]: True,
+        decision_t["factId"]: True,
+    }
+
+    def fact_resolver(reference: dict) -> dict:
+        descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, reference)
+        return {
+            "reference": copy.deepcopy(reference),
+            "descriptor": descriptor,
+            "reconstructible": True,
+            "consumable": support.get(reference["factId"], True),
+        }
+
+    uc_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "discovery": nni_discovery,
+            "targetedDiscoveryStatement": nni_t,
+        },
+        unique_correction_candidate,
+    )
+    uc_objection_closure = copy.deepcopy(closure)
+    uc_challenge = challenge(
+        closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        {"challengedUniqueCorrection": uc_anchor},
+        True,
+    )
+    uc_q = qualification(
+        closure,
+        "turnlock.qualification:UniqueCorrectionQualification@1",
+        uc_anchor,
+        {"uniqueCorrectionChallenge": uc_challenge},
+    )
+    uc_result = reduce(closure, uc_q)
+    if uc_result is None:
+        errors.append("inactive protocol v8 E3-B: UniqueCorrection did not reduce")
+        return errors
+    successes.append(uc_result)
+    auc_ref = uc_result["fact"]
+    uc_objection = challenge(
+        uc_objection_closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        {"challengedUniqueCorrection": uc_anchor},
+        False,
+    )
+    uc_objection_q = qualification(
+        uc_objection_closure,
+        "turnlock.qualification:UniqueCorrectionQualification@1",
+        uc_anchor,
+        {"uniqueCorrectionChallenge": uc_objection},
+    )
+    expect_none(
+        "non-empty UniqueCorrection objections",
+        lambda: reduce(uc_objection_closure, uc_objection_q),
+    )
+    uc_negative = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "discovery": decision_discovery,
+            "targetedDiscoveryStatement": decision_t,
+        },
+        {"kind": "not-established"},
+    )
+    uc_negative_challenge = challenge(
+        closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        {"challengedUniqueCorrection": uc_negative},
+        True,
+    )
+    uc_negative_q = qualification(
+        closure,
+        "turnlock.qualification:UniqueCorrectionQualification@1",
+        uc_negative,
+        {"uniqueCorrectionChallenge": uc_negative_challenge},
+    )
+    expect_none("NotEstablished UniqueCorrection", lambda: reduce(closure, uc_negative_q))
+
+    rs_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RealizationScopeInitial@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "acceptedUniqueCorrection": auc_ref,
+            "candidateRevision": candidate_revision,
+            "completeCandidateView": candidate_view,
+        },
+        realization_scope_candidate,
+    )
+    rs_objection_closure = copy.deepcopy(closure)
+    rs_challenge = challenge(
+        closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        {"challengedRealizationScope": rs_anchor},
+        True,
+    )
+    rs_q = qualification(
+        closure,
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs_anchor,
+        {"realizationScopeChallenge": rs_challenge},
+    )
+    rs_result = reduce(closure, rs_q)
+    if rs_result is None:
+        errors.append("inactive protocol v8 E3-B: RealizationScope did not reduce")
+        return errors
+    successes.append(rs_result)
+    ars_ref = rs_result["fact"]
+    rs_objection = challenge(
+        rs_objection_closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        {"challengedRealizationScope": rs_anchor},
+        False,
+    )
+    rs_objection_q = qualification(
+        rs_objection_closure,
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs_anchor,
+        {"realizationScopeChallenge": rs_objection},
+    )
+    expect_none(
+        "non-empty RealizationScope objections",
+        lambda: reduce(rs_objection_closure, rs_objection_q),
+    )
+    candidate_revision_two = {
+        "kind": "exact-authority",
+        "authorityType": "turnlock.authority:candidate-revision.v2",
+        "authorityId": "C-E3-B-2",
+    }
+    _protocol_v8_e3a_register_exact_authority(closure, candidate_revision_two)
+    rs_negative = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RealizationScopeInitial@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "acceptedUniqueCorrection": auc_ref,
+            "candidateRevision": candidate_revision_two,
+            "completeCandidateView": candidate_view,
+        },
+        {"kind": "not-established"},
+    )
+    rs_negative_challenge = challenge(
+        closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        {"challengedRealizationScope": rs_negative},
+        True,
+    )
+    rs_negative_q = qualification(
+        closure,
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs_negative,
+        {"realizationScopeChallenge": rs_negative_challenge},
+    )
+    expect_none(
+        "NotEstablished RealizationScope",
+        lambda: reduce(closure, rs_negative_q),
+    )
+
+    rr_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RepairRealizationInitial@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "acceptedUniqueCorrection": auc_ref,
+            "acceptedRealizationScope": ars_ref,
+            "candidateRevision": candidate_revision,
+            "scopedCandidateView": candidate_view,
+        },
+        repair_realization_candidate,
+    )
+    rr_objection_closure = copy.deepcopy(closure)
+    rr_challenge = challenge(
+        closure,
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        {"challengedRepairRealization": rr_anchor},
+        True,
+    )
+    rr_q = qualification(
+        closure,
+        "turnlock.qualification:RepairRealizationQualification@1",
+        rr_anchor,
+        {"repairRealizationChallenge": rr_challenge},
+    )
+    rr_result = reduce(closure, rr_q)
+    if rr_result is None:
+        errors.append("inactive protocol v8 E3-B: RepairRealization did not reduce")
+        return errors
+    successes.append(rr_result)
+    rr_objection = challenge(
+        rr_objection_closure,
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        {"challengedRepairRealization": rr_anchor},
+        False,
+    )
+    rr_objection_q = qualification(
+        rr_objection_closure,
+        "turnlock.qualification:RepairRealizationQualification@1",
+        rr_anchor,
+        {"repairRealizationChallenge": rr_objection},
+    )
+    expect_none(
+        "non-empty RepairRealization objections",
+        lambda: reduce(rr_objection_closure, rr_objection_q),
+    )
+    rr_negative = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:RepairRealizationInitial@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "acceptedUniqueCorrection": auc_ref,
+            "acceptedRealizationScope": ars_ref,
+            "candidateRevision": candidate_revision_two,
+            "scopedCandidateView": candidate_view,
+        },
+        {"kind": "not-established"},
+    )
+    rr_negative_challenge = challenge(
+        closure,
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        {"challengedRepairRealization": rr_negative},
+        True,
+    )
+    rr_negative_q = qualification(
+        closure,
+        "turnlock.qualification:RepairRealizationQualification@1",
+        rr_negative,
+        {"repairRealizationChallenge": rr_negative_challenge},
+    )
+    expect_none(
+        "NotEstablished RepairRealization",
+        lambda: reduce(closure, rr_negative_q),
+    )
+
+    nni_objection_closure = copy.deepcopy(closure)
+    nni_challenge = challenge(
+        closure,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        {"targetedDiscoveryStatement": nni_t},
+        True,
+    )
+    nni_q = qualification(
+        closure,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        nni_discovery,
+        {
+            "targetedDiscoveryStatement": nni_t,
+            "noNormativeImpactChallenge": nni_challenge,
+        },
+    )
+    nni_result = reduce(closure, nni_q, resolver=fact_resolver)
+    if nni_result is None:
+        errors.append("inactive protocol v8 E3-B: NoNormativeImpact did not reduce")
+        return errors
+    successes.append(nni_result)
+    wrong_nni_anchor_q = qualification(
+        closure,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        decision_discovery,
+        {
+            "targetedDiscoveryStatement": nni_t,
+            "noNormativeImpactChallenge": nni_challenge,
+        },
+    )
+    expect_none(
+        "NNI different producer anchor",
+        lambda: reduce(closure, wrong_nni_anchor_q, resolver=fact_resolver),
+    )
+    wrong_nni_disposition_challenge = challenge(
+        closure,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        {"targetedDiscoveryStatement": decision_t},
+        True,
+    )
+    wrong_nni_disposition_q = qualification(
+        closure,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        decision_discovery,
+        {
+            "targetedDiscoveryStatement": decision_t,
+            "noNormativeImpactChallenge": wrong_nni_disposition_challenge,
+        },
+    )
+    expect_none(
+        "decision-required target used as NNI",
+        lambda: reduce(closure, wrong_nni_disposition_q, resolver=fact_resolver),
+    )
+    wrong_nni_target_q = qualification(
+        closure,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        nni_discovery,
+        {
+            "targetedDiscoveryStatement": nni_t,
+            "noNormativeImpactChallenge": wrong_nni_disposition_challenge,
+        },
+    )
+    expect_none(
+        "NNI challenge targets another Fact",
+        lambda: reduce(closure, wrong_nni_target_q, resolver=fact_resolver),
+    )
+
+    def cloned_resolver(target_closure: dict, consumable: bool = True):
+        def resolve(reference: dict) -> dict:
+            return {
+                "reference": copy.deepcopy(reference),
+                "descriptor": _protocol_v8_e3a_resolve_fact_identity(
+                    target_closure, reference
+                ),
+                "reconstructible": True,
+                "consumable": consumable,
+            }
+        return resolve
+
+    nni_objection = challenge(
+        nni_objection_closure,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        {"targetedDiscoveryStatement": nni_t},
+        False,
+    )
+    nni_objection_q = qualification(
+        nni_objection_closure,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        nni_discovery,
+        {
+            "targetedDiscoveryStatement": nni_t,
+            "noNormativeImpactChallenge": nni_objection,
+        },
+    )
+    expect_none(
+        "non-empty NNI objections",
+        lambda: reduce(
+            nni_objection_closure,
+            nni_objection_q,
+            resolver=cloned_resolver(nni_objection_closure),
+        ),
+    )
+
+    d_ref = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        {"targetedDiscoveryStatement": decision_t},
+    )
+    u_ref = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        {"targetedDiscoveryStatement": decision_t},
+    )
+    n_ref = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+        },
+    )
+    support.update(
+        {
+            d_ref["factId"]: True,
+            u_ref["factId"]: True,
+            n_ref["factId"]: True,
+        }
+    )
+    dn_objection_closure = copy.deepcopy(closure)
+    dn_challenge = challenge(
+        closure,
+        "turnlock.sqc:DecisionNecessityChallenge@1",
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+        },
+        True,
+    )
+    dn_q = qualification(
+        closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        decision_discovery,
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+            "decisionNecessityChallenge": dn_challenge,
+        },
+    )
+    dn_result = reduce(closure, dn_q, resolver=fact_resolver)
+    if dn_result is None:
+        errors.append("inactive protocol v8 E3-B: DecisionNecessity did not reduce")
+        return errors
+    successes.append(dn_result)
+
+    t_two = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": nni_discovery, "statement": decision_statement},
+    )
+    u_two = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        {"targetedDiscoveryStatement": t_two},
+    )
+    n_two = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+        },
+    )
+    support.update({t_two["factId"]: True, u_two["factId"]: True, n_two["factId"]: True})
+    wrong_u_q = qualification(
+        closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        decision_discovery,
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_two,
+            "decisionNecessityCandidate": n_ref,
+            "decisionNecessityChallenge": dn_challenge,
+        },
+    )
+    expect_none(
+        "DN U targets another T",
+        lambda: reduce(closure, wrong_u_q, resolver=fact_resolver),
+    )
+    wrong_n_q = qualification(
+        closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        decision_discovery,
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_two,
+            "decisionNecessityChallenge": dn_challenge,
+        },
+    )
+    expect_none(
+        "DN N arguments mismatch",
+        lambda: reduce(closure, wrong_n_q, resolver=fact_resolver),
+    )
+    wrong_sm_q = qualification(
+        closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        decision_discovery,
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+            "decisionNecessityChallenge": dn_challenge,
+        },
+    )
+    expect_none(
+        "DN wrong SM",
+        lambda: reduce(closure, wrong_sm_q, resolver=fact_resolver),
+    )
+    dn_mismatch_challenge = challenge(
+        closure,
+        "turnlock.sqc:DecisionNecessityChallenge@1",
+        {
+            "survivingMaterialBasis": surviving_ref,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+        },
+        True,
+    )
+    dn_mismatch_q = qualification(
+        closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        decision_discovery,
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+            "decisionNecessityChallenge": dn_mismatch_challenge,
+        },
+    )
+    expect_none(
+        "DN challenge logical-input mismatch",
+        lambda: reduce(closure, dn_mismatch_q, resolver=fact_resolver),
+    )
+    dn_objection = challenge(
+        dn_objection_closure,
+        "turnlock.sqc:DecisionNecessityChallenge@1",
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+        },
+        False,
+    )
+    dn_objection_q = qualification(
+        dn_objection_closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        decision_discovery,
+        {
+            "survivingMaterialBasis": surviving_ref_two,
+            "decisionRequiredStatement": d_ref,
+            "uniqueCorrectionExhaustion": u_ref,
+            "decisionNecessityCandidate": n_ref,
+            "decisionNecessityChallenge": dn_objection,
+        },
+    )
+    expect_none(
+        "non-empty DecisionNecessity objections",
+        lambda: reduce(
+            dn_objection_closure,
+            dn_objection_q,
+            resolver=cloned_resolver(dn_objection_closure),
+        ),
+    )
+
+    _protocol_v8_e3a_expect_rejected(
+        lambda: reduce(closure, nni_q),
+        errors,
+        "NNI without E3-C dependency resolver",
+        "E3-C fact dependency resolver required",
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: reduce(closure, dn_q),
+        errors,
+        "DecisionNecessity without E3-C dependency resolver",
+        "E3-C fact dependency resolver required",
+    )
+
+    def unreconstructible(reference: dict) -> dict:
+        return {
+            "reference": copy.deepcopy(reference),
+            "descriptor": _protocol_v8_e3a_resolve_fact_identity(
+                closure, reference
+            ),
+            "reconstructible": False,
+            "consumable": True,
+        }
+
+    _protocol_v8_e3a_expect_rejected(
+        lambda: reduce(closure, nni_q, resolver=unreconstructible),
+        errors,
+        "unreconstructible claimed Fact dependency",
+        "not reconstructible",
+    )
+
+    def quarantined(reference: dict) -> dict:
+        result = fact_resolver(reference)
+        result["consumable"] = False
+        return result
+
+    expect_none(
+        "currently quarantined Fact dependency",
+        lambda: reduce(closure, nni_q, resolver=quarantined, current=True),
+    )
+    if reduce(closure, nni_q, resolver=quarantined, current=False) is None:
+        errors.append(
+            "inactive protocol v8 E3-B: quarantined Fact erased historical truth"
+        )
+
+    wrong_producer_q = qualification(
+        closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        refutation_anchor,
+        {},
+    )
+    expect_none("wrong anchor producer contract", lambda: reduce(closure, wrong_producer_q))
+    malformed_anchor = _protocol_v8_e3b_test_admit(
+        closure,
+        contracts,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": finding_ref_three},
+        {"invalid": True},
+    )
+    malformed_q = qualification(
+        closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        malformed_anchor,
+        {},
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: reduce(closure, malformed_q),
+        errors,
+        "invalid Admission candidate schema",
+        "output schema violation",
+    )
+
+    inconsistent_predicates = copy.deepcopy(predicates)
+    inconsistent_predicates[
+        "turnlock.predicate:QualifiedPositiveMateriality@1"
+    ]["definition"]["derivation"]["qualification_contract"] = (
+        "turnlock.qualification:RefutationQualification@1"
+    )
+    try:
+        _protocol_v8_e3b_reduce_qualification(
+            root,
+            closure,
+            contracts,
+            inconsistent_predicates,
+            qualifications,
+            positive_q,
+            require_current_consumability=False,
+        )
+    except ValueError:
+        pass
+    else:
+        errors.append(
+            "inactive protocol v8 E3-B: Predicate catalog mismatch did not fail"
+        )
+
+    materiality_record = _protocol_v8_e3a_resolve_admission_identity(
+        closure, materiality_anchor
+    )
+    qlek = materiality_record["qlek"]
+    conflict_candidate = {**positive_materiality, "claim_structure": True}
+    conflict_id = _protocol_v8_e1_semantic_admission_id(qlek, conflict_candidate)
+    token = _protocol_v8_e2_validated_witness_token(
+        qlek, conflict_id, conflict_candidate, "IMPORTED-E3-B-CONFLICT"
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        state,
+        qlek,
+        semantic_candidate=conflict_candidate,
+        validated_origin_witness=token,
+    )
+    historical = reduce(closure, positive_q, current=False)
+    if historical is None or historical["fact"] != qpm_ref:
+        errors.append(
+            "inactive protocol v8 E3-B: historical Admission conflict changed Fact truth"
+        )
+    expect_none(
+        "currently quarantined Admission",
+        lambda: reduce(closure, positive_q, current=True),
+    )
+
+    expected_predicates = set(derived)
+    actual_predicates = {
+        result["fact"]["predicateRevision"]
+        for result in successes
+    }
+    if len(successes) != 8 or actual_predicates != expected_predicates:
+        errors.append(
+            "inactive protocol v8 E3-B: eight-case successful output cardinality mismatch"
+        )
+    for result in successes:
+        if set(result) != {"case_id", "qualification", "fact"}:
+            errors.append("inactive protocol v8 E3-B: reducer result shape mismatch")
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -10340,6 +12331,9 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_e2_execution_admission_errors(root))
     errors.extend(
         _inactive_protocol_v8_e3a_semantic_closure_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e3b_qualification_reducer_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
