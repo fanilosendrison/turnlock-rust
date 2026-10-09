@@ -6591,6 +6591,1063 @@ def _inactive_protocol_v8_e3b_qualification_reducer_errors(
     return errors
 
 
+def _protocol_v8_e3c1_rule_map(
+    predicates: dict[str, dict],
+) -> tuple[dict[str, dict], list[str]]:
+    """Select the two E3-C1 deterministic rules from the Predicate catalog."""
+    supported = {
+        "targeted-discovery-statement",
+        "decision-required-discovery-statement",
+    }
+    rules: dict[str, dict] = {}
+    errors: list[str] = []
+    for predicate_id, predicate in predicates.items():
+        definition = _mapping(predicate.get("definition"))
+        derivation = _mapping(definition.get("derivation"))
+        if derivation.get("kind") != "deterministic":
+            continue
+        rule = derivation.get("rule")
+        if rule not in supported:
+            continue
+        if predicate.get("revision_id") != predicate_id:
+            errors.append(
+                f"inactive protocol v8 E3-C1: {rule} revision_id/catalog mismatch"
+            )
+            continue
+        if rule in rules:
+            errors.append(
+                f"inactive protocol v8 E3-C1: duplicate deterministic rule {rule!r}"
+            )
+            continue
+        rules[rule] = predicate
+    if set(rules) != supported:
+        errors.append(
+            "inactive protocol v8 E3-C1: expected exactly the two Discovery rules"
+        )
+    return rules, errors
+
+
+def _protocol_v8_e3c1_initial_discovery_statement_truth(
+    producer_context: dict,
+    statement: object,
+) -> bool:
+    """Reduce one exact initial Discovery statement occurrence."""
+    definition = _mapping(producer_context["contract"].get("definition"))
+    if (
+        definition.get("question_kind") != "initial"
+        or definition.get("family") != "discovery-classification"
+    ):
+        return False
+    candidate = producer_context.get("candidate")
+    if not isinstance(candidate, dict):
+        raise ValueError("initial Discovery candidate must be an object")
+    statements = candidate.get("classification_statements")
+    if not isinstance(statements, list):
+        raise ValueError("initial Discovery classification_statements must be an array")
+    canonical = [
+        _protocol_v8_e1_canonical_json_value_bytes(item)
+        for item in statements
+    ]
+    if len(set(canonical)) != len(canonical):
+        raise ValueError("duplicate exact canonical Discovery statement")
+    target = _protocol_v8_e1_canonical_json_value_bytes(statement)
+    return sum(item == target for item in canonical) == 1
+
+
+def _protocol_v8_e3c1_nni_revision_statement_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    producer_context: dict,
+    statement: object,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Reduce the one catalog-authorized positive NNI Discovery revision."""
+    definition = _mapping(producer_context["contract"].get("definition"))
+    if (
+        definition.get("question_kind") != "revision"
+        or definition.get("family") != "no-normative-impact"
+    ):
+        return False
+    revision = _mapping(definition.get("revision"))
+    prior_target_name = revision.get("prior_candidate_input")
+    prior_challenge_name = revision.get("prior_challenge_input")
+    required_disposition = revision.get("required_positive_disposition")
+    if any(
+        not isinstance(value, str) or not value
+        for value in (
+            prior_target_name,
+            prior_challenge_name,
+            required_disposition,
+        )
+    ):
+        raise ValueError("NNI Discovery revision metadata is incomplete")
+    candidate = producer_context.get("candidate")
+    if candidate == {"kind": "not-established"}:
+        return False
+    if not isinstance(candidate, dict) or candidate.get("kind") != "revised-candidate":
+        raise ValueError("NNI Discovery revision candidate has invalid positive shape")
+    candidate_statement = candidate.get("statement")
+    candidate_bytes = _protocol_v8_e1_canonical_json_value_bytes(
+        candidate_statement
+    )
+    statement_bytes = _protocol_v8_e1_canonical_json_value_bytes(statement)
+    if _mapping(candidate_statement).get("semantic_disposition") != required_disposition:
+        raise ValueError("Discovery revision positive disposition violates SQC")
+    if candidate_bytes != statement_bytes:
+        return False
+
+    producer_input = _mapping(producer_context["descriptor"]).get(
+        "exactLogicalInput"
+    )
+    if not isinstance(producer_input, dict):
+        raise ValueError("Discovery revision exactLogicalInput must be an object")
+    prior_target_ref = producer_input.get(prior_target_name)
+    prior_status = _protocol_v8_e3c1_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        prior_target_ref,
+        active=active,
+    )
+    rules, rule_errors = _protocol_v8_e3c1_rule_map(predicates)
+    if rule_errors:
+        raise ValueError(rule_errors[0])
+    targeted_id = rules["targeted-discovery-statement"]["revision_id"]
+    if prior_status["descriptor"].get("predicateRevision") != targeted_id:
+        return False
+    if prior_status["reconstructible"] is not True:
+        return False
+    if require_current_consumability and prior_status["consumable"] is not True:
+        return False
+    prior_arguments = _mapping(prior_status["descriptor"].get("arguments"))
+    prior_statement = _mapping(prior_arguments.get("statement"))
+    if prior_statement.get("semantic_disposition") != required_disposition:
+        return False
+
+    followup = _mapping(revision.get("followup"))
+    challenge_contract_id = followup.get("challenge_contract")
+    challenge_contract = contracts.get(challenge_contract_id)
+    if not isinstance(challenge_contract, dict):
+        raise ValueError("NNI revision challenge contract is unknown")
+    challenge_definition = _mapping(challenge_contract.get("definition"))
+    challenge = _mapping(challenge_definition.get("challenge"))
+    trigger_contracts = challenge.get("revision_trigger_producer_contracts")
+    if (
+        challenge_definition.get("question_kind") != "challenge"
+        or not isinstance(trigger_contracts, list)
+        or not trigger_contracts
+        or any(not isinstance(item, str) or not item for item in trigger_contracts)
+    ):
+        raise ValueError("NNI revision challenge metadata is invalid")
+
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(validator_errors[0])
+        closure["_e3b_output_validators"] = validators
+    prior_producer_context = _protocol_v8_e3b_admission_context(
+        root,
+        closure,
+        contracts,
+        prior_arguments.get("producerDiscovery"),
+        validators,
+    )
+    if prior_producer_context["contract_id"] not in trigger_contracts:
+        return False
+
+    prior_challenge_ref = producer_input.get(prior_challenge_name)
+    prior_challenge = _protocol_v8_e3b_admission_context(
+        root,
+        closure,
+        contracts,
+        prior_challenge_ref,
+        validators,
+    )
+    if prior_challenge["contract_id"] != challenge_contract_id:
+        return False
+    target_name = challenge.get("target_input")
+    logical_input = _mapping(challenge_definition.get("logical_input"))
+    if not isinstance(target_name, str) or target_name not in logical_input:
+        raise ValueError("NNI challenge target metadata is invalid")
+    expected: dict[str, object] = {}
+    for name in logical_input:
+        if name == target_name:
+            expected[name] = copy.deepcopy(prior_target_ref)
+        elif name in producer_input:
+            expected[name] = copy.deepcopy(producer_input[name])
+        else:
+            return False
+    actual = _mapping(prior_challenge["descriptor"]).get("exactLogicalInput")
+    if actual != expected:
+        return False
+    objections = _mapping(prior_challenge.get("candidate")).get("objections")
+    if not isinstance(objections, list) or not objections:
+        return False
+    if (
+        require_current_consumability
+        and prior_challenge["currently_consumable"] is not True
+    ):
+        return False
+    return True
+
+
+def _protocol_v8_e3c1_targeted_discovery_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Reduce one catalog-selected TargetedDiscoveryStatement descriptor."""
+    rules, rule_errors = _protocol_v8_e3c1_rule_map(predicates)
+    if rule_errors:
+        raise ValueError(rule_errors[0])
+    predicate = rules["targeted-discovery-statement"]
+    if descriptor.get("predicateRevision") != predicate.get("revision_id"):
+        return False
+    definition = _mapping(predicate.get("definition"))
+    declarations = _mapping(definition.get("arguments"))
+    if set(declarations) != {"producerDiscovery", "statement"}:
+        raise ValueError("TargetedDiscoveryStatement catalog arguments mismatch")
+    producer_declaration = _mapping(declarations.get("producerDiscovery"))
+    producer_contracts = producer_declaration.get("producer_contracts")
+    if (
+        producer_declaration.get("kind") != "semantic-admission"
+        or not isinstance(producer_contracts, list)
+        or not producer_contracts
+        or any(not isinstance(item, str) or not item for item in producer_contracts)
+        or len(set(producer_contracts)) != len(producer_contracts)
+    ):
+        raise ValueError("TargetedDiscoveryStatement producer catalog is invalid")
+    if _mapping(declarations.get("statement")).get("kind") != "canonical-value":
+        raise ValueError("TargetedDiscoveryStatement statement catalog is invalid")
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {
+        "producerDiscovery",
+        "statement",
+    }:
+        raise ValueError("TargetedDiscoveryStatement descriptor arguments mismatch")
+
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(validator_errors[0])
+        closure["_e3b_output_validators"] = validators
+    producer = _protocol_v8_e3b_admission_context(
+        root,
+        closure,
+        contracts,
+        arguments.get("producerDiscovery"),
+        validators,
+    )
+    if producer["contract_id"] not in producer_contracts:
+        return False
+    if require_current_consumability and not producer["currently_consumable"]:
+        return False
+    producer_definition = _mapping(producer["contract"].get("definition"))
+    question_kind = producer_definition.get("question_kind")
+    family = producer_definition.get("family")
+    if question_kind == "initial" and family == "discovery-classification":
+        return _protocol_v8_e3c1_initial_discovery_statement_truth(
+            producer, arguments.get("statement")
+        )
+    if question_kind == "revision" and family == "no-normative-impact":
+        return _protocol_v8_e3c1_nni_revision_statement_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            producer,
+            arguments.get("statement"),
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    if question_kind == "revision" and family == "decision-necessity":
+        raise ValueError(
+            "E3-C3 decision-required Discovery revision resolver required"
+        )
+    return False
+
+
+def _protocol_v8_e3c1_decision_required_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Reduce one DecisionRequiredDiscoveryStatement through its exact target."""
+    rules, rule_errors = _protocol_v8_e3c1_rule_map(predicates)
+    if rule_errors:
+        raise ValueError(rule_errors[0])
+    targeted = rules["targeted-discovery-statement"]
+    predicate = rules["decision-required-discovery-statement"]
+    if descriptor.get("predicateRevision") != predicate.get("revision_id"):
+        return False
+    definition = _mapping(predicate.get("definition"))
+    declarations = _mapping(definition.get("arguments"))
+    if set(declarations) != {"targetedDiscoveryStatement"}:
+        raise ValueError("DecisionRequiredDiscoveryStatement arguments mismatch")
+    declaration = _mapping(declarations.get("targetedDiscoveryStatement"))
+    if (
+        declaration.get("kind") != "semantic-fact"
+        or declaration.get("predicate_revision") != targeted.get("revision_id")
+    ):
+        raise ValueError("DecisionRequired target Predicate catalog mismatch")
+    derivation = _mapping(definition.get("derivation"))
+    required_disposition = derivation.get("required_disposition")
+    allowed_basis_kinds = derivation.get("allowed_basis_kinds")
+    if not isinstance(required_disposition, str) or not required_disposition:
+        raise ValueError("DecisionRequired required disposition is invalid")
+    if (
+        not isinstance(allowed_basis_kinds, list)
+        or not allowed_basis_kinds
+        or any(
+            not isinstance(item, str) or not item
+            for item in allowed_basis_kinds
+        )
+        or len(set(allowed_basis_kinds)) != len(allowed_basis_kinds)
+    ):
+        raise ValueError("DecisionRequired allowed basis kinds are invalid")
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {
+        "targetedDiscoveryStatement"
+    }:
+        raise ValueError("DecisionRequired descriptor arguments mismatch")
+    target_ref = arguments.get("targetedDiscoveryStatement")
+    target = _protocol_v8_e3c1_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        target_ref,
+        active=active,
+    )
+    if target["descriptor"].get("predicateRevision") != targeted.get("revision_id"):
+        return False
+    if target["reconstructible"] is not True:
+        return False
+    if require_current_consumability and target["consumable"] is not True:
+        return False
+    statement = _mapping(
+        _mapping(target["descriptor"].get("arguments")).get("statement")
+    )
+    if statement.get("semantic_disposition") != required_disposition:
+        return False
+    basis = statement.get("disposition_basis")
+    return isinstance(basis, dict) and basis.get("kind") in allowed_basis_kinds
+
+
+def _protocol_v8_e3c1_fact_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Dispatch exactly the two E3-C1 deterministic reducer rules."""
+    rules, rule_errors = _protocol_v8_e3c1_rule_map(predicates)
+    if rule_errors:
+        raise ValueError(rule_errors[0])
+    predicate_id = descriptor.get("predicateRevision")
+    by_predicate = {
+        predicate["revision_id"]: rule
+        for rule, predicate in rules.items()
+    }
+    rule = by_predicate.get(predicate_id)
+    if rule == "targeted-discovery-statement":
+        return _protocol_v8_e3c1_targeted_discovery_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    if rule == "decision-required-discovery-statement":
+        return _protocol_v8_e3c1_decision_required_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    raise ValueError("E3-C1 unsupported predicate; later E3-C stage required")
+
+
+def _protocol_v8_e3c1_fact_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    fact_ref: object,
+    *,
+    active: set[str] | None = None,
+) -> dict:
+    """Resolve historical/current truth for only the two E3-C1 predicates."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    assert isinstance(fact_ref, dict)
+    fact_id = fact_ref["factId"]
+    _protocol_v8_e3a_resolve_dependency_graph(
+        closure,
+        contracts,
+        [("semantic-fact", fact_id)],
+    )
+    stack = active if active is not None else set()
+    if fact_id in stack:
+        raise ValueError("unlawful semantic Fact reducer cycle")
+    stack.add(fact_id)
+    try:
+        reconstructible = _protocol_v8_e3c1_fact_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            descriptor,
+            require_current_consumability=False,
+            active=stack,
+        )
+        consumable = False
+        if reconstructible:
+            consumable = _protocol_v8_e3c1_fact_truth(
+                root,
+                closure,
+                contracts,
+                predicates,
+                descriptor,
+                require_current_consumability=True,
+                active=stack,
+            )
+    finally:
+        stack.remove(fact_id)
+    return {
+        "reference": copy.deepcopy(fact_ref),
+        "descriptor": descriptor,
+        "reconstructible": bool(reconstructible),
+        "consumable": bool(consumable),
+    }
+
+
+def _protocol_v8_e3c1_claimed_fact_dependency(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    fact_ref: object,
+) -> dict:
+    """Adapt E3-C1 status to E3-B's claimed-Fact dependency contract."""
+    status = _protocol_v8_e3c1_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        fact_ref,
+    )
+    if status["reconstructible"] is not True:
+        raise ValueError("claimed Fact dependency is not reconstructible")
+    return status
+
+
+def _inactive_protocol_v8_e3c1_discovery_fact_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise the two Discovery Fact reducers in disposable semantic state."""
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(catalog_errors)
+    errors.extend(contract_errors)
+    errors.extend(validator_errors)
+    rules, rule_errors = _protocol_v8_e3c1_rule_map(predicates)
+    errors.extend(rule_errors)
+    if set(rules) != {
+        "targeted-discovery-statement",
+        "decision-required-discovery-statement",
+    }:
+        errors.append("inactive protocol v8 E3-C1: rule-map coverage mismatch")
+    targeted_predicate = rules.get("targeted-discovery-statement", {})
+    decision_predicate = rules.get("decision-required-discovery-statement", {})
+    targeted_definition = _mapping(targeted_predicate.get("definition"))
+    targeted_producers = _mapping(
+        _mapping(targeted_definition.get("arguments")).get("producerDiscovery")
+    ).get("producer_contracts")
+    decision_derivation = _mapping(
+        _mapping(decision_predicate.get("definition")).get("derivation")
+    )
+    if not isinstance(targeted_producers, list) or not targeted_producers:
+        errors.append("inactive protocol v8 E3-C1: no catalog Targeted producers")
+    if (
+        not isinstance(decision_derivation.get("required_disposition"), str)
+        or not isinstance(decision_derivation.get("allowed_basis_kinds"), list)
+    ):
+        errors.append("inactive protocol v8 E3-C1: DecisionRequired metadata missing")
+    if errors:
+        return errors
+
+    state = _protocol_v8_e2_new_state()
+    closure = _protocol_v8_e3a_new_closure(state)
+    closure["_e3b_output_validators"] = validators
+    surviving_ref = _protocol_v8_e3a_register_semantic_value(
+        closure,
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e3-c1-surviving-material"},
+    )
+
+    nni_statement = {
+        "statement": "downstream correction requires no product authority change",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": (
+            "the cited finding and authority establish the classification"
+        ),
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": (
+                "no new product authority is required"
+            ),
+            "changed_product_authority_not_required_argument": (
+                "no existing product authority must change"
+            ),
+            "product_meaning_selection_not_required_argument": (
+                "no product meaning selection is required"
+            ),
+            "accepted_observable_obligation_change_not_required_argument": (
+                "accepted observable obligations remain unchanged"
+            ),
+        },
+    }
+    decision_statement = {
+        "statement": "current product authority leaves two materially distinct outcomes",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": (
+            "the cited evidence exposes the unresolved product choice"
+        ),
+        "existing_authority": [],
+        "affected_layers": ["normative-contract"],
+        "semantic_disposition": "decision-required",
+        "disposition_basis": {
+            "kind": "product-underdetermination",
+            "alternatives": [
+                {
+                    "alternative": "A",
+                    "authority_compatibility_argument": (
+                        "A is compatible with current authority"
+                    ),
+                },
+                {
+                    "alternative": "B",
+                    "authority_compatibility_argument": (
+                        "B is compatible with current authority"
+                    ),
+                },
+            ],
+            "material_distinction_argument": "A and B differ materially",
+            "current_authority_non_selection_argument": (
+                "current authority selects neither A nor B"
+            ),
+        },
+    }
+    revised_nni_statement = {
+        "statement": (
+            "revised downstream correction still requires no product authority change"
+        ),
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": (
+            "the challenged evidence still establishes the downstream classification"
+        ),
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": (
+                "the revision still requires no new product authority"
+            ),
+            "changed_product_authority_not_required_argument": (
+                "the revision changes no existing product authority"
+            ),
+            "product_meaning_selection_not_required_argument": (
+                "the revision requires no product meaning selection"
+            ),
+            "accepted_observable_obligation_change_not_required_argument": (
+                "the revision changes no accepted observable obligation"
+            ),
+        },
+    }
+
+    def discovery_candidate(statement: dict, *, duplicate: bool = False) -> dict:
+        statements = [copy.deepcopy(statement)]
+        if duplicate:
+            statements.append(copy.deepcopy(statement))
+        return {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": (
+                    "the test statement is the earliest unresolved cause"
+                ),
+                "upstream_exclusion_argument": "no earlier unresolved cause exists",
+            },
+            "classification_statements": statements,
+        }
+
+    def semantic_value(label: str) -> dict:
+        return _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": label},
+        )
+
+    def admit(contract_id: str, logical_input: dict, candidate: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract_id, logical_input, candidate
+        )
+
+    def fact(predicate: dict, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(
+            closure, predicates, predicate["revision_id"], arguments
+        )
+
+    def targeted(producer: dict, statement: dict) -> dict:
+        return fact(
+            targeted_predicate,
+            {
+                "producerDiscovery": producer,
+                "statement": copy.deepcopy(statement),
+            },
+        )
+
+    def initial(s_ref: dict, statement: dict, *, duplicate: bool = False) -> tuple[dict, dict]:
+        producer = admit(
+            "turnlock.sqc:DiscoveryClassificationInitial@1",
+            {"survivingMaterialBasis": s_ref},
+            discovery_candidate(statement, duplicate=duplicate),
+        )
+        return producer, targeted(producer, statement)
+
+    def challenge(target: dict, zero_objections: bool) -> dict:
+        contract_id = "turnlock.sqc:NoNormativeImpactChallenge@1"
+        return admit(
+            contract_id,
+            {"targetedDiscoveryStatement": target},
+            _protocol_v8_e3b_test_challenge_candidate(
+                contracts[contract_id], zero_objections
+            ),
+        )
+
+    def nni_revision(
+        s_ref: dict,
+        prior_target: dict,
+        prior_challenge: dict,
+        candidate: object,
+    ) -> dict:
+        return admit(
+            "turnlock.sqc:DiscoveryNoNormativeImpactRevision@1",
+            {
+                "survivingMaterialBasis": s_ref,
+                "priorNoNormativeImpactStatement": prior_target,
+                "priorNoNormativeImpactChallenge": prior_challenge,
+            },
+            candidate,
+        )
+
+    def status(reference: dict, *, predicate_catalog=None) -> dict:
+        return _protocol_v8_e3c1_fact_status(
+            root,
+            closure,
+            contracts,
+            predicate_catalog or predicates,
+            reference,
+        )
+
+    def expect_false(label: str, reference: dict, *, predicate_catalog=None) -> None:
+        try:
+            result = status(reference, predicate_catalog=predicate_catalog)
+        except ValueError as error:
+            errors.append(f"inactive protocol v8 E3-C1: {label} raised: {error}")
+            return
+        if result["reconstructible"] or result["consumable"]:
+            errors.append(f"inactive protocol v8 E3-C1: {label} became true")
+
+    nni_producer, nni_t = initial(surviving_ref, nni_statement)
+    nni_status = status(nni_t)
+    if not nni_status["reconstructible"] or not nni_status["consumable"]:
+        errors.append("inactive protocol v8 E3-C1: initial NNI Targeted Fact failed")
+
+    decision_s = semantic_value("e3-c1-decision-material")
+    decision_producer, decision_t = initial(decision_s, decision_statement)
+    decision_t_status = status(decision_t)
+    if not decision_t_status["reconstructible"] or not decision_t_status["consumable"]:
+        errors.append("inactive protocol v8 E3-C1: initial decision Targeted Fact failed")
+
+    absent_t = targeted(nni_producer, revised_nni_statement)
+    expect_false("statement absent from initial Discovery", absent_t)
+
+    duplicate_s = semantic_value("e3-c1-duplicate-material")
+    duplicate_producer, duplicate_t = initial(
+        duplicate_s, nni_statement, duplicate=True
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: status(duplicate_t),
+        errors,
+        "duplicate exact Discovery statements",
+        "duplicate exact canonical Discovery statement",
+    )
+
+    decision_d = fact(
+        decision_predicate,
+        {"targetedDiscoveryStatement": decision_t},
+    )
+    decision_d_status = status(decision_d)
+    if not decision_d_status["reconstructible"] or not decision_d_status["consumable"]:
+        errors.append("inactive protocol v8 E3-C1: DecisionRequired Fact failed")
+    nni_d = fact(
+        decision_predicate,
+        {"targetedDiscoveryStatement": nni_t},
+    )
+    expect_false("DecisionRequired over NNI statement", nni_d)
+
+    prior_objection = challenge(nni_t, False)
+    revision_producer = nni_revision(
+        surviving_ref,
+        nni_t,
+        prior_objection,
+        {"kind": "revised-candidate", "statement": revised_nni_statement},
+    )
+    revised_t = targeted(revision_producer, revised_nni_statement)
+    revised_status = status(revised_t)
+    if not revised_status["reconstructible"] or not revised_status["consumable"]:
+        errors.append("inactive protocol v8 E3-C1: positive NNI revision failed")
+
+    zero_s = semantic_value("e3-c1-zero-challenge-material")
+    zero_producer, zero_t = initial(zero_s, nni_statement)
+    zero_challenge = challenge(zero_t, True)
+    zero_revision = nni_revision(
+        zero_s,
+        zero_t,
+        zero_challenge,
+        {"kind": "revised-candidate", "statement": revised_nni_statement},
+    )
+    expect_false(
+        "NNI revision after zero-objection challenge",
+        targeted(zero_revision, revised_nni_statement),
+    )
+
+    second_challenge = challenge(revised_t, False)
+    second_revision_statement = copy.deepcopy(revised_nni_statement)
+    second_revision_statement["statement"] = (
+        "second revised downstream correction remains non-normative"
+    )
+    second_revision = nni_revision(
+        surviving_ref,
+        revised_t,
+        second_challenge,
+        {
+            "kind": "revised-candidate",
+            "statement": second_revision_statement,
+        },
+    )
+    expect_false(
+        "second NNI revision",
+        targeted(second_revision, second_revision_statement),
+    )
+
+    wrong_disposition_s = semantic_value("e3-c1-wrong-disposition-material")
+    _wrong_producer, wrong_prior_t = initial(
+        wrong_disposition_s, nni_statement
+    )
+    wrong_prior_challenge = challenge(wrong_prior_t, False)
+    wrong_disposition_revision = nni_revision(
+        wrong_disposition_s,
+        wrong_prior_t,
+        wrong_prior_challenge,
+        {"kind": "revised-candidate", "statement": decision_statement},
+    )
+    wrong_disposition_t = targeted(
+        wrong_disposition_revision, decision_statement
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: status(wrong_disposition_t),
+        errors,
+        "wrong positive NNI revision disposition",
+        "Discovery revision positive disposition violates SQC",
+    )
+
+    wrong_target_s = semantic_value("e3-c1-wrong-target-material")
+    _wrong_target_producer, wrong_target_t = initial(
+        wrong_target_s, nni_statement
+    )
+    another_s = semantic_value("e3-c1-another-target-material")
+    _another_producer, another_t = initial(another_s, nni_statement)
+    another_challenge = challenge(another_t, False)
+    wrong_target_revision = nni_revision(
+        wrong_target_s,
+        wrong_target_t,
+        another_challenge,
+        {"kind": "revised-candidate", "statement": revised_nni_statement},
+    )
+    expect_false(
+        "NNI prior challenge targets another Fact",
+        targeted(wrong_target_revision, revised_nni_statement),
+    )
+
+    negative_s = semantic_value("e3-c1-negative-revision-material")
+    _negative_producer, negative_t = initial(negative_s, nni_statement)
+    negative_challenge = challenge(negative_t, False)
+    negative_revision = nni_revision(
+        negative_s,
+        negative_t,
+        negative_challenge,
+        {"kind": "not-established"},
+    )
+    expect_false(
+        "NotEstablished NNI revision",
+        targeted(negative_revision, revised_nni_statement),
+    )
+
+    materiality_basis = _protocol_v8_e3a_register_semantic_value(
+        closure,
+        "turnlock.semantic-value:FindingAdjudicationBasis@1",
+        {"test": "e3-c1-unauthorized-producer"},
+    )
+    materiality_producer = admit(
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": materiality_basis},
+        {
+            "authority_or_upstream_decision": True,
+            "claim_structure": False,
+            "normative_provenance": False,
+            "modality_or_assurance_domain": False,
+            "coverage_or_residual_assurance": False,
+            "interaction_scope": False,
+            "candidate_model_authorization": False,
+            "rationale": "e3-c1 unauthorized producer",
+        },
+    )
+    expect_false(
+        "unauthorized Targeted producer",
+        targeted(materiality_producer, nni_statement),
+    )
+
+    restricted_predicates = copy.deepcopy(predicates)
+    restricted_predicates[decision_predicate["revision_id"]]["definition"][
+        "derivation"
+    ]["allowed_basis_kinds"] = ["product-authority-conflict"]
+    expect_false(
+        "DecisionRequired basis kind excluded by catalog",
+        decision_d,
+        predicate_catalog=restricted_predicates,
+    )
+
+    unique_exhaustion_id = next(
+        predicate_id
+        for predicate_id, predicate in predicates.items()
+        if _mapping(_mapping(predicate.get("definition")).get("derivation")).get(
+            "rule"
+        ) == "unique-correction-exhaustion"
+    )
+    unique_exhaustion = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        unique_exhaustion_id,
+        {"targetedDiscoveryStatement": decision_t},
+    )
+    decision_candidate_id = next(
+        predicate_id
+        for predicate_id, predicate in predicates.items()
+        if _mapping(_mapping(predicate.get("definition")).get("derivation")).get(
+            "rule"
+        ) == "decision-necessity-candidate"
+    )
+    decision_candidate = _protocol_v8_e3b_test_fact(
+        closure,
+        predicates,
+        decision_candidate_id,
+        {
+            "survivingMaterialBasis": decision_s,
+            "decisionRequiredStatement": decision_d,
+            "uniqueCorrectionExhaustion": unique_exhaustion,
+        },
+    )
+    decision_challenge_id = "turnlock.sqc:DecisionNecessityChallenge@1"
+    decision_challenge = admit(
+        decision_challenge_id,
+        {
+            "survivingMaterialBasis": decision_s,
+            "decisionRequiredStatement": decision_d,
+            "uniqueCorrectionExhaustion": unique_exhaustion,
+            "decisionNecessityCandidate": decision_candidate,
+        },
+        _protocol_v8_e3b_test_challenge_candidate(
+            contracts[decision_challenge_id], False
+        ),
+    )
+    revised_decision_statement = copy.deepcopy(decision_statement)
+    revised_decision_statement["statement"] = (
+        "revised product authority still leaves two materially distinct outcomes"
+    )
+    decision_revision = admit(
+        "turnlock.sqc:DiscoveryDecisionRequiredRevision@1",
+        {
+            "survivingMaterialBasis": decision_s,
+            "priorDecisionRequiredStatement": decision_d,
+            "priorDecisionNecessityChallenge": decision_challenge,
+            "priorDecisionNecessityCandidate": decision_candidate,
+        },
+        {
+            "kind": "revised-candidate",
+            "statement": revised_decision_statement,
+        },
+    )
+    staged_t = targeted(decision_revision, revised_decision_statement)
+    _protocol_v8_e3a_expect_rejected(
+        lambda: status(staged_t),
+        errors,
+        "staged decision-required Discovery revision",
+        "E3-C3 decision-required Discovery revision resolver required",
+    )
+
+    nni_qualification = _protocol_v8_e3b_test_qualification(
+        closure,
+        qualifications,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        zero_producer,
+        {
+            "targetedDiscoveryStatement": zero_t,
+            "noNormativeImpactChallenge": zero_challenge,
+        },
+    )
+    nni_result = _protocol_v8_e3b_reduce_qualification(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        nni_qualification,
+        fact_dependency_resolver=lambda reference: (
+            _protocol_v8_e3c1_claimed_fact_dependency(
+                root,
+                closure,
+                contracts,
+                predicates,
+                reference,
+            )
+        ),
+        require_current_consumability=True,
+    )
+    if nni_result is None or nni_result["fact"]["predicateRevision"] != (
+        "turnlock.predicate:QualifiedNoNormativeImpact@1"
+    ):
+        errors.append("inactive protocol v8 E3-C1: real E3-B NNI integration failed")
+
+    original_record = _protocol_v8_e3a_resolve_admission_identity(
+        closure, decision_producer
+    )
+    qlek = original_record["qlek"]
+    conflict_statement = copy.deepcopy(decision_statement)
+    conflict_statement["statement"] = "conflicting decision Discovery candidate"
+    conflict_candidate = discovery_candidate(conflict_statement)
+    conflict_id = _protocol_v8_e1_semantic_admission_id(qlek, conflict_candidate)
+    conflict_token = _protocol_v8_e2_validated_witness_token(
+        qlek,
+        conflict_id,
+        conflict_candidate,
+        "IMPORTED-E3-C1-CONFLICT",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        state,
+        qlek,
+        semantic_candidate=conflict_candidate,
+        validated_origin_witness=conflict_token,
+    )
+    quarantined_t = status(decision_t)
+    quarantined_d = status(decision_d)
+    if (
+        quarantined_t["reconstructible"] is not True
+        or quarantined_t["consumable"] is not False
+        or quarantined_d["reconstructible"] is not True
+        or quarantined_d["consumable"] is not False
+    ):
+        errors.append(
+            "inactive protocol v8 E3-C1: quarantine rewrote historical Discovery truth"
+        )
+
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3c1_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            nni_t,
+            active={nni_t["factId"]},
+        ),
+        errors,
+        "exact Fact reducer cycle",
+        "unlawful semantic Fact reducer cycle",
+    )
+    cycle_a = ("exact-authority", "e3-c1-cycle", "A")
+    cycle_b = ("exact-authority", "e3-c1-cycle", "B")
+    _protocol_v8_e3a_expect_rejected(
+        lambda: _protocol_v8_e3a_resolve_dependency_graph(
+            closure,
+            contracts,
+            [cycle_a],
+            lambda node: [cycle_b] if node == cycle_a else [cycle_a],
+        ),
+        errors,
+        "E3-A dependency cycle",
+        "unlawful semantic dependency cycle",
+    )
+
+    if targeted(nni_producer, nni_statement)["factId"] != nni_t["factId"]:
+        errors.append("inactive protocol v8 E3-C1: provenance changed Targeted FactId")
+    if fact(
+        decision_predicate,
+        {"targetedDiscoveryStatement": decision_t},
+    )["factId"] != decision_d["factId"]:
+        errors.append(
+            "inactive protocol v8 E3-C1: provenance changed DecisionRequired FactId"
+        )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: status(unique_exhaustion),
+        errors,
+        "unsupported later-stage predicate",
+        "E3-C1 unsupported predicate; later E3-C stage required",
+    )
+    dangling_target = dict(nni_t)
+    dangling_target["factId"] = "semantic-fact-sha256:" + "9" * 64
+    dangling_decision = fact(
+        decision_predicate,
+        {"targetedDiscoveryStatement": dangling_target},
+    )
+    _protocol_v8_e3a_expect_rejected(
+        lambda: status(dangling_decision),
+        errors,
+        "dangling Targeted predecessor",
+    )
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -12334,6 +13391,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e3b_qualification_reducer_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e3c1_discovery_fact_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
