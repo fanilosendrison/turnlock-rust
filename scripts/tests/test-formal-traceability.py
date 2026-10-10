@@ -30,6 +30,9 @@ MANIFEST_RELATIVE = Path("formal/verification.yaml")
 MIGRATION_RELATIVE = Path("formal/migrations/verification-v2-to-v3-property-audit.yaml")
 MAPPING_RELATIVE = Path("docs/formal/invariant-mapping.md")
 
+_ORIGINAL_COLLECT_ERRORS = checker.collect_errors
+_TEST_GATE_A_GOVERNANCE_STATE = None
+_TEST_GATE_A_REQUIREMENTS = None
 _TEST_YAML_PARSE_CACHE: dict[str, object] = {}
 _UNCACHEABLE_MANIFEST_DUMP_KEY = object()
 _TEST_MANIFEST_DUMP_CACHE: dict[object, str] = {}
@@ -277,6 +280,44 @@ def _yaml_dump_cache_is_eligible() -> bool:
     )
 
 
+def _gate_a_governance_fixture_state(root: Path):
+    paths = [root / "AGENTS.md", root / "requirements.txt"]
+    governance = root / "docs" / "repository-governance"
+    if governance.is_dir() and not governance.is_symlink():
+        paths.extend(sorted(governance.rglob("*")))
+    result = []
+    try:
+        for path in paths:
+            if path.is_symlink() or not path.is_file():
+                return None
+            result.append((path.relative_to(root).as_posix(), path.read_bytes()))
+    except (OSError, ValueError):
+        return None
+    return tuple(result)
+
+
+def _collect_errors_with_canonical_gate_a_requirements(root: Path, *args, **kwargs):
+    """Avoid rebuilding unchanged generic governance in every formal fixture."""
+    if Path(root).resolve() == ROOT.resolve():
+        return _ORIGINAL_COLLECT_ERRORS(root, *args, **kwargs)
+
+    global _TEST_GATE_A_GOVERNANCE_STATE, _TEST_GATE_A_REQUIREMENTS
+    if _TEST_GATE_A_REQUIREMENTS is None:
+        _TEST_GATE_A_GOVERNANCE_STATE = _gate_a_governance_fixture_state(ROOT)
+        _TEST_GATE_A_REQUIREMENTS = checker._load_gate_a_requirements(ROOT)
+    if _gate_a_governance_fixture_state(root) != _TEST_GATE_A_GOVERNANCE_STATE:
+        return _ORIGINAL_COLLECT_ERRORS(root, *args, **kwargs)
+    with mock.patch.object(
+        checker,
+        "_load_gate_a_requirements",
+        return_value=_TEST_GATE_A_REQUIREMENTS,
+    ):
+        return _ORIGINAL_COLLECT_ERRORS(root, *args, **kwargs)
+
+
+checker.collect_errors = _collect_errors_with_canonical_gate_a_requirements
+
+
 GATE_A_ATTACK_OBJECTIVES = [
     "semantic-strengthening",
     "semantic-weakening",
@@ -295,8 +336,20 @@ GATE_A_ATTACK_OBJECTIVES = [
 ]
 
 
-def make_fixture(temporary: str) -> Path:
-    fixture_root = Path(temporary)
+_FIXTURE_TEMPLATE_DIRECTORY = tempfile.TemporaryDirectory(
+    prefix="turnlock-formal-fixture-template-"
+)
+_FIXTURE_TEMPLATE_ROOT = Path(_FIXTURE_TEMPLATE_DIRECTORY.name) / "repository"
+_FIXTURE_TEMPLATE_READY = False
+
+
+def _initialize_fixture_template() -> Path:
+    global _FIXTURE_TEMPLATE_READY
+    if _FIXTURE_TEMPLATE_READY:
+        return _FIXTURE_TEMPLATE_ROOT
+
+    fixture_root = _FIXTURE_TEMPLATE_ROOT
+    fixture_root.mkdir()
     shutil.copytree(ROOT / "docs", fixture_root / "docs")
     shutil.copytree(ROOT / "formal", fixture_root / "formal")
     shutil.copyfile(ROOT / "AGENTS.md", fixture_root / "AGENTS.md")
@@ -337,6 +390,27 @@ def make_fixture(temporary: str) -> Path:
     subprocess.run(["git", "-C", str(fixture_root), "add", "-A"], check=True)
     subprocess.run(
         ["git", "-C", str(fixture_root), "commit", "-q", "-m", "baseline"],
+        check=True,
+    )
+    _FIXTURE_TEMPLATE_READY = True
+    return fixture_root
+
+
+def make_fixture(temporary: str) -> Path:
+    fixture_root = Path(temporary)
+    template = _initialize_fixture_template()
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(template),
+            "worktree",
+            "add",
+            "--detach",
+            "-q",
+            str(fixture_root),
+            "HEAD",
+        ],
         check=True,
     )
     return fixture_root
@@ -11423,6 +11497,241 @@ class GateAProtocolV7DecisionAndDagTests(unittest.TestCase):
                 self.assertTrue(
                     checker._supporting_execution_dag_errors(nodes, roots, "dag")
                 )
+
+
+class ProtocolV8SemanticOracleCacheTests(unittest.TestCase):
+    ORACLE_NAMES = (
+        "_inactive_protocol_v8_e1_semantic_identity_errors",
+        "_inactive_protocol_v8_e2_execution_admission_errors",
+        "_inactive_protocol_v8_e3a_semantic_closure_errors",
+        "_inactive_protocol_v8_e3b_qualification_reducer_errors",
+        "_inactive_protocol_v8_e3c1_discovery_fact_errors",
+        "_inactive_protocol_v8_e3c2_exhaustion_fact_errors",
+        "_inactive_protocol_v8_e3c3_decision_necessity_errors",
+        "_inactive_protocol_v8_e4a_candidate_view_errors",
+        "_inactive_protocol_v8_e4b_candidate_binding_errors",
+    )
+    DEPENDENCY = Path("dependency.json")
+
+    def setUp(self) -> None:
+        for name in (
+            "_INACTIVE_PROTOCOL_ARTIFACT_ORACLE_CACHE",
+            "_PROTOCOL_V8_SEMANTIC_ORACLE_CACHE",
+        ):
+            cache = getattr(checker, name, None)
+            if cache is not None:
+                cache.clear()
+
+    def tearDown(self) -> None:
+        for name in (
+            "_INACTIVE_PROTOCOL_ARTIFACT_ORACLE_CACHE",
+            "_PROTOCOL_V8_SEMANTIC_ORACLE_CACHE",
+        ):
+            cache = getattr(checker, name, None)
+            if cache is not None:
+                cache.clear()
+
+    def _patched_oracles(self, observer):
+        patches = {
+            name: mock.DEFAULT
+            for name in self.ORACLE_NAMES
+        }
+        context = mock.patch.multiple(checker, **patches)
+        oracles = context.start()
+        self.addCleanup(context.stop)
+        for oracle in oracles.values():
+            oracle.return_value = []
+        oracles[self.ORACLE_NAMES[0]].side_effect = observer
+        return oracles
+
+    def test_admission_index_reuses_unchanged_authoritative_state(self) -> None:
+        qlek = "qlek-sha256:" + "0" * 64
+        candidate = {"answer": "one"}
+        admission_id = checker._protocol_v8_e1_semantic_admission_id(
+            qlek,
+            candidate,
+        )
+        closure = checker._protocol_v8_e3a_new_closure(
+            checker._protocol_v8_e2_new_state()
+        )
+        closure["e2_state"]["admissions"][qlek] = {
+            "qlek": qlek,
+            "candidate": candidate,
+            "admission_id": admission_id,
+            "witnesses": [],
+        }
+        original = checker._protocol_v8_e1_semantic_admission_id
+        with mock.patch.object(
+            checker,
+            "_protocol_v8_e1_semantic_admission_id",
+            wraps=original,
+        ) as admission_id_mock:
+            first = checker._protocol_v8_e3a_admission_index(closure)
+            second = checker._protocol_v8_e3a_admission_index(closure)
+
+        self.assertIs(first, second)
+        self.assertEqual(1, admission_id_mock.call_count)
+
+    def test_admission_index_cache_detects_direct_state_mutation(self) -> None:
+        qlek = "qlek-sha256:" + "0" * 64
+        candidate = {"answer": "one"}
+        admission_id = checker._protocol_v8_e1_semantic_admission_id(
+            qlek,
+            candidate,
+        )
+        closure = checker._protocol_v8_e3a_new_closure(
+            checker._protocol_v8_e2_new_state()
+        )
+        record = {
+            "qlek": qlek,
+            "candidate": candidate,
+            "admission_id": admission_id,
+            "witnesses": [],
+        }
+        closure["e2_state"]["admissions"][qlek] = record
+        checker._protocol_v8_e3a_admission_index(closure)
+        record["candidate"] = {"answer": "two"}
+
+        with self.assertRaisesRegex(ValueError, "SemanticAdmissionId mismatch"):
+            checker._protocol_v8_e3a_admission_index(closure)
+
+    def test_admission_index_cache_rejects_recursive_direct_mutation(self) -> None:
+        qlek = "qlek-sha256:" + "0" * 64
+        candidate = {"answer": "one"}
+        admission_id = checker._protocol_v8_e1_semantic_admission_id(
+            qlek,
+            candidate,
+        )
+        closure = checker._protocol_v8_e3a_new_closure(
+            checker._protocol_v8_e2_new_state()
+        )
+        record = {
+            "qlek": qlek,
+            "candidate": candidate,
+            "admission_id": admission_id,
+            "witnesses": [],
+        }
+        closure["e2_state"]["admissions"][qlek] = record
+        checker._protocol_v8_e3a_admission_index(closure)
+        recursive = []
+        recursive.append(recursive)
+        record["candidate"] = recursive
+
+        with self.assertRaisesRegex(ValueError, "recursive semantic"):
+            checker._protocol_v8_e3a_admission_index(closure)
+
+    def test_identical_artifact_corpus_reuses_candidate_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / self.DEPENDENCY).write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_candidate_artifact_errors_uncached",
+                side_effect=observe,
+            ) as artifact_oracle:
+                first = checker._inactive_protocol_candidate_artifact_errors(root)
+                second = checker._inactive_protocol_candidate_artifact_errors(root)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            self.assertEqual(1, artifact_oracle.call_count)
+
+    def test_identical_dependency_content_reuses_semantic_oracle_result(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / self.DEPENDENCY).write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+            second = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(1, oracle.call_count)
+
+    def test_dependency_content_change_invalidates_semantic_oracle_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dependency = root / self.DEPENDENCY
+            dependency.write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            checker._inactive_protocol_v8_semantic_oracle_errors(root)
+            checker._inactive_protocol_v8_semantic_oracle_errors(root)
+            dependency.write_text('{"version": 2}\n')
+            checker._inactive_protocol_v8_semantic_oracle_errors(root)
+
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
+
+    def test_cached_semantic_oracle_errors_remain_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / self.DEPENDENCY).write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                checker._load_json(candidate_root, self.DEPENDENCY)
+                return ["semantic oracle sentinel"]
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+            second = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+
+            self.assertEqual(["semantic oracle sentinel"], first)
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(1, oracle.call_count)
+
+    def test_unreadable_dependency_result_is_not_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+            second = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+
+            self.assertTrue(any("cannot read dependency.json" in error for error in first))
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
+
+    def test_symlinked_dependency_result_is_not_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target.json"
+            target.write_text('{"version": 1}\n')
+            (root / self.DEPENDENCY).symlink_to(target)
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+            second = checker._inactive_protocol_v8_semantic_oracle_errors(root)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
 
 
 if __name__ == "__main__":
