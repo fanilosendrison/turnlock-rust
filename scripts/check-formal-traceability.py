@@ -11587,6 +11587,2006 @@ def _inactive_protocol_v8_e4a_candidate_view_errors(root: Path) -> list[str]:
     return errors
 
 
+def _protocol_v8_e4b_catalog_topology_errors(
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+) -> list[str]:
+    """Validate the exact C5 candidate-bound contract inventory and topology."""
+    errors: list[str] = []
+    prefix = "inactive protocol v8 E4-B:"
+    producer_specs = {
+        "turnlock.sqc:RealizationScopeInitial@1": {
+            "family": "realization-scope",
+            "question_kind": "initial",
+            "logical_input": {
+                "survivingMaterialBasis": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+                },
+                "acceptedUniqueCorrection": {
+                    "kind": "semantic-fact",
+                    "predicate_revision": "turnlock.predicate:AcceptedUniqueCorrection@1",
+                },
+                "candidateRevision": {
+                    "kind": "exact-authority",
+                    "authority_type": "turnlock.authority:candidate-revision.v2",
+                },
+                "completeCandidateView": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:CandidateView@1",
+                },
+            },
+        },
+        "turnlock.sqc:RealizationScopeRevision@1": {
+            "family": "realization-scope",
+            "question_kind": "revision",
+            "logical_input": {
+                "survivingMaterialBasis": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+                },
+                "acceptedUniqueCorrection": {
+                    "kind": "semantic-fact",
+                    "predicate_revision": "turnlock.predicate:AcceptedUniqueCorrection@1",
+                },
+                "candidateRevision": {
+                    "kind": "exact-authority",
+                    "authority_type": "turnlock.authority:candidate-revision.v2",
+                },
+                "completeCandidateView": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:CandidateView@1",
+                },
+                "priorRealizationScope": {
+                    "kind": "semantic-admission",
+                    "producer_contracts": [
+                        "turnlock.sqc:RealizationScopeInitial@1"
+                    ],
+                },
+                "priorRealizationScopeChallenge": {
+                    "kind": "semantic-admission",
+                    "producer_contracts": [
+                        "turnlock.sqc:RealizationScopeChallenge@1"
+                    ],
+                },
+            },
+            "revision": {
+                "ordinal": 1,
+                "prior_candidate_input": "priorRealizationScope",
+                "challenged_candidate_input": "priorRealizationScope",
+                "prior_challenge_input": "priorRealizationScopeChallenge",
+                "revised_target_input": "priorRealizationScope",
+                "retained_family_inputs": [
+                    "acceptedUniqueCorrection",
+                    "candidateRevision",
+                    "completeCandidateView",
+                    "survivingMaterialBasis",
+                ],
+                "withdrawal": "not-established",
+                "followup": {
+                    "kind": "fresh-challenge",
+                    "challenge_contract": (
+                        "turnlock.sqc:RealizationScopeChallenge@1"
+                    ),
+                },
+            },
+        },
+        "turnlock.sqc:RepairRealizationInitial@1": {
+            "family": "repair-realization",
+            "question_kind": "initial",
+            "logical_input": {
+                "survivingMaterialBasis": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+                },
+                "acceptedUniqueCorrection": {
+                    "kind": "semantic-fact",
+                    "predicate_revision": "turnlock.predicate:AcceptedUniqueCorrection@1",
+                },
+                "acceptedRealizationScope": {
+                    "kind": "semantic-fact",
+                    "predicate_revision": "turnlock.predicate:AcceptedRealizationScope@1",
+                },
+                "candidateRevision": {
+                    "kind": "exact-authority",
+                    "authority_type": "turnlock.authority:candidate-revision.v2",
+                },
+                "scopedCandidateView": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:CandidateView@1",
+                },
+            },
+        },
+        "turnlock.sqc:RepairRealizationRevision@1": {
+            "family": "repair-realization",
+            "question_kind": "revision",
+            "logical_input": {
+                "survivingMaterialBasis": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+                },
+                "acceptedUniqueCorrection": {
+                    "kind": "semantic-fact",
+                    "predicate_revision": "turnlock.predicate:AcceptedUniqueCorrection@1",
+                },
+                "acceptedRealizationScope": {
+                    "kind": "semantic-fact",
+                    "predicate_revision": "turnlock.predicate:AcceptedRealizationScope@1",
+                },
+                "candidateRevision": {
+                    "kind": "exact-authority",
+                    "authority_type": "turnlock.authority:candidate-revision.v2",
+                },
+                "scopedCandidateView": {
+                    "kind": "semantic-value",
+                    "value_type": "turnlock.semantic-value:CandidateView@1",
+                },
+                "priorRepairRealization": {
+                    "kind": "semantic-admission",
+                    "producer_contracts": [
+                        "turnlock.sqc:RepairRealizationInitial@1"
+                    ],
+                },
+                "priorRepairRealizationChallenge": {
+                    "kind": "semantic-admission",
+                    "producer_contracts": [
+                        "turnlock.sqc:RepairRealizationChallenge@1"
+                    ],
+                },
+            },
+            "revision": {
+                "ordinal": 1,
+                "prior_candidate_input": "priorRepairRealization",
+                "challenged_candidate_input": "priorRepairRealization",
+                "prior_challenge_input": "priorRepairRealizationChallenge",
+                "revised_target_input": "priorRepairRealization",
+                "retained_family_inputs": [
+                    "acceptedRealizationScope",
+                    "acceptedUniqueCorrection",
+                    "candidateRevision",
+                    "scopedCandidateView",
+                    "survivingMaterialBasis",
+                ],
+                "withdrawal": "not-established",
+                "followup": {
+                    "kind": "fresh-challenge",
+                    "challenge_contract": (
+                        "turnlock.sqc:RepairRealizationChallenge@1"
+                    ),
+                },
+            },
+        },
+    }
+    challenge_specs = {
+        "turnlock.sqc:RealizationScopeChallenge@1": {
+            "family": "realization-scope",
+            "target": "challengedRealizationScope",
+            "revision": "turnlock.sqc:RealizationScopeRevision@1",
+            "target_producers": [
+                "turnlock.sqc:RealizationScopeInitial@1",
+                "turnlock.sqc:RealizationScopeRevision@1",
+            ],
+            "trigger": ["turnlock.sqc:RealizationScopeInitial@1"],
+            "predicate": "turnlock.predicate:AcceptedRealizationScope@1",
+        },
+        "turnlock.sqc:RepairRealizationChallenge@1": {
+            "family": "repair-realization",
+            "target": "challengedRepairRealization",
+            "revision": "turnlock.sqc:RepairRealizationRevision@1",
+            "target_producers": [
+                "turnlock.sqc:RepairRealizationInitial@1",
+                "turnlock.sqc:RepairRealizationRevision@1",
+            ],
+            "trigger": ["turnlock.sqc:RepairRealizationInitial@1"],
+            "predicate": "turnlock.predicate:AcceptedRepairRealization@1",
+        },
+    }
+    candidate_input_contracts = {
+        contract_id
+        for contract_id, contract in contracts.items()
+        if "candidateRevision"
+        in _mapping(_mapping(contract.get("definition")).get("logical_input"))
+    }
+    if candidate_input_contracts != set(producer_specs):
+        errors.append(f"{prefix} candidate-bound producer inventory mismatch")
+    for contract_id, expected in producer_specs.items():
+        definition = _mapping(_mapping(contracts.get(contract_id)).get("definition"))
+        for field in ("family", "question_kind", "logical_input"):
+            if definition.get(field) != expected[field]:
+                errors.append(f"{prefix} {contract_id} {field} mismatch")
+        if "revision" in expected and definition.get("revision") != expected["revision"]:
+            errors.append(f"{prefix} {contract_id} revision metadata mismatch")
+    for contract_id, expected in challenge_specs.items():
+        definition = _mapping(_mapping(contracts.get(contract_id)).get("definition"))
+        target = expected["target"]
+        logical_input = definition.get("logical_input")
+        challenge = _mapping(definition.get("challenge"))
+        if definition.get("family") != expected["family"]:
+            errors.append(f"{prefix} {contract_id} family mismatch")
+        if definition.get("question_kind") != "challenge":
+            errors.append(f"{prefix} {contract_id} question_kind mismatch")
+        if not isinstance(logical_input, dict) or set(logical_input) != {target}:
+            errors.append(f"{prefix} {contract_id} logical input mismatch")
+        elif logical_input.get(target) != {
+            "kind": "semantic-admission",
+            "producer_contracts": expected["target_producers"],
+        }:
+            errors.append(f"{prefix} {contract_id} target declaration mismatch")
+        for field, value in (
+            ("target_input", target),
+            ("revision_contract", expected["revision"]),
+            ("revision_trigger_producer_contracts", expected["trigger"]),
+            ("zero_objections_derives_predicate", expected["predicate"]),
+        ):
+            if challenge.get(field) != value:
+                errors.append(f"{prefix} {contract_id} challenge {field} mismatch")
+        if any(
+            name in _mapping(logical_input)
+            for name in (
+                "candidateRevision",
+                "completeCandidateView",
+                "scopedCandidateView",
+            )
+        ):
+            errors.append(f"{prefix} {contract_id} selects candidate authority")
+    qualification_specs = {
+        "turnlock.qualification:RealizationScopeQualification@1": {
+            "producers": [
+                "turnlock.sqc:RealizationScopeInitial@1",
+                "turnlock.sqc:RealizationScopeRevision@1",
+            ],
+            "case_id": "accepted-realization-scope",
+            "predicate": "turnlock.predicate:AcceptedRealizationScope@1",
+        },
+        "turnlock.qualification:RepairRealizationQualification@1": {
+            "producers": [
+                "turnlock.sqc:RepairRealizationInitial@1",
+                "turnlock.sqc:RepairRealizationRevision@1",
+            ],
+            "case_id": "accepted-repair-realization",
+            "predicate": "turnlock.predicate:AcceptedRepairRealization@1",
+        },
+    }
+    inherited = {
+        qualification_id
+        for qualification_id, qualification in qualifications.items()
+        if _mapping(qualification.get("definition")).get("candidate_binding")
+        == "inherited-from-anchor"
+    }
+    if inherited != set(qualification_specs):
+        errors.append(f"{prefix} candidate-bound qualification inventory mismatch")
+    for qualification_id, expected in qualification_specs.items():
+        definition = _mapping(
+            _mapping(qualifications.get(qualification_id)).get("definition")
+        )
+        anchor = _mapping(definition.get("anchor"))
+        cases = _sequence(definition.get("cases"))
+        if anchor != {
+            "kind": "direct-semantic-admission",
+            "producer_contracts": expected["producers"],
+        }:
+            errors.append(f"{prefix} {qualification_id} anchor mismatch")
+        if definition.get("candidate_binding") != "inherited-from-anchor":
+            errors.append(f"{prefix} {qualification_id} candidate binding mismatch")
+        if len(cases) != 1 or not isinstance(cases[0], dict):
+            errors.append(f"{prefix} {qualification_id} case cardinality mismatch")
+        elif (
+            cases[0].get("case_id") != expected["case_id"]
+            or cases[0].get("derives_predicate") != expected["predicate"]
+        ):
+            errors.append(f"{prefix} {qualification_id} case binding mismatch")
+    predicate_specs = {
+        "turnlock.predicate:AcceptedRealizationScope@1": (
+            "turnlock.qualification:RealizationScopeQualification@1"
+        ),
+        "turnlock.predicate:AcceptedRepairRealization@1": (
+            "turnlock.qualification:RepairRealizationQualification@1"
+        ),
+    }
+    projected_predicates = {
+        predicate_id
+        for predicate_id, predicate in predicates.items()
+        if "candidate-revision-of-anchor-qlek"
+        in _sequence(_mapping(predicate.get("definition")).get("derived_projections"))
+    }
+    if projected_predicates != set(predicate_specs):
+        errors.append(f"{prefix} candidate-bound Predicate inventory mismatch")
+    for predicate_id, qualification_id in predicate_specs.items():
+        definition = _mapping(_mapping(predicates.get(predicate_id)).get("definition"))
+        if _mapping(definition.get("derivation")) != {
+            "kind": "qualification-result",
+            "qualification_contract": qualification_id,
+        }:
+            errors.append(f"{prefix} {predicate_id} derivation mismatch")
+        if definition.get("semantic_view") != {
+            "kind": "qualification-anchor-candidate"
+        }:
+            errors.append(f"{prefix} {predicate_id} semantic view mismatch")
+        if definition.get("derived_projections") != [
+            "candidate-revision-of-anchor-qlek"
+        ]:
+            errors.append(f"{prefix} {predicate_id} projection mismatch")
+    return errors
+
+
+def _protocol_v8_e4b_bound_candidate_revision(
+    closure: dict,
+    contracts: dict[str, dict],
+    qlek: object,
+) -> dict:
+    """Resolve exact nominal candidate binding for the published C5 domain."""
+    descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, qlek)
+    contract_id = descriptor.get("semanticQuestionContract")
+    logical_input = _mapping(descriptor.get("exactLogicalInput"))
+    producer_contracts = {
+        "turnlock.sqc:RealizationScopeInitial@1",
+        "turnlock.sqc:RealizationScopeRevision@1",
+        "turnlock.sqc:RepairRealizationInitial@1",
+        "turnlock.sqc:RepairRealizationRevision@1",
+    }
+    challenge_targets = {
+        "turnlock.sqc:RealizationScopeChallenge@1": "challengedRealizationScope",
+        "turnlock.sqc:RepairRealizationChallenge@1": "challengedRepairRealization",
+    }
+    if contract_id in producer_contracts:
+        candidate_ref = logical_input.get("candidateRevision")
+        candidate = _protocol_v8_e3a_resolve_exact_authority(
+            closure, candidate_ref
+        )
+        if candidate.get("authorityType") != (
+            "turnlock.authority:candidate-revision.v2"
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-B: candidateRevision authority type mismatch"
+            )
+        return copy.deepcopy(candidate_ref)
+    target_name = challenge_targets.get(contract_id)
+    if target_name is not None:
+        if set(logical_input) != {target_name}:
+            raise ValueError(
+                "inactive protocol v8 E4-B: challenge independently selects candidate authority"
+            )
+        target = _protocol_v8_e3a_resolve_admission_identity(
+            closure, logical_input.get(target_name)
+        )
+        target_descriptor = _protocol_v8_e3a_resolve_qlek(
+            closure, contracts, target["qlek"]
+        )
+        declaration = _mapping(
+            _mapping(
+                _mapping(contracts.get(contract_id)).get("definition")
+            ).get("logical_input")
+        ).get(target_name)
+        if target_descriptor.get("semanticQuestionContract") not in _sequence(
+            _mapping(declaration).get("producer_contracts")
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-B: challenge target producer mismatch"
+            )
+        return _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, target["qlek"]
+        )
+    raise ValueError(
+        "inactive protocol v8 E4-B: unsupported candidate-independent semantic question"
+    )
+
+
+def _protocol_v8_e4b_fact_dependency_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    active: set[str],
+) -> dict:
+    """Dispatch only exact lower/candidate-bound Facts required by C5."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    predicate_id = descriptor.get("predicateRevision")
+    if predicate_id == "turnlock.predicate:AcceptedUniqueCorrection@1":
+        return _protocol_v8_e3c2_qualification_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            active=active,
+        )
+    if predicate_id in {
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        "turnlock.predicate:AcceptedRepairRealization@1",
+    }:
+        ephemeral = _mapping(closure.get("_e4b_ephemeral_resolution"))
+        memo = ephemeral.get("memo")
+        graph_checked = ephemeral.get("graph_checked")
+        return _protocol_v8_e4b_candidate_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            candidate_materialization_resolver=closure.get(
+                "_e4b_candidate_materialization_resolver"
+            ),
+            sealed_content_resolver=closure.get("_e4b_sealed_content_resolver"),
+            active=active,
+            _memo=memo if isinstance(memo, dict) else None,
+            _graph_checked=(
+                graph_checked if isinstance(graph_checked, set) else None
+            ),
+        )
+    raise ValueError(
+        "inactive protocol v8 E4-B: unsupported staged Fact dependency"
+    )
+
+
+def _protocol_v8_e4b_admission_context(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    admission_ref: object,
+) -> dict:
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, errors = _protocol_v8_e1_output_validators(root)
+        if errors:
+            raise ValueError(f"inactive protocol v8 E4-B: {errors[0]}")
+        closure["_e3b_output_validators"] = validators
+    try:
+        return _protocol_v8_e3b_admission_context(
+            root, closure, contracts, admission_ref, validators
+        )
+    except ValueError as error:
+        raise ValueError(
+            f"inactive protocol v8 E4-B: Admission resolution failed: {error}"
+        ) from error
+
+
+def _protocol_v8_e4b_validate_revision_closure(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    context: dict,
+    *,
+    family: str,
+) -> None:
+    """Validate one exact first-revision retained-input closure."""
+    specifications = {
+        "realization-scope": {
+            "initial": "turnlock.sqc:RealizationScopeInitial@1",
+            "challenge": "turnlock.sqc:RealizationScopeChallenge@1",
+            "prior": "priorRealizationScope",
+            "prior_challenge": "priorRealizationScopeChallenge",
+            "target": "challengedRealizationScope",
+            "retained": [
+                "survivingMaterialBasis",
+                "acceptedUniqueCorrection",
+                "candidateRevision",
+                "completeCandidateView",
+            ],
+        },
+        "repair-realization": {
+            "initial": "turnlock.sqc:RepairRealizationInitial@1",
+            "challenge": "turnlock.sqc:RepairRealizationChallenge@1",
+            "prior": "priorRepairRealization",
+            "prior_challenge": "priorRepairRealizationChallenge",
+            "target": "challengedRepairRealization",
+            "retained": [
+                "survivingMaterialBasis",
+                "acceptedUniqueCorrection",
+                "acceptedRealizationScope",
+                "candidateRevision",
+                "scopedCandidateView",
+            ],
+        },
+    }
+    specification = specifications[family]
+    inputs = _mapping(context["descriptor"].get("exactLogicalInput"))
+    prior_ref = inputs.get(specification["prior"])
+    prior = _protocol_v8_e4b_admission_context(
+        root, closure, contracts, prior_ref
+    )
+    if prior.get("contract_id") != specification["initial"]:
+        raise ValueError(
+            "inactive protocol v8 E4-B: second or non-initial revision is forbidden"
+        )
+    if prior.get("candidate") == {"kind": "not-established"}:
+        raise ValueError(
+            "inactive protocol v8 E4-B: NotEstablished prior cannot be revised"
+        )
+    prior_inputs = _mapping(prior["descriptor"].get("exactLogicalInput"))
+    if any(inputs.get(name) != prior_inputs.get(name) for name in specification["retained"]):
+        raise ValueError(
+            "inactive protocol v8 E4-B: revision retained input mismatch"
+        )
+    challenge_ref = inputs.get(specification["prior_challenge"])
+    challenge = _protocol_v8_e4b_admission_context(
+        root, closure, contracts, challenge_ref
+    )
+    if challenge.get("contract_id") != specification["challenge"]:
+        raise ValueError(
+            "inactive protocol v8 E4-B: prior challenge contract mismatch"
+        )
+    challenge_inputs = _mapping(challenge["descriptor"].get("exactLogicalInput"))
+    objections = _mapping(challenge.get("candidate")).get("objections")
+    if challenge_inputs != {specification["target"]: prior_ref} or (
+        not isinstance(objections, list) or not objections
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-B: revision requires exact non-empty prior challenge"
+        )
+
+
+def _protocol_v8_e4b_candidate_anchor_view(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    active: set[str] | None = None,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> object:
+    """Project the exact qualification-anchor semantic candidate."""
+    status = _protocol_v8_e4b_candidate_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        active=active,
+        _memo=_memo,
+        _graph_checked=_graph_checked,
+    )
+    if not status["reconstructible"]:
+        raise ValueError(
+            "inactive protocol v8 E4-B: candidate-bound Fact is not reconstructible"
+        )
+    qualification_ref = _mapping(status["descriptor"].get("arguments")).get(
+        "qualification"
+    )
+    qualification = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    anchor = _protocol_v8_e4b_admission_context(
+        root, closure, contracts, qualification.get("anchorAdmission")
+    )
+    return copy.deepcopy(anchor.get("candidate"))
+
+
+def _protocol_v8_e4b_candidate_revision_of(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    active: set[str] | None = None,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> dict:
+    """Project exact historical CandidateRevision from two accepted Facts."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    if descriptor.get("predicateRevision") not in {
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        "turnlock.predicate:AcceptedRepairRealization@1",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E4-B: CandidateRevisionOf unsupported Predicate"
+        )
+    status = _protocol_v8_e4b_candidate_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        active=active,
+        _memo=_memo,
+        _graph_checked=_graph_checked,
+    )
+    if not status["reconstructible"]:
+        raise ValueError(
+            "inactive protocol v8 E4-B: CandidateRevisionOf Fact is not reconstructible"
+        )
+    qualification_ref = _mapping(descriptor.get("arguments")).get("qualification")
+    qualification = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    anchor = _protocol_v8_e3a_resolve_admission_identity(
+        closure, qualification.get("anchorAdmission")
+    )
+    return _protocol_v8_e4b_bound_candidate_revision(
+        closure, contracts, anchor["qlek"]
+    )
+
+
+def _protocol_v8_e4b_validate_candidate_admission(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    admission_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    require_current_consumability: bool,
+    active: set[str] | None = None,
+) -> dict:
+    """Validate exact C5 candidate/view/path binding for one Admission."""
+    if type(require_current_consumability) is not bool:
+        raise ValueError(
+            "inactive protocol v8 E4-B: current-consumability flag must be bool"
+        )
+    context = _protocol_v8_e4b_admission_context(
+        root, closure, contracts, admission_ref
+    )
+    contract_id = context["contract_id"]
+    definition = _mapping(context["contract"].get("definition"))
+    family = definition.get("family")
+    question_kind = definition.get("question_kind")
+    inputs = _mapping(context["descriptor"].get("exactLogicalInput"))
+    challenge_targets = {
+        "turnlock.sqc:RealizationScopeChallenge@1": "challengedRealizationScope",
+        "turnlock.sqc:RepairRealizationChallenge@1": "challengedRepairRealization",
+    }
+    target_name = challenge_targets.get(contract_id)
+    if target_name is not None:
+        target_ref = inputs.get(target_name)
+        target = _protocol_v8_e4b_admission_context(
+            root, closure, contracts, target_ref
+        )
+        if target.get("candidate") == {"kind": "not-established"}:
+            raise ValueError(
+                "inactive protocol v8 E4-B: challenge target must be positive"
+            )
+        candidate_ref = _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, context["qlek"]
+        )
+        return {
+            "candidateRevision": candidate_ref,
+            "coverage": None,
+            "candidateView": None,
+            "family": family,
+            "questionKind": question_kind,
+        }
+    producer_families = {
+        "turnlock.sqc:RealizationScopeInitial@1": "realization-scope",
+        "turnlock.sqc:RealizationScopeRevision@1": "realization-scope",
+        "turnlock.sqc:RepairRealizationInitial@1": "repair-realization",
+        "turnlock.sqc:RepairRealizationRevision@1": "repair-realization",
+    }
+    if contract_id not in producer_families:
+        raise ValueError(
+            "inactive protocol v8 E4-B: unsupported candidate-independent Admission"
+        )
+    candidate_ref = _protocol_v8_e4b_bound_candidate_revision(
+        closure, contracts, context["qlek"]
+    )
+    surviving = _protocol_v8_e3a_resolve_semantic_value(
+        closure, inputs.get("survivingMaterialBasis")
+    )
+    if surviving.get("valueType") != (
+        "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-B: SurvivingMaterialBasis type mismatch"
+        )
+    stack = active if active is not None else set()
+    accepted_uc = _protocol_v8_e4b_fact_dependency_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        inputs.get("acceptedUniqueCorrection"),
+        active=stack,
+    )
+    if not accepted_uc["reconstructible"] or (
+        require_current_consumability and not accepted_uc["consumable"]
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-B: AcceptedUniqueCorrection dependency unavailable"
+        )
+    if question_kind == "revision":
+        _protocol_v8_e4b_validate_revision_closure(
+            root, closure, contracts, context, family=family
+        )
+    if family == "realization-scope":
+        coverage = {"kind": "complete"}
+        view_ref = inputs.get("completeCandidateView")
+        try:
+            _protocol_v8_e4a_candidate_view_of(
+                closure,
+                candidate_ref,
+                coverage,
+                view_ref,
+                candidate_materialization_resolver,
+                sealed_content_resolver,
+            )
+        except ValueError as error:
+            classification = (
+                "CANDIDATE-VIEW-INTEGRITY-FAILURE: "
+                if "CANDIDATE-VIEW-INTEGRITY-FAILURE" in str(error)
+                else ""
+            )
+            raise ValueError(
+                f"inactive protocol v8 E4-B: {classification}complete CandidateView binding failed"
+            ) from error
+        candidate = context["candidate"]
+        if candidate != {"kind": "not-established"}:
+            readable = candidate.get("readable_paths")
+            writable = candidate.get("writable_paths")
+            if not isinstance(readable, list) or not isinstance(writable, list):
+                raise ValueError(
+                    "inactive protocol v8 E4-B: RealizationScope path arrays missing"
+                )
+            for identity in readable + writable:
+                try:
+                    _protocol_v8_e4a_decode_path_identity(identity)
+                except ValueError as error:
+                    raise ValueError(
+                        "inactive protocol v8 E4-B: invalid RealizationScope raw path identity"
+                    ) from error
+            if len(set(readable)) != len(readable) or len(set(writable)) != len(writable):
+                raise ValueError(
+                    "inactive protocol v8 E4-B: RealizationScope path set contains duplicates"
+                )
+            value = _protocol_v8_e3a_resolve_semantic_value(closure, view_ref)
+            view_paths = {
+                item.get("pathBytesBase64url")
+                for item in _sequence(_mapping(value.get("value")).get("entries"))
+                if isinstance(item, dict)
+            }
+            if not set(readable).issubset(view_paths):
+                raise ValueError(
+                    "inactive protocol v8 E4-B: readable path absent from complete CandidateView"
+                )
+            if not set(writable).issubset(set(readable)):
+                raise ValueError(
+                    "inactive protocol v8 E4-B: writable paths exceed readable paths"
+                )
+    else:
+        accepted_rs_ref = inputs.get("acceptedRealizationScope")
+        accepted_rs = _protocol_v8_e4b_candidate_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            accepted_rs_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+            active=stack,
+        )
+        if not accepted_rs["reconstructible"] or (
+            require_current_consumability and not accepted_rs["consumable"]
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-B: AcceptedRealizationScope dependency unavailable"
+            )
+        rs_candidate = _protocol_v8_e4b_candidate_anchor_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            accepted_rs_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+            active=stack,
+        )
+        rs_candidate_revision = _protocol_v8_e4b_candidate_revision_of(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            accepted_rs_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+            active=stack,
+        )
+        if rs_candidate_revision != candidate_ref:
+            raise ValueError(
+                "inactive protocol v8 E4-B: RepairRealization candidate is not AcceptedRS candidate"
+            )
+        readable = rs_candidate.get("readable_paths")
+        writable = rs_candidate.get("writable_paths")
+        if not isinstance(readable, list) or not isinstance(writable, list):
+            raise ValueError(
+                "inactive protocol v8 E4-B: AcceptedRS semantic view path arrays missing"
+            )
+        try:
+            coverage = _protocol_v8_e4a_canonical_readable_coverage(readable)
+        except ValueError as error:
+            raise ValueError(
+                "inactive protocol v8 E4-B: invalid AcceptedRS readable path coverage"
+            ) from error
+        view_ref = inputs.get("scopedCandidateView")
+        try:
+            _protocol_v8_e4a_candidate_view_of(
+                closure,
+                candidate_ref,
+                coverage,
+                view_ref,
+                candidate_materialization_resolver,
+                sealed_content_resolver,
+            )
+        except ValueError as error:
+            classification = (
+                "CANDIDATE-VIEW-INTEGRITY-FAILURE: "
+                if "CANDIDATE-VIEW-INTEGRITY-FAILURE" in str(error)
+                else ""
+            )
+            raise ValueError(
+                f"inactive protocol v8 E4-B: {classification}scoped CandidateView binding failed"
+            ) from error
+        candidate = context["candidate"]
+        if candidate != {"kind": "not-established"}:
+            if candidate.get("kind") != "repair-realization-candidate":
+                raise ValueError(
+                    "inactive protocol v8 E4-B: invalid RepairRealization candidate kind"
+                )
+            operations = candidate.get("operations")
+            if not isinstance(operations, list):
+                raise ValueError(
+                    "inactive protocol v8 E4-B: RepairRealization operations missing"
+                )
+            writable_set = set(writable)
+            for operation in operations:
+                path_identity = _mapping(operation).get("path_bytes_base64url")
+                try:
+                    _protocol_v8_e4a_decode_path_identity(path_identity)
+                except ValueError as error:
+                    raise ValueError(
+                        "inactive protocol v8 E4-B: invalid RepairRealization operation path"
+                    ) from error
+                if path_identity not in writable_set:
+                    raise ValueError(
+                        "inactive protocol v8 E4-B: operation path lacks AcceptedRS write authority"
+                    )
+    return {
+        "candidateRevision": copy.deepcopy(candidate_ref),
+        "coverage": copy.deepcopy(coverage),
+        "candidateView": copy.deepcopy(view_ref),
+        "family": family,
+        "questionKind": question_kind,
+    }
+
+
+def _protocol_v8_e4b_candidate_fact_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    active: set[str] | None = None,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> dict:
+    """Resolve historical/current truth for exactly AcceptedRS and AcceptedRR."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    predicate_id = descriptor.get("predicateRevision")
+    if predicate_id not in {
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        "turnlock.predicate:AcceptedRepairRealization@1",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E4-B: unsupported candidate-bound Fact Predicate"
+        )
+    assert isinstance(fact_ref, dict)
+    fact_id = fact_ref["factId"]
+    stack = active if active is not None else set()
+    if fact_id in stack:
+        raise ValueError(
+            "inactive protocol v8 E4-B: unlawful semantic Fact reducer cycle"
+        )
+    ephemeral = _mapping(closure.get("_e4b_ephemeral_resolution"))
+    inherited_memo = ephemeral.get("memo")
+    inherited_graph_checked = ephemeral.get("graph_checked")
+    memo = (
+        _memo
+        if _memo is not None
+        else inherited_memo if isinstance(inherited_memo, dict) else {}
+    )
+    graph_checked = (
+        _graph_checked
+        if _graph_checked is not None
+        else (
+            inherited_graph_checked
+            if isinstance(inherited_graph_checked, set)
+            else set()
+        )
+    )
+    cached = memo.get(fact_id)
+    if isinstance(cached, dict):
+        return copy.deepcopy(cached)
+    if fact_id not in graph_checked:
+        _protocol_v8_e3a_resolve_dependency_graph(
+            closure, contracts, [("semantic-fact", fact_id)]
+        )
+        graph_checked.add(fact_id)
+    stack.add(fact_id)
+    closure["_e4b_ephemeral_resolution"] = {
+        "memo": memo,
+        "graph_checked": graph_checked,
+    }
+    previous_materialization = closure.get("_e4b_candidate_materialization_resolver")
+    previous_content = closure.get("_e4b_sealed_content_resolver")
+    closure["_e4b_candidate_materialization_resolver"] = (
+        candidate_materialization_resolver
+    )
+    closure["_e4b_sealed_content_resolver"] = sealed_content_resolver
+    try:
+        qualification_ref = _mapping(descriptor.get("arguments")).get(
+            "qualification"
+        )
+
+        def dependency(reference: object) -> dict:
+            return _protocol_v8_e4b_fact_dependency_status(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                reference,
+                active=stack,
+            )
+
+        def reduce(current: bool) -> dict | None:
+            return _protocol_v8_e3b_reduce_qualification(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                qualification_ref,
+                fact_dependency_resolver=dependency,
+                require_current_consumability=current,
+            )
+
+        historical = reduce(False)
+        reconstructible = historical is not None and historical.get("fact") == fact_ref
+        if reconstructible:
+            qualification = _protocol_v8_e3a_resolve_qualification_identity(
+                closure, qualification_ref
+            )
+            _protocol_v8_e4b_validate_candidate_admission(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                qualification.get("anchorAdmission"),
+                candidate_materialization_resolver=candidate_materialization_resolver,
+                sealed_content_resolver=sealed_content_resolver,
+                require_current_consumability=False,
+                active=stack,
+            )
+        consumable = False
+        if reconstructible:
+            current = reduce(True)
+            consumable = current is not None and current.get("fact") == fact_ref
+            if consumable:
+                qualification = _protocol_v8_e3a_resolve_qualification_identity(
+                    closure, qualification_ref
+                )
+                _protocol_v8_e4b_validate_candidate_admission(
+                    root,
+                    closure,
+                    contracts,
+                    predicates,
+                    qualifications,
+                    qualification.get("anchorAdmission"),
+                    candidate_materialization_resolver=candidate_materialization_resolver,
+                    sealed_content_resolver=sealed_content_resolver,
+                    require_current_consumability=True,
+                    active=stack,
+                )
+    finally:
+        stack.remove(fact_id)
+        if previous_materialization is None:
+            closure.pop("_e4b_candidate_materialization_resolver", None)
+        else:
+            closure["_e4b_candidate_materialization_resolver"] = previous_materialization
+        if previous_content is None:
+            closure.pop("_e4b_sealed_content_resolver", None)
+        else:
+            closure["_e4b_sealed_content_resolver"] = previous_content
+        if active is None:
+            closure.pop("_e4b_ephemeral_resolution", None)
+    result = {
+        "reference": copy.deepcopy(fact_ref),
+        "descriptor": descriptor,
+        "reconstructible": bool(reconstructible),
+        "consumable": bool(consumable),
+    }
+    memo[fact_id] = copy.deepcopy(result)
+    return result
+
+
+def _inactive_protocol_v8_e4b_candidate_binding_errors(root: Path) -> list[str]:
+    """Exercise exact candidate-bound QLEK, Admission, and Fact closure."""
+    errors: list[str] = []
+    prefix = "inactive protocol v8 E4-B:"
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(f"{prefix} {error}" for error in catalog_errors)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in validator_errors)
+    errors.extend(
+        _protocol_v8_e4b_catalog_topology_errors(
+            contracts, predicates, qualifications
+        )
+    )
+    if errors:
+        return errors
+
+    closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+    closure["_e3b_output_validators"] = validators
+
+    def path(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+    def artifact(artifact_id: str, content: bytes) -> dict:
+        return {
+            "artifactId": artifact_id,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "byteLength": len(content),
+            "mediaType": "application/octet-stream",
+            "repositoryPath": None,
+        }
+
+    artifact_bytes: dict[str, bytes] = {}
+
+    def add_artifact(artifact_id: str, content: bytes) -> dict:
+        artifact_bytes[artifact_id] = content
+        return artifact(artifact_id, content)
+
+    def resolve_content(reference: object) -> bytes:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture ArtifactRef missing")
+        artifact_id = reference.get("artifactId")
+        content = artifact_bytes.get(artifact_id)
+        if content is None or reference != artifact(str(artifact_id), content):
+            raise ValueError(f"{prefix} fixture ArtifactRef integrity mismatch")
+        return content
+
+    materializations: dict[str, dict] = {}
+
+    def candidate(candidate_id: str, entries: list[dict]) -> dict:
+        reference = {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": candidate_id,
+        }
+        _protocol_v8_e3a_register_exact_authority(closure, reference)
+        materializations[candidate_id] = {
+            "gitObjectFormat": "sha1",
+            "entries": copy.deepcopy(entries),
+        }
+        return reference
+
+    def resolve_candidate(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture CandidateRevision missing")
+        result = materializations.get(reference.get("authorityId"))
+        if result is None:
+            raise ValueError(f"{prefix} fixture materialization missing")
+        return copy.deepcopy(result)
+
+    def blob(path_identity: str, reference: dict, mode: str = "100644") -> dict:
+        return {
+            "pathBytesBase64url": path_identity,
+            "kind": "blob",
+            "mode": mode,
+            "content": copy.deepcopy(reference),
+        }
+
+    def semantic_value(value_type: str, value: object) -> dict:
+        return _protocol_v8_e3a_register_semantic_value(
+            closure, value_type, value
+        )
+
+    def admit(contract_id: str, inputs: dict, result: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract_id, inputs, result
+        )
+
+    def challenge(contract_id: str, target_name: str, target: dict, zero: bool) -> dict:
+        return admit(
+            contract_id,
+            {target_name: copy.deepcopy(target)},
+            _protocol_v8_e3b_test_challenge_candidate(
+                contracts[contract_id], zero
+            ),
+        )
+
+    def qualification(
+        contract_id: str, anchor: dict, additional: dict
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            closure, qualifications, contract_id, anchor, additional
+        )
+
+    def fact(predicate_id: str, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(
+            closure, predicates, predicate_id, arguments
+        )
+
+    fact_memo: dict[str, dict] = {}
+    graph_checked: set[str] = set()
+
+    def status(reference: dict) -> dict:
+        return _protocol_v8_e4b_candidate_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    def revision_of(reference: dict) -> dict:
+        return _protocol_v8_e4b_candidate_revision_of(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    def anchor_view(reference: dict) -> object:
+        return _protocol_v8_e4b_candidate_anchor_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    def validate(reference: dict, current: bool = False) -> dict:
+        return _protocol_v8_e4b_validate_candidate_admission(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            require_current_consumability=current,
+        )
+
+    def expect_rejected(
+        label: str, action, required: str | None = None
+    ) -> None:
+        try:
+            action()
+        except ValueError as error:
+            if required is not None and required not in str(error):
+                errors.append(
+                    f"{prefix} {label} rejected without {required!r}"
+                )
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    p1 = path(b"src/a.txt")
+    p2 = path(b"src/b.txt")
+    p3 = path(b"docs/c.txt")
+    p_missing = path(b"missing.txt")
+    ref_a = add_artifact("A", b"alpha\n")
+    ref_b = add_artifact("B", b"beta\n")
+    ref_c = add_artifact("C", b"gamma\n")
+    ref_changed = add_artifact("CHANGED", b"changed\n")
+    entries17 = [blob(p2, ref_b), blob(p3, ref_c), blob(p1, ref_a)]
+    entries19 = [blob(p2, ref_changed), blob(p3, ref_c), blob(p1, ref_a)]
+    c17 = candidate("C17", entries17)
+    complete17 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c17, {"kind": "complete"}, resolve_candidate, resolve_content
+    )
+    v_complete = _protocol_v8_e4a_register_candidate_view(
+        closure, complete17
+    )
+    c18 = candidate("C18", entries17)
+    complete18 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c18, {"kind": "complete"}, resolve_candidate, resolve_content
+    )
+    v_complete18 = _protocol_v8_e4a_register_candidate_view(
+        closure, complete18
+    )
+    c19 = candidate("C19", entries19)
+    complete19 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c19, {"kind": "complete"}, resolve_candidate, resolve_content
+    )
+    v_changed = _protocol_v8_e4a_register_candidate_view(closure, complete19)
+    if c17 == c18 or complete17 != complete18 or v_complete != v_complete18:
+        errors.append(f"{prefix} equal physical candidate fixture mismatch")
+
+    surviving = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e4-b-surviving"},
+    )
+    surviving_other = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e4-b-surviving-other"},
+    )
+    statement = {
+        "statement": "the exact correction is derived from current authority",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "the exact source establishes the statement",
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": "none required",
+            "changed_product_authority_not_required_argument": "none changed",
+            "product_meaning_selection_not_required_argument": "none selected",
+            "accepted_observable_obligation_change_not_required_argument": (
+                "no accepted obligation changes"
+            ),
+        },
+    }
+    discovery_candidate = {
+        "earliest_unresolved_cause": {
+            "classification_statement_ordinal": 0,
+            "evidence_references": [{"kind": "source-finding"}],
+            "causal_explanation": "the source statement is earliest",
+            "upstream_exclusion_argument": "no upstream cause exists",
+        },
+        "classification_statements": [copy.deepcopy(statement)],
+    }
+    discovery = admit(
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": surviving},
+        discovery_candidate,
+    )
+    targeted = fact(
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": statement},
+    )
+    unique_candidate = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [{"postcondition": "required state"}],
+        "derivation_claims": [
+            {
+                "claim": "authority entails the required state",
+                "requirement_ordinals": [0],
+                "authority_references": [
+                    {"kind": "authority-content", "role": "normative-spec"}
+                ],
+                "evidence_references": [{"kind": "source-finding"}],
+                "derivation_argument": "the authority entails requirement zero",
+            }
+        ],
+        "alternatives_considered": [],
+        "uniqueness_argument": {
+            "authority_references": [
+                {"kind": "authority-content", "role": "normative-spec"}
+            ],
+            "argument": "no distinct compatible correction remains",
+        },
+    }
+
+    def accepted_uc(
+        target_ref: dict, label: str
+    ) -> tuple[dict, dict]:
+        anchor = admit(
+            "turnlock.sqc:UniqueCorrectionInitial@1",
+            {
+                "discovery": discovery,
+                "survivingMaterialBasis": surviving,
+                "targetedDiscoveryStatement": target_ref,
+            },
+            unique_candidate,
+        )
+        challenge_ref = challenge(
+            "turnlock.sqc:UniqueCorrectionChallenge@1",
+            "challengedUniqueCorrection",
+            anchor,
+            True,
+        )
+        key = qualification(
+            "turnlock.qualification:UniqueCorrectionQualification@1",
+            anchor,
+            {"uniqueCorrectionChallenge": challenge_ref},
+        )
+        return fact(
+            "turnlock.predicate:AcceptedUniqueCorrection@1",
+            {"qualification": key},
+        ), anchor
+
+    accepted_unique, unique_anchor = accepted_uc(targeted, "one")
+    statement_two = copy.deepcopy(statement)
+    statement_two["statement"] = "a second exact derived correction statement"
+    targeted_two = fact(
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": statement_two},
+    )
+    accepted_unique_two, _ = accepted_uc(targeted_two, "two")
+    unique_status = _protocol_v8_e3c2_qualification_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        accepted_unique,
+        active=set(),
+    )
+    if not unique_status["reconstructible"] or not unique_status["consumable"]:
+        errors.append(f"{prefix} AcceptedUniqueCorrection fixture is invalid")
+
+    rs_candidate = {
+        "readable_paths": [p2, p1],
+        "writable_paths": [p1],
+        "completeness_argument": {
+            "requirement_surfaces": [
+                {
+                    "requirement_ordinal": 0,
+                    "surface_paths": [p1, p2],
+                    "argument": "both exact paths cover requirement zero",
+                }
+            ],
+            "whole_scope_argument": "the exact readable set is complete",
+        },
+        "minimal_write_authority_argument": {
+            "writable_path_justifications": [
+                {
+                    "path_bytes_base64url": p1,
+                    "requirement_ordinals": [0],
+                    "necessity_argument": "only path one requires mutation",
+                }
+            ],
+            "no_additional_write_authority_argument": (
+                "no additional write authority is required"
+            ),
+        },
+    }
+
+    def rs_initial(
+        candidate_ref: dict,
+        view_ref: dict,
+        result: object | None = None,
+        *,
+        surviving_ref: dict = surviving,
+    ) -> dict:
+        return admit(
+            "turnlock.sqc:RealizationScopeInitial@1",
+            {
+                "survivingMaterialBasis": surviving_ref,
+                "acceptedUniqueCorrection": accepted_unique,
+                "candidateRevision": candidate_ref,
+                "completeCandidateView": view_ref,
+            },
+            rs_candidate if result is None else result,
+        )
+
+    def accept_rs(anchor: dict) -> tuple[dict, dict, dict]:
+        challenge_ref = challenge(
+            "turnlock.sqc:RealizationScopeChallenge@1",
+            "challengedRealizationScope",
+            anchor,
+            True,
+        )
+        key = qualification(
+            "turnlock.qualification:RealizationScopeQualification@1",
+            anchor,
+            {"realizationScopeChallenge": challenge_ref},
+        )
+        return (
+            fact(
+                "turnlock.predicate:AcceptedRealizationScope@1",
+                {"qualification": key},
+            ),
+            challenge_ref,
+            key,
+        )
+
+    rs17 = rs_initial(c17, v_complete)
+    rs18 = rs_initial(c18, v_complete)
+    rs17_record = _protocol_v8_e3a_resolve_admission_identity(closure, rs17)
+    rs18_record = _protocol_v8_e3a_resolve_admission_identity(closure, rs18)
+    if rs17_record["qlek"] == rs18_record["qlek"]:
+        errors.append(f"{prefix} distinct CandidateRevision collapsed RS QLEK")
+    rs_binding = validate(rs17, True)
+    if rs_binding != {
+        "candidateRevision": c17,
+        "coverage": {"kind": "complete"},
+        "candidateView": v_complete,
+        "family": "realization-scope",
+        "questionKind": "initial",
+    }:
+        errors.append(f"{prefix} RS Initial derived binding mismatch")
+    accepted_rs17, rs17_zero_challenge, rs17_key = accept_rs(rs17)
+    accepted_rs18, _, _ = accept_rs(rs18)
+    rs17_status = status(accepted_rs17)
+    if (
+        set(rs17_status) != {
+            "reference",
+            "descriptor",
+            "reconstructible",
+            "consumable",
+        }
+        or not rs17_status["reconstructible"]
+        or not rs17_status["consumable"]
+        or revision_of(accepted_rs17) != c17
+        or anchor_view(accepted_rs17) != rs_candidate
+    ):
+        errors.append(f"{prefix} AcceptedRS status/projection mismatch")
+
+    rs_wrong_view = rs_initial(c17, v_changed)
+    expect_rejected(
+        "RS valid SemanticValue from wrong physical candidate",
+        lambda: validate(rs_wrong_view),
+        "CANDIDATE-VIEW-INTEGRITY-FAILURE",
+    )
+    rs_absent_candidate = copy.deepcopy(rs_candidate)
+    rs_absent_candidate["readable_paths"].append(p_missing)
+    rs_absent = rs_initial(
+        c17,
+        v_complete,
+        rs_absent_candidate,
+        surviving_ref=semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": "e4-b-rs-absent"},
+        ),
+    )
+    expect_rejected("RS absent readable path", lambda: validate(rs_absent))
+    rs_bad_subset_candidate = copy.deepcopy(rs_candidate)
+    rs_bad_subset_candidate["writable_paths"] = [p3]
+    rs_bad_subset = rs_initial(
+        c17,
+        v_complete,
+        rs_bad_subset_candidate,
+        surviving_ref=semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": "e4-b-rs-subset"},
+        ),
+    )
+    expect_rejected("RS writable path outside readable", lambda: validate(rs_bad_subset))
+    rs_invalid_path_candidate = copy.deepcopy(rs_candidate)
+    rs_invalid_path_candidate["readable_paths"] = [p1 + "="]
+    rs_invalid_path_candidate["writable_paths"] = []
+    rs_invalid_path = rs_initial(
+        c17,
+        v_complete,
+        rs_invalid_path_candidate,
+        surviving_ref=semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": "e4-b-rs-invalid-path"},
+        ),
+    )
+    expect_rejected("RS invalid canonical path", lambda: validate(rs_invalid_path))
+
+    surviving_rs_revision = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e4-b-rs-revision"},
+    )
+    rs_revision_base = rs_initial(
+        c17, v_complete, surviving_ref=surviving_rs_revision
+    )
+    rs_objection = challenge(
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs_revision_base,
+        False,
+    )
+    rs_revision_inputs = {
+        "survivingMaterialBasis": surviving_rs_revision,
+        "acceptedUniqueCorrection": accepted_unique,
+        "candidateRevision": c17,
+        "completeCandidateView": v_complete,
+        "priorRealizationScope": rs_revision_base,
+        "priorRealizationScopeChallenge": rs_objection,
+    }
+    rs_revision = admit(
+        "turnlock.sqc:RealizationScopeRevision@1",
+        rs_revision_inputs,
+        rs_candidate,
+    )
+    if validate(rs_revision)["candidateRevision"] != c17:
+        errors.append(f"{prefix} valid RS revision binding mismatch")
+    surviving_rs_revision_ne = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e4-b-rs-revision-ne"},
+    )
+    rs_revision_ne_base = rs_initial(
+        c18, v_complete, surviving_ref=surviving_rs_revision_ne
+    )
+    rs18_objection = challenge(
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs_revision_ne_base,
+        False,
+    )
+    rs_revision_ne_inputs = copy.deepcopy(rs_revision_inputs)
+    rs_revision_ne_inputs["survivingMaterialBasis"] = surviving_rs_revision_ne
+    rs_revision_ne_inputs["candidateRevision"] = c18
+    rs_revision_ne_inputs["priorRealizationScope"] = rs_revision_ne_base
+    rs_revision_ne_inputs["priorRealizationScopeChallenge"] = rs18_objection
+    rs_revision_ne = admit(
+        "turnlock.sqc:RealizationScopeRevision@1",
+        rs_revision_ne_inputs,
+        {"kind": "not-established"},
+    )
+    if validate(rs_revision_ne)["candidateRevision"] != c18:
+        errors.append(f"{prefix} NotEstablished RS revision lost binding")
+    rs_rebase_inputs = copy.deepcopy(rs_revision_inputs)
+    rs_rebase_inputs["candidateRevision"] = c18
+    rs_rebase = admit(
+        "turnlock.sqc:RealizationScopeRevision@1",
+        rs_rebase_inputs,
+        rs_candidate,
+    )
+    expect_rejected("RS revision nominal rebase", lambda: validate(rs_rebase))
+    rs_changed_view_inputs = copy.deepcopy(rs_revision_inputs)
+    rs_changed_view_inputs["completeCandidateView"] = v_changed
+    rs_changed_view = admit(
+        "turnlock.sqc:RealizationScopeRevision@1",
+        rs_changed_view_inputs,
+        rs_candidate,
+    )
+    expect_rejected("RS revision changed exact view ref", lambda: validate(rs_changed_view))
+    rs_second_challenge = challenge(
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs_revision,
+        False,
+    )
+    rs_second_inputs = copy.deepcopy(rs_revision_inputs)
+    rs_second_inputs["priorRealizationScope"] = rs_revision
+    rs_second_inputs["priorRealizationScopeChallenge"] = rs_second_challenge
+    rs_second = admit(
+        "turnlock.sqc:RealizationScopeRevision@1",
+        rs_second_inputs,
+        rs_candidate,
+    )
+    expect_rejected("second RS revision", lambda: validate(rs_second))
+    rs_challenge_record = _protocol_v8_e3a_resolve_admission_identity(
+        closure, rs_objection
+    )
+    if (
+        _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, rs_challenge_record["qlek"]
+        )
+        != c17
+    ):
+        errors.append(f"{prefix} RS challenge inherited candidate mismatch")
+    challenge_descriptor = _protocol_v8_e3a_resolve_qlek(
+        closure, contracts, rs_challenge_record["qlek"]
+    )
+    if "candidateRevision" in _mapping(challenge_descriptor.get("exactLogicalInput")):
+        errors.append(f"{prefix} RS challenge selected candidate independently")
+    no_view_calls = {"candidate": 0, "content": 0}
+
+    def forbidden_candidate_resolver(reference: object) -> dict:
+        no_view_calls["candidate"] += 1
+        raise ValueError(f"{prefix} challenge constructed CandidateView")
+
+    def forbidden_content_resolver(reference: object) -> bytes:
+        no_view_calls["content"] += 1
+        raise ValueError(f"{prefix} challenge resolved CandidateView bytes")
+
+    _protocol_v8_e4b_validate_candidate_admission(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        rs_objection,
+        candidate_materialization_resolver=forbidden_candidate_resolver,
+        sealed_content_resolver=forbidden_content_resolver,
+        require_current_consumability=False,
+    )
+    if no_view_calls != {"candidate": 0, "content": 0}:
+        errors.append(f"{prefix} challenge reselected CandidateView")
+
+    scope = _protocol_v8_e4a_canonical_readable_coverage(
+        rs_candidate["readable_paths"]
+    )
+    scoped17 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c17, scope, resolve_candidate, resolve_content
+    )
+    v_scoped = _protocol_v8_e4a_register_candidate_view(closure, scoped17)
+    scoped18 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c18, scope, resolve_candidate, resolve_content
+    )
+    v_scoped18 = _protocol_v8_e4a_register_candidate_view(closure, scoped18)
+    if v_scoped != v_scoped18:
+        errors.append(f"{prefix} equal physical scoped view fixture mismatch")
+
+    rr_candidate = {
+        "kind": "repair-realization-candidate",
+        "requirement_realizations": [
+            {
+                "requirement_ordinal": 0,
+                "kind": "patch-realized",
+                "operation_paths": [p1],
+                "realization_argument": "deletion realizes requirement zero",
+            }
+        ],
+        "operations": [
+            {"path_bytes_base64url": p1, "after_state": {"kind": "absent"}}
+        ],
+    }
+    rr_empty_candidate = {
+        "kind": "repair-realization-candidate",
+        "requirement_realizations": [
+            {
+                "requirement_ordinal": 0,
+                "kind": "already-realized",
+                "already_realized_argument": "requirement zero is already realized",
+            }
+        ],
+        "operations": [],
+    }
+
+    def rr_initial(
+        candidate_ref: dict,
+        rs_fact: dict,
+        view_ref: dict,
+        result: object,
+        *,
+        surviving_ref: dict = surviving,
+        accepted_unique_ref: dict = accepted_unique,
+    ) -> dict:
+        return admit(
+            "turnlock.sqc:RepairRealizationInitial@1",
+            {
+                "survivingMaterialBasis": surviving_ref,
+                "acceptedUniqueCorrection": accepted_unique_ref,
+                "acceptedRealizationScope": rs_fact,
+                "candidateRevision": candidate_ref,
+                "scopedCandidateView": view_ref,
+            },
+            result,
+        )
+
+    def accept_rr(anchor: dict) -> tuple[dict, dict, dict]:
+        challenge_ref = challenge(
+            "turnlock.sqc:RepairRealizationChallenge@1",
+            "challengedRepairRealization",
+            anchor,
+            True,
+        )
+        key = qualification(
+            "turnlock.qualification:RepairRealizationQualification@1",
+            anchor,
+            {"repairRealizationChallenge": challenge_ref},
+        )
+        return (
+            fact(
+                "turnlock.predicate:AcceptedRepairRealization@1",
+                {"qualification": key},
+            ),
+            challenge_ref,
+            key,
+        )
+
+    rr17 = rr_initial(c17, accepted_rs17, v_scoped, rr_candidate)
+    rr18 = rr_initial(c18, accepted_rs18, v_scoped18, rr_candidate)
+    rr17_record = _protocol_v8_e3a_resolve_admission_identity(closure, rr17)
+    rr18_record = _protocol_v8_e3a_resolve_admission_identity(closure, rr18)
+    if rr17_record["qlek"] == rr18_record["qlek"]:
+        errors.append(f"{prefix} distinct CandidateRevision collapsed RR QLEK")
+    rr_binding = validate(rr17, True)
+    if rr_binding["candidateRevision"] != c17 or rr_binding["coverage"] != scope:
+        errors.append(f"{prefix} RR scoped binding mismatch")
+    rr_empty = rr_initial(
+        c17,
+        accepted_rs17,
+        v_scoped,
+        rr_empty_candidate,
+        accepted_unique_ref=accepted_unique_two,
+    )
+    if validate(rr_empty)["candidateRevision"] != c17:
+        errors.append(f"{prefix} positive empty-operation RR was rejected")
+    accepted_rr17, rr17_zero_challenge, rr17_key = accept_rr(rr17)
+    rr17_status = status(accepted_rr17)
+    if (
+        not rr17_status["reconstructible"]
+        or not rr17_status["consumable"]
+        or revision_of(accepted_rr17) != c17
+        or anchor_view(accepted_rr17) != rr_candidate
+    ):
+        errors.append(f"{prefix} AcceptedRR status/projection mismatch")
+
+    rr_cross_candidate = rr_initial(c18, accepted_rs17, v_scoped18, rr_candidate)
+    expect_rejected(
+        "AcceptedRS C17 authorizes RR C18",
+        lambda: validate(rr_cross_candidate),
+    )
+    rr_wrong_scope = rr_initial(c17, accepted_rs17, v_complete, rr_candidate)
+    expect_rejected(
+        "RR scoped view contains extra path",
+        lambda: validate(rr_wrong_scope),
+        "CANDIDATE-VIEW-INTEGRITY-FAILURE",
+    )
+    rr_unwritable_candidate = copy.deepcopy(rr_candidate)
+    rr_unwritable_candidate["operations"][0]["path_bytes_base64url"] = p2
+    rr_unwritable = rr_initial(
+        c17,
+        accepted_rs17,
+        v_scoped,
+        rr_unwritable_candidate,
+        surviving_ref=semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": "e4-b-rr-unwritable"},
+        ),
+    )
+    expect_rejected("RR operation on readable unwritable path", lambda: validate(rr_unwritable))
+    rr_absent_candidate = copy.deepcopy(rr_candidate)
+    rr_absent_candidate["operations"][0]["path_bytes_base64url"] = p_missing
+    rr_absent = rr_initial(
+        c17,
+        accepted_rs17,
+        v_scoped,
+        rr_absent_candidate,
+        surviving_ref=semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": "e4-b-rr-absent"},
+        ),
+    )
+    expect_rejected("RR operation absent from accepted scope", lambda: validate(rr_absent))
+    rr_invalid_path_candidate = copy.deepcopy(rr_candidate)
+    rr_invalid_path_candidate["operations"][0]["path_bytes_base64url"] = p1 + "="
+    rr_invalid_path = rr_initial(
+        c17,
+        accepted_rs17,
+        v_scoped,
+        rr_invalid_path_candidate,
+        surviving_ref=semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": "e4-b-rr-invalid-path"},
+        ),
+    )
+    expect_rejected("RR invalid canonical operation path", lambda: validate(rr_invalid_path))
+
+    surviving_rr_revision = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e4-b-rr-revision"},
+    )
+    rr_revision_base = rr_initial(
+        c17,
+        accepted_rs17,
+        v_scoped,
+        rr_candidate,
+        surviving_ref=surviving_rr_revision,
+    )
+    rr_objection = challenge(
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        "challengedRepairRealization",
+        rr_revision_base,
+        False,
+    )
+    rr_revision_inputs = {
+        "survivingMaterialBasis": surviving_rr_revision,
+        "acceptedUniqueCorrection": accepted_unique,
+        "acceptedRealizationScope": accepted_rs17,
+        "candidateRevision": c17,
+        "scopedCandidateView": v_scoped,
+        "priorRepairRealization": rr_revision_base,
+        "priorRepairRealizationChallenge": rr_objection,
+    }
+    rr_revision = admit(
+        "turnlock.sqc:RepairRealizationRevision@1",
+        rr_revision_inputs,
+        rr_candidate,
+    )
+    if validate(rr_revision)["candidateRevision"] != c17:
+        errors.append(f"{prefix} valid RR revision binding mismatch")
+    rr_mutations = {
+        "candidateRevision": c18,
+        "acceptedRealizationScope": accepted_rs18,
+        "acceptedUniqueCorrection": accepted_unique_two,
+        "scopedCandidateView": v_changed,
+        "survivingMaterialBasis": surviving_other,
+    }
+    for name, replacement in rr_mutations.items():
+        changed = copy.deepcopy(rr_revision_inputs)
+        changed[name] = replacement
+        changed_admission = admit(
+            "turnlock.sqc:RepairRealizationRevision@1",
+            changed,
+            rr_candidate,
+        )
+        expect_rejected(
+            f"RR revision changed retained {name}",
+            lambda reference=changed_admission: validate(reference),
+        )
+    rr_second_challenge = challenge(
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        "challengedRepairRealization",
+        rr_revision,
+        False,
+    )
+    rr_second_inputs = copy.deepcopy(rr_revision_inputs)
+    rr_second_inputs["priorRepairRealization"] = rr_revision
+    rr_second_inputs["priorRepairRealizationChallenge"] = rr_second_challenge
+    rr_second = admit(
+        "turnlock.sqc:RepairRealizationRevision@1",
+        rr_second_inputs,
+        rr_candidate,
+    )
+    expect_rejected("second RR revision", lambda: validate(rr_second))
+    rr_challenge_record = _protocol_v8_e3a_resolve_admission_identity(
+        closure, rr_objection
+    )
+    if (
+        _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, rr_challenge_record["qlek"]
+        )
+        != c17
+    ):
+        errors.append(f"{prefix} RR challenge inherited candidate mismatch")
+
+    unique_record = _protocol_v8_e3a_resolve_admission_identity(
+        closure, unique_anchor
+    )
+    expect_rejected(
+        "candidate-independent QLEK binding",
+        lambda: _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, unique_record["qlek"]
+        ),
+        "unsupported candidate-independent",
+    )
+    expect_rejected(
+        "CandidateRevisionOf AcceptedUniqueCorrection",
+        lambda: revision_of(accepted_unique),
+        "unsupported Predicate",
+    )
+    expect_rejected(
+        "candidate-bound Fact active cycle",
+        lambda: _protocol_v8_e4b_candidate_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            accepted_rs17,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            active={accepted_rs17["factId"]},
+        ),
+        "cycle",
+    )
+
+    wrong_anchor_challenge = rs17_zero_challenge
+    wrong_anchor_key = qualification(
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs18,
+        {"realizationScopeChallenge": wrong_anchor_challenge},
+    )
+    wrong_anchor_fact = fact(
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        {"qualification": wrong_anchor_key},
+    )
+    wrong_status = status(wrong_anchor_fact)
+    if wrong_status["reconstructible"] or wrong_status["consumable"]:
+        errors.append(f"{prefix} wrong qualification anchor reconstructed")
+
+    before_rs = revision_of(accepted_rs17)
+    before_rr = revision_of(accepted_rr17)
+    c20 = candidate("C20", entries17)
+    complete20 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c20, {"kind": "complete"}, resolve_candidate, resolve_content
+    )
+    fact_memo.clear()
+    if complete20 != complete17 or revision_of(accepted_rs17) != before_rs or (
+        revision_of(accepted_rr17) != before_rr
+    ):
+        errors.append(f"{prefix} later candidate registration rebound historical Fact")
+    if (
+        _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, rs_challenge_record["qlek"]
+        )
+        != c17
+        or _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, rr_challenge_record["qlek"]
+        )
+        != c17
+    ):
+        errors.append(f"{prefix} later candidate registration rebound challenge")
+
+    rs_conflict_candidate = copy.deepcopy(rs_candidate)
+    rs_conflict_candidate["writable_paths"] = []
+    rs_conflict_candidate["minimal_write_authority_argument"] = {
+        "writable_path_justifications": [],
+        "no_additional_write_authority_argument": "no writes are authorized",
+    }
+    rs_qlek = rs17_record["qlek"]
+    conflict_id = _protocol_v8_e1_semantic_admission_id(
+        rs_qlek, rs_conflict_candidate
+    )
+    token = _protocol_v8_e2_validated_witness_token(
+        rs_qlek,
+        conflict_id,
+        rs_conflict_candidate,
+        "IMPORTED-E4-B-CONFLICT",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        closure["e2_state"],
+        rs_qlek,
+        semantic_candidate=rs_conflict_candidate,
+        validated_origin_witness=token,
+    )
+    fact_memo.clear()
+    quarantined = status(accepted_rs17)
+    if quarantined["reconstructible"] is not True or quarantined["consumable"] is not False:
+        errors.append(f"{prefix} quarantine/history status separation failed")
+    if revision_of(accepted_rs17) != c17:
+        errors.append(f"{prefix} quarantine erased historical CandidateRevisionOf")
+
+    drifted_contracts = copy.deepcopy(contracts)
+    drifted_contracts[
+        "turnlock.sqc:RealizationScopeInitial@1"
+    ]["definition"]["logical_input"]["candidateRevision"]["authority_type"] = (
+        "turnlock.authority:other.v1"
+    )
+    if not _protocol_v8_e4b_catalog_topology_errors(
+        drifted_contracts, predicates, qualifications
+    ):
+        errors.append(f"{prefix} catalog topology drift was accepted")
+    forbidden_fragments = {
+        "current_candidate",
+        "semantic_arm",
+        "repair_intent",
+        "before_state",
+        "candidate_successor",
+        "packet_projection",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e4b_")
+        and any(fragment in name for fragment in forbidden_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} later-stage helper boundary was crossed")
+    for name, value in globals().items():
+        if name.startswith("_protocol_v8_e4b_") and callable(value):
+            if "current_candidate" in value.__code__.co_varnames:
+                errors.append(f"{prefix} {name} accepts current_candidate")
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -17342,6 +19342,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e4a_candidate_view_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e4b_candidate_binding_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
