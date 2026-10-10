@@ -9259,6 +9259,1645 @@ def _inactive_protocol_v8_e3c2_exhaustion_fact_errors(
     return errors
 
 
+def _protocol_v8_e3c3_rule_map(
+    predicates: dict[str, dict],
+) -> tuple[dict[str, dict], list[str]]:
+    """Select and validate the sole E3-C3 deterministic Predicate rule."""
+    rule_name = "decision-necessity-candidate"
+    matches: list[tuple[str, dict]] = []
+    errors: list[str] = []
+    for predicate_id, predicate in predicates.items():
+        definition = _mapping(predicate.get("definition"))
+        derivation = _mapping(definition.get("derivation"))
+        if derivation.get("rule") == rule_name:
+            matches.append((predicate_id, predicate))
+    if len(matches) != 1:
+        errors.append(
+            "inactive protocol v8 E3-C3: expected exactly one DecisionNecessity rule"
+        )
+        return {}, errors
+    predicate_id, predicate = matches[0]
+    definition = _mapping(predicate.get("definition"))
+    derivation = _mapping(definition.get("derivation"))
+    if predicate.get("revision_id") != predicate_id or predicate_id != (
+        "turnlock.predicate:DecisionNecessityCandidate@1"
+    ):
+        errors.append(
+            "inactive protocol v8 E3-C3: DecisionNecessity revision/catalog mismatch"
+        )
+    if (
+        derivation.get("kind") != "deterministic"
+        or derivation.get("rule") != rule_name
+        or derivation.get("projection") != "exact-target-disposition-basis"
+    ):
+        errors.append(
+            "inactive protocol v8 E3-C3: DecisionNecessity derivation mismatch"
+        )
+    arguments = _mapping(definition.get("arguments"))
+    expected_arguments = {
+        "survivingMaterialBasis": {
+            "kind": "semantic-value",
+            "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        },
+        "decisionRequiredStatement": {
+            "kind": "semantic-fact",
+            "predicate_revision": (
+                "turnlock.predicate:DecisionRequiredDiscoveryStatement@1"
+            ),
+        },
+        "uniqueCorrectionExhaustion": {
+            "kind": "semantic-fact",
+            "predicate_revision": "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        },
+    }
+    if arguments != expected_arguments:
+        errors.append(
+            "inactive protocol v8 E3-C3: DecisionNecessity arguments mismatch"
+        )
+    if _mapping(definition.get("semantic_view")) != {
+        "kind": "decision-necessity-candidate",
+        "source_argument": "decisionRequiredStatement",
+    }:
+        errors.append(
+            "inactive protocol v8 E3-C3: DecisionNecessity semantic-view metadata mismatch"
+        )
+    return {rule_name: predicate}, errors
+
+
+def _protocol_v8_e3c3_topology(
+    contracts: dict[str, dict],
+) -> dict:
+    """Validate the exact DecisionNecessity challenge/revision topology."""
+    challenge_id = "turnlock.sqc:DecisionNecessityChallenge@1"
+    revision_id = "turnlock.sqc:DiscoveryDecisionRequiredRevision@1"
+    challenge_contract = contracts.get(challenge_id)
+    revision_contract = contracts.get(revision_id)
+    if not isinstance(challenge_contract, dict) or not isinstance(revision_contract, dict):
+        raise ValueError(
+            "inactive protocol v8 E3-C3: DecisionNecessity topology contract missing"
+        )
+    challenge_definition = _mapping(challenge_contract.get("definition"))
+    revision_definition = _mapping(revision_contract.get("definition"))
+    challenge_inputs = _mapping(challenge_definition.get("logical_input"))
+    expected_challenge_inputs = {
+        "survivingMaterialBasis": {
+            "kind": "semantic-value",
+            "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        },
+        "decisionRequiredStatement": {
+            "kind": "semantic-fact",
+            "predicate_revision": (
+                "turnlock.predicate:DecisionRequiredDiscoveryStatement@1"
+            ),
+        },
+        "uniqueCorrectionExhaustion": {
+            "kind": "semantic-fact",
+            "predicate_revision": "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        },
+        "decisionNecessityCandidate": {
+            "kind": "semantic-fact",
+            "predicate_revision": "turnlock.predicate:DecisionNecessityCandidate@1",
+        },
+    }
+    challenge = _mapping(challenge_definition.get("challenge"))
+    if (
+        challenge_contract.get("revision_id") != challenge_id
+        or challenge_definition.get("family") != "decision-necessity"
+        or challenge_definition.get("question_kind") != "challenge"
+        or challenge_inputs != expected_challenge_inputs
+        or challenge.get("challenge_kind") != "decision-necessity"
+        or challenge.get("target_input") != "decisionNecessityCandidate"
+        or challenge.get("revision_contract") != revision_id
+        or challenge.get("revision_trigger_producer_contracts")
+        != ["turnlock.sqc:DiscoveryClassificationInitial@1"]
+        or challenge.get("zero_objections_derives_predicate")
+        != "turnlock.predicate:QualifiedDecisionNecessity@1"
+    ):
+        raise ValueError(
+            "inactive protocol v8 E3-C3: DecisionNecessity challenge topology mismatch"
+        )
+    revision_inputs = _mapping(revision_definition.get("logical_input"))
+    expected_revision_inputs = {
+        "survivingMaterialBasis": {
+            "kind": "semantic-value",
+            "value_type": "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        },
+        "priorDecisionRequiredStatement": {
+            "kind": "semantic-fact",
+            "predicate_revision": (
+                "turnlock.predicate:DecisionRequiredDiscoveryStatement@1"
+            ),
+        },
+        "priorDecisionNecessityCandidate": {
+            "kind": "semantic-fact",
+            "predicate_revision": "turnlock.predicate:DecisionNecessityCandidate@1",
+        },
+        "priorDecisionNecessityChallenge": {
+            "kind": "semantic-admission",
+            "producer_contracts": [
+                "turnlock.sqc:DecisionNecessityChallenge@1"
+            ],
+        },
+    }
+    revision = _mapping(revision_definition.get("revision"))
+    followup = _mapping(revision.get("followup"))
+    if (
+        revision_contract.get("revision_id") != revision_id
+        or revision_definition.get("family") != "decision-necessity"
+        or revision_definition.get("question_kind") != "revision"
+        or revision_inputs != expected_revision_inputs
+        or revision.get("ordinal") != 1
+        or revision.get("prior_candidate_input")
+        != "priorDecisionRequiredStatement"
+        or revision.get("challenged_candidate_input")
+        != "priorDecisionNecessityCandidate"
+        or revision.get("prior_challenge_input")
+        != "priorDecisionNecessityChallenge"
+        or revision.get("revised_target_input")
+        != "priorDecisionRequiredStatement"
+        or revision.get("retained_family_inputs") != ["survivingMaterialBasis"]
+        or revision.get("required_positive_disposition") != "decision-required"
+        or revision.get("sibling_discovery_statements_immutable") is not True
+        or revision.get("withdrawal") != "not-established"
+        or followup
+        != {
+            "challenge_contract": challenge_id,
+            "decision_necessity_candidate_predicate": (
+                "turnlock.predicate:DecisionNecessityCandidate@1"
+            ),
+            "kind": "fresh-unique-correction-path",
+            "unique_correction_exhaustion_predicate": (
+                "turnlock.predicate:UniqueCorrectionExhaustion@1"
+            ),
+            "unique_correction_initial_contract": (
+                "turnlock.sqc:UniqueCorrectionInitial@1"
+            ),
+        }
+    ):
+        raise ValueError(
+            "inactive protocol v8 E3-C3: Discovery decision revision topology mismatch"
+        )
+    return {
+        "challenge_id": challenge_id,
+        "challenge": challenge_contract,
+        "revision_id": revision_id,
+        "revision": revision_contract,
+        "challenge_metadata": challenge,
+        "revision_metadata": revision,
+    }
+
+
+def _protocol_v8_e3c3_admission_context(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    admission_ref: object,
+) -> dict:
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(
+                f"inactive protocol v8 E3-C3: {validator_errors[0]}"
+            )
+        closure["_e3b_output_validators"] = validators
+    return _protocol_v8_e3b_admission_context(
+        root, closure, contracts, admission_ref, validators
+    )
+
+
+def _protocol_v8_e3c3_targeted_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Resolve C1 targets plus the exact decision-required revision target."""
+    c1_rules, c1_errors = _protocol_v8_e3c1_rule_map(predicates)
+    if c1_errors:
+        raise ValueError(c1_errors[0])
+    predicate = c1_rules["targeted-discovery-statement"]
+    if descriptor.get("predicateRevision") != predicate.get("revision_id"):
+        return False
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {
+        "producerDiscovery",
+        "statement",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: Targeted descriptor arguments mismatch"
+        )
+    producer = _protocol_v8_e3c3_admission_context(
+        root, closure, contracts, arguments["producerDiscovery"]
+    )
+    if producer["contract_id"] != "turnlock.sqc:DiscoveryDecisionRequiredRevision@1":
+        return _protocol_v8_e3c1_targeted_discovery_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    topology = _protocol_v8_e3c3_topology(contracts)
+    if require_current_consumability and not producer["currently_consumable"]:
+        return False
+    candidate = producer.get("candidate")
+    if candidate == {"kind": "not-established"}:
+        return False
+    if not isinstance(candidate, dict) or set(candidate) != {"kind", "statement"}:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: decision revision candidate shape mismatch"
+        )
+    if candidate.get("kind") != "revised-candidate":
+        raise ValueError(
+            "inactive protocol v8 E3-C3: decision revision candidate kind mismatch"
+        )
+    statement = candidate.get("statement")
+    if _protocol_v8_e1_canonical_json_value_bytes(statement) != (
+        _protocol_v8_e1_canonical_json_value_bytes(arguments["statement"])
+    ):
+        return False
+    required_disposition = topology["revision_metadata"].get(
+        "required_positive_disposition"
+    )
+    if _mapping(statement).get("semantic_disposition") != required_disposition:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: revised statement disposition mismatch"
+        )
+    exact_input = _mapping(producer["descriptor"]).get("exactLogicalInput")
+    if not isinstance(exact_input, dict) or set(exact_input) != {
+        "survivingMaterialBasis",
+        "priorDecisionRequiredStatement",
+        "priorDecisionNecessityCandidate",
+        "priorDecisionNecessityChallenge",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: decision revision exact input mismatch"
+        )
+    surviving_ref = exact_input["survivingMaterialBasis"]
+    surviving = _protocol_v8_e3a_resolve_semantic_value(closure, surviving_ref)
+    if surviving.get("valueType") != (
+        "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    ):
+        return False
+    decision_ref = exact_input["priorDecisionRequiredStatement"]
+    candidate_ref = exact_input["priorDecisionNecessityCandidate"]
+    decision = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, decision_ref,
+        active=active,
+    )
+    necessity = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, candidate_ref,
+        active=active,
+    )
+    if not decision["reconstructible"] or not necessity["reconstructible"]:
+        return False
+    if decision["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1"
+    ) or necessity["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:DecisionNecessityCandidate@1"
+    ):
+        return False
+    if require_current_consumability and (
+        not decision["consumable"] or not necessity["consumable"]
+    ):
+        return False
+    necessity_arguments = _mapping(necessity["descriptor"].get("arguments"))
+    if necessity_arguments.get("survivingMaterialBasis") != surviving_ref or (
+        necessity_arguments.get("decisionRequiredStatement") != decision_ref
+    ):
+        return False
+    exhaustion_ref = necessity_arguments.get("uniqueCorrectionExhaustion")
+    exhaustion = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, exhaustion_ref,
+        active=active,
+    )
+    if not exhaustion["reconstructible"]:
+        return False
+    if exhaustion["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:UniqueCorrectionExhaustion@1"
+    ):
+        return False
+    if require_current_consumability and not exhaustion["consumable"]:
+        return False
+    challenge = _protocol_v8_e3c3_admission_context(
+        root,
+        closure,
+        contracts,
+        exact_input["priorDecisionNecessityChallenge"],
+    )
+    expected_challenge_input = {
+        "survivingMaterialBasis": copy.deepcopy(surviving_ref),
+        "decisionRequiredStatement": copy.deepcopy(decision_ref),
+        "uniqueCorrectionExhaustion": copy.deepcopy(exhaustion_ref),
+        "decisionNecessityCandidate": copy.deepcopy(candidate_ref),
+    }
+    if challenge["contract_id"] != topology["challenge_id"] or (
+        _mapping(challenge["descriptor"]).get("exactLogicalInput")
+        != expected_challenge_input
+    ):
+        return False
+    objections = _mapping(challenge.get("candidate")).get("objections")
+    if not isinstance(objections, list) or not objections:
+        return False
+    if require_current_consumability and not challenge["currently_consumable"]:
+        return False
+    decision_arguments = _mapping(decision["descriptor"].get("arguments"))
+    prior_target_ref = decision_arguments.get("targetedDiscoveryStatement")
+    prior_target = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, prior_target_ref,
+        active=active,
+    )
+    if not prior_target["reconstructible"]:
+        return False
+    if require_current_consumability and not prior_target["consumable"]:
+        return False
+    prior_producer_ref = _mapping(prior_target["descriptor"].get("arguments")).get(
+        "producerDiscovery"
+    )
+    prior_producer = _protocol_v8_e3c3_admission_context(
+        root, closure, contracts, prior_producer_ref
+    )
+    trigger_contracts = topology["challenge_metadata"].get(
+        "revision_trigger_producer_contracts"
+    )
+    return prior_producer["contract_id"] in trigger_contracts
+
+
+def _protocol_v8_e3c3_decision_required_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Resolve DecisionRequired over either C1 or C3 Targeted Facts."""
+    c1_rules, c1_errors = _protocol_v8_e3c1_rule_map(predicates)
+    if c1_errors:
+        raise ValueError(c1_errors[0])
+    predicate = c1_rules["decision-required-discovery-statement"]
+    if descriptor.get("predicateRevision") != predicate.get("revision_id"):
+        return False
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {
+        "targetedDiscoveryStatement"
+    }:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: DecisionRequired arguments mismatch"
+        )
+    target_ref = arguments["targetedDiscoveryStatement"]
+    target_descriptor = _protocol_v8_e3a_resolve_fact_identity(
+        closure, target_ref
+    )
+    producer_ref = _mapping(target_descriptor.get("arguments")).get(
+        "producerDiscovery"
+    )
+    producer = _protocol_v8_e3c3_admission_context(
+        root, closure, contracts, producer_ref
+    )
+    if producer["contract_id"] != "turnlock.sqc:DiscoveryDecisionRequiredRevision@1":
+        return _protocol_v8_e3c1_decision_required_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    target = _protocol_v8_e3c3_dependency_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        target_ref,
+        active=active,
+    )
+    if target["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:TargetedDiscoveryStatement@1"
+    ) or not target["reconstructible"]:
+        return False
+    if require_current_consumability and not target["consumable"]:
+        return False
+    statement = _mapping(
+        _mapping(target["descriptor"].get("arguments")).get("statement")
+    )
+    derivation = _mapping(_mapping(predicate.get("definition")).get("derivation"))
+    allowed = derivation.get("allowed_basis_kinds")
+    if statement.get("semantic_disposition") != derivation.get(
+        "required_disposition"
+    ):
+        return False
+    basis = statement.get("disposition_basis")
+    return isinstance(basis, dict) and basis.get("kind") in allowed
+
+
+def _protocol_v8_e3c3_unique_correction_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Bridge C2 exhaustion only when the exact Target is C3-produced."""
+    c2_rules, c2_errors = _protocol_v8_e3c2_rule_map(predicates)
+    if c2_errors:
+        raise ValueError(c2_errors[0])
+    predicate = c2_rules["unique-correction-exhaustion"]
+    if descriptor.get("predicateRevision") != predicate.get("revision_id"):
+        return False
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {
+        "targetedDiscoveryStatement"
+    }:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: UniqueCorrection arguments mismatch"
+        )
+    target_ref = arguments["targetedDiscoveryStatement"]
+    target_descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, target_ref)
+    producer_ref = _mapping(target_descriptor.get("arguments")).get(
+        "producerDiscovery"
+    )
+    producer = _protocol_v8_e3c3_admission_context(
+        root, closure, contracts, producer_ref
+    )
+    if producer["contract_id"] != "turnlock.sqc:DiscoveryDecisionRequiredRevision@1":
+        return _protocol_v8_e3c2_unique_correction_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    target = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, target_ref,
+        active=active,
+    )
+    if not target["reconstructible"]:
+        return False
+    if require_current_consumability and not target["consumable"]:
+        return False
+    producer_input = _mapping(producer["descriptor"]).get("exactLogicalInput")
+    if not isinstance(producer_input, dict) or "survivingMaterialBasis" not in producer_input:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: revised Discovery lacks SurvivingMaterialBasis"
+        )
+    family = _protocol_v8_e3c2_family_contracts(
+        contracts,
+        "unique-correction",
+        initial_inputs=[
+            "discovery",
+            "survivingMaterialBasis",
+            "targetedDiscoveryStatement",
+        ],
+        challenge_target="challengedUniqueCorrection",
+        revision_inputs=[
+            "discovery",
+            "priorUniqueCorrection",
+            "priorUniqueCorrectionChallenge",
+            "survivingMaterialBasis",
+            "targetedDiscoveryStatement",
+        ],
+        retained_inputs=[
+            "discovery",
+            "survivingMaterialBasis",
+            "targetedDiscoveryStatement",
+        ],
+        prior_candidate_input="priorUniqueCorrection",
+        prior_challenge_input="priorUniqueCorrectionChallenge",
+    )
+    terminal = _protocol_v8_e3c2_terminal_branches(
+        root,
+        closure,
+        contracts,
+        family,
+        {
+            "discovery": copy.deepcopy(producer_ref),
+            "survivingMaterialBasis": copy.deepcopy(
+                producer_input["survivingMaterialBasis"]
+            ),
+            "targetedDiscoveryStatement": copy.deepcopy(target_ref),
+        },
+        require_current_consumability=require_current_consumability,
+    )
+    if not terminal["established"]:
+        return False
+    if require_current_consumability:
+        contradictory = _protocol_v8_e3c2_current_qualification_contradiction(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            "turnlock.predicate:AcceptedUniqueCorrection@1",
+            terminal["positive_admission_ids"],
+            active=active,
+        )
+        _protocol_v8_e3c2_reject_current_contradiction(
+            True, contradictory, "UniqueCorrection"
+        )
+    return True
+
+
+def _protocol_v8_e3c3_decision_necessity_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Reduce exact S/D/U cross-binding to DecisionNecessityCandidate."""
+    rules, rule_errors = _protocol_v8_e3c3_rule_map(predicates)
+    if rule_errors:
+        raise ValueError(rule_errors[0])
+    predicate = rules["decision-necessity-candidate"]
+    if descriptor.get("predicateRevision") != predicate.get("revision_id"):
+        return False
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {
+        "survivingMaterialBasis",
+        "decisionRequiredStatement",
+        "uniqueCorrectionExhaustion",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: DecisionNecessity descriptor mismatch"
+        )
+    surviving_ref = arguments["survivingMaterialBasis"]
+    surviving = _protocol_v8_e3a_resolve_semantic_value(closure, surviving_ref)
+    if surviving.get("valueType") != (
+        "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    ):
+        return False
+    decision_ref = arguments["decisionRequiredStatement"]
+    exhaustion_ref = arguments["uniqueCorrectionExhaustion"]
+    decision = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, decision_ref,
+        active=active,
+    )
+    exhaustion = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, exhaustion_ref,
+        active=active,
+    )
+    if not decision["reconstructible"] or not exhaustion["reconstructible"]:
+        return False
+    if require_current_consumability and (
+        not decision["consumable"] or not exhaustion["consumable"]
+    ):
+        return False
+    if decision["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1"
+    ) or exhaustion["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:UniqueCorrectionExhaustion@1"
+    ):
+        return False
+    target_ref = _mapping(decision["descriptor"].get("arguments")).get(
+        "targetedDiscoveryStatement"
+    )
+    target = _protocol_v8_e3c3_dependency_status(
+        root, closure, contracts, predicates, qualifications, target_ref,
+        active=active,
+    )
+    if not target["reconstructible"]:
+        return False
+    if require_current_consumability and not target["consumable"]:
+        return False
+    target_arguments = _mapping(target["descriptor"].get("arguments"))
+    if _mapping(exhaustion["descriptor"].get("arguments")).get(
+        "targetedDiscoveryStatement"
+    ) != target_ref:
+        return False
+    producer = _protocol_v8_e3c3_admission_context(
+        root, closure, contracts, target_arguments.get("producerDiscovery")
+    )
+    producer_input = _mapping(producer["descriptor"]).get("exactLogicalInput")
+    if not isinstance(producer_input, dict) or (
+        producer_input.get("survivingMaterialBasis") != surviving_ref
+    ):
+        return False
+    if require_current_consumability and not producer["currently_consumable"]:
+        return False
+    return True
+
+
+def _protocol_v8_e3c3_fact_truth(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    descriptor: dict,
+    *,
+    require_current_consumability: bool,
+    active: set[str],
+) -> bool:
+    """Dispatch only the four C3 loop Predicate kinds."""
+    predicate_id = descriptor.get("predicateRevision")
+    if predicate_id == "turnlock.predicate:TargetedDiscoveryStatement@1":
+        return _protocol_v8_e3c3_targeted_truth(
+            root, closure, contracts, predicates, qualifications, descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    if predicate_id == "turnlock.predicate:DecisionRequiredDiscoveryStatement@1":
+        return _protocol_v8_e3c3_decision_required_truth(
+            root, closure, contracts, predicates, qualifications, descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    if predicate_id == "turnlock.predicate:UniqueCorrectionExhaustion@1":
+        return _protocol_v8_e3c3_unique_correction_truth(
+            root, closure, contracts, predicates, qualifications, descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    if predicate_id == "turnlock.predicate:DecisionNecessityCandidate@1":
+        return _protocol_v8_e3c3_decision_necessity_truth(
+            root, closure, contracts, predicates, qualifications, descriptor,
+            require_current_consumability=require_current_consumability,
+            active=active,
+        )
+    raise ValueError(
+        "inactive protocol v8 E3-C3: unsupported root Predicate"
+    )
+
+
+def _protocol_v8_e3c3_fact_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    active: set[str] | None = None,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> dict:
+    """Resolve historical/current truth for exactly the C3 loop Predicates."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    assert isinstance(fact_ref, dict)
+    fact_id = fact_ref["factId"]
+    stack = active if active is not None else set()
+    if fact_id in stack:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: unlawful semantic Fact reducer cycle"
+        )
+    # These maps live only for one synchronous resolution. They avoid repeating
+    # exact identity/graph work and never become semantic or persistent authority.
+    memo = _memo if _memo is not None else {}
+    graph_checked = _graph_checked if _graph_checked is not None else set()
+    cached = memo.get(fact_id)
+    if isinstance(cached, dict):
+        return copy.deepcopy(cached)
+    if fact_id not in graph_checked:
+        _protocol_v8_e3a_resolve_dependency_graph(
+            closure, contracts, [("semantic-fact", fact_id)]
+        )
+        graph_checked.add(fact_id)
+    stack.add(fact_id)
+    closure["_e3c3_ephemeral_resolution"] = {
+        "memo": memo,
+        "graph_checked": graph_checked,
+    }
+    try:
+        reconstructible = _protocol_v8_e3c3_fact_truth(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            descriptor,
+            require_current_consumability=False,
+            active=stack,
+        )
+        consumable = False
+        if reconstructible:
+            consumable = _protocol_v8_e3c3_fact_truth(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                descriptor,
+                require_current_consumability=True,
+                active=stack,
+            )
+    finally:
+        stack.remove(fact_id)
+        if active is None:
+            closure.pop("_e3c3_ephemeral_resolution", None)
+    result = {
+        "reference": copy.deepcopy(fact_ref),
+        "descriptor": descriptor,
+        "reconstructible": bool(reconstructible),
+        "consumable": bool(consumable),
+    }
+    memo[fact_id] = copy.deepcopy(result)
+    return result
+
+
+def _protocol_v8_e3c3_dependency_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    active: set[str],
+) -> dict:
+    """Resolve only the exact recursive Fact kinds required by the C3 loop."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    if descriptor.get("predicateRevision") not in {
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: unsupported C3 Fact dependency"
+        )
+    ephemeral = closure.get("_e3c3_ephemeral_resolution")
+    memo = _mapping(ephemeral).get("memo")
+    graph_checked = _mapping(ephemeral).get("graph_checked")
+    return _protocol_v8_e3c3_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        active=active,
+        _memo=memo if isinstance(memo, dict) else None,
+        _graph_checked=(
+            graph_checked if isinstance(graph_checked, set) else None
+        ),
+    )
+
+
+def _protocol_v8_e3c3_claimed_fact_dependency(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> dict:
+    """Adapt C3 status to E3-B's exact claimed-Fact dependency contract."""
+    status = _protocol_v8_e3c3_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        _memo=_memo,
+        _graph_checked=_graph_checked,
+    )
+    if status["reconstructible"] is not True:
+        raise ValueError(
+            "inactive protocol v8 E3-C3: claimed Fact dependency is not reconstructible"
+        )
+    return status
+
+
+def _protocol_v8_e3c3_decision_necessity_view(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+) -> dict:
+    """Project the exact disposition basis without changing Fact identity."""
+    status = _protocol_v8_e3c3_fact_status(
+        root, closure, contracts, predicates, qualifications, fact_ref
+    )
+    if not status["reconstructible"] or status["descriptor"].get(
+        "predicateRevision"
+    ) != "turnlock.predicate:DecisionNecessityCandidate@1":
+        raise ValueError(
+            "inactive protocol v8 E3-C3: semantic view requires valid DecisionNecessity"
+        )
+    decision_ref = _mapping(status["descriptor"].get("arguments")).get(
+        "decisionRequiredStatement"
+    )
+    decision = _protocol_v8_e3c3_fact_status(
+        root, closure, contracts, predicates, qualifications, decision_ref
+    )
+    target_ref = _mapping(decision["descriptor"].get("arguments")).get(
+        "targetedDiscoveryStatement"
+    )
+    target = _protocol_v8_e3c3_fact_status(
+        root, closure, contracts, predicates, qualifications, target_ref
+    )
+    statement = _mapping(_mapping(target["descriptor"].get("arguments")).get("statement"))
+    return {
+        "kind": "decision-necessity-candidate",
+        "basis": copy.deepcopy(statement.get("disposition_basis")),
+    }
+
+
+def _inactive_protocol_v8_e3c3_decision_necessity_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise the exact C3 DecisionNecessity closure in disposable state."""
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(catalog_errors)
+    errors.extend(contract_errors)
+    errors.extend(validator_errors)
+    rules, rule_errors = _protocol_v8_e3c3_rule_map(predicates)
+    errors.extend(rule_errors)
+    try:
+        topology = _protocol_v8_e3c3_topology(contracts)
+    except ValueError as error:
+        errors.append(str(error))
+        return errors
+    if errors:
+        return errors
+
+    decision_statement = {
+        "statement": "current authority leaves two materially distinct outcomes",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "the exact evidence exposes the unresolved choice",
+        "existing_authority": [],
+        "affected_layers": ["normative-contract"],
+        "semantic_disposition": "decision-required",
+        "disposition_basis": {
+            "kind": "product-underdetermination",
+            "alternatives": [
+                {
+                    "alternative": "A",
+                    "authority_compatibility_argument": "A is authority-compatible",
+                },
+                {
+                    "alternative": "B",
+                    "authority_compatibility_argument": "B is authority-compatible",
+                },
+            ],
+            "material_distinction_argument": "A and B differ materially",
+            "current_authority_non_selection_argument": "authority selects neither",
+        },
+    }
+    revised_statement = copy.deepcopy(decision_statement)
+    revised_statement["statement"] = "revised authority still leaves two outcomes"
+    sibling_statement = {
+        "statement": "a downstream correction has no normative impact",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "the exact evidence establishes downstream scope",
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": "no new authority",
+            "changed_product_authority_not_required_argument": "no changed authority",
+            "product_meaning_selection_not_required_argument": "no meaning choice",
+            "accepted_observable_obligation_change_not_required_argument": (
+                "no accepted obligation changes"
+            ),
+        },
+    }
+
+    def new_closure() -> dict:
+        closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+        closure["_e3b_output_validators"] = validators
+        return closure
+
+    def admit(closure: dict, contract_id: str, logical_input: dict, candidate: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract_id, logical_input, candidate
+        )
+
+    def fact(closure: dict, predicate_id: str, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(
+            closure, predicates, predicate_id, arguments
+        )
+
+    def discovery_candidate(statements: list[dict]) -> dict:
+        return {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": "the decision statement is earliest",
+                "upstream_exclusion_argument": "no earlier cause exists",
+            },
+            "classification_statements": copy.deepcopy(statements),
+        }
+
+    def challenge_candidate(contract_id: str, zero: bool) -> dict:
+        return _protocol_v8_e3b_test_challenge_candidate(
+            contracts[contract_id], zero
+        )
+
+    def status(closure: dict, reference: dict) -> dict:
+        return _protocol_v8_e3c3_fact_status(
+            root, closure, contracts, predicates, qualifications, reference
+        )
+
+    def expect_true(label: str, closure: dict, reference: dict) -> dict | None:
+        try:
+            result = status(closure, reference)
+        except ValueError as error:
+            errors.append(f"inactive protocol v8 E3-C3: {label} raised: {error}")
+            return None
+        if not result["reconstructible"] or not result["consumable"]:
+            errors.append(f"inactive protocol v8 E3-C3: {label} did not reduce")
+        return result
+
+    def expect_false(label: str, closure: dict, reference: dict) -> None:
+        try:
+            result = status(closure, reference)
+        except ValueError as error:
+            errors.append(f"inactive protocol v8 E3-C3: {label} raised: {error}")
+            return
+        if result["reconstructible"] or result["consumable"]:
+            errors.append(f"inactive protocol v8 E3-C3: {label} became true")
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            action()
+        except ValueError as error:
+            if required is not None and required not in str(error):
+                errors.append(
+                    f"inactive protocol v8 E3-C3: {label} rejected without {required!r}"
+                )
+            return
+        errors.append(f"inactive protocol v8 E3-C3: expected rejection: {label}")
+
+    def make_target(
+        closure: dict,
+        surviving_ref: dict,
+        statement_value: dict,
+        label: str,
+        *,
+        siblings: list[dict] | None = None,
+    ) -> tuple[dict, dict, dict]:
+        producer = admit(
+            closure,
+            "turnlock.sqc:DiscoveryClassificationInitial@1",
+            {"survivingMaterialBasis": surviving_ref},
+            discovery_candidate([statement_value] + list(siblings or [])),
+        )
+        targeted = fact(
+            closure,
+            "turnlock.predicate:TargetedDiscoveryStatement@1",
+            {"producerDiscovery": producer, "statement": statement_value},
+        )
+        decision = fact(
+            closure,
+            "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+            {"targetedDiscoveryStatement": targeted},
+        )
+        return producer, targeted, decision
+
+    def make_exhaustion(
+        closure: dict,
+        surviving_ref: dict,
+        producer_ref: dict,
+        targeted_ref: dict,
+    ) -> dict:
+        admit(
+            closure,
+            "turnlock.sqc:UniqueCorrectionInitial@1",
+            {
+                "discovery": producer_ref,
+                "survivingMaterialBasis": surviving_ref,
+                "targetedDiscoveryStatement": targeted_ref,
+            },
+            {"kind": "not-established"},
+        )
+        return fact(
+            closure,
+            "turnlock.predicate:UniqueCorrectionExhaustion@1",
+            {"targetedDiscoveryStatement": targeted_ref},
+        )
+
+    def make_necessity(
+        closure: dict,
+        surviving_ref: dict,
+        decision_ref: dict,
+        exhaustion_ref: dict,
+    ) -> dict:
+        return fact(
+            closure,
+            rules["decision-necessity-candidate"]["revision_id"],
+            {
+                "survivingMaterialBasis": surviving_ref,
+                "decisionRequiredStatement": decision_ref,
+                "uniqueCorrectionExhaustion": exhaustion_ref,
+            },
+        )
+
+    def make_dn_challenge(
+        closure: dict,
+        surviving_ref: dict,
+        decision_ref: dict,
+        exhaustion_ref: dict,
+        necessity_ref: dict,
+        *,
+        zero: bool,
+    ) -> dict:
+        return admit(
+            closure,
+            topology["challenge_id"],
+            {
+                "survivingMaterialBasis": surviving_ref,
+                "decisionRequiredStatement": decision_ref,
+                "uniqueCorrectionExhaustion": exhaustion_ref,
+                "decisionNecessityCandidate": necessity_ref,
+            },
+            challenge_candidate(topology["challenge_id"], zero),
+        )
+
+    def reduce_qualification(
+        closure: dict,
+        qualification_ref: dict,
+    ) -> dict | None:
+        memo: dict[str, dict] = {}
+        graph_checked: set[str] = set()
+        return _protocol_v8_e3b_reduce_qualification(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            qualification_ref,
+            fact_dependency_resolver=lambda reference: (
+                _protocol_v8_e3c3_claimed_fact_dependency(
+                    root,
+                    closure,
+                    contracts,
+                    predicates,
+                    qualifications,
+                    reference,
+                    _memo=memo,
+                    _graph_checked=graph_checked,
+                )
+            ),
+            require_current_consumability=True,
+        )
+
+    def make_qualification(
+        closure: dict,
+        producer_ref: dict,
+        surviving_ref: dict,
+        decision_ref: dict,
+        exhaustion_ref: dict,
+        necessity_ref: dict,
+        challenge_ref: dict,
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            closure,
+            qualifications,
+            "turnlock.qualification:DecisionNecessityQualification@1",
+            producer_ref,
+            {
+                "survivingMaterialBasis": surviving_ref,
+                "decisionRequiredStatement": decision_ref,
+                "uniqueCorrectionExhaustion": exhaustion_ref,
+                "decisionNecessityCandidate": necessity_ref,
+                "decisionNecessityChallenge": challenge_ref,
+            },
+        )
+
+    closure = new_closure()
+    surviving = _protocol_v8_e3a_register_semantic_value(
+        closure,
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e3-c3-surviving-0"},
+    )
+    producer0, target0, decision0 = make_target(
+        closure,
+        surviving,
+        decision_statement,
+        "initial",
+        siblings=[sibling_statement],
+    )
+    sibling_target = fact(
+        closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": producer0, "statement": sibling_statement},
+    )
+    exhaustion0 = make_exhaustion(closure, surviving, producer0, target0)
+    necessity0 = make_necessity(closure, surviving, decision0, exhaustion0)
+    for label, reference in (
+        ("initial Targeted", target0),
+        ("initial DecisionRequired", decision0),
+        ("initial UniqueCorrection exhaustion", exhaustion0),
+        ("initial DecisionNecessity", necessity0),
+    ):
+        expect_true(label, closure, reference)
+
+    view = _protocol_v8_e3c3_decision_necessity_view(
+        root, closure, contracts, predicates, qualifications, necessity0
+    )
+    expected_view = {
+        "kind": "decision-necessity-candidate",
+        "basis": copy.deepcopy(decision_statement["disposition_basis"]),
+    }
+    if _protocol_v8_e1_canonical_json_value_bytes(view) != (
+        _protocol_v8_e1_canonical_json_value_bytes(expected_view)
+    ):
+        errors.append("inactive protocol v8 E3-C3: semantic view mismatch")
+    necessity0_descriptor = _protocol_v8_e3a_resolve_fact_identity(
+        closure, necessity0
+    )
+    if "basis" in necessity0_descriptor or set(
+        _mapping(necessity0_descriptor.get("arguments"))
+    ) != {
+        "survivingMaterialBasis",
+        "decisionRequiredStatement",
+        "uniqueCorrectionExhaustion",
+    }:
+        errors.append("inactive protocol v8 E3-C3: semantic view entered Fact identity")
+
+    other_surviving = _protocol_v8_e3a_register_semantic_value(
+        closure,
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e3-c3-surviving-other"},
+    )
+    wrong_s = make_necessity(closure, other_surviving, decision0, exhaustion0)
+    expect_false("wrong SurvivingMaterialBasis", closure, wrong_s)
+    other_statement = copy.deepcopy(decision_statement)
+    other_statement["statement"] = "another exact decision statement"
+    other_producer, other_target, other_decision = make_target(
+        closure, other_surviving, other_statement, "other"
+    )
+    other_exhaustion = make_exhaustion(
+        closure, other_surviving, other_producer, other_target
+    )
+    wrong_d = make_necessity(closure, surviving, other_decision, exhaustion0)
+    wrong_u = make_necessity(closure, surviving, decision0, other_exhaustion)
+    expect_false("wrong DecisionRequired Fact", closure, wrong_d)
+    expect_false("wrong UniqueCorrection target", closure, wrong_u)
+    expect_true("non-decision sibling remains Targeted", closure, sibling_target)
+    sibling_fact_ids = {
+        item.get("predicateRevision")
+        for descriptors in closure["fact_descriptors"].values()
+        for item in descriptors
+        if isinstance(item, dict)
+        and _mapping(item.get("arguments")).get("targetedDiscoveryStatement")
+        == sibling_target
+    }
+    if "turnlock.predicate:DecisionRequiredDiscoveryStatement@1" in sibling_fact_ids:
+        errors.append(
+            "inactive protocol v8 E3-C3: oracle invented DecisionRequired for NNI target"
+        )
+
+    zero_closure = copy.deepcopy(closure)
+    zero_challenge = make_dn_challenge(
+        zero_closure,
+        surviving,
+        decision0,
+        exhaustion0,
+        necessity0,
+        zero=True,
+    )
+    zero_qualification = make_qualification(
+        zero_closure,
+        producer0,
+        surviving,
+        decision0,
+        exhaustion0,
+        necessity0,
+        zero_challenge,
+    )
+    zero_result = reduce_qualification(zero_closure, zero_qualification)
+    if zero_result is None or zero_result["fact"]["predicateRevision"] != (
+        "turnlock.predicate:QualifiedDecisionNecessity@1"
+    ):
+        errors.append(
+            "inactive protocol v8 E3-C3: zero-objection qualification did not reduce"
+        )
+    zero_revision = admit(
+        zero_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": necessity0,
+            "priorDecisionNecessityChallenge": zero_challenge,
+        },
+        {"kind": "revised-candidate", "statement": revised_statement},
+    )
+    zero_target = fact(
+        zero_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": zero_revision, "statement": revised_statement},
+    )
+    expect_false("zero-objection revision", zero_closure, zero_target)
+
+    objection_closure = copy.deepcopy(closure)
+    objection_challenge = make_dn_challenge(
+        objection_closure,
+        surviving,
+        decision0,
+        exhaustion0,
+        necessity0,
+        zero=False,
+    )
+    objection_qualification = make_qualification(
+        objection_closure,
+        producer0,
+        surviving,
+        decision0,
+        exhaustion0,
+        necessity0,
+        objection_challenge,
+    )
+    if reduce_qualification(objection_closure, objection_qualification) is not None:
+        errors.append(
+            "inactive protocol v8 E3-C3: objections derived QualifiedDecisionNecessity"
+        )
+    pre_revision_closure = copy.deepcopy(objection_closure)
+    revision1 = admit(
+        objection_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": necessity0,
+            "priorDecisionNecessityChallenge": objection_challenge,
+        },
+        {"kind": "revised-candidate", "statement": revised_statement},
+    )
+    target1 = fact(
+        objection_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": revision1, "statement": revised_statement},
+    )
+    decision1 = fact(
+        objection_closure,
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        {"targetedDiscoveryStatement": target1},
+    )
+    target1_status = expect_true("revised Targeted", objection_closure, target1)
+    decision1_status = expect_true(
+        "revised DecisionRequired", objection_closure, decision1
+    )
+    if target1_status is not None and _mapping(
+        target1_status["descriptor"].get("arguments")
+    ).get("producerDiscovery") != revision1:
+        errors.append("inactive protocol v8 E3-C3: revised Target producer mismatch")
+    if decision1_status is not None and _mapping(
+        decision1_status["descriptor"].get("arguments")
+    ).get("targetedDiscoveryStatement") != target1:
+        errors.append("inactive protocol v8 E3-C3: revised Decision target mismatch")
+
+    wrong_disposition_closure = copy.deepcopy(pre_revision_closure)
+    wrong_statement = copy.deepcopy(sibling_statement)
+    wrong_statement["statement"] = "wrong positive revision disposition"
+    wrong_revision = admit(
+        wrong_disposition_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": necessity0,
+            "priorDecisionNecessityChallenge": objection_challenge,
+        },
+        {"kind": "revised-candidate", "statement": wrong_statement},
+    )
+    wrong_target = fact(
+        wrong_disposition_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": wrong_revision, "statement": wrong_statement},
+    )
+    expect_rejected(
+        "wrong revised disposition",
+        lambda: status(wrong_disposition_closure, wrong_target),
+        "disposition mismatch",
+    )
+
+    withdrawn_closure = copy.deepcopy(pre_revision_closure)
+    withdrawn_revision = admit(
+        withdrawn_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": necessity0,
+            "priorDecisionNecessityChallenge": objection_challenge,
+        },
+        {"kind": "not-established"},
+    )
+    withdrawn_target = fact(
+        withdrawn_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": withdrawn_revision, "statement": revised_statement},
+    )
+    expect_false("NotEstablished decision revision", withdrawn_closure, withdrawn_target)
+
+    wrong_prior_n_closure = copy.deepcopy(pre_revision_closure)
+    wrong_prior_revision = admit(
+        wrong_prior_n_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": wrong_s,
+            "priorDecisionNecessityChallenge": objection_challenge,
+        },
+        {"kind": "revised-candidate", "statement": revised_statement},
+    )
+    wrong_prior_target = fact(
+        wrong_prior_n_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": wrong_prior_revision, "statement": revised_statement},
+    )
+    expect_false("wrong prior DecisionNecessity", wrong_prior_n_closure, wrong_prior_target)
+
+    challenge_mismatch_base = copy.deepcopy(closure)
+    other_necessity = make_necessity(
+        challenge_mismatch_base,
+        other_surviving,
+        other_decision,
+        other_exhaustion,
+    )
+    challenge_variants = {
+        "S": (other_surviving, decision0, exhaustion0, necessity0),
+        "D": (surviving, other_decision, exhaustion0, necessity0),
+        "U": (surviving, decision0, other_exhaustion, necessity0),
+        "N": (surviving, decision0, exhaustion0, other_necessity),
+    }
+    for label, challenge_inputs in challenge_variants.items():
+        wrong_challenge_closure = copy.deepcopy(challenge_mismatch_base)
+        other_challenge = make_dn_challenge(
+            wrong_challenge_closure,
+            *challenge_inputs,
+            zero=False,
+        )
+        mismatched_revision = admit(
+            wrong_challenge_closure,
+            topology["revision_id"],
+            {
+                "survivingMaterialBasis": surviving,
+                "priorDecisionRequiredStatement": decision0,
+                "priorDecisionNecessityCandidate": necessity0,
+                "priorDecisionNecessityChallenge": other_challenge,
+            },
+            {"kind": "revised-candidate", "statement": revised_statement},
+        )
+        mismatched_target = fact(
+            wrong_challenge_closure,
+            "turnlock.predicate:TargetedDiscoveryStatement@1",
+            {
+                "producerDiscovery": mismatched_revision,
+                "statement": revised_statement,
+            },
+        )
+        expect_false(
+            f"prior challenge {label} mismatch",
+            wrong_challenge_closure,
+            mismatched_target,
+        )
+
+    expect_true("original sibling after revision", objection_closure, sibling_target)
+    revised_sibling = fact(
+        objection_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": revision1, "statement": sibling_statement},
+    )
+    expect_false("revision cannot produce sibling", objection_closure, revised_sibling)
+
+    old_exhaustion_reuse = make_necessity(
+        objection_closure, surviving, decision1, exhaustion0
+    )
+    expect_false("old exhaustion cannot bind revised target", objection_closure, old_exhaustion_reuse)
+    exhaustion1 = make_exhaustion(
+        objection_closure, surviving, revision1, target1
+    )
+    necessity1 = make_necessity(
+        objection_closure, surviving, decision1, exhaustion1
+    )
+    expect_true("fresh revised exhaustion", objection_closure, exhaustion1)
+    expect_true("fresh revised DecisionNecessity", objection_closure, necessity1)
+    if (
+        target1["factId"] == target0["factId"]
+        or exhaustion1["factId"] == exhaustion0["factId"]
+        or necessity1["factId"] == necessity0["factId"]
+    ):
+        errors.append("inactive protocol v8 E3-C3: revised closure reused old FactId")
+
+    fresh_zero_closure = copy.deepcopy(objection_closure)
+    fresh_zero = make_dn_challenge(
+        fresh_zero_closure,
+        surviving,
+        decision1,
+        exhaustion1,
+        necessity1,
+        zero=True,
+    )
+    fresh_qualification = make_qualification(
+        fresh_zero_closure,
+        revision1,
+        surviving,
+        decision1,
+        exhaustion1,
+        necessity1,
+        fresh_zero,
+    )
+    fresh_result = reduce_qualification(fresh_zero_closure, fresh_qualification)
+    if fresh_result is None or fresh_result["fact"]["predicateRevision"] != (
+        "turnlock.predicate:QualifiedDecisionNecessity@1"
+    ):
+        errors.append("inactive protocol v8 E3-C3: fresh qualification failed")
+
+    second_closure = copy.deepcopy(objection_closure)
+    fresh_objection = make_dn_challenge(
+        second_closure,
+        surviving,
+        decision1,
+        exhaustion1,
+        necessity1,
+        zero=False,
+    )
+    revision2 = admit(
+        second_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision1,
+            "priorDecisionNecessityCandidate": necessity1,
+            "priorDecisionNecessityChallenge": fresh_objection,
+        },
+        {"kind": "revised-candidate", "statement": revised_statement},
+    )
+    target2 = fact(
+        second_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": revision2, "statement": revised_statement},
+    )
+    expect_false("second decision-required revision", second_closure, target2)
+
+    quarantined = copy.deepcopy(objection_closure)
+    revision_record = _protocol_v8_e3a_resolve_admission_identity(
+        quarantined, revision1
+    )
+    conflict_statement = copy.deepcopy(revised_statement)
+    conflict_statement["statement"] = "conflicting revised decision statement"
+    conflict_candidate = {
+        "kind": "revised-candidate",
+        "statement": conflict_statement,
+    }
+    conflict_id = _protocol_v8_e1_semantic_admission_id(
+        revision_record["qlek"], conflict_candidate
+    )
+    conflict_token = _protocol_v8_e2_validated_witness_token(
+        revision_record["qlek"],
+        conflict_id,
+        conflict_candidate,
+        "IMPORTED-E3-C3-CONFLICT",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        quarantined["e2_state"],
+        revision_record["qlek"],
+        semantic_candidate=conflict_candidate,
+        validated_origin_witness=conflict_token,
+    )
+    historical = status(quarantined, target1)
+    if historical["reconstructible"] is not True or historical["consumable"] is not False:
+        errors.append("inactive protocol v8 E3-C3: quarantine rewrote historical truth")
+
+    dangling_d = {
+        "kind": "semantic-fact",
+        "predicateRevision": "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        "factId": "semantic-fact-sha256:" + "9" * 64,
+    }
+    dangling_u = {
+        "kind": "semantic-fact",
+        "predicateRevision": "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        "factId": "semantic-fact-sha256:" + "8" * 64,
+    }
+    dangling_n = {
+        "kind": "semantic-fact",
+        "predicateRevision": "turnlock.predicate:DecisionNecessityCandidate@1",
+        "factId": "semantic-fact-sha256:" + "7" * 64,
+    }
+    for label, bad_d, bad_u in (
+        ("dangling D", dangling_d, exhaustion0),
+        ("dangling U", decision0, dangling_u),
+    ):
+        dangling_fact = make_necessity(closure, surviving, bad_d, bad_u)
+        expect_rejected(label, lambda ref=dangling_fact: status(closure, ref))
+    dangling_revision_closure = copy.deepcopy(pre_revision_closure)
+    dangling_revision = admit(
+        dangling_revision_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": dangling_n,
+            "priorDecisionNecessityChallenge": objection_challenge,
+        },
+        {"kind": "revised-candidate", "statement": revised_statement},
+    )
+    dangling_revision_target = fact(
+        dangling_revision_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": dangling_revision, "statement": revised_statement},
+    )
+    expect_rejected(
+        "dangling N predecessor",
+        lambda: status(dangling_revision_closure, dangling_revision_target),
+    )
+    dangling_challenge_closure = copy.deepcopy(closure)
+    dangling_admission = {
+        "kind": "semantic-admission",
+        "admissionId": "semantic-admission-sha256:" + "6" * 64,
+    }
+    dangling_challenge_revision = admit(
+        dangling_challenge_closure,
+        topology["revision_id"],
+        {
+            "survivingMaterialBasis": surviving,
+            "priorDecisionRequiredStatement": decision0,
+            "priorDecisionNecessityCandidate": necessity0,
+            "priorDecisionNecessityChallenge": dangling_admission,
+        },
+        {"kind": "revised-candidate", "statement": revised_statement},
+    )
+    dangling_challenge_target = fact(
+        dangling_challenge_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": dangling_challenge_revision, "statement": revised_statement},
+    )
+    expect_rejected(
+        "dangling DecisionNecessityChallenge",
+        lambda: status(dangling_challenge_closure, dangling_challenge_target),
+    )
+
+    mismatch_closure = copy.deepcopy(closure)
+    mismatch_descriptor = _protocol_v8_e3a_resolve_fact_identity(
+        mismatch_closure, necessity0
+    )
+    mismatch_closure["fact_descriptors"][necessity0["factId"]] = [
+        {
+            **mismatch_descriptor,
+            "arguments": {
+                **mismatch_descriptor["arguments"],
+                "survivingMaterialBasis": other_surviving,
+            },
+        }
+    ]
+    expect_rejected(
+        "FactId/descriptor mismatch",
+        lambda: status(mismatch_closure, necessity0),
+        "FactId/descriptor mismatch",
+    )
+    expect_rejected(
+        "exact Fact reducer cycle",
+        lambda: _protocol_v8_e3c3_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            necessity0,
+            active={necessity0["factId"]},
+        ),
+        "unlawful semantic Fact reducer cycle",
+    )
+
+    if zero_result is not None:
+        unrelated = zero_result["fact"]
+        expect_rejected(
+            "unrelated C4 Predicate",
+            lambda: status(zero_closure, unrelated),
+            "unsupported root Predicate",
+        )
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -15008,6 +16647,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e3c2_exhaustion_fact_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e3c3_decision_necessity_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
