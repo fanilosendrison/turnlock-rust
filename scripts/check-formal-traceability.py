@@ -10898,6 +10898,695 @@ def _inactive_protocol_v8_e3c3_decision_necessity_errors(
     return errors
 
 
+def _protocol_v8_e4a_decode_path_identity(value: object) -> bytes:
+    """Decode one exact canonical unpadded raw-path identity."""
+    if not isinstance(value, str) or not value:
+        raise ValueError(
+            "inactive protocol v8 E4-A: raw path identity must be non-empty"
+        )
+    if "=" in value:
+        raise ValueError(
+            "inactive protocol v8 E4-A: raw path identity must be unpadded"
+        )
+    try:
+        encoded = value.encode("ascii")
+        decoded = base64.b64decode(
+            encoded + b"=" * (-len(encoded) % 4),
+            altchars=b"-_",
+            validate=True,
+        )
+    except (UnicodeEncodeError, ValueError) as error:
+        raise ValueError(
+            "inactive protocol v8 E4-A: invalid raw path base64url identity"
+        ) from error
+    canonical = base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii")
+    if canonical != value:
+        raise ValueError(
+            "inactive protocol v8 E4-A: non-canonical raw path base64url identity"
+        )
+    return decoded
+
+
+def _protocol_v8_e4a_canonical_readable_coverage(
+    path_identities: object,
+) -> dict:
+    """Canonicalize an accepted exact set/list of M7 raw-path identities."""
+    if not isinstance(path_identities, (list, tuple, set, frozenset)):
+        raise ValueError(
+            "inactive protocol v8 E4-A: readable paths must be an exact collection"
+        )
+    decoded: list[tuple[bytes, str]] = []
+    seen: set[str] = set()
+    for identity in path_identities:
+        raw = _protocol_v8_e4a_decode_path_identity(identity)
+        assert isinstance(identity, str)
+        if identity in seen:
+            raise ValueError(
+                "inactive protocol v8 E4-A: duplicate readable raw path"
+            )
+        seen.add(identity)
+        decoded.append((raw, identity))
+    decoded.sort(key=lambda item: item[0])
+    return {
+        "kind": "readable-paths",
+        "paths": [identity for _, identity in decoded],
+    }
+
+
+def _protocol_v8_e4a_validate_coverage(
+    coverage: object,
+    materialized_paths: dict[str, bytes],
+) -> dict:
+    """Validate exact CoverageSpecV1 against one admitted materialization."""
+    if not isinstance(coverage, dict):
+        raise ValueError(
+            "inactive protocol v8 E4-A: CoverageSpec must be an object"
+        )
+    kind = coverage.get("kind")
+    if kind == "complete":
+        if set(coverage) != {"kind"}:
+            raise ValueError(
+                "inactive protocol v8 E4-A: complete CoverageSpec key mismatch"
+            )
+        return {"kind": "complete"}
+    if kind != "readable-paths":
+        raise ValueError(
+            "inactive protocol v8 E4-A: unknown CoverageSpec kind"
+        )
+    if set(coverage) != {"kind", "paths"}:
+        raise ValueError(
+            "inactive protocol v8 E4-A: readable CoverageSpec key mismatch"
+        )
+    paths = coverage.get("paths")
+    if not isinstance(paths, list):
+        raise ValueError(
+            "inactive protocol v8 E4-A: readable CoverageSpec paths must be an array"
+        )
+    canonical = _protocol_v8_e4a_canonical_readable_coverage(paths)
+    if canonical != coverage:
+        raise ValueError(
+            "inactive protocol v8 E4-A: readable CoverageSpec path order is non-canonical"
+        )
+    for identity in paths:
+        if identity not in materialized_paths:
+            raise ValueError(
+                "inactive protocol v8 E4-A: readable path is absent from materialization"
+            )
+    return copy.deepcopy(canonical)
+
+
+def _protocol_v8_e4a_exact_bytes(exact_bytes: object) -> dict:
+    """Construct the sole canonical ExactBytesV1 representation."""
+    if type(exact_bytes) is not bytes:
+        raise ValueError(
+            "inactive protocol v8 E4-A: ExactBytes input must be exact bytes"
+        )
+    try:
+        decoded = exact_bytes.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return {
+            "encoding": "base64url",
+            "data": base64.urlsafe_b64encode(exact_bytes)
+            .rstrip(b"=")
+            .decode("ascii"),
+        }
+    return {"encoding": "utf-8", "data": decoded}
+
+
+def _protocol_v8_e4a_construct_candidate_view(
+    closure: dict,
+    candidate_revision_ref: object,
+    coverage: object,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+) -> dict:
+    """Construct exact CandidateViewV1 only from injected sealed authority."""
+    try:
+        candidate = _protocol_v8_e3a_resolve_exact_authority(
+            closure, candidate_revision_ref
+        )
+    except ValueError as error:
+        raise ValueError(
+            "inactive protocol v8 E4-A: CandidateRevision authority does not resolve"
+        ) from error
+    if candidate.get("authorityType") != (
+        "turnlock.authority:candidate-revision.v2"
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-A: authority is not CandidateRevision v2"
+        )
+    try:
+        materialization = candidate_materialization_resolver(copy.deepcopy(candidate))
+    except ValueError as error:
+        raise ValueError(
+            "inactive protocol v8 E4-A: admitted M7 materialization does not resolve"
+        ) from error
+    if not isinstance(materialization, dict):
+        raise ValueError(
+            "inactive protocol v8 E4-A: M7 materialization resolver returned no object"
+        )
+    git_object_format = materialization.get("gitObjectFormat")
+    entries = materialization.get("entries")
+    if git_object_format not in {"sha1", "sha256"} or not isinstance(entries, list):
+        raise ValueError(
+            "inactive protocol v8 E4-A: injected M7 materialization contract mismatch"
+        )
+    by_path: dict[str, tuple[bytes, dict]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                "inactive protocol v8 E4-A: injected M7 entry must be an object"
+            )
+        identity = entry.get("pathBytesBase64url")
+        raw_path = _protocol_v8_e4a_decode_path_identity(identity)
+        assert isinstance(identity, str)
+        if identity in by_path:
+            raise ValueError(
+                "inactive protocol v8 E4-A: injected M7 paths are not unique"
+            )
+        by_path[identity] = (raw_path, entry)
+    exact_coverage = _protocol_v8_e4a_validate_coverage(
+        coverage,
+        {identity: raw for identity, (raw, _) in by_path.items()},
+    )
+    if exact_coverage["kind"] == "complete":
+        selected = list(by_path)
+    else:
+        selected = list(exact_coverage["paths"])
+    selected.sort(key=lambda identity: by_path[identity][0])
+    projected: list[dict] = []
+    for identity in selected:
+        entry = by_path[identity][1]
+        kind = entry.get("kind")
+        mode = entry.get("mode")
+        if kind == "blob":
+            if set(entry) != {"pathBytesBase64url", "kind", "mode", "content"} or (
+                mode not in {"100644", "100755"}
+            ):
+                raise ValueError(
+                    "inactive protocol v8 E4-A: injected M7 blob entry mismatch"
+                )
+            try:
+                content = sealed_content_resolver(copy.deepcopy(entry["content"]))
+            except ValueError as error:
+                raise ValueError(
+                    "inactive protocol v8 E4-A: sealed blob content does not resolve"
+                ) from error
+            state = {
+                "kind": "blob",
+                "mode": mode,
+                "content": _protocol_v8_e4a_exact_bytes(content),
+            }
+        elif kind == "symlink":
+            if set(entry) != {"pathBytesBase64url", "kind", "mode", "content"} or (
+                mode != "120000"
+            ):
+                raise ValueError(
+                    "inactive protocol v8 E4-A: injected M7 symlink entry mismatch"
+                )
+            try:
+                content = sealed_content_resolver(copy.deepcopy(entry["content"]))
+            except ValueError as error:
+                raise ValueError(
+                    "inactive protocol v8 E4-A: sealed symlink content does not resolve"
+                ) from error
+            state = {
+                "kind": "symlink",
+                "mode": "120000",
+                "content": _protocol_v8_e4a_exact_bytes(content),
+            }
+        elif kind == "gitlink":
+            if set(entry) != {"pathBytesBase64url", "kind", "mode", "objectId"} or (
+                mode != "160000"
+            ):
+                raise ValueError(
+                    "inactive protocol v8 E4-A: injected M7 gitlink entry mismatch"
+                )
+            object_id = entry.get("objectId")
+            if not isinstance(object_id, str) or not object_id:
+                raise ValueError(
+                    "inactive protocol v8 E4-A: injected M7 gitlink objectId missing"
+                )
+            state = {
+                "kind": "gitlink",
+                "mode": "160000",
+                "objectId": object_id,
+            }
+        else:
+            raise ValueError(
+                "inactive protocol v8 E4-A: injected M7 entry kind mismatch"
+            )
+        projected.append(
+            {
+                "pathBytesBase64url": identity,
+                "state": state,
+            }
+        )
+    return {
+        "gitObjectFormat": git_object_format,
+        "entries": projected,
+    }
+
+
+def _protocol_v8_e4a_register_candidate_view(
+    closure: dict,
+    candidate_view: object,
+) -> dict:
+    """Identify one exact CandidateView through the existing C2 algebra."""
+    return _protocol_v8_e3a_register_semantic_value(
+        closure,
+        "turnlock.semantic-value:CandidateView@1",
+        candidate_view,
+    )
+
+
+def _protocol_v8_e4a_candidate_view_of(
+    closure: dict,
+    candidate_revision_ref: object,
+    coverage: object,
+    candidate_view_ref: object,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+) -> bool:
+    """Validate one exact claimed CandidateViewOf relation."""
+    expected = _protocol_v8_e4a_construct_candidate_view(
+        closure,
+        candidate_revision_ref,
+        coverage,
+        candidate_materialization_resolver,
+        sealed_content_resolver,
+    )
+    try:
+        claimed = _protocol_v8_e3a_resolve_semantic_value(
+            closure, candidate_view_ref
+        )
+    except ValueError as error:
+        raise ValueError(
+            "inactive protocol v8 E4-A: CANDIDATE-VIEW-INTEGRITY-FAILURE: "
+            "claimed CandidateView does not resolve"
+        ) from error
+    if claimed.get("valueType") != "turnlock.semantic-value:CandidateView@1" or (
+        _protocol_v8_e1_canonical_json_value_bytes(claimed.get("value"))
+        != _protocol_v8_e1_canonical_json_value_bytes(expected)
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-A: CANDIDATE-VIEW-INTEGRITY-FAILURE: "
+            "claimed CandidateView differs from exact construction"
+        )
+    return True
+
+
+def _inactive_protocol_v8_e4a_candidate_view_errors(root: Path) -> list[str]:
+    """Exercise exact CandidateView construction with disposable fixtures."""
+    del root
+    errors: list[str] = []
+    closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+
+    def path(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+    def artifact(artifact_id: str, content: bytes) -> dict:
+        return {
+            "artifactId": artifact_id,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "byteLength": len(content),
+            "mediaType": "application/octet-stream",
+            "repositoryPath": None,
+        }
+
+    artifact_bytes: dict[str, bytes] = {}
+
+    def add_artifact(artifact_id: str, content: bytes) -> dict:
+        if artifact_id in artifact_bytes and artifact_bytes[artifact_id] != content:
+            raise ValueError(
+                "inactive protocol v8 E4-A: fixture ArtifactRef bytes conflict"
+            )
+        artifact_bytes[artifact_id] = content
+        return artifact(artifact_id, content)
+
+    def resolve_content(reference: object) -> bytes:
+        if not isinstance(reference, dict) or set(reference) != {
+            "artifactId",
+            "sha256",
+            "byteLength",
+            "mediaType",
+            "repositoryPath",
+        }:
+            raise ValueError(
+                "inactive protocol v8 E4-A: fixture ArtifactRef shape mismatch"
+            )
+        artifact_id = reference.get("artifactId")
+        content = artifact_bytes.get(artifact_id)
+        if content is None or reference != artifact(str(artifact_id), content):
+            raise ValueError(
+                "inactive protocol v8 E4-A: fixture ArtifactRef integrity mismatch"
+            )
+        return content
+
+    def candidate(candidate_id: str) -> dict:
+        reference = {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": candidate_id,
+        }
+        _protocol_v8_e3a_register_exact_authority(closure, reference)
+        return reference
+
+    candidates: dict[str, dict] = {}
+
+    def resolve_candidate(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(
+                "inactive protocol v8 E4-A: fixture candidate ref missing"
+            )
+        value = candidates.get(reference.get("authorityId"))
+        if value is None:
+            raise ValueError(
+                "inactive protocol v8 E4-A: fixture candidate materialization missing"
+            )
+        return copy.deepcopy(value)
+
+    def materialization(entries: list[dict], *, object_format: str = "sha1") -> dict:
+        return {
+            "gitObjectFormat": object_format,
+            "entries": copy.deepcopy(entries),
+        }
+
+    def entry(path_identity: str, kind: str, mode: str, value: object) -> dict:
+        result = {
+            "pathBytesBase64url": path_identity,
+            "kind": kind,
+            "mode": mode,
+        }
+        if kind in {"blob", "symlink"}:
+            result["content"] = copy.deepcopy(value)
+        else:
+            result["objectId"] = value
+        return result
+
+    p_a = path(b"a.txt")
+    p_z = path(b"z.txt")
+    p_utf8 = path("é.txt".encode("utf-8"))
+    p_link = path(b"link")
+    p_git = path(b"submodule")
+    all_paths = _protocol_v8_e4a_canonical_readable_coverage(
+        [p_z, p_utf8, p_a, p_git, p_link]
+    )
+    bytes_ascii = b"same bytes\n"
+    bytes_utf8 = "café\n".encode("utf-8")
+    bytes_invalid = b"\xfftarget"
+    a_ref = add_artifact("A", bytes_ascii)
+    b_ref = add_artifact("B", bytes_ascii)
+    utf8_ref = add_artifact("UTF8", bytes_utf8)
+    invalid_ref = add_artifact("INVALID", bytes_invalid)
+    changed_ref = add_artifact("CHANGED", b"different bytes\n")
+    entries_a = [
+        entry(p_z, "blob", "100755", a_ref),
+        entry(p_utf8, "blob", "100644", utf8_ref),
+        entry(p_link, "symlink", "120000", invalid_ref),
+        entry(p_git, "gitlink", "160000", "1" * 40),
+        entry(p_a, "blob", "100644", a_ref),
+    ]
+    entries_b = copy.deepcopy(entries_a)
+    entries_b[-1]["content"] = b_ref
+    c17 = candidate("C17")
+    c18 = candidate("C18")
+    c_empty = candidate("C-EMPTY")
+    candidates.update(
+        {
+            "C17": materialization(entries_a),
+            "C18": materialization(entries_b),
+            "C-EMPTY": materialization([]),
+        }
+    )
+
+    def construct(candidate_ref: dict, coverage: dict) -> dict:
+        return _protocol_v8_e4a_construct_candidate_view(
+            closure,
+            candidate_ref,
+            coverage,
+            resolve_candidate,
+            resolve_content,
+        )
+
+    def register(value: dict) -> dict:
+        return _protocol_v8_e4a_register_candidate_view(closure, value)
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            action()
+        except ValueError as error:
+            if required is not None and required not in str(error):
+                errors.append(
+                    f"inactive protocol v8 E4-A: {label} rejected without {required!r}"
+                )
+            return
+        errors.append(f"inactive protocol v8 E4-A: expected rejection: {label}")
+
+    complete = {"kind": "complete"}
+    view17 = construct(c17, complete)
+    view17_repeat = construct(c17, complete)
+    view18 = construct(c18, complete)
+    empty_complete = construct(c_empty, complete)
+    empty_scoped = construct(
+        c17, {"kind": "readable-paths", "paths": []}
+    )
+    if view17 != view17_repeat or view17 != view18:
+        errors.append(
+            "inactive protocol v8 E4-A: deterministic/equal physical views diverged"
+        )
+    if a_ref == b_ref:
+        errors.append("inactive protocol v8 E4-A: distinct ArtifactRefs collapsed")
+    if set(view17) != {"gitObjectFormat", "entries"} or any(
+        not isinstance(item, dict)
+        or set(item) != {"pathBytesBase64url", "state"}
+        or _mapping(item.get("state")).get("kind") == "absent"
+        for item in view17["entries"]
+    ):
+        errors.append("inactive protocol v8 E4-A: CandidateView exact shape mismatch")
+    if c17 == c18:
+        errors.append("inactive protocol v8 E4-A: nominal candidates collapsed")
+    if empty_complete != {"gitObjectFormat": "sha1", "entries": []} or (
+        empty_scoped != {"gitObjectFormat": "sha1", "entries": []}
+    ):
+        errors.append("inactive protocol v8 E4-A: empty CandidateView mismatch")
+    expected_order = [
+        identity
+        for _, identity in sorted(
+            [(_protocol_v8_e4a_decode_path_identity(item), item) for item in all_paths["paths"]]
+        )
+    ]
+    actual_order = [item["pathBytesBase64url"] for item in view17["entries"]]
+    if actual_order != expected_order or actual_order == [
+        item["pathBytesBase64url"] for item in entries_a
+    ]:
+        errors.append("inactive protocol v8 E4-A: raw-byte path ordering mismatch")
+    readable_all = construct(c17, all_paths)
+    if readable_all != view17 or "coverage" in readable_all:
+        errors.append("inactive protocol v8 E4-A: coverage leaked into CandidateView")
+
+    view17_ref = register(view17)
+    view17_repeat_ref = register(view17_repeat)
+    view18_ref = register(view18)
+    if view17_ref != view17_repeat_ref or view17_ref != view18_ref:
+        errors.append("inactive protocol v8 E4-A: CandidateView identity is not extensional")
+    for candidate_ref, view_ref in ((c17, view17_ref), (c18, view18_ref)):
+        if not _protocol_v8_e4a_candidate_view_of(
+            closure,
+            candidate_ref,
+            complete,
+            view_ref,
+            resolve_candidate,
+            resolve_content,
+        ):
+            errors.append("inactive protocol v8 E4-A: CandidateViewOf positive failed")
+
+    exact_cases = {
+        b"": {"encoding": "utf-8", "data": ""},
+        b"ascii": {"encoding": "utf-8", "data": "ascii"},
+        "é".encode("utf-8"): {"encoding": "utf-8", "data": "é"},
+        b"\xff": {"encoding": "base64url", "data": "_w"},
+    }
+    for raw, expected in exact_cases.items():
+        actual = _protocol_v8_e4a_exact_bytes(raw)
+        if actual != expected or "=" in actual["data"]:
+            errors.append("inactive protocol v8 E4-A: ExactBytes canonicalization mismatch")
+
+    scoped = {"kind": "readable-paths", "paths": [p_a]}
+    view17_scoped = construct(c17, scoped)
+    if [item["pathBytesBase64url"] for item in view17_scoped["entries"]] != [p_a]:
+        errors.append("inactive protocol v8 E4-A: scoped view path set mismatch")
+    c19 = candidate("C19")
+    entries_outside_changed = copy.deepcopy(entries_a)
+    entries_outside_changed[0]["content"] = changed_ref
+    candidates["C19"] = materialization(entries_outside_changed)
+    view19_scoped = construct(c19, scoped)
+    view19_complete = construct(c19, complete)
+    if view17_scoped != view19_scoped or view17 == view19_complete:
+        errors.append(
+            "inactive protocol v8 E4-A: scoped outside-coverage non-interference failed"
+        )
+    if register(view17_scoped) != register(view19_scoped):
+        errors.append("inactive protocol v8 E4-A: scoped SemanticValueId diverged")
+
+    c20 = candidate("C20")
+    entries_changed = copy.deepcopy(entries_a)
+    entries_changed[-1]["content"] = changed_ref
+    candidates["C20"] = materialization(entries_changed)
+    view20 = construct(c20, complete)
+    view20_ref = register(view20)
+    if view20 == view17:
+        errors.append("inactive protocol v8 E4-A: changed exact bytes were ignored")
+    expect_rejected(
+        "wrong-candidate claimed view",
+        lambda: _protocol_v8_e4a_candidate_view_of(
+            closure, c20, complete, view17_ref, resolve_candidate, resolve_content
+        ),
+        "CANDIDATE-VIEW-INTEGRITY-FAILURE",
+    )
+    if not _protocol_v8_e4a_candidate_view_of(
+        closure, c20, complete, view20_ref, resolve_candidate, resolve_content
+    ):
+        errors.append("inactive protocol v8 E4-A: changed candidate view failed")
+
+    p2_scope = {"kind": "readable-paths", "paths": [p_z]}
+    scoped_ref = register(view17_scoped)
+    expect_rejected(
+        "wrong scoped coverage",
+        lambda: _protocol_v8_e4a_candidate_view_of(
+            closure, c17, p2_scope, scoped_ref, resolve_candidate, resolve_content
+        ),
+        "CANDIDATE-VIEW-INTEGRITY-FAILURE",
+    )
+
+    coverage_failures = [
+        ("unknown coverage", {"kind": "other"}),
+        ("extra complete field", {"kind": "complete", "extra": True}),
+        ("duplicate path", {"kind": "readable-paths", "paths": [p_a, p_a]}),
+        ("non-array paths", {"kind": "readable-paths", "paths": p_a}),
+        ("padded path", {"kind": "readable-paths", "paths": [p_a + "="]}),
+        ("invalid base64url", {"kind": "readable-paths", "paths": ["***"]}),
+        (
+            "missing path",
+            {"kind": "readable-paths", "paths": [path(b"missing")]},
+        ),
+        (
+            "non-canonical order",
+            {"kind": "readable-paths", "paths": [p_z, p_a]},
+        ),
+    ]
+    for label, bad_coverage in coverage_failures:
+        expect_rejected(label, lambda value=bad_coverage: construct(c17, value))
+
+    forged_values: list[tuple[str, dict]] = []
+    forged = copy.deepcopy(view17)
+    forged["extra"] = True
+    forged_values.append(("extra top-level field", forged))
+    forged = copy.deepcopy(view17)
+    del forged["gitObjectFormat"]
+    forged_values.append(("missing gitObjectFormat", forged))
+    forged = copy.deepcopy(view17)
+    forged["gitObjectFormat"] = "sha512"
+    forged_values.append(("wrong gitObjectFormat", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][0]["extra"] = True
+    forged_values.append(("extra entry field", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][0], forged["entries"][1] = (
+        forged["entries"][1], forged["entries"][0]
+    )
+    forged_values.append(("wrong entry ordering", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][1] = copy.deepcopy(forged["entries"][0])
+    forged_values.append(("duplicate entry path", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][0]["state"]["mode"] = "100755"
+    forged_values.append(("wrong mode", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][0]["state"]["kind"] = "symlink"
+    forged_values.append(("wrong state kind", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][0]["state"]["content"] = {
+        "encoding": "utf-8",
+        "data": "wrong bytes",
+    }
+    forged_values.append(("wrong content bytes", forged))
+    forged = copy.deepcopy(view17)
+    blob_state = next(
+        item["state"] for item in forged["entries"]
+        if item["state"]["kind"] == "blob"
+    )
+    blob_state["content"] = {
+        "encoding": "base64url",
+        "data": base64.urlsafe_b64encode(bytes_ascii).rstrip(b"=").decode("ascii"),
+    }
+    forged_values.append(("wrong ExactBytes encoding", forged))
+    forged = copy.deepcopy(view17)
+    gitlink_state = next(
+        item["state"] for item in forged["entries"]
+        if item["state"]["kind"] == "gitlink"
+    )
+    gitlink_state["objectId"] = "2" * 40
+    forged_values.append(("wrong gitlink objectId", forged))
+    forged = copy.deepcopy(view17)
+    forged["entries"][0]["state"]["artifactRef"] = a_ref
+    forged_values.append(("ArtifactRef leaked", forged))
+    for label, field in (
+        ("CandidateRevision leaked", "candidateRevision"),
+        ("rootTreeObjectId leaked", "rootTreeObjectId"),
+        ("coverage leaked", "coverage"),
+    ):
+        forged = copy.deepcopy(view17)
+        forged[field] = "forbidden"
+        forged_values.append((label, forged))
+    for label, forged_value in forged_values:
+        forged_ref = register(forged_value)
+        expect_rejected(
+            label,
+            lambda ref=forged_ref: _protocol_v8_e4a_candidate_view_of(
+                closure, c17, complete, ref, resolve_candidate, resolve_content
+            ),
+            "CANDIDATE-VIEW-INTEGRITY-FAILURE",
+        )
+
+    same_path = path(b"physical")
+    physical_candidates: list[tuple[dict, dict]] = []
+    for candidate_id, state_entry in (
+        ("C-BLOB-644", entry(same_path, "blob", "100644", a_ref)),
+        ("C-BLOB-755", entry(same_path, "blob", "100755", a_ref)),
+        ("C-SYMLINK", entry(same_path, "symlink", "120000", a_ref)),
+        ("C-GITLINK", entry(same_path, "gitlink", "160000", "3" * 40)),
+    ):
+        candidate_ref = candidate(candidate_id)
+        candidates[candidate_id] = materialization([state_entry])
+        physical_candidates.append((candidate_ref, construct(candidate_ref, complete)))
+    physical_views = {
+        _protocol_v8_e1_canonical_json_value_bytes(value)
+        for _, value in physical_candidates
+    }
+    if len(physical_views) != 4:
+        errors.append("inactive protocol v8 E4-A: physical state distinctions collapsed")
+
+    forbidden_e4a_fragments = {
+        "bound_candidate_revision",
+        "candidate_revision_of",
+        "candidate_current",
+        "semantic_arm",
+        "repair_intent",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e4a_")
+        and any(fragment in name for fragment in forbidden_e4a_fragments)
+    }
+    if introduced:
+        errors.append(
+            "inactive protocol v8 E4-A: later candidate-bound layer was introduced"
+        )
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -16650,6 +17339,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e3c3_decision_necessity_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e4a_candidate_view_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
