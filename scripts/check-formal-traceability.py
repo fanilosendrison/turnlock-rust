@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from collections import Counter
+from contextvars import ContextVar
 import base64
 import copy
 import hashlib
 import json
 import math
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -284,6 +286,20 @@ def _yaml_parse_cache_is_eligible() -> bool:
 
 
 _YAML_PARSE_CACHE: dict[str, object] = {}
+_VALIDATION_DEPENDENCY_RECORDER: ContextVar[set[Path] | None] = ContextVar(
+    "validation_dependency_recorder",
+    default=None,
+)
+_INACTIVE_PROTOCOL_ARTIFACT_ORACLE_CACHE: dict[
+    tuple[object, ...],
+    dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
+] = {}
+_PROTOCOL_V8_SEMANTIC_ORACLE_CACHE: dict[
+    tuple[object, ...],
+    dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
+] = {}
+_PROTOCOL_V8_SEMANTIC_ORACLE_CACHE_LIMIT = 32
+_PROTOCOL_V8_SEMANTIC_ORACLE_DEPENDENCY_SET_LIMIT = 8
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -3711,8 +3727,22 @@ def _protocol_v8_e3a_admission_index(
     closure: dict,
 ) -> dict[str, list[dict]]:
     """Build an identity index over effective and conflicted E2 Admissions."""
-    index: dict[str, list[dict]] = {}
     state = closure["e2_state"]
+    source = {
+        "admissions": state["admissions"],
+        "conflicts": state["conflicts"],
+    }
+    cached = closure.get("_e3a_admission_index_cache")
+    try:
+        cache_matches = isinstance(cached, dict) and cached.get("source") == source
+    except RecursionError:
+        cache_matches = False
+    if cache_matches:
+        index = cached.get("index")
+        if isinstance(index, dict):
+            return index
+
+    index: dict[str, list[dict]] = {}
     records: list[tuple[object, object]] = list(state["admissions"].items())
     for qlek, branches in state["conflicts"].items():
         if not isinstance(branches, dict):
@@ -3741,6 +3771,10 @@ def _protocol_v8_e3a_admission_index(
                 "admission_id": admission_id,
             },
         )
+    closure["_e3a_admission_index_cache"] = {
+        "source": copy.deepcopy(source),
+        "index": index,
+    }
     return index
 
 
@@ -15190,6 +15224,141 @@ def _inactive_protocol_v8_e4c_currentness_repair_projection_errors(
     return errors
 
 
+def _protocol_v8_semantic_oracles():
+    return (
+        _inactive_protocol_v8_e1_semantic_identity_errors,
+        _inactive_protocol_v8_e2_execution_admission_errors,
+        _inactive_protocol_v8_e3a_semantic_closure_errors,
+        _inactive_protocol_v8_e3b_qualification_reducer_errors,
+        _inactive_protocol_v8_e3c1_discovery_fact_errors,
+        _inactive_protocol_v8_e3c2_exhaustion_fact_errors,
+        _inactive_protocol_v8_e3c3_decision_necessity_errors,
+        _inactive_protocol_v8_e4a_candidate_view_errors,
+        _inactive_protocol_v8_e4b_candidate_binding_errors,
+        _inactive_protocol_v8_e4c_currentness_repair_projection_errors,
+    )
+
+
+def _validation_dependency_fingerprint(
+    root: Path,
+    dependencies: tuple[Path, ...],
+) -> bytes | None:
+    digest = hashlib.sha256()
+    for relative in dependencies:
+        if not relative.parts or relative.is_absolute() or ".." in relative.parts:
+            return None
+        path = root
+        try:
+            for index, part in enumerate(relative.parts):
+                path = path / part
+                mode = path.lstat().st_mode
+                if stat.S_ISLNK(mode):
+                    return None
+                if index < len(relative.parts) - 1 and not stat.S_ISDIR(mode):
+                    return None
+            if not stat.S_ISREG(mode):
+                return None
+            data = path.read_bytes()
+        except OSError:
+            return None
+        encoded_path = relative.as_posix().encode("utf-8")
+        digest.update(len(encoded_path).to_bytes(8, "big"))
+        digest.update(encoded_path)
+        digest.update(len(data).to_bytes(8, "big"))
+        digest.update(data)
+    return digest.digest()
+
+
+def _content_addressed_validation_errors(
+    root: Path,
+    implementation_identity: tuple[object, ...],
+    evaluate,
+    cache: dict[
+        tuple[object, ...],
+        dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
+    ],
+) -> list[str]:
+    implementation_cache = cache.get(implementation_identity, {})
+    for dependencies, cached_results in implementation_cache.items():
+        fingerprint = _validation_dependency_fingerprint(root, dependencies)
+        if fingerprint is not None and fingerprint in cached_results:
+            return list(cached_results[fingerprint])
+
+    observed_dependencies: set[Path] = set()
+    token = _VALIDATION_DEPENDENCY_RECORDER.set(observed_dependencies)
+    try:
+        errors = evaluate()
+    finally:
+        _VALIDATION_DEPENDENCY_RECORDER.reset(token)
+
+    dependencies = tuple(
+        sorted(observed_dependencies, key=lambda item: item.as_posix())
+    )
+    fingerprint = _validation_dependency_fingerprint(root, dependencies)
+    if dependencies and fingerprint is not None:
+        implementation_cache = cache.setdefault(implementation_identity, {})
+        if (
+            dependencies not in implementation_cache
+            and len(implementation_cache)
+            >= _PROTOCOL_V8_SEMANTIC_ORACLE_DEPENDENCY_SET_LIMIT
+        ):
+            del implementation_cache[next(iter(implementation_cache))]
+        cached_results = implementation_cache.setdefault(dependencies, {})
+        if (
+            fingerprint not in cached_results
+            and len(cached_results) >= _PROTOCOL_V8_SEMANTIC_ORACLE_CACHE_LIMIT
+        ):
+            del cached_results[next(iter(cached_results))]
+        cached_results[fingerprint] = tuple(errors)
+    return errors
+
+
+def _inactive_protocol_candidate_artifact_errors_uncached(
+    root: Path,
+) -> list[str]:
+    candidate_bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
+    errors = _inactive_protocol_v7_candidate_errors(root, candidate_bundle_cache)
+    errors.extend(_inactive_protocol_v8_contract_foundation_errors(root))
+    errors.extend(_inactive_protocol_v8_projection_schema_errors(root))
+    errors.extend(_inactive_protocol_v8_prompt_errors(root))
+    errors.extend(
+        _inactive_protocol_v8_candidate_errors(root, candidate_bundle_cache)
+    )
+    return errors
+
+
+def _inactive_protocol_candidate_artifact_errors(root: Path) -> list[str]:
+    implementation_identity = (
+        _inactive_protocol_candidate_artifact_errors_uncached,
+        _inactive_protocol_v7_candidate_errors,
+        _inactive_protocol_v8_contract_foundation_errors,
+        _inactive_protocol_v8_projection_schema_errors,
+        _inactive_protocol_v8_prompt_errors,
+        _inactive_protocol_v8_candidate_errors,
+    )
+    return _content_addressed_validation_errors(
+        root,
+        implementation_identity,
+        lambda: _inactive_protocol_candidate_artifact_errors_uncached(root),
+        _INACTIVE_PROTOCOL_ARTIFACT_ORACLE_CACHE,
+    )
+
+
+def _inactive_protocol_v8_semantic_oracle_errors(root: Path) -> list[str]:
+    """Evaluate immutable protocol-v8 semantic oracles once per exact corpus."""
+    oracles = _protocol_v8_semantic_oracles()
+    return _content_addressed_validation_errors(
+        root,
+        oracles,
+        lambda: [
+            error
+            for oracle in oracles
+            for error in oracle(root)
+        ],
+        _PROTOCOL_V8_SEMANTIC_ORACLE_CACHE,
+    )
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -15206,7 +15375,14 @@ def _sequence(value: object) -> list:
     return value if isinstance(value, list) else []
 
 
+def _record_validation_dependency(relative: Path) -> None:
+    recorder = _VALIDATION_DEPENDENCY_RECORDER.get()
+    if recorder is not None:
+        recorder.add(Path(relative))
+
+
 def _load_yaml(root: Path, relative: Path) -> tuple[object, list[str]]:
+    _record_validation_dependency(relative)
     path = root / relative
     try:
         text = path.read_text(encoding="utf-8")
@@ -15224,6 +15400,7 @@ def _load_yaml(root: Path, relative: Path) -> tuple[object, list[str]]:
 
 
 def _load_json(root: Path, relative: Path) -> tuple[object, list[str]]:
+    _record_validation_dependency(relative)
     path = root / relative
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -15508,6 +15685,7 @@ def _read_review_artifact(
     if not normalized.endswith(suffix):
         return None, [f"{label}: artifact path must use the {suffix} suffix: {raw_path}"]
 
+    _record_validation_dependency(path)
     root_resolved = root.resolve()
     target = root_resolved
     for part in path.parts:
@@ -20920,38 +21098,8 @@ def collect_errors(
     current_subject, subject_errors = build_gate_a_review_subject(root, manifest)
     errors.extend(subject_errors)
 
-    candidate_bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
-    errors.extend(_inactive_protocol_v7_candidate_errors(root, candidate_bundle_cache))
-    errors.extend(_inactive_protocol_v8_contract_foundation_errors(root))
-    errors.extend(_inactive_protocol_v8_projection_schema_errors(root))
-    errors.extend(_inactive_protocol_v8_prompt_errors(root))
-    errors.extend(_inactive_protocol_v8_candidate_errors(root, candidate_bundle_cache))
-    errors.extend(_inactive_protocol_v8_e1_semantic_identity_errors(root))
-    errors.extend(_inactive_protocol_v8_e2_execution_admission_errors(root))
-    errors.extend(
-        _inactive_protocol_v8_e3a_semantic_closure_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e3b_qualification_reducer_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e3c1_discovery_fact_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e3c2_exhaustion_fact_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e3c3_decision_necessity_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e4a_candidate_view_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e4b_candidate_binding_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e4c_currentness_repair_projection_errors(root)
-    )
+    errors.extend(_inactive_protocol_candidate_artifact_errors(root))
+    errors.extend(_inactive_protocol_v8_semantic_oracle_errors(root))
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
