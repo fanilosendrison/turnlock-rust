@@ -13587,6 +13587,1609 @@ def _inactive_protocol_v8_e4b_candidate_binding_errors(root: Path) -> list[str]:
     return errors
 
 
+def _protocol_v8_e4c_current_candidate_matches(
+    candidate_ref: object,
+    current_candidate: object,
+) -> bool:
+    """Compare only exact nominal CandidateRevision identity."""
+    if not isinstance(candidate_ref, dict) or candidate_ref.get(
+        "authorityType"
+    ) != "turnlock.authority:candidate-revision.v2":
+        raise ValueError(
+            "inactive protocol v8 E4-C: invalid bound CandidateRevision authority"
+        )
+    if current_candidate is None:
+        return False
+    if not isinstance(current_candidate, dict):
+        raise ValueError(
+            "inactive protocol v8 E4-C: current CandidateRevision record must be an object"
+        )
+    candidate_id = current_candidate.get("candidateId")
+    if not isinstance(candidate_id, str) or not candidate_id:
+        raise ValueError(
+            "inactive protocol v8 E4-C: current CandidateRevision candidateId missing"
+        )
+    return candidate_id == candidate_ref.get("authorityId")
+
+
+def _protocol_v8_e4c_t3_arm_execution(
+    state: dict,
+    closure: dict,
+    contracts: dict[str, dict],
+    qlek: object,
+    generation: int,
+    execution_id: str,
+    authoritative_current_candidate_resolver,
+) -> dict:
+    """Reference additive candidate-currentness precondition at existing T3."""
+    descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, qlek)
+    contract_id = descriptor.get("semanticQuestionContract")
+    candidate_bound = {
+        "turnlock.sqc:RealizationScopeInitial@1",
+        "turnlock.sqc:RealizationScopeRevision@1",
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "turnlock.sqc:RepairRealizationInitial@1",
+        "turnlock.sqc:RepairRealizationRevision@1",
+        "turnlock.sqc:RepairRealizationChallenge@1",
+    }
+    if contract_id in candidate_bound:
+        candidate_ref = _protocol_v8_e4b_bound_candidate_revision(
+            closure, contracts, qlek
+        )
+        try:
+            current_candidate = authoritative_current_candidate_resolver()
+        except Exception as error:
+            raise ValueError(
+                "inactive protocol v8 E4-C: current CandidateRevision resolution failed"
+            ) from error
+        if not _protocol_v8_e4c_current_candidate_matches(
+            candidate_ref, current_candidate
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-C: bound CandidateRevision is not authoritative current candidate"
+            )
+        # No callback, token, or mutable currentness state may intervene between
+        # this exact comparison and the one existing E2 Semantic Arm mutation.
+        return _protocol_v8_e2_t3_arm_execution(
+            state, qlek, generation, execution_id
+        )
+    return _protocol_v8_e2_t3_arm_execution(
+        state, qlek, generation, execution_id
+    )
+
+
+def _protocol_v8_e4c_candidate_fact_applicable_to_current(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    authoritative_current_candidate_resolver,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> bool:
+    """Evaluate current applicability separately from historical Fact truth."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    if descriptor.get("predicateRevision") not in {
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        "turnlock.predicate:AcceptedRepairRealization@1",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E4-C: current applicability unsupported Predicate"
+        )
+    status = _protocol_v8_e4b_candidate_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        _memo=_memo,
+        _graph_checked=_graph_checked,
+    )
+    if status["consumable"] is not True:
+        return False
+    candidate_ref = _protocol_v8_e4b_candidate_revision_of(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        _memo=_memo,
+        _graph_checked=_graph_checked,
+    )
+    try:
+        current_candidate = authoritative_current_candidate_resolver()
+    except Exception as error:
+        raise ValueError(
+            "inactive protocol v8 E4-C: current CandidateRevision resolution failed"
+        ) from error
+    return _protocol_v8_e4c_current_candidate_matches(
+        candidate_ref, current_candidate
+    )
+
+
+def _protocol_v8_e4c_exact_bytes(
+    value: object,
+    label: str,
+) -> bytes:
+    exact_bytes, errors = _inline_exact_bytes(value, label)
+    if errors or exact_bytes is None:
+        raise ValueError(
+            f"inactive protocol v8 E4-C: {errors[0] if errors else label + ' invalid exact bytes'}"
+        )
+    return exact_bytes
+
+
+def _protocol_v8_e4c_resolve_artifact_bytes(
+    artifact_ref: object,
+    expected_media_type: str,
+    artifact_resolver,
+    label: str,
+) -> bytes:
+    if not isinstance(artifact_ref, dict) or artifact_ref.get(
+        "mediaType"
+    ) != expected_media_type:
+        raise ValueError(
+            f"inactive protocol v8 E4-C: {label} mediaType mismatch"
+        )
+    try:
+        content = artifact_resolver(copy.deepcopy(artifact_ref))
+    except Exception as error:
+        raise ValueError(
+            f"inactive protocol v8 E4-C: {label} ArtifactRef resolution failed"
+        ) from error
+    if type(content) is not bytes:
+        raise ValueError(
+            f"inactive protocol v8 E4-C: {label} resolver must return exact bytes"
+        )
+    return content
+
+
+def _protocol_v8_e4c_candidate_view_before_state(
+    candidate_view_state: object,
+    materialized_entry: object,
+    artifact_resolver,
+) -> tuple[dict, tuple]:
+    """Project verified CandidateView state to exact M7 before transport."""
+    if not isinstance(candidate_view_state, dict) or not isinstance(
+        materialized_entry, dict
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-C: source state integrity failure"
+        )
+    kind = candidate_view_state.get("kind")
+    mode = candidate_view_state.get("mode")
+    if materialized_entry.get("kind") != kind or materialized_entry.get(
+        "mode"
+    ) != mode:
+        raise ValueError(
+            "inactive protocol v8 E4-C: source view/materialization kind or mode mismatch"
+        )
+    if kind in {"blob", "symlink"}:
+        expected_bytes = _protocol_v8_e4c_exact_bytes(
+            candidate_view_state.get("content"),
+            "source CandidateView content",
+        )
+        content_ref = materialized_entry.get("content")
+        actual_bytes = _protocol_v8_e4c_resolve_artifact_bytes(
+            content_ref,
+            "application/octet-stream",
+            artifact_resolver,
+            "source content",
+        )
+        if actual_bytes != expected_bytes:
+            raise ValueError(
+                "inactive protocol v8 E4-C: source view/materialization bytes mismatch"
+            )
+        patch_state = {
+            "kind": kind,
+            "mode": mode,
+            "content": copy.deepcopy(content_ref),
+        }
+        return patch_state, (kind, mode, expected_bytes)
+    if kind == "gitlink":
+        object_id = candidate_view_state.get("objectId")
+        if (
+            mode != "160000"
+            or not isinstance(object_id, str)
+            or materialized_entry.get("objectId") != object_id
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-C: source gitlink identity mismatch"
+            )
+        patch_state = {
+            "kind": "gitlink",
+            "mode": "160000",
+            "objectId": object_id,
+        }
+        return patch_state, ("gitlink", "160000", object_id)
+    raise ValueError(
+        "inactive protocol v8 E4-C: unsupported source CandidateView state"
+    )
+
+
+def _protocol_v8_e4c_repair_after_state(
+    after_state: object,
+    artifact_sealer,
+    artifact_resolver,
+) -> tuple[dict | None, tuple | None]:
+    """Project qualified inline after-state to exact sealed M7 transport."""
+    if not isinstance(after_state, dict):
+        raise ValueError(
+            "inactive protocol v8 E4-C: repair after_state must be an object"
+        )
+    kind = after_state.get("kind")
+    if kind == "absent":
+        if set(after_state) != {"kind"}:
+            raise ValueError(
+                "inactive protocol v8 E4-C: absent after_state shape mismatch"
+            )
+        return None, None
+    if kind in {"blob", "symlink"}:
+        expected_mode = {"blob": {"100644", "100755"}, "symlink": {"120000"}}
+        mode = after_state.get("mode")
+        if set(after_state) != {"kind", "mode", "content"} or mode not in expected_mode[kind]:
+            raise ValueError(
+                "inactive protocol v8 E4-C: content after_state shape mismatch"
+            )
+        exact_bytes = _protocol_v8_e4c_exact_bytes(
+            after_state.get("content"), "repair after_state content"
+        )
+        try:
+            content_ref = artifact_sealer(
+                exact_bytes, "application/octet-stream"
+            )
+        except Exception as error:
+            raise ValueError(
+                "inactive protocol v8 E4-C: after content sealing failed"
+            ) from error
+        round_trip = _protocol_v8_e4c_resolve_artifact_bytes(
+            content_ref,
+            "application/octet-stream",
+            artifact_resolver,
+            "sealed after content",
+        )
+        if round_trip != exact_bytes:
+            raise ValueError(
+                "inactive protocol v8 E4-C: sealed after content bytes mismatch"
+            )
+        patch_state = {
+            "kind": kind,
+            "mode": mode,
+            "content": copy.deepcopy(content_ref),
+        }
+        return patch_state, (kind, mode, exact_bytes)
+    if kind == "gitlink":
+        object_id = after_state.get("object_id")
+        if set(after_state) != {"kind", "mode", "object_id"} or (
+            after_state.get("mode") != "160000"
+            or not isinstance(object_id, str)
+            or not object_id
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-C: gitlink after_state shape mismatch"
+            )
+        return (
+            {"kind": "gitlink", "mode": "160000", "objectId": object_id},
+            ("gitlink", "160000", object_id),
+        )
+    raise ValueError(
+        "inactive protocol v8 E4-C: unsupported repair after_state kind"
+    )
+
+
+def _protocol_v8_e4c_physical_state_equal(
+    before: tuple,
+    after: tuple | None,
+) -> bool:
+    """Compare exact physical state, never ArtifactRef identity."""
+    return after is not None and before == after
+
+
+def _protocol_v8_e4c_seal_approved_patch(
+    patch: object,
+    artifact_sealer,
+    artifact_resolver,
+) -> dict:
+    if not isinstance(patch, dict) or set(patch) != {
+        "schema",
+        "sourceMaterialization",
+        "operations",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E4-C: approved patch shape mismatch"
+        )
+    canonical = _protocol_v8_e1_canonical_json_value_bytes(patch)
+    try:
+        patch_ref = artifact_sealer(canonical, "application/json")
+    except Exception as error:
+        raise ValueError(
+            "inactive protocol v8 E4-C: approved patch sealing failed"
+        ) from error
+    resolved = _protocol_v8_e4c_resolve_artifact_bytes(
+        patch_ref,
+        "application/json",
+        artifact_resolver,
+        "approved patch",
+    )
+    if resolved != canonical:
+        raise ValueError(
+            "inactive protocol v8 E4-C: approved patch canonical bytes mismatch"
+        )
+    return copy.deepcopy(patch_ref)
+
+
+def _protocol_v8_e4c_project_accepted_repair_realization(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    candidate_record_resolver,
+    materialization_artifact_resolver,
+    artifact_sealer,
+    artifact_resolver,
+    _memo: dict[str, dict] | None = None,
+    _graph_checked: set[str] | None = None,
+) -> dict | None:
+    """Project only C5-owned candidateId plus exact sealed approvedPatch."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    if descriptor.get("predicateRevision") != (
+        "turnlock.predicate:AcceptedRepairRealization@1"
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-C: repair projection requires AcceptedRepairRealization"
+        )
+    memo = _memo if _memo is not None else {}
+    graph_checked = _graph_checked if _graph_checked is not None else set()
+    status = _protocol_v8_e4b_candidate_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        _memo=memo,
+        _graph_checked=graph_checked,
+    )
+    if status["reconstructible"] is not True:
+        raise ValueError(
+            "inactive protocol v8 E4-C: AcceptedRepairRealization is not reconstructible"
+        )
+    candidate_ref = _protocol_v8_e4b_candidate_revision_of(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        _memo=memo,
+        _graph_checked=graph_checked,
+    )
+    rr_candidate = _protocol_v8_e4b_candidate_anchor_view(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        _memo=memo,
+        _graph_checked=graph_checked,
+    )
+    operations = _mapping(rr_candidate).get("operations")
+    if not isinstance(operations, list):
+        raise ValueError(
+            "inactive protocol v8 E4-C: AcceptedRR operations missing"
+        )
+    if not operations:
+        return None
+    qualification_ref = _mapping(descriptor.get("arguments")).get(
+        "qualification"
+    )
+    qualification = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    anchor = _protocol_v8_e4b_admission_context(
+        root, closure, contracts, qualification.get("anchorAdmission")
+    )
+    anchor_inputs = _mapping(anchor["descriptor"].get("exactLogicalInput"))
+    scoped_view = _protocol_v8_e3a_resolve_semantic_value(
+        closure, anchor_inputs.get("scopedCandidateView")
+    )
+    if scoped_view.get("valueType") != "turnlock.semantic-value:CandidateView@1":
+        raise ValueError(
+            "inactive protocol v8 E4-C: scoped CandidateView type mismatch"
+        )
+    try:
+        candidate_record = candidate_record_resolver(copy.deepcopy(candidate_ref))
+    except Exception as error:
+        raise ValueError(
+            "inactive protocol v8 E4-C: CandidateRevision record resolution failed"
+        ) from error
+    if not isinstance(candidate_record, dict) or candidate_record.get(
+        "candidateId"
+    ) != candidate_ref.get("authorityId"):
+        raise ValueError(
+            "inactive protocol v8 E4-C: CandidateRevision record identity mismatch"
+        )
+    source_materialization_ref = candidate_record.get("materialization")
+    if not isinstance(source_materialization_ref, dict):
+        raise ValueError(
+            "inactive protocol v8 E4-C: source materialization ArtifactRef missing"
+        )
+    try:
+        source_materialization = materialization_artifact_resolver(
+            copy.deepcopy(source_materialization_ref)
+        )
+    except Exception as error:
+        raise ValueError(
+            "inactive protocol v8 E4-C: source materialization resolution failed"
+        ) from error
+    if not isinstance(source_materialization, dict) or source_materialization.get(
+        "schema"
+    ) != "gate-a-candidate-materialization.v1":
+        raise ValueError(
+            "inactive protocol v8 E4-C: source materialization shape mismatch"
+        )
+    view_entries = {
+        entry.get("pathBytesBase64url"): entry
+        for entry in _sequence(_mapping(scoped_view.get("value")).get("entries"))
+        if isinstance(entry, dict)
+    }
+    materialized_entries = {
+        entry.get("pathBytesBase64url"): entry
+        for entry in _sequence(source_materialization.get("entries"))
+        if isinstance(entry, dict)
+    }
+    projected: list[tuple[bytes, dict]] = []
+    seen: set[str] = set()
+    for operation in operations:
+        operation = _mapping(operation)
+        path_identity = operation.get("path_bytes_base64url")
+        try:
+            raw_path = _protocol_v8_e4a_decode_path_identity(path_identity)
+        except ValueError as error:
+            raise ValueError(
+                "inactive protocol v8 E4-C: invalid repair operation path identity"
+            ) from error
+        assert isinstance(path_identity, str)
+        if path_identity in seen:
+            raise ValueError(
+                "inactive protocol v8 E4-C: duplicate repair operation path"
+            )
+        seen.add(path_identity)
+        view_entry = view_entries.get(path_identity)
+        materialized_entry = materialized_entries.get(path_identity)
+        if not isinstance(view_entry, dict) or not isinstance(materialized_entry, dict):
+            raise ValueError(
+                "inactive protocol v8 E4-C: operation source path has no exact before-state"
+            )
+        before, before_physical = _protocol_v8_e4c_candidate_view_before_state(
+            view_entry.get("state"), materialized_entry, artifact_resolver
+        )
+        after, after_physical = _protocol_v8_e4c_repair_after_state(
+            operation.get("after_state"), artifact_sealer, artifact_resolver
+        )
+        if _protocol_v8_e4c_physical_state_equal(
+            before_physical, after_physical
+        ):
+            raise ValueError(
+                "inactive protocol v8 E4-C: physical no-op repair operation"
+            )
+        projected.append(
+            (
+                raw_path,
+                {
+                    "pathBytesBase64url": path_identity,
+                    "before": before,
+                    "after": after,
+                },
+            )
+        )
+    projected.sort(key=lambda item: item[0])
+    patch = {
+        "schema": "gate-a-exact-candidate-patch.v1",
+        "sourceMaterialization": copy.deepcopy(source_materialization_ref),
+        "operations": [operation for _, operation in projected],
+    }
+    approved_patch = _protocol_v8_e4c_seal_approved_patch(
+        patch, artifact_sealer, artifact_resolver
+    )
+    return {
+        "candidateId": candidate_ref["authorityId"],
+        "approvedPatch": approved_patch,
+    }
+
+
+def _protocol_v8_e4c_repair_projection_applicable_to_current(
+    projection: object,
+    current_candidate: object,
+) -> bool:
+    if not isinstance(projection, dict) or set(projection) != {
+        "candidateId",
+        "approvedPatch",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E4-C: repair projection shape mismatch"
+        )
+    if current_candidate is None:
+        return False
+    if not isinstance(current_candidate, dict) or not isinstance(
+        current_candidate.get("candidateId"), str
+    ):
+        raise ValueError(
+            "inactive protocol v8 E4-C: current CandidateRevision record invalid"
+        )
+    return projection.get("candidateId") == current_candidate.get("candidateId")
+
+
+def _inactive_protocol_v8_e4c_currentness_repair_projection_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise C5 currentness, Arm, and repair projection in disposable state."""
+    errors: list[str] = []
+    prefix = "inactive protocol v8 E4-C:"
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(f"{prefix} {error}" for error in catalog_errors)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in validator_errors)
+    if errors:
+        return errors
+    closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+    closure["_e3b_output_validators"] = validators
+
+    def path(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+    artifact_records: dict[str, tuple[dict, bytes]] = {}
+
+    def artifact_ref(
+        artifact_id: str,
+        content: bytes,
+        media_type: str,
+    ) -> dict:
+        reference = {
+            "artifactId": artifact_id,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "byteLength": len(content),
+            "mediaType": media_type,
+            "repositoryPath": None,
+        }
+        artifact_records[artifact_id] = (copy.deepcopy(reference), content)
+        return reference
+
+    def resolve_artifact(reference: object) -> bytes:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture ArtifactRef missing")
+        record = artifact_records.get(reference.get("artifactId"))
+        if record is None or record[0] != reference:
+            raise ValueError(f"{prefix} fixture ArtifactRef integrity mismatch")
+        return record[1]
+
+    def seal_artifact(content: bytes, media_type: str) -> dict:
+        if type(content) is not bytes or media_type not in {
+            "application/octet-stream",
+            "application/json",
+        }:
+            raise ValueError(f"{prefix} fixture seal request mismatch")
+        identity = hashlib.sha256(content).hexdigest()
+        return artifact_ref(f"sealed-{media_type}-{identity}", content, media_type)
+
+    p_delete = path(b"a-delete.txt")
+    p_replace = path(b"b-replace.txt")
+    p_mode = path(b"c-mode.txt")
+    p_kind = path(b"d-kind.txt")
+    p_symlink = path(b"e-symlink")
+    p_gitlink = path(b"f-gitlink")
+    all_paths = [p_delete, p_replace, p_mode, p_kind, p_symlink, p_gitlink]
+    bytes_a = b"alpha\n"
+    bytes_b = b"beta\n"
+    symlink_bytes = b"target/path"
+    source_a = artifact_ref("source-A", bytes_a, "application/octet-stream")
+    source_symlink = artifact_ref(
+        "source-symlink", symlink_bytes, "application/octet-stream"
+    )
+
+    def entry(
+        path_identity: str,
+        kind: str,
+        mode: str,
+        value: object,
+    ) -> dict:
+        result = {
+            "pathBytesBase64url": path_identity,
+            "kind": kind,
+            "mode": mode,
+        }
+        if kind in {"blob", "symlink"}:
+            result["content"] = copy.deepcopy(value)
+        else:
+            result["objectId"] = value
+        return result
+
+    source_entries = [
+        entry(p_delete, "blob", "100644", source_a),
+        entry(p_replace, "blob", "100644", source_a),
+        entry(p_mode, "blob", "100644", source_a),
+        entry(p_kind, "blob", "100644", source_a),
+        entry(p_symlink, "symlink", "120000", source_symlink),
+        entry(p_gitlink, "gitlink", "160000", "1" * 40),
+    ]
+    source_entries.sort(
+        key=lambda item: _protocol_v8_e4a_decode_path_identity(
+            item["pathBytesBase64url"]
+        )
+    )
+    source_manifest = {
+        "schema": "gate-a-candidate-materialization.v1",
+        "gitObjectFormat": "sha1",
+        "rootTreeObjectId": "a" * 40,
+        "entries": source_entries,
+    }
+    source_manifest_bytes = _protocol_v8_e1_canonical_json_value_bytes(
+        source_manifest
+    )
+    materialization17 = artifact_ref(
+        "materialization-C17", source_manifest_bytes, "application/json"
+    )
+    materialization18 = artifact_ref(
+        "materialization-C18", source_manifest_bytes, "application/json"
+    )
+    materialization_records = {
+        "materialization-C17": copy.deepcopy(source_manifest),
+        "materialization-C18": copy.deepcopy(source_manifest),
+    }
+    candidate_records = {
+        "C17": {
+            "candidateId": "C17",
+            "materialization": materialization17,
+        },
+        "C18": {
+            "candidateId": "C18",
+            "materialization": materialization18,
+        },
+    }
+
+    def candidate(candidate_id: str) -> dict:
+        reference = {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": candidate_id,
+        }
+        _protocol_v8_e3a_register_exact_authority(closure, reference)
+        return reference
+
+    c17 = candidate("C17")
+    c18 = candidate("C18")
+
+    def resolve_candidate_materialization(reference: object) -> dict:
+        if not isinstance(reference, dict) or reference.get("authorityId") not in {
+            "C17",
+            "C18",
+        }:
+            raise ValueError(f"{prefix} fixture CandidateRevision mismatch")
+        return copy.deepcopy(source_manifest)
+
+    def resolve_candidate_record(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture CandidateRevision missing")
+        record = candidate_records.get(reference.get("authorityId"))
+        if record is None:
+            raise ValueError(f"{prefix} fixture CandidateRevision record missing")
+        return copy.deepcopy(record)
+
+    def resolve_materialization(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture materialization ref missing")
+        record = materialization_records.get(reference.get("artifactId"))
+        if record is None:
+            raise ValueError(f"{prefix} fixture materialization missing")
+        expected_bytes = _protocol_v8_e1_canonical_json_value_bytes(record)
+        if resolve_artifact(reference) != expected_bytes:
+            raise ValueError(f"{prefix} fixture materialization bytes mismatch")
+        return copy.deepcopy(record)
+
+    def semantic_value(value_type: str, value: object) -> dict:
+        return _protocol_v8_e3a_register_semantic_value(
+            closure, value_type, value
+        )
+
+    def admit(contract_id: str, inputs: dict, result: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract_id, inputs, result
+        )
+
+    def challenge(contract_id: str, target_name: str, target: dict) -> dict:
+        return admit(
+            contract_id,
+            {target_name: copy.deepcopy(target)},
+            _protocol_v8_e3b_test_challenge_candidate(
+                contracts[contract_id], True
+            ),
+        )
+
+    def qualification(
+        contract_id: str,
+        anchor: dict,
+        additional: dict,
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            closure, qualifications, contract_id, anchor, additional
+        )
+
+    def fact(predicate_id: str, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(
+            closure, predicates, predicate_id, arguments
+        )
+
+    def expect_rejected(
+        label: str,
+        action,
+        required: str | None = None,
+    ) -> None:
+        try:
+            action()
+        except (TypeError, ValueError) as error:
+            if required is not None and required not in str(error):
+                errors.append(
+                    f"{prefix} {label} rejected without {required!r}"
+                )
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    surviving = semantic_value(
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {"test": "e4-c-surviving"},
+    )
+    statement = {
+        "statement": "the exact correction follows from current authority",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "the exact source establishes the correction",
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": "none required",
+            "changed_product_authority_not_required_argument": "none changed",
+            "product_meaning_selection_not_required_argument": "none selected",
+            "accepted_observable_obligation_change_not_required_argument": (
+                "no accepted obligation changes"
+            ),
+        },
+    }
+    discovery = admit(
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": surviving},
+        {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": "the source statement is earliest",
+                "upstream_exclusion_argument": "no upstream cause exists",
+            },
+            "classification_statements": [statement],
+        },
+    )
+    targeted = fact(
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": statement},
+    )
+    unique_candidate = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [{"postcondition": "required state"}],
+        "derivation_claims": [
+            {
+                "claim": "authority entails the required state",
+                "requirement_ordinals": [0],
+                "authority_references": [
+                    {"kind": "authority-content", "role": "normative-spec"}
+                ],
+                "evidence_references": [{"kind": "source-finding"}],
+                "derivation_argument": "authority entails requirement zero",
+            }
+        ],
+        "alternatives_considered": [],
+        "uniqueness_argument": {
+            "authority_references": [
+                {"kind": "authority-content", "role": "normative-spec"}
+            ],
+            "argument": "no distinct compatible correction remains",
+        },
+    }
+    uc_anchor = admit(
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "discovery": discovery,
+            "survivingMaterialBasis": surviving,
+            "targetedDiscoveryStatement": targeted,
+        },
+        unique_candidate,
+    )
+    uc_challenge = challenge(
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        "challengedUniqueCorrection",
+        uc_anchor,
+    )
+    uc_key = qualification(
+        "turnlock.qualification:UniqueCorrectionQualification@1",
+        uc_anchor,
+        {"uniqueCorrectionChallenge": uc_challenge},
+    )
+    accepted_unique = fact(
+        "turnlock.predicate:AcceptedUniqueCorrection@1",
+        {"qualification": uc_key},
+    )
+
+    complete_view = _protocol_v8_e4a_construct_candidate_view(
+        closure,
+        c17,
+        {"kind": "complete"},
+        resolve_candidate_materialization,
+        resolve_artifact,
+    )
+    complete_view18 = _protocol_v8_e4a_construct_candidate_view(
+        closure,
+        c18,
+        {"kind": "complete"},
+        resolve_candidate_materialization,
+        resolve_artifact,
+    )
+    if complete_view != complete_view18:
+        errors.append(f"{prefix} equal physical candidates have unequal views")
+    complete_view_ref = _protocol_v8_e4a_register_candidate_view(
+        closure, complete_view
+    )
+    rs_candidate = {
+        "readable_paths": list(reversed(all_paths)),
+        "writable_paths": list(reversed(all_paths)),
+        "completeness_argument": {
+            "requirement_surfaces": [
+                {
+                    "requirement_ordinal": 0,
+                    "surface_paths": list(all_paths),
+                    "argument": "all exact source paths realize requirement zero",
+                }
+            ],
+            "whole_scope_argument": "the exact readable set is complete",
+        },
+        "minimal_write_authority_argument": {
+            "writable_path_justifications": [
+                {
+                    "path_bytes_base64url": item,
+                    "requirement_ordinals": [0],
+                    "necessity_argument": "the exact operation requires this path",
+                }
+                for item in all_paths
+            ],
+            "no_additional_write_authority_argument": (
+                "no additional write authority is required"
+            ),
+        },
+    }
+    rs_anchor = admit(
+        "turnlock.sqc:RealizationScopeInitial@1",
+        {
+            "survivingMaterialBasis": surviving,
+            "acceptedUniqueCorrection": accepted_unique,
+            "candidateRevision": c17,
+            "completeCandidateView": complete_view_ref,
+        },
+        rs_candidate,
+    )
+    rs_challenge = challenge(
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs_anchor,
+    )
+    rs_key = qualification(
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs_anchor,
+        {"realizationScopeChallenge": rs_challenge},
+    )
+    accepted_rs = fact(
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        {"qualification": rs_key},
+    )
+    scope = _protocol_v8_e4a_canonical_readable_coverage(
+        rs_candidate["readable_paths"]
+    )
+    scoped_view = _protocol_v8_e4a_construct_candidate_view(
+        closure,
+        c17,
+        scope,
+        resolve_candidate_materialization,
+        resolve_artifact,
+    )
+    scoped_view_ref = _protocol_v8_e4a_register_candidate_view(
+        closure, scoped_view
+    )
+
+    def inline(raw: bytes) -> dict:
+        return _protocol_v8_e4a_exact_bytes(raw)
+
+    main_operations = [
+        {
+            "path_bytes_base64url": p_gitlink,
+            "after_state": {
+                "kind": "gitlink",
+                "mode": "160000",
+                "object_id": "2" * 40,
+            },
+        },
+        {
+            "path_bytes_base64url": p_symlink,
+            "after_state": {
+                "kind": "symlink",
+                "mode": "120000",
+                "content": inline(b"new/target"),
+            },
+        },
+        {
+            "path_bytes_base64url": p_kind,
+            "after_state": {
+                "kind": "symlink",
+                "mode": "120000",
+                "content": inline(bytes_a),
+            },
+        },
+        {
+            "path_bytes_base64url": p_mode,
+            "after_state": {
+                "kind": "blob",
+                "mode": "100755",
+                "content": inline(bytes_a),
+            },
+        },
+        {
+            "path_bytes_base64url": p_replace,
+            "after_state": {
+                "kind": "blob",
+                "mode": "100644",
+                "content": inline(bytes_b),
+            },
+        },
+        {
+            "path_bytes_base64url": p_delete,
+            "after_state": {"kind": "absent"},
+        },
+    ]
+
+    def rr_candidate(operations: list[dict]) -> dict:
+        if operations:
+            realization = {
+                "requirement_ordinal": 0,
+                "kind": "patch-realized",
+                "operation_paths": list(
+                    dict.fromkeys(
+                        operation["path_bytes_base64url"]
+                        for operation in operations
+                    )
+                ),
+                "realization_argument": "the exact operations realize requirement zero",
+            }
+        else:
+            realization = {
+                "requirement_ordinal": 0,
+                "kind": "already-realized",
+                "already_realized_argument": "requirement zero is already realized",
+            }
+        return {
+            "kind": "repair-realization-candidate",
+            "requirement_realizations": [realization],
+            "operations": copy.deepcopy(operations),
+        }
+
+    def accepted_rr(
+        operations: list[dict],
+        label: str,
+    ) -> tuple[dict, dict, dict]:
+        local_surviving = semantic_value(
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {"test": f"e4-c-rr-{label}"},
+        )
+        anchor = admit(
+            "turnlock.sqc:RepairRealizationInitial@1",
+            {
+                "survivingMaterialBasis": local_surviving,
+                "acceptedUniqueCorrection": accepted_unique,
+                "acceptedRealizationScope": accepted_rs,
+                "candidateRevision": c17,
+                "scopedCandidateView": scoped_view_ref,
+            },
+            rr_candidate(operations),
+        )
+        challenge_ref = challenge(
+            "turnlock.sqc:RepairRealizationChallenge@1",
+            "challengedRepairRealization",
+            anchor,
+        )
+        key = qualification(
+            "turnlock.qualification:RepairRealizationQualification@1",
+            anchor,
+            {"repairRealizationChallenge": challenge_ref},
+        )
+        return (
+            fact(
+                "turnlock.predicate:AcceptedRepairRealization@1",
+                {"qualification": key},
+            ),
+            anchor,
+            challenge_ref,
+        )
+
+    accepted_rr_main, rr_main_anchor, rr_main_challenge = accepted_rr(
+        main_operations, "main"
+    )
+    accepted_rr_empty, rr_empty_anchor, _ = accepted_rr([], "empty")
+    no_op_operation = [
+        {
+            "path_bytes_base64url": p_replace,
+            "after_state": {
+                "kind": "blob",
+                "mode": "100644",
+                "content": inline(bytes_a),
+            },
+        }
+    ]
+    accepted_rr_no_op, _, _ = accepted_rr(no_op_operation, "no-op")
+    duplicate_operations = [
+        {
+            "path_bytes_base64url": p_replace,
+            "after_state": {
+                "kind": "blob",
+                "mode": "100644",
+                "content": inline(bytes_b),
+            },
+        },
+        {
+            "path_bytes_base64url": p_replace,
+            "after_state": {"kind": "absent"},
+        },
+    ]
+    accepted_rr_duplicate, _, _ = accepted_rr(
+        duplicate_operations, "duplicate"
+    )
+    valid_utf8_as_base64 = {
+        "encoding": "base64url",
+        "data": base64.urlsafe_b64encode(bytes_b).rstrip(b"=").decode("ascii"),
+    }
+    invalid_exact_operation = [
+        {
+            "path_bytes_base64url": p_replace,
+            "after_state": {
+                "kind": "blob",
+                "mode": "100644",
+                "content": valid_utf8_as_base64,
+            },
+        }
+    ]
+    accepted_rr_invalid_exact, _, _ = accepted_rr(
+        invalid_exact_operation, "invalid-exact"
+    )
+
+    fact_memo: dict[str, dict] = {}
+    graph_checked: set[str] = set()
+
+    def e4b_status(reference: dict) -> dict:
+        return _protocol_v8_e4b_candidate_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate_materialization,
+            sealed_content_resolver=resolve_artifact,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    def candidate_revision_of(reference: dict) -> dict:
+        return _protocol_v8_e4b_candidate_revision_of(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate_materialization,
+            sealed_content_resolver=resolve_artifact,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    def project(
+        reference: dict,
+        *,
+        candidate_record_resolver=resolve_candidate_record,
+        materialization_resolver=resolve_materialization,
+        sealer=seal_artifact,
+        resolver=resolve_artifact,
+    ) -> dict | None:
+        return _protocol_v8_e4c_project_accepted_repair_realization(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate_materialization,
+            sealed_content_resolver=resolve_artifact,
+            candidate_record_resolver=candidate_record_resolver,
+            materialization_artifact_resolver=materialization_resolver,
+            artifact_sealer=sealer,
+            artifact_resolver=resolver,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    current = {"value": copy.deepcopy(candidate_records["C17"]), "calls": 0}
+
+    def resolve_current() -> dict | None:
+        current["calls"] += 1
+        return copy.deepcopy(current["value"])
+
+    def applicable(reference: dict) -> bool:
+        return _protocol_v8_e4c_candidate_fact_applicable_to_current(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate_materialization,
+            sealed_content_resolver=resolve_artifact,
+            authoritative_current_candidate_resolver=resolve_current,
+            _memo=fact_memo,
+            _graph_checked=graph_checked,
+        )
+
+    rs_status_before = e4b_status(accepted_rs)
+    rr_status_before = e4b_status(accepted_rr_main)
+    if not all(
+        result["reconstructible"] and result["consumable"]
+        for result in (rs_status_before, rr_status_before)
+    ):
+        errors.append(f"{prefix} candidate-bound Fact fixture is not consumable")
+    if not applicable(accepted_rs) or not applicable(accepted_rr_main):
+        errors.append(f"{prefix} C17 Facts not applicable to current C17")
+    calls_at_c17 = current["calls"]
+    current["value"] = copy.deepcopy(candidate_records["C18"])
+    if applicable(accepted_rs) or applicable(accepted_rr_main):
+        errors.append(f"{prefix} C17 Facts applicable to nominally distinct C18")
+    if current["calls"] != calls_at_c17 + 2:
+        errors.append(f"{prefix} Fact applicability current resolver read count mismatch")
+    if e4b_status(accepted_rs) != rs_status_before or (
+        e4b_status(accepted_rr_main) != rr_status_before
+    ):
+        errors.append(f"{prefix} candidate advance changed E4-B Fact truth")
+    if candidate_revision_of(accepted_rs) != c17 or (
+        candidate_revision_of(accepted_rr_main) != c17
+    ):
+        errors.append(f"{prefix} candidate advance rebound historical Facts")
+    expect_rejected(
+        "candidate-independent Fact applicability",
+        lambda: applicable(accepted_unique),
+        "unsupported Predicate",
+    )
+
+    def new_arm_closure() -> tuple[dict, dict, str]:
+        state = _protocol_v8_e2_new_state()
+        arm_closure = _protocol_v8_e3a_new_closure(state)
+        _protocol_v8_e3a_register_exact_authority(arm_closure, c17)
+        _protocol_v8_e3a_register_exact_authority(arm_closure, c18)
+        descriptor = {
+            "schema": "turnlock.logical-question-descriptor.v1",
+            "semanticQuestionContract": "turnlock.sqc:RealizationScopeInitial@1",
+            "exactLogicalInput": {
+                "survivingMaterialBasis": surviving,
+                "acceptedUniqueCorrection": accepted_unique,
+                "candidateRevision": c17,
+                "completeCandidateView": complete_view_ref,
+            },
+        }
+        qlek = _protocol_v8_e3a_register_question(
+            arm_closure, contracts, descriptor
+        )
+        return state, arm_closure, qlek
+
+    arm_state, arm_closure, k17 = new_arm_closure()
+    authority = _protocol_v8_e2_t1_acquire_authority(arm_state, k17, 1)
+    if authority.get("status") != "authority":
+        errors.append(f"{prefix} candidate-bound Arm authority unavailable")
+    _protocol_v8_e2_t2_authorize_execution(
+        arm_state, k17, 1, "E17", outer_authorized=True
+    )
+    arm_current = {"value": candidate_records["C17"], "calls": 0}
+
+    def arm_current_resolver() -> dict:
+        arm_current["calls"] += 1
+        return copy.deepcopy(arm_current["value"])
+
+    armed = _protocol_v8_e4c_t3_arm_execution(
+        arm_state,
+        arm_closure,
+        contracts,
+        k17,
+        1,
+        "E17",
+        arm_current_resolver,
+    )
+    if (
+        arm_current["calls"] != 1
+        or armed.get("armed") is not True
+        or armed.get("arm_epoch") != 0
+        or armed.get("arm_generation") != 1
+    ):
+        errors.append(f"{prefix} candidate-bound Arm positive case mismatch")
+    armed_snapshot = copy.deepcopy(armed)
+    bound_before_switch = _protocol_v8_e4b_bound_candidate_revision(
+        arm_closure, contracts, k17
+    )
+    arm_current["value"] = candidate_records["C18"]
+    if arm_state["executions"]["E17"] != armed_snapshot or (
+        _protocol_v8_e4b_bound_candidate_revision(arm_closure, contracts, k17)
+        != bound_before_switch
+    ):
+        errors.append(f"{prefix} candidate switch rewrote Armed history")
+    if arm_state["executions"]["E17"].get("hazard_clearance") is not None:
+        errors.append(f"{prefix} candidate staleness manufactured hazard clearance")
+    _protocol_v8_e2_record_protocol_valid_completion(
+        arm_state, "E17", rs_candidate
+    )
+    late = _protocol_v8_e2_t4_reconcile_completion(arm_state, "E17")
+    if late.get("status") not in {"admitted", "converged"} or (
+        k17 not in arm_state["admissions"]
+    ):
+        errors.append(f"{prefix} late old-candidate completion was discarded")
+
+    stale_state, stale_closure, stale_k17 = new_arm_closure()
+    _protocol_v8_e2_t1_acquire_authority(stale_state, stale_k17, 1)
+    _protocol_v8_e2_t2_authorize_execution(
+        stale_state, stale_k17, 1, "E-STALE", outer_authorized=True
+    )
+    stale_calls = {"count": 0}
+
+    def stale_resolver() -> dict:
+        stale_calls["count"] += 1
+        return copy.deepcopy(candidate_records["C18"])
+
+    expect_rejected(
+        "stale-before-Arm candidate-bound execution",
+        lambda: _protocol_v8_e4c_t3_arm_execution(
+            stale_state,
+            stale_closure,
+            contracts,
+            stale_k17,
+            1,
+            "E-STALE",
+            stale_resolver,
+        ),
+        "not authoritative current candidate",
+    )
+    stale_execution = stale_state["executions"]["E-STALE"]
+    if stale_calls["count"] != 1 or stale_execution.get("armed") is not False:
+        errors.append(f"{prefix} stale-before-Arm rejection partially Armed execution")
+    expect_rejected(
+        "MAYBE-SENT without Arm",
+        lambda: _protocol_v8_e2_mark_maybe_sent(stale_state, "E-STALE"),
+    )
+    if stale_execution.get("hazard_clearance") is not None:
+        errors.append(f"{prefix} stale never-Armed execution gained hazard clearance")
+    _protocol_v8_e2_retire_unarmed(stale_state, "E-STALE")
+    if stale_execution.get("retired_unarmed") is not True:
+        errors.append(f"{prefix} stale never-Armed retirement failed")
+
+    independent_state = _protocol_v8_e2_new_state()
+    independent_closure = _protocol_v8_e3a_new_closure(independent_state)
+    independent_qlek = _protocol_v8_e3a_register_question(
+        independent_closure,
+        contracts,
+        {
+            "schema": "turnlock.logical-question-descriptor.v1",
+            "semanticQuestionContract": (
+                "turnlock.sqc:DiscoveryClassificationInitial@1"
+            ),
+            "exactLogicalInput": {"survivingMaterialBasis": surviving},
+        },
+    )
+    _protocol_v8_e2_t1_acquire_authority(
+        independent_state, independent_qlek, 1
+    )
+    _protocol_v8_e2_t2_authorize_execution(
+        independent_state,
+        independent_qlek,
+        1,
+        "E-INDEPENDENT",
+        outer_authorized=True,
+    )
+    independent_calls = {"count": 0}
+
+    def independent_resolver() -> dict:
+        independent_calls["count"] += 1
+        return copy.deepcopy(candidate_records["C18"])
+
+    _protocol_v8_e4c_t3_arm_execution(
+        independent_state,
+        independent_closure,
+        contracts,
+        independent_qlek,
+        1,
+        "E-INDEPENDENT",
+        independent_resolver,
+    )
+    if independent_calls["count"] != 0 or independent_state["executions"][
+        "E-INDEPENDENT"
+    ].get("armed") is not True:
+        errors.append(f"{prefix} candidate-independent Arm read current candidate")
+
+    current["value"] = copy.deepcopy(candidate_records["C17"])
+    projection = project(accepted_rr_main)
+    current["value"] = copy.deepcopy(candidate_records["C18"])
+    if not isinstance(projection, dict) or set(projection) != {
+        "candidateId",
+        "approvedPatch",
+    } or projection.get("candidateId") != "C17":
+        errors.append(f"{prefix} repair projection exact result shape mismatch")
+    else:
+        patch_bytes = resolve_artifact(projection["approvedPatch"])
+        try:
+            patch = json.loads(patch_bytes)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            errors.append(f"{prefix} approved patch is not canonical JSON")
+            patch = {}
+        if patch_bytes != _protocol_v8_e1_canonical_json_value_bytes(patch):
+            errors.append(f"{prefix} approved patch bytes are not canonical")
+        if patch.get("schema") != "gate-a-exact-candidate-patch.v1" or (
+            patch.get("sourceMaterialization") != materialization17
+        ):
+            errors.append(f"{prefix} approved patch source binding mismatch")
+        patch_operations = _sequence(patch.get("operations"))
+        patch_paths = [
+            _mapping(operation).get("pathBytesBase64url")
+            for operation in patch_operations
+        ]
+        expected_paths = sorted(
+            all_paths,
+            key=_protocol_v8_e4a_decode_path_identity,
+        )
+        if patch_paths != expected_paths:
+            errors.append(f"{prefix} approved patch operation order mismatch")
+        by_path = {
+            _mapping(operation).get("pathBytesBase64url"): operation
+            for operation in patch_operations
+        }
+        if _mapping(by_path.get(p_delete)).get("after") is not None:
+            errors.append(f"{prefix} deletion did not project to null after-state")
+        replacement_after = _mapping(_mapping(by_path.get(p_replace)).get("after"))
+        if resolve_artifact(replacement_after.get("content")) != bytes_b:
+            errors.append(f"{prefix} blob replacement after bytes mismatch")
+        if _mapping(_mapping(by_path.get(p_mode)).get("after")).get("mode") != "100755":
+            errors.append(f"{prefix} blob mode change was not preserved")
+        if _mapping(_mapping(by_path.get(p_kind)).get("after")).get("kind") != "symlink":
+            errors.append(f"{prefix} kind change was not preserved")
+        if _mapping(_mapping(by_path.get(p_gitlink)).get("after")).get(
+            "objectId"
+        ) != "2" * 40:
+            errors.append(f"{prefix} gitlink objectId mapping mismatch")
+        symlink_before = _mapping(_mapping(by_path.get(p_symlink)).get("before"))
+        if symlink_before.get("content") != source_symlink:
+            errors.append(f"{prefix} symlink before-state transport mismatch")
+    empty_status = e4b_status(accepted_rr_empty)
+    if (
+        empty_status["reconstructible"] is not True
+        or empty_status["consumable"] is not True
+        or project(accepted_rr_empty) is not None
+    ):
+        errors.append(f"{prefix} empty operations Fact/projection mismatch")
+    expect_rejected(
+        "same physical bytes through different ArtifactRef",
+        lambda: project(accepted_rr_no_op),
+        "physical no-op",
+    )
+    expect_rejected(
+        "duplicate operation path",
+        lambda: project(accepted_rr_duplicate),
+        "duplicate repair operation path",
+    )
+    expect_rejected(
+        "valid UTF-8 encoded as base64url",
+        lambda: project(accepted_rr_invalid_exact),
+        "valid UTF-8 exact bytes must use utf-8 encoding",
+    )
+    expect_rejected(
+        "padded base64url after-state",
+        lambda: _protocol_v8_e4c_repair_after_state(
+            {
+                "kind": "blob",
+                "mode": "100644",
+                "content": {"encoding": "base64url", "data": "YQ=="},
+            },
+            seal_artifact,
+            resolve_artifact,
+        ),
+    )
+    git_before = ("gitlink", "160000", "1" * 40)
+    if not _protocol_v8_e4c_physical_state_equal(
+        git_before, ("gitlink", "160000", "1" * 40)
+    ) or _protocol_v8_e4c_physical_state_equal(
+        git_before, ("gitlink", "160000", "2" * 40)
+    ):
+        errors.append(f"{prefix} gitlink physical equality mismatch")
+
+    inconsistent_manifest = copy.deepcopy(source_manifest)
+    inconsistent_entry = next(
+        item
+        for item in inconsistent_manifest["entries"]
+        if item["pathBytesBase64url"] == p_replace
+    )
+    inconsistent_entry["content"] = artifact_ref(
+        "inconsistent-source", b"not alpha\n", "application/octet-stream"
+    )
+
+    def inconsistent_materialization(reference: object) -> dict:
+        return copy.deepcopy(inconsistent_manifest)
+
+    expect_rejected(
+        "source-view/materialization mismatch",
+        lambda: project(
+            accepted_rr_main,
+            materialization_resolver=inconsistent_materialization,
+        ),
+        "source view/materialization bytes mismatch",
+    )
+
+    def wrong_candidate_record(reference: object) -> dict:
+        return copy.deepcopy(candidate_records["C18"])
+
+    expect_rejected(
+        "wrong CandidateRevision record",
+        lambda: project(
+            accepted_rr_main,
+            candidate_record_resolver=wrong_candidate_record,
+        ),
+        "record identity mismatch",
+    )
+
+    def wrong_after_bytes_sealer(content: bytes, media_type: str) -> dict:
+        if media_type == "application/octet-stream":
+            return artifact_ref(
+                "wrong-after-bytes", b"wrong", "application/octet-stream"
+            )
+        return seal_artifact(content, media_type)
+
+    expect_rejected(
+        "after ArtifactRef bytes mismatch",
+        lambda: project(accepted_rr_main, sealer=wrong_after_bytes_sealer),
+        "sealed after content bytes mismatch",
+    )
+
+    def wrong_after_media_sealer(content: bytes, media_type: str) -> dict:
+        if media_type == "application/octet-stream":
+            return artifact_ref("wrong-after-media", content, "text/plain")
+        return seal_artifact(content, media_type)
+
+    expect_rejected(
+        "after ArtifactRef media mismatch",
+        lambda: project(accepted_rr_main, sealer=wrong_after_media_sealer),
+        "mediaType mismatch",
+    )
+
+    def wrong_patch_bytes_sealer(content: bytes, media_type: str) -> dict:
+        if media_type == "application/json":
+            return artifact_ref("wrong-patch-bytes", b"{}", "application/json")
+        return seal_artifact(content, media_type)
+
+    expect_rejected(
+        "approved patch ArtifactRef bytes mismatch",
+        lambda: project(accepted_rr_main, sealer=wrong_patch_bytes_sealer),
+        "canonical bytes mismatch",
+    )
+
+    def wrong_patch_media_sealer(content: bytes, media_type: str) -> dict:
+        if media_type == "application/json":
+            return artifact_ref("wrong-patch-media", content, "text/plain")
+        return seal_artifact(content, media_type)
+
+    expect_rejected(
+        "approved patch ArtifactRef media mismatch",
+        lambda: project(accepted_rr_main, sealer=wrong_patch_media_sealer),
+        "mediaType mismatch",
+    )
+
+    expect_rejected(
+        "raw RepairRealization Admission projection",
+        lambda: project(rr_main_anchor),
+    )
+    wrong_rr_key = qualification(
+        "turnlock.qualification:RepairRealizationQualification@1",
+        rr_empty_anchor,
+        {"repairRealizationChallenge": rr_main_challenge},
+    )
+    nonreconstructible_rr = fact(
+        "turnlock.predicate:AcceptedRepairRealization@1",
+        {"qualification": wrong_rr_key},
+    )
+    expect_rejected(
+        "non-reconstructible AcceptedRR projection",
+        lambda: project(nonreconstructible_rr),
+        "not reconstructible",
+    )
+
+    projection_repeat = project(accepted_rr_main)
+    if projection_repeat != projection:
+        errors.append(f"{prefix} repeated historical repair projection diverged")
+    if not _protocol_v8_e4c_repair_projection_applicable_to_current(
+        projection, candidate_records["C17"]
+    ) or _protocol_v8_e4c_repair_projection_applicable_to_current(
+        projection, candidate_records["C18"]
+    ):
+        errors.append(f"{prefix} repair projection nominal applicability mismatch")
+    projection_after_advance = project(accepted_rr_main)
+    if projection_after_advance != projection or projection_after_advance.get(
+        "candidateId"
+    ) != "C17":
+        errors.append(f"{prefix} historical repair projection retargeted after advance")
+    if _mapping(
+        json.loads(resolve_artifact(projection_after_advance["approvedPatch"]))
+    ).get("sourceMaterialization") != materialization17:
+        errors.append(f"{prefix} repair patch retargeted source materialization")
+
+    forbidden_projection_fields = {
+        "repairIntentId",
+        "runId",
+        "findingId",
+        "qualificationEvidenceIds",
+        "qualificationArtifacts",
+    }
+    if isinstance(projection, dict) and forbidden_projection_fields.intersection(
+        projection
+    ):
+        errors.append(f"{prefix} full RepairIntent envelope authority was invented")
+    forbidden_helper_fragments = {
+        "retarget",
+        "rebase_repair",
+        "rewrite_repair",
+        "merge_repair",
+        "three_way",
+        "candidate_successor",
+        "patch_application",
+        "record_pne",
+        "hazard_clearance",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e4c_")
+        and any(fragment in name for fragment in forbidden_helper_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} forbidden later-stage helper was introduced")
+    return errors
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -19345,6 +20948,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e4b_candidate_binding_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e4c_currentness_repair_projection_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
