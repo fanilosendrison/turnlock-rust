@@ -11510,6 +11510,7 @@ class ProtocolV8SemanticOracleCacheTests(unittest.TestCase):
         "_inactive_protocol_v8_e3c3_decision_necessity_errors",
         "_inactive_protocol_v8_e4a_candidate_view_errors",
         "_inactive_protocol_v8_e4b_candidate_binding_errors",
+        "_inactive_protocol_v8_e4c_currentness_repair_projection_errors",
     )
     DEPENDENCY = Path("dependency.json")
 
