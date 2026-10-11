@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
+from referencing import Registry, Resource
 from proto_ring import evidence_requirements, repository_governance_state
 from proto_ring.evidence_requirements import (
     EvidenceClassKind,
@@ -18549,6 +18550,2020 @@ def _inactive_protocol_v8_e5b_fact_semantic_view_errors(
     return errors
 
 
+_PROTOCOL_V8_E5C_DIRECT_FA_ROOTS = {
+    "turnlock.sqc:MaterialityAssessmentInitial@1",
+    "turnlock.sqc:MaterialityAssessmentRevision@1",
+    "turnlock.sqc:RefutationInitial@1",
+    "turnlock.sqc:RefutationRevision@1",
+}
+_PROTOCOL_V8_E5C_DIRECT_SM_ROOTS = {
+    "turnlock.sqc:DiscoveryClassificationInitial@1",
+    "turnlock.sqc:DiscoveryNoNormativeImpactRevision@1",
+    "turnlock.sqc:DecisionNecessityChallenge@1",
+    "turnlock.sqc:DiscoveryDecisionRequiredRevision@1",
+    "turnlock.sqc:UniqueCorrectionInitial@1",
+    "turnlock.sqc:UniqueCorrectionRevision@1",
+    "turnlock.sqc:RealizationScopeInitial@1",
+    "turnlock.sqc:RealizationScopeRevision@1",
+    "turnlock.sqc:RepairRealizationInitial@1",
+    "turnlock.sqc:RepairRealizationRevision@1",
+}
+_PROTOCOL_V8_E5C_ADMISSION_CHALLENGE_TARGETS = {
+    "turnlock.sqc:MaterialityChallenge@1": "challengedMaterialityAssessment",
+    "turnlock.sqc:RefutationChallenge@1": "challengedRefutation",
+    "turnlock.sqc:UniqueCorrectionChallenge@1": "challengedUniqueCorrection",
+    "turnlock.sqc:RealizationScopeChallenge@1": "challengedRealizationScope",
+    "turnlock.sqc:RepairRealizationChallenge@1": "challengedRepairRealization",
+}
+_PROTOCOL_V8_E5C_NNI_CHALLENGE = "turnlock.sqc:NoNormativeImpactChallenge@1"
+_PROTOCOL_V8_E5C_RS_CONTRACTS = {
+    "turnlock.sqc:RealizationScopeInitial@1",
+    "turnlock.sqc:RealizationScopeRevision@1",
+}
+_PROTOCOL_V8_E5C_RR_CONTRACTS = {
+    "turnlock.sqc:RepairRealizationInitial@1",
+    "turnlock.sqc:RepairRealizationRevision@1",
+}
+
+
+def _protocol_v8_e5c_contract_partition_errors(
+    contracts: dict[str, dict],
+) -> list[str]:
+    """Require the exact 4+10+5+1 C6 cognitive-root partition."""
+    prefix = "inactive protocol v8 E5-C:"
+    groups = (
+        _PROTOCOL_V8_E5C_DIRECT_FA_ROOTS,
+        _PROTOCOL_V8_E5C_DIRECT_SM_ROOTS,
+        set(_PROTOCOL_V8_E5C_ADMISSION_CHALLENGE_TARGETS),
+        {_PROTOCOL_V8_E5C_NNI_CHALLENGE},
+    )
+    flattened = [contract_id for group in groups for contract_id in group]
+    if len(flattened) != 20 or len(set(flattened)) != 20:
+        return [f"{prefix} cognitive root partition is not exactly 4+10+5+1"]
+    if set(flattened) != set(contracts):
+        return [f"{prefix} cognitive root partition/catalog inventory mismatch"]
+    return []
+
+
+def _protocol_v8_e5c_packet_schema_validators(
+    root: Path,
+) -> tuple[Draft202012Validator | None, Draft202012Validator | None, list[str]]:
+    """Compile exact published presentation and packet schema validators."""
+    prefix = "inactive protocol v8 E5-C:"
+    try:
+        packet_schema = json.loads(
+            (root / PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
+            .read_text(encoding="utf-8")
+        )
+        identity_schema = json.loads(
+            (root / PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE["path"])
+            .read_text(encoding="utf-8")
+        )
+        registry = Registry().with_resource(
+            identity_schema["$id"], Resource.from_contents(identity_schema)
+        )
+        packet_validator = Draft202012Validator(
+            packet_schema,
+            registry=registry,
+            format_checker=FormatChecker(),
+        )
+        presentation_validator = Draft202012Validator(
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$defs": packet_schema["$defs"],
+                "$ref": "#/$defs/contractPresentation",
+            },
+            format_checker=FormatChecker(),
+        )
+    except (KeyError, OSError, UnicodeError, json.JSONDecodeError, SchemaError) as error:
+        return None, None, [f"{prefix} published cognitive schema load failed: {error}"]
+    return presentation_validator, packet_validator, []
+
+
+def _protocol_v8_e5c_contract_presentation(
+    contract: dict,
+    presentation_validator: Draft202012Validator,
+) -> dict:
+    """Project presentation directly from one exact selected SQC definition."""
+    prefix = "inactive protocol v8 E5-C:"
+    definition = _mapping(contract.get("definition"))
+    question_kind = definition.get("question_kind")
+    execution = _mapping(definition.get("execution"))
+    variants = definition.get("semantic_result_variants")
+    if question_kind in {"initial", "revision"}:
+        presentation = {
+            "question_kind": question_kind,
+            "role": execution.get("role"),
+            "task": execution.get("task"),
+            "semantic_result_variants": copy.deepcopy(variants),
+        }
+        if "task_mode" in execution:
+            presentation["task_mode"] = execution["task_mode"]
+    elif question_kind == "challenge":
+        challenge = _mapping(definition.get("challenge"))
+        presentation = {
+            "question_kind": "challenge",
+            "role": execution.get("role"),
+            "challenge_kind": challenge.get("challenge_kind"),
+            "required_objectives": copy.deepcopy(challenge.get("objectives")),
+            "semantic_result_variants": copy.deepcopy(variants),
+        }
+    else:
+        raise ValueError(f"{prefix} unsupported SQC question_kind")
+    schema_errors = sorted(
+        presentation_validator.iter_errors(presentation),
+        key=lambda error: tuple(str(item) for item in error.path),
+    )
+    if schema_errors:
+        raise ValueError(
+            f"{prefix} contract presentation schema violation: {schema_errors[0].message}"
+        )
+    return presentation
+
+
+def _protocol_v8_e5c_direct_root_basis(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    contract_id: str,
+    logical_inputs: dict,
+    finding_closure_resolver,
+) -> dict:
+    """Resolve only the exact direct FA/SM root selected by C6."""
+    prefix = "inactive protocol v8 E5-C:"
+    if contract_id in _PROTOCOL_V8_E5C_DIRECT_FA_ROOTS:
+        input_name = "findingAdjudicationBasis"
+    elif contract_id in _PROTOCOL_V8_E5C_DIRECT_SM_ROOTS:
+        input_name = "survivingMaterialBasis"
+    else:
+        raise ValueError(f"{prefix} contract has no direct cognitive root")
+    if input_name not in logical_inputs:
+        raise ValueError(f"{prefix} direct root logical input missing")
+    return _protocol_v8_e5a_cognitive_root_basis(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        logical_inputs[input_name],
+        finding_closure_resolver,
+    )
+
+
+def _protocol_v8_e5c_authority_path_identities(
+    closure: dict,
+    surviving_ref: object,
+    finding_closure_resolver,
+) -> set[str]:
+    """Derive exact controlling-authority raw path identities from SM→FA."""
+    prefix = "inactive protocol v8 E5-C:"
+    surviving = _protocol_v8_e3a_resolve_semantic_value(closure, surviving_ref)
+    if surviving.get("valueType") != "turnlock.semantic-value:SurvivingMaterialBasis@1":
+        raise ValueError(f"{prefix} RS constraint root is not SurvivingMaterialBasis")
+    fa_ref = _mapping(surviving.get("value")).get("findingAdjudicationBasis")
+    _protocol_v8_e3a_resolve_semantic_value(closure, fa_ref)
+    try:
+        adapter = finding_closure_resolver(copy.deepcopy(fa_ref))
+    except Exception as error:
+        raise ValueError(f"{prefix} FA closure resolution failed") from error
+    packet = _mapping(_mapping(adapter).get("review_packet"))
+    payload = _mapping(packet.get("subject_payload"))
+    authority = _mapping(payload.get("authority"))
+    descriptors: list[dict] = []
+    normative = authority.get("normative_spec")
+    if isinstance(normative, dict):
+        descriptors.append(normative)
+    else:
+        raise ValueError(f"{prefix} normative authority path missing")
+    for field in ("architecture_decisions", "abstraction_constraints"):
+        entries = authority.get(field)
+        if not isinstance(entries, list) or any(
+            not isinstance(entry, dict) for entry in entries
+        ):
+            raise ValueError(f"{prefix} authority path collection mismatch")
+        descriptors.extend(entries)
+    identities: set[str] = set()
+    for descriptor in descriptors:
+        path = descriptor.get("path")
+        if not isinstance(path, str) or not path:
+            raise ValueError(f"{prefix} controlling authority path invalid")
+        identities.add(
+            base64.urlsafe_b64encode(path.encode("utf-8"))
+            .rstrip(b"=")
+            .decode("ascii")
+        )
+    return identities
+
+
+def _protocol_v8_e5c_candidate_view_input(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    contract_id: str,
+    logical_inputs: dict,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+) -> tuple[str, dict] | None:
+    """Validate and project the exact RS/RR CandidateView input."""
+    prefix = "inactive protocol v8 E5-C:"
+    if contract_id not in _PROTOCOL_V8_E5C_RS_CONTRACTS | _PROTOCOL_V8_E5C_RR_CONTRACTS:
+        return None
+    candidate_ref = logical_inputs.get("candidateRevision")
+    candidate = _protocol_v8_e3a_resolve_exact_authority(closure, candidate_ref)
+    if candidate.get("authorityType") != "turnlock.authority:candidate-revision.v2":
+        raise ValueError(f"{prefix} candidate authority type mismatch")
+    if contract_id in _PROTOCOL_V8_E5C_RS_CONTRACTS:
+        input_name = "completeCandidateView"
+        coverage = {"kind": "complete"}
+    else:
+        input_name = "scopedCandidateView"
+        accepted_rs_ref = logical_inputs.get("acceptedRealizationScope")
+        bound = _protocol_v8_e4b_candidate_revision_of(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            accepted_rs_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+        )
+        if bound != candidate_ref:
+            raise ValueError(f"{prefix} RR CandidateRevision/AcceptedRS mismatch")
+        accepted_rs = _protocol_v8_e5b_resolved_fact_semantic_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            accepted_rs_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+        )
+        readable_paths = _mapping(accepted_rs.get("value")).get("readable_paths")
+        coverage = _protocol_v8_e4a_canonical_readable_coverage(readable_paths)
+    view_ref = logical_inputs.get(input_name)
+    _protocol_v8_e4a_candidate_view_of(
+        closure,
+        candidate_ref,
+        coverage,
+        view_ref,
+        candidate_materialization_resolver,
+        sealed_content_resolver,
+    )
+    projection = _protocol_v8_e5a_candidate_view_cognitive_projection(
+        closure, view_ref, coverage
+    )
+    return input_name, projection
+
+
+def _protocol_v8_e5c_rs_constraints(
+    closure: dict,
+    logical_inputs: dict,
+    complete_view_projection: dict,
+    finding_closure_resolver,
+) -> dict:
+    """Intersect visible complete-view paths with exact FA authority paths."""
+    authority_paths = _protocol_v8_e5c_authority_path_identities(
+        closure,
+        logical_inputs.get("survivingMaterialBasis"),
+        finding_closure_resolver,
+    )
+    visible: list[tuple[bytes, str]] = []
+    for entry in _sequence(complete_view_projection.get("entries")):
+        identity = _mapping(entry).get("path_bytes_base64url")
+        if identity in authority_paths:
+            visible.append((_protocol_v8_e4a_decode_path_identity(identity), identity))
+    visible.sort(key=lambda item: item[0])
+    return {
+        "non_writable_controlling_authority_paths": [
+            identity for _, identity in visible
+        ]
+    }
+
+
+def _protocol_v8_e5c_admission_snapshot(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    admission_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+    presentation_validator: Draft202012Validator,
+    active_admissions: set[str] | None = None,
+    active_qleks: set[str] | None = None,
+    surface_memo: dict[str, dict] | None = None,
+    snapshot_memo: dict[str, dict] | None = None,
+) -> dict:
+    """Reconstruct one consumable Admission through its exact producer surface."""
+    prefix = "inactive protocol v8 E5-C:"
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(f"{prefix} {validator_errors[0]}")
+        closure["_e3b_output_validators"] = validators
+    context = _protocol_v8_e3b_admission_context(
+        root, closure, contracts, admission_ref, validators
+    )
+    admission_id = _mapping(admission_ref).get("admissionId")
+    if context["currently_consumable"] is not True:
+        raise ValueError(f"{prefix} Admission is not currently consumable")
+    if not isinstance(admission_id, str):
+        raise ValueError(f"{prefix} AdmissionId missing")
+    memo = snapshot_memo if snapshot_memo is not None else {}
+    cached = memo.get(admission_id)
+    if isinstance(cached, dict):
+        return copy.deepcopy(cached)
+    stack = active_admissions if active_admissions is not None else set()
+    if admission_id in stack:
+        raise ValueError(f"{prefix} recursive Admission cognitive-snapshot cycle")
+    stack.add(admission_id)
+    try:
+        surface = _protocol_v8_e5c_cognitive_surface_of(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            context["qlek"],
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+            finding_closure_resolver=finding_closure_resolver,
+            presentation_validator=presentation_validator,
+            active_admissions=stack,
+            active_qleks=active_qleks,
+            surface_memo=surface_memo,
+            snapshot_memo=memo,
+        )
+    finally:
+        stack.remove(admission_id)
+    snapshot = {
+        "producer_semantic_surface": {
+            "root_basis": copy.deepcopy(surface["root_basis"]),
+            "semantic_inputs": copy.deepcopy(surface["semantic_inputs"]),
+            "cognitive_constraints": copy.deepcopy(surface["cognitive_constraints"]),
+        },
+        "semantic_candidate": copy.deepcopy(context["candidate"]),
+    }
+    memo[admission_id] = copy.deepcopy(snapshot)
+    return snapshot
+
+
+def _protocol_v8_e5c_direct_semantic_inputs(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    contract_id: str,
+    logical_inputs: dict,
+    root_basis: dict,
+    cognitive_constraints: dict,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+    presentation_validator: Draft202012Validator,
+    active_admissions: set[str],
+    active_qleks: set[str],
+    surface_memo: dict[str, dict],
+    snapshot_memo: dict[str, dict],
+) -> dict:
+    """Project exact direct inputs without generic ancestry inheritance."""
+    prefix = "inactive protocol v8 E5-C:"
+    semantic_inputs: dict[str, object] = {}
+    view_input = _protocol_v8_e5c_candidate_view_input(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        contract_id,
+        logical_inputs,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+    )
+    root_names = {"findingAdjudicationBasis", "survivingMaterialBasis"}
+    for input_name, reference in logical_inputs.items():
+        if input_name in root_names:
+            continue
+        if input_name == "candidateRevision":
+            authority = _protocol_v8_e3a_resolve_exact_authority(closure, reference)
+            if authority.get("authorityType") != "turnlock.authority:candidate-revision.v2":
+                raise ValueError(f"{prefix} candidate authority type mismatch")
+            continue
+        if view_input is not None and input_name == view_input[0]:
+            semantic_inputs[input_name] = copy.deepcopy(view_input[1])
+            continue
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} logical input reference must be an object")
+        kind = reference.get("kind")
+        if kind == "semantic-fact":
+            resolved = _protocol_v8_e5b_resolved_fact_semantic_view(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                reference,
+                candidate_materialization_resolver=candidate_materialization_resolver,
+                sealed_content_resolver=sealed_content_resolver,
+            )
+            semantic_inputs[input_name] = copy.deepcopy(resolved["value"])
+        elif kind == "semantic-admission":
+            snapshot = _protocol_v8_e5c_admission_snapshot(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                reference,
+                candidate_materialization_resolver=candidate_materialization_resolver,
+                sealed_content_resolver=sealed_content_resolver,
+                finding_closure_resolver=finding_closure_resolver,
+                presentation_validator=presentation_validator,
+                active_admissions=active_admissions,
+                active_qleks=active_qleks,
+                surface_memo=surface_memo,
+                snapshot_memo=snapshot_memo,
+            )
+            producer = snapshot["producer_semantic_surface"]
+            if producer["root_basis"] != root_basis:
+                raise ValueError(f"{prefix} ordinary Admission root mismatch")
+            if producer["cognitive_constraints"] != cognitive_constraints:
+                raise ValueError(f"{prefix} ordinary Admission constraints mismatch")
+            semantic_inputs[input_name] = copy.deepcopy(snapshot["semantic_candidate"])
+        elif kind == "semantic-value" and reference.get("valueType") == (
+            "turnlock.semantic-value:CandidateView@1"
+        ):
+            raise ValueError(f"{prefix} CandidateView input lacks exact C5 binding")
+        else:
+            raise ValueError(f"{prefix} unsupported direct logical input kind")
+    return semantic_inputs
+
+
+def _protocol_v8_e5c_admission_target_challenge_surface(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    contract_id: str,
+    logical_inputs: dict,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+    presentation_validator: Draft202012Validator,
+    active_admissions: set[str],
+    active_qleks: set[str],
+    surface_memo: dict[str, dict],
+    snapshot_memo: dict[str, dict],
+) -> tuple[dict, dict, dict]:
+    """Flatten exactly one challenged producer semantic surface and candidate."""
+    prefix = "inactive protocol v8 E5-C:"
+    target_name = _PROTOCOL_V8_E5C_ADMISSION_CHALLENGE_TARGETS[contract_id]
+    if set(logical_inputs) != {target_name}:
+        raise ValueError(f"{prefix} Admission-target challenge input mismatch")
+    snapshot = _protocol_v8_e5c_admission_snapshot(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        logical_inputs[target_name],
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        finding_closure_resolver=finding_closure_resolver,
+        presentation_validator=presentation_validator,
+        active_admissions=active_admissions,
+        active_qleks=active_qleks,
+        surface_memo=surface_memo,
+        snapshot_memo=snapshot_memo,
+    )
+    producer = snapshot["producer_semantic_surface"]
+    semantic_inputs = copy.deepcopy(producer["semantic_inputs"])
+    if target_name in semantic_inputs:
+        raise ValueError(f"{prefix} challenge target collides with producer input")
+    semantic_inputs[target_name] = copy.deepcopy(snapshot["semantic_candidate"])
+    return (
+        copy.deepcopy(producer["root_basis"]),
+        semantic_inputs,
+        copy.deepcopy(producer["cognitive_constraints"]),
+    )
+
+
+def _protocol_v8_e5c_decision_revision_inputs(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    logical_inputs: dict,
+    root_basis: dict,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+    presentation_validator: Draft202012Validator,
+    active_admissions: set[str],
+    active_qleks: set[str],
+    surface_memo: dict[str, dict],
+    snapshot_memo: dict[str, dict],
+) -> dict:
+    """Inherit prior U only through the exact DecisionNecessityChallenge surface."""
+    prefix = "inactive protocol v8 E5-C:"
+    challenge_snapshot = _protocol_v8_e5c_admission_snapshot(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        logical_inputs.get("priorDecisionNecessityChallenge"),
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        finding_closure_resolver=finding_closure_resolver,
+        presentation_validator=presentation_validator,
+        active_admissions=active_admissions,
+        active_qleks=active_qleks,
+        surface_memo=surface_memo,
+        snapshot_memo=snapshot_memo,
+    )
+    producer = challenge_snapshot["producer_semantic_surface"]
+    if producer["root_basis"] != root_basis or producer["cognitive_constraints"] != {}:
+        raise ValueError(f"{prefix} prior DecisionNecessityChallenge root mismatch")
+    inherited = producer["semantic_inputs"]
+    if set(inherited) != {
+        "decisionRequiredStatement",
+        "uniqueCorrectionExhaustion",
+        "decisionNecessityCandidate",
+    }:
+        raise ValueError(f"{prefix} prior DecisionNecessityChallenge cognition mismatch")
+
+    def fact_value(name: str) -> object:
+        record = _protocol_v8_e5b_resolved_fact_semantic_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            logical_inputs.get(name),
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+        )
+        return copy.deepcopy(record["value"])
+
+    decision = fact_value("priorDecisionRequiredStatement")
+    necessity = fact_value("priorDecisionNecessityCandidate")
+    if decision != inherited["decisionRequiredStatement"] or necessity != inherited[
+        "decisionNecessityCandidate"
+    ]:
+        raise ValueError(f"{prefix} Decision revision inherited cognition mismatch")
+    return {
+        "priorDecisionRequiredStatement": decision,
+        "priorUniqueCorrectionExhaustion": copy.deepcopy(
+            inherited["uniqueCorrectionExhaustion"]
+        ),
+        "priorDecisionNecessityCandidate": necessity,
+        "priorDecisionNecessityChallenge": copy.deepcopy(
+            challenge_snapshot["semantic_candidate"]
+        ),
+    }
+
+
+def _protocol_v8_e5c_cognitive_surface_of(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    qlek: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+    presentation_validator: Draft202012Validator,
+    active_admissions: set[str] | None = None,
+    active_qleks: set[str] | None = None,
+    surface_memo: dict[str, dict] | None = None,
+    snapshot_memo: dict[str, dict] | None = None,
+) -> dict:
+    """Construct the exact disposable four-field C6 CognitiveSurface."""
+    prefix = "inactive protocol v8 E5-C:"
+    descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, qlek)
+    assert isinstance(qlek, str)
+    memo = surface_memo if surface_memo is not None else {}
+    cached = memo.get(qlek)
+    if isinstance(cached, dict):
+        return copy.deepcopy(cached)
+    qlek_stack = active_qleks if active_qleks is not None else set()
+    if qlek in qlek_stack:
+        raise ValueError(f"{prefix} recursive CognitiveSurface QLEK cycle")
+    qlek_stack.add(qlek)
+    admission_stack = active_admissions if active_admissions is not None else set()
+    snapshots = snapshot_memo if snapshot_memo is not None else {}
+    try:
+        contract_id = descriptor.get("semanticQuestionContract")
+        contract = contracts.get(contract_id)
+        if not isinstance(contract, dict):
+            raise ValueError(f"{prefix} unknown SemanticQuestionContract")
+        logical_inputs = descriptor.get("exactLogicalInput")
+        if not isinstance(logical_inputs, dict):
+            raise ValueError(f"{prefix} exact logical input missing")
+        presentation = _protocol_v8_e5c_contract_presentation(
+            contract, presentation_validator
+        )
+        if contract_id in _PROTOCOL_V8_E5C_ADMISSION_CHALLENGE_TARGETS:
+            root_basis, semantic_inputs, constraints = (
+                _protocol_v8_e5c_admission_target_challenge_surface(
+                    root,
+                    closure,
+                    contracts,
+                    predicates,
+                    qualifications,
+                    contract_id,
+                    logical_inputs,
+                    candidate_materialization_resolver=(
+                        candidate_materialization_resolver
+                    ),
+                    sealed_content_resolver=sealed_content_resolver,
+                    finding_closure_resolver=finding_closure_resolver,
+                    presentation_validator=presentation_validator,
+                    active_admissions=admission_stack,
+                    active_qleks=qlek_stack,
+                    surface_memo=memo,
+                    snapshot_memo=snapshots,
+                )
+            )
+        elif contract_id == _PROTOCOL_V8_E5C_NNI_CHALLENGE:
+            if set(logical_inputs) != {"targetedDiscoveryStatement"}:
+                raise ValueError(f"{prefix} NNI challenge input mismatch")
+            lift = _protocol_v8_e5b_direct_fact_context_lift(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                contract_id,
+                "targetedDiscoveryStatement",
+                logical_inputs["targetedDiscoveryStatement"],
+                candidate_materialization_resolver=candidate_materialization_resolver,
+                sealed_content_resolver=sealed_content_resolver,
+                finding_closure_resolver=finding_closure_resolver,
+            )
+            if lift is None:
+                raise ValueError(f"{prefix} NNI direct-Fact lift is absent")
+            root_basis = copy.deepcopy(lift["rootBasis"])
+            semantic_inputs = {
+                "targetedDiscoveryStatement": copy.deepcopy(
+                    lift["targetedStatement"]
+                )
+            }
+            constraints = {}
+        else:
+            root_basis = _protocol_v8_e5c_direct_root_basis(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                contract_id,
+                logical_inputs,
+                finding_closure_resolver,
+            )
+            view_input = _protocol_v8_e5c_candidate_view_input(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                contract_id,
+                logical_inputs,
+                candidate_materialization_resolver=candidate_materialization_resolver,
+                sealed_content_resolver=sealed_content_resolver,
+            )
+            if contract_id in _PROTOCOL_V8_E5C_RS_CONTRACTS:
+                if view_input is None or view_input[0] != "completeCandidateView":
+                    raise ValueError(f"{prefix} RS complete CandidateView missing")
+                constraints = _protocol_v8_e5c_rs_constraints(
+                    closure,
+                    logical_inputs,
+                    view_input[1],
+                    finding_closure_resolver,
+                )
+            else:
+                constraints = {}
+            if contract_id == "turnlock.sqc:DiscoveryDecisionRequiredRevision@1":
+                semantic_inputs = _protocol_v8_e5c_decision_revision_inputs(
+                    root,
+                    closure,
+                    contracts,
+                    predicates,
+                    qualifications,
+                    logical_inputs,
+                    root_basis,
+                    candidate_materialization_resolver=(
+                        candidate_materialization_resolver
+                    ),
+                    sealed_content_resolver=sealed_content_resolver,
+                    finding_closure_resolver=finding_closure_resolver,
+                    presentation_validator=presentation_validator,
+                    active_admissions=admission_stack,
+                    active_qleks=qlek_stack,
+                    surface_memo=memo,
+                    snapshot_memo=snapshots,
+                )
+            else:
+                semantic_inputs = _protocol_v8_e5c_direct_semantic_inputs(
+                    root,
+                    closure,
+                    contracts,
+                    predicates,
+                    qualifications,
+                    contract_id,
+                    logical_inputs,
+                    root_basis,
+                    constraints,
+                    candidate_materialization_resolver=(
+                        candidate_materialization_resolver
+                    ),
+                    sealed_content_resolver=sealed_content_resolver,
+                    finding_closure_resolver=finding_closure_resolver,
+                    presentation_validator=presentation_validator,
+                    active_admissions=admission_stack,
+                    active_qleks=qlek_stack,
+                    surface_memo=memo,
+                    snapshot_memo=snapshots,
+                )
+        surface = {
+            "contract_presentation": presentation,
+            "root_basis": root_basis,
+            "semantic_inputs": semantic_inputs,
+            "cognitive_constraints": constraints,
+        }
+        if set(surface) != {
+            "contract_presentation",
+            "root_basis",
+            "semantic_inputs",
+            "cognitive_constraints",
+        }:
+            raise ValueError(f"{prefix} CognitiveSurface exact shape mismatch")
+    finally:
+        qlek_stack.remove(qlek)
+    memo[qlek] = copy.deepcopy(surface)
+    return surface
+
+
+def _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise all twenty exact C6 cognitive surfaces in disposable state."""
+    prefix = "inactive protocol v8 E5-C:"
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    presentation_validator, packet_validator, schema_errors = (
+        _protocol_v8_e5c_packet_schema_validators(root)
+    )
+    errors.extend(f"{prefix} {error}" for error in catalog_errors)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in validator_errors)
+    errors.extend(schema_errors)
+    errors.extend(_protocol_v8_e5c_contract_partition_errors(contracts))
+    if errors or presentation_validator is None or packet_validator is None:
+        return errors
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            action()
+        except (TypeError, ValueError) as error:
+            if required is not None and required not in str(error):
+                errors.append(f"{prefix} {label} rejected without {required!r}")
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    def contains(value: object, marker: object) -> bool:
+        if value == marker:
+            return True
+        if isinstance(value, dict):
+            return any(contains(key, marker) or contains(item, marker) for key, item in value.items())
+        if isinstance(value, list):
+            return any(contains(item, marker) for item in value)
+        return False
+
+    p_control_text = "docs/specification/turnlock-spec.md"
+    p_absent_text = "docs/adr/adr-001-absent-control.md"
+    p_control = base64.urlsafe_b64encode(p_control_text.encode()).rstrip(b"=").decode()
+    p_work = base64.urlsafe_b64encode(b"src/e5c-work.txt").rstrip(b"=").decode()
+    p_hidden = base64.urlsafe_b64encode(b"src/e5c-hidden.txt").rstrip(b"=").decode()
+    normative_text = "E5-C controlling normative authority\n"
+    adr_text = "E5-C absent controlling architecture decision\n"
+    subject_payload = {
+        "subject_schema_version": 1,
+        "selector": "gate-a-assurance-decomposition-v1",
+        "authority": {
+            "normative_spec": {
+                "path": p_control_text,
+                "sha256": sha256_hex(normative_text.encode()),
+            },
+            "architecture_decisions": [
+                {
+                    "id": "ADR-001",
+                    "path": p_absent_text,
+                    "sha256": sha256_hex(adr_text.encode()),
+                }
+            ],
+            "abstraction_constraints": [],
+        },
+        "formal_assurance_context": {
+            "schema_version": 7,
+            "project": "turnlock-rust",
+            "formal_semantic_domains": [
+                {
+                    "id": "gate-a",
+                    "representation": "tla+",
+                    "module": "GateA",
+                    "path": "formal/models/integrated/GateA.tla",
+                    "integrated_semantics_required": True,
+                    "focused_analyses_are_restrictions": True,
+                }
+            ],
+            "behavioral_modalities": ["safety"],
+            "assurance_domains": ["formal-behavioral"],
+        },
+        "claims": [],
+        "normative_coverage": [],
+    }
+    subject_sha = sha256_hex(_canonical_json_bytes(subject_payload))
+    review_packet = {
+        "packet_schema_version": 1,
+        "subject": {
+            "subject_type": "derived",
+            "selector": subject_payload["selector"],
+            "sha256": subject_sha,
+        },
+        "subject_payload": subject_payload,
+        "authority_contents": [
+            {
+                "role": "normative-spec",
+                "id": None,
+                "path": p_control_text,
+                "sha256": sha256_hex(normative_text.encode()),
+                "content_utf8": normative_text,
+            },
+            {
+                "role": "architecture-decision",
+                "id": "ADR-001",
+                "path": p_absent_text,
+                "sha256": sha256_hex(adr_text.encode()),
+                "content_utf8": adr_text,
+            },
+        ],
+    }
+    current_protocol = {
+        "protocolId": "gate-a-campaign-protocol-v8",
+        "bundleSha256": "8" * 64,
+    }
+    finding = {
+        "finding_id": "E5C-FINDING",
+        "sources": [
+            {
+                "reviewer_execution_id": "E5C-REVIEWER",
+                "raw_finding_id": "E5C-RAW",
+            }
+        ],
+        "statement": "E5-C substantive finding",
+        "argument": "E5-C exact finding argument",
+        "counterexample": None,
+    }
+    fa_adapters: dict[str, dict] = {}
+
+    def new_closure() -> dict:
+        closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+        closure["_e3b_output_validators"] = validators
+        return closure
+
+    def register_fa(closure: dict, label: str) -> dict:
+        value = {
+            "schema": "turnlock.finding-adjudication-basis.v1",
+            "semanticSubject": {
+                "selector": subject_payload["selector"],
+                "sha256": subject_sha,
+            },
+            "currentProtocol": copy.deepcopy(current_protocol),
+            "sourceFinding": {
+                "reviewCampaignId": f"E5C-CAMPAIGN-{label}",
+                "findingId": finding["finding_id"],
+                "substantiveFindingSha256": _finding_subject_sha256(finding),
+            },
+        }
+        reference = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:FindingAdjudicationBasis@1",
+            value,
+        )
+        fa_adapters[reference["valueId"]] = {
+            "review_packet": copy.deepcopy(review_packet),
+            "current_protocol": copy.deepcopy(current_protocol),
+            "source_review_campaign_id": f"E5C-CAMPAIGN-{label}",
+            "source_finding": copy.deepcopy(finding),
+        }
+        return reference
+
+    def resolve_fa(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture FA reference missing")
+        adapter = fa_adapters.get(reference.get("valueId"))
+        if adapter is None:
+            raise ValueError(f"{prefix} fixture FA closure missing")
+        return copy.deepcopy(adapter)
+
+    def admit(closure: dict, contract_id: str, inputs: dict, candidate_value: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract_id, inputs, candidate_value
+        )
+
+    def challenge(
+        closure: dict,
+        contract_id: str,
+        target_name: str,
+        target_ref: dict,
+        zero: bool,
+    ) -> dict:
+        return admit(
+            closure,
+            contract_id,
+            {target_name: copy.deepcopy(target_ref)},
+            _protocol_v8_e3b_test_challenge_candidate(contracts[contract_id], zero),
+        )
+
+    def qualification(
+        closure: dict, contract_id: str, anchor: dict, additional: dict
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            closure, qualifications, contract_id, anchor, additional
+        )
+
+    def fact(closure: dict, predicate_id: str, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(closure, predicates, predicate_id, arguments)
+
+    materializations: dict[str, dict] = {}
+    artifact_bytes: dict[str, bytes] = {}
+
+    def artifact(artifact_id: str, content: bytes) -> dict:
+        artifact_bytes[artifact_id] = content
+        return {
+            "artifactId": artifact_id,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "byteLength": len(content),
+            "mediaType": "application/octet-stream",
+            "repositoryPath": None,
+        }
+
+    control_ref = artifact("E5C-CONTROL", b"control-content\n")
+    work_ref = artifact("E5C-WORK", b"work-content\n")
+    hidden_ref = artifact("E5C-HIDDEN", b"hidden-content\n")
+    candidate_entries = [
+        {
+            "pathBytesBase64url": p_hidden,
+            "kind": "blob",
+            "mode": "100644",
+            "content": hidden_ref,
+        },
+        {
+            "pathBytesBase64url": p_control,
+            "kind": "blob",
+            "mode": "100644",
+            "content": control_ref,
+        },
+        {
+            "pathBytesBase64url": p_work,
+            "kind": "blob",
+            "mode": "100644",
+            "content": work_ref,
+        },
+    ]
+
+    def candidate(closure: dict, candidate_id: str) -> dict:
+        reference = {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": candidate_id,
+        }
+        _protocol_v8_e3a_register_exact_authority(closure, reference)
+        materializations[candidate_id] = {
+            "gitObjectFormat": "sha1",
+            "entries": copy.deepcopy(candidate_entries),
+        }
+        return reference
+
+    def resolve_candidate(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture CandidateRevision missing")
+        value = materializations.get(reference.get("authorityId"))
+        if value is None:
+            raise ValueError(f"{prefix} fixture candidate materialization missing")
+        return copy.deepcopy(value)
+
+    def resolve_content(reference: object) -> bytes:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture ArtifactRef missing")
+        content = artifact_bytes.get(reference.get("artifactId"))
+        if content is None:
+            raise ValueError(f"{prefix} fixture content missing")
+        expected = {
+            "artifactId": reference.get("artifactId"),
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "byteLength": len(content),
+            "mediaType": "application/octet-stream",
+            "repositoryPath": None,
+        }
+        if reference != expected:
+            raise ValueError(f"{prefix} fixture ArtifactRef mismatch")
+        return content
+
+    positive_materiality = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "the exact finding is materially relevant",
+    }
+    all_false_materiality = {
+        **positive_materiality,
+        "authority_or_upstream_decision": False,
+        "rationale": "all exact materiality axes are false",
+    }
+    refutation_candidate = {
+        "kind": "refutation-candidate",
+        "ground": "premise-false",
+        "attacked_premise_or_inference": "the exact necessary premise",
+        "evidence_references": ["E5C-REFUTATION"],
+        "argument": "the exact premise is false",
+        "counterexample_disposition": None,
+    }
+    unique_candidate = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [{"postcondition": "E5-C required state"}],
+        "derivation_claims": [
+            {
+                "claim": "authority entails the required state",
+                "requirement_ordinals": [0],
+                "authority_references": [
+                    {"kind": "authority-content", "role": "normative-spec"}
+                ],
+                "evidence_references": [{"kind": "source-finding"}],
+                "derivation_argument": "authority entails requirement zero",
+            }
+        ],
+        "alternatives_considered": [],
+        "uniqueness_argument": {
+            "authority_references": [
+                {"kind": "authority-content", "role": "normative-spec"}
+            ],
+            "argument": "no distinct compatible correction remains",
+        },
+    }
+
+    def qlek_of(closure: dict, admission_ref: dict) -> str:
+        return _protocol_v8_e3a_resolve_admission_identity(closure, admission_ref)[
+            "qlek"
+        ]
+
+    def positive_base(label: str) -> dict:
+        closure = new_closure()
+        fa = register_fa(closure, label)
+        materiality = admit(
+            closure,
+            "turnlock.sqc:MaterialityAssessmentInitial@1",
+            {"findingAdjudicationBasis": fa},
+            positive_materiality,
+        )
+        materiality_key = qualification(
+            closure,
+            "turnlock.qualification:MaterialityAssessmentQualification@1",
+            materiality,
+            {},
+        )
+        qpm = fact(
+            closure,
+            "turnlock.predicate:QualifiedPositiveMateriality@1",
+            {"qualification": materiality_key},
+        )
+        admit(
+            closure,
+            "turnlock.sqc:RefutationInitial@1",
+            {"findingAdjudicationBasis": fa, "qualifiedPositiveMateriality": qpm},
+            {"kind": "not-established"},
+        )
+        exhaustion = fact(
+            closure,
+            "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+            {"qualifiedPositiveMateriality": qpm},
+        )
+        surviving = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {
+                "schema": "turnlock.surviving-material-basis.v1",
+                "findingAdjudicationBasis": fa,
+                "qualifiedPositiveMateriality": qpm,
+                "refutationExhaustionWithoutQualifiedRefutation": exhaustion,
+            },
+        )
+        return {
+            "closure": closure,
+            "fa": fa,
+            "materiality": materiality,
+            "qpm": qpm,
+            "surviving": surviving,
+        }
+
+    surfaces_to_check: list[tuple[dict, str, set[str]]] = []
+
+    materiality_closure = new_closure()
+    materiality_fa = register_fa(materiality_closure, "MATERIALITY")
+    materiality_initial = admit(
+        materiality_closure,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": materiality_fa},
+        all_false_materiality,
+    )
+    materiality_objection = challenge(
+        materiality_closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        "challengedMaterialityAssessment",
+        materiality_initial,
+        False,
+    )
+    materiality_revision = admit(
+        materiality_closure,
+        "turnlock.sqc:MaterialityAssessmentRevision@1",
+        {
+            "findingAdjudicationBasis": materiality_fa,
+            "priorMaterialityAssessment": materiality_initial,
+            "priorMaterialityChallenge": materiality_objection,
+        },
+        all_false_materiality,
+    )
+    materiality_revision_challenge = challenge(
+        materiality_closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        "challengedMaterialityAssessment",
+        materiality_revision,
+        True,
+    )
+    surfaces_to_check.extend(
+        [
+            (materiality_closure, qlek_of(materiality_closure, materiality_initial), set()),
+            (
+                materiality_closure,
+                qlek_of(materiality_closure, materiality_revision),
+                {"priorMaterialityAssessment", "priorMaterialityChallenge"},
+            ),
+            (
+                materiality_closure,
+                qlek_of(materiality_closure, materiality_objection),
+                {"challengedMaterialityAssessment"},
+            ),
+        ]
+    )
+
+    ref_closure = new_closure()
+    ref_fa = register_fa(ref_closure, "REFUTATION")
+    ref_materiality = admit(
+        ref_closure,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": ref_fa},
+        positive_materiality,
+    )
+    ref_materiality_key = qualification(
+        ref_closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        ref_materiality,
+        {},
+    )
+    ref_qpm = fact(
+        ref_closure,
+        "turnlock.predicate:QualifiedPositiveMateriality@1",
+        {"qualification": ref_materiality_key},
+    )
+    ref_initial = admit(
+        ref_closure,
+        "turnlock.sqc:RefutationInitial@1",
+        {
+            "findingAdjudicationBasis": ref_fa,
+            "qualifiedPositiveMateriality": ref_qpm,
+        },
+        refutation_candidate,
+    )
+    ref_objection = challenge(
+        ref_closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        "challengedRefutation",
+        ref_initial,
+        False,
+    )
+    ref_revision = admit(
+        ref_closure,
+        "turnlock.sqc:RefutationRevision@1",
+        {
+            "findingAdjudicationBasis": ref_fa,
+            "qualifiedPositiveMateriality": ref_qpm,
+            "priorRefutation": ref_initial,
+            "priorRefutationChallenge": ref_objection,
+        },
+        refutation_candidate,
+    )
+    ref_revision_challenge = challenge(
+        ref_closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        "challengedRefutation",
+        ref_revision,
+        True,
+    )
+    surfaces_to_check.extend(
+        [
+            (
+                ref_closure,
+                qlek_of(ref_closure, ref_initial),
+                {"qualifiedPositiveMateriality"},
+            ),
+            (
+                ref_closure,
+                qlek_of(ref_closure, ref_revision),
+                {
+                    "qualifiedPositiveMateriality",
+                    "priorRefutation",
+                    "priorRefutationChallenge",
+                },
+            ),
+            (
+                ref_closure,
+                qlek_of(ref_closure, ref_objection),
+                {"qualifiedPositiveMateriality", "challengedRefutation"},
+            ),
+        ]
+    )
+
+    main = positive_base("MAIN")
+    closure = main["closure"]
+    nni_statement = {
+        "statement": "E5C target no normative impact",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "exact NNI evidence",
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": "none required",
+            "changed_product_authority_not_required_argument": "none changed",
+            "product_meaning_selection_not_required_argument": "none selected",
+            "accepted_observable_obligation_change_not_required_argument": "none changed",
+        },
+    }
+    sibling_marker = "E5C-NNI-SIBLING-MUST-NOT-LEAK"
+    decision_statement = {
+        "statement": sibling_marker,
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "exact decision evidence",
+        "existing_authority": [],
+        "affected_layers": ["normative-contract"],
+        "semantic_disposition": "decision-required",
+        "disposition_basis": {
+            "kind": "product-underdetermination",
+            "alternatives": [
+                {"alternative": "A", "authority_compatibility_argument": "A compatible"},
+                {"alternative": "B", "authority_compatibility_argument": "B compatible"},
+            ],
+            "material_distinction_argument": "A and B differ materially",
+            "current_authority_non_selection_argument": "authority selects neither",
+        },
+    }
+    discovery_candidate = {
+        "earliest_unresolved_cause": {
+            "classification_statement_ordinal": 0,
+            "evidence_references": [{"kind": "source-finding"}],
+            "causal_explanation": "the NNI target is earliest",
+            "upstream_exclusion_argument": "no earlier cause exists",
+        },
+        "classification_statements": [nni_statement, decision_statement],
+    }
+    discovery = admit(
+        closure,
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": main["surviving"]},
+        discovery_candidate,
+    )
+    nni_target = fact(
+        closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": nni_statement},
+    )
+    decision_target = fact(
+        closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": decision_statement},
+    )
+    nni_objection = admit(
+        closure,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        {"targetedDiscoveryStatement": nni_target},
+        _protocol_v8_e3b_test_challenge_candidate(
+            contracts["turnlock.sqc:NoNormativeImpactChallenge@1"], False
+        ),
+    )
+    revised_nni_statement = copy.deepcopy(nni_statement)
+    revised_nni_statement["statement"] = "E5C revised NNI target"
+    nni_revision = admit(
+        closure,
+        "turnlock.sqc:DiscoveryNoNormativeImpactRevision@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "priorNoNormativeImpactStatement": nni_target,
+            "priorNoNormativeImpactChallenge": nni_objection,
+        },
+        {"kind": "revised-candidate", "statement": revised_nni_statement},
+    )
+    revised_nni_target = fact(
+        closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": nni_revision, "statement": revised_nni_statement},
+    )
+    decision_required = fact(
+        closure,
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        {"targetedDiscoveryStatement": decision_target},
+    )
+    admit(
+        closure,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "discovery": discovery,
+            "targetedDiscoveryStatement": decision_target,
+        },
+        {"kind": "not-established"},
+    )
+    uc_exhaustion = fact(
+        closure,
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        {"targetedDiscoveryStatement": decision_target},
+    )
+    necessity = fact(
+        closure,
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "decisionRequiredStatement": decision_required,
+            "uniqueCorrectionExhaustion": uc_exhaustion,
+        },
+    )
+    dn_challenge = admit(
+        closure,
+        "turnlock.sqc:DecisionNecessityChallenge@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "decisionRequiredStatement": decision_required,
+            "uniqueCorrectionExhaustion": uc_exhaustion,
+            "decisionNecessityCandidate": necessity,
+        },
+        _protocol_v8_e3b_test_challenge_candidate(
+            contracts["turnlock.sqc:DecisionNecessityChallenge@1"], False
+        ),
+    )
+    decision_revision_statement = copy.deepcopy(decision_statement)
+    decision_revision_statement["statement"] = "E5C revised decision target"
+    decision_revision = admit(
+        closure,
+        "turnlock.sqc:DiscoveryDecisionRequiredRevision@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "priorDecisionRequiredStatement": decision_required,
+            "priorDecisionNecessityCandidate": necessity,
+            "priorDecisionNecessityChallenge": dn_challenge,
+        },
+        {"kind": "revised-candidate", "statement": decision_revision_statement},
+    )
+
+    uc_initial = admit(
+        closure,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "discovery": discovery,
+            "targetedDiscoveryStatement": nni_target,
+        },
+        unique_candidate,
+    )
+    uc_objection = challenge(
+        closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        "challengedUniqueCorrection",
+        uc_initial,
+        False,
+    )
+    revised_unique_candidate = copy.deepcopy(unique_candidate)
+    revised_unique_candidate["uniqueness_argument"]["argument"] = "revised uniqueness argument"
+    uc_revision = admit(
+        closure,
+        "turnlock.sqc:UniqueCorrectionRevision@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "discovery": discovery,
+            "targetedDiscoveryStatement": nni_target,
+            "priorUniqueCorrection": uc_initial,
+            "priorUniqueCorrectionChallenge": uc_objection,
+        },
+        revised_unique_candidate,
+    )
+    uc_revision_challenge = challenge(
+        closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        "challengedUniqueCorrection",
+        uc_revision,
+        True,
+    )
+
+    accepted_uc_anchor = admit(
+        closure,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "discovery": nni_revision,
+            "targetedDiscoveryStatement": revised_nni_target,
+        },
+        unique_candidate,
+    )
+    accepted_uc_challenge = challenge(
+        closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        "challengedUniqueCorrection",
+        accepted_uc_anchor,
+        True,
+    )
+    accepted_uc_key = qualification(
+        closure,
+        "turnlock.qualification:UniqueCorrectionQualification@1",
+        accepted_uc_anchor,
+        {"uniqueCorrectionChallenge": accepted_uc_challenge},
+    )
+    accepted_uc = fact(
+        closure,
+        "turnlock.predicate:AcceptedUniqueCorrection@1",
+        {"qualification": accepted_uc_key},
+    )
+
+    surfaces_to_check.extend(
+        [
+            (closure, qlek_of(closure, discovery), set()),
+            (
+                closure,
+                qlek_of(closure, nni_objection),
+                {"targetedDiscoveryStatement"},
+            ),
+            (
+                closure,
+                qlek_of(closure, nni_revision),
+                {"priorNoNormativeImpactStatement", "priorNoNormativeImpactChallenge"},
+            ),
+            (
+                closure,
+                qlek_of(closure, dn_challenge),
+                {"decisionRequiredStatement", "uniqueCorrectionExhaustion", "decisionNecessityCandidate"},
+            ),
+            (
+                closure,
+                qlek_of(closure, decision_revision),
+                {"priorDecisionRequiredStatement", "priorUniqueCorrectionExhaustion", "priorDecisionNecessityCandidate", "priorDecisionNecessityChallenge"},
+            ),
+            (
+                closure,
+                qlek_of(closure, uc_initial),
+                {"discovery", "targetedDiscoveryStatement"},
+            ),
+            (
+                closure,
+                qlek_of(closure, uc_revision),
+                {"discovery", "targetedDiscoveryStatement", "priorUniqueCorrection", "priorUniqueCorrectionChallenge"},
+            ),
+            (
+                closure,
+                qlek_of(closure, uc_objection),
+                {"discovery", "targetedDiscoveryStatement", "challengedUniqueCorrection"},
+            ),
+        ]
+    )
+
+    c17 = candidate(closure, "C17")
+    complete17 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c17, {"kind": "complete"}, resolve_candidate, resolve_content
+    )
+    complete_ref = _protocol_v8_e4a_register_candidate_view(closure, complete17)
+    c18 = candidate(closure, "C18")
+    complete18 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c18, {"kind": "complete"}, resolve_candidate, resolve_content
+    )
+    complete_ref18 = _protocol_v8_e4a_register_candidate_view(closure, complete18)
+    if complete_ref != complete_ref18:
+        errors.append(f"{prefix} identical physical candidates have unequal CandidateView")
+    rs_candidate = {
+        "readable_paths": [p_work],
+        "writable_paths": [p_work],
+        "completeness_argument": {
+            "requirement_surfaces": [
+                {
+                    "requirement_ordinal": 0,
+                    "surface_paths": [p_work],
+                    "argument": "work path covers requirement zero",
+                }
+            ],
+            "whole_scope_argument": "the exact work path is sufficient",
+        },
+        "minimal_write_authority_argument": {
+            "writable_path_justifications": [
+                {
+                    "path_bytes_base64url": p_work,
+                    "requirement_ordinals": [0],
+                    "necessity_argument": "the work path requires mutation",
+                }
+            ],
+            "no_additional_write_authority_argument": "no additional writes required",
+        },
+    }
+
+    def rs_initial(candidate_ref: dict, view_ref: dict) -> dict:
+        return admit(
+            closure,
+            "turnlock.sqc:RealizationScopeInitial@1",
+            {
+                "survivingMaterialBasis": main["surviving"],
+                "acceptedUniqueCorrection": accepted_uc,
+                "candidateRevision": candidate_ref,
+                "completeCandidateView": view_ref,
+            },
+            rs_candidate,
+        )
+
+    rs17 = rs_initial(c17, complete_ref)
+    rs18 = rs_initial(c18, complete_ref18)
+    rs17_objection = challenge(
+        closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs17,
+        False,
+    )
+    rs_revision = admit(
+        closure,
+        "turnlock.sqc:RealizationScopeRevision@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "acceptedUniqueCorrection": accepted_uc,
+            "candidateRevision": c17,
+            "completeCandidateView": complete_ref,
+            "priorRealizationScope": rs17,
+            "priorRealizationScopeChallenge": rs17_objection,
+        },
+        rs_candidate,
+    )
+    rs_revision_challenge = challenge(
+        closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs_revision,
+        True,
+    )
+    rs18_zero = challenge(
+        closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs18,
+        True,
+    )
+    rs18_key = qualification(
+        closure,
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs18,
+        {"realizationScopeChallenge": rs18_zero},
+    )
+    accepted_rs18 = fact(
+        closure,
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        {"qualification": rs18_key},
+    )
+    scoped_coverage = _protocol_v8_e4a_canonical_readable_coverage([p_work])
+    scoped18 = _protocol_v8_e4a_construct_candidate_view(
+        closure, c18, scoped_coverage, resolve_candidate, resolve_content
+    )
+    scoped_ref18 = _protocol_v8_e4a_register_candidate_view(closure, scoped18)
+    rr_candidate = {
+        "kind": "repair-realization-candidate",
+        "requirement_realizations": [
+            {
+                "requirement_ordinal": 0,
+                "kind": "patch-realized",
+                "operation_paths": [p_work],
+                "realization_argument": "the exact work patch realizes requirement zero",
+            }
+        ],
+        "operations": [
+            {"path_bytes_base64url": p_work, "after_state": {"kind": "absent"}}
+        ],
+    }
+    rr_initial = admit(
+        closure,
+        "turnlock.sqc:RepairRealizationInitial@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "acceptedUniqueCorrection": accepted_uc,
+            "acceptedRealizationScope": accepted_rs18,
+            "candidateRevision": c18,
+            "scopedCandidateView": scoped_ref18,
+        },
+        rr_candidate,
+    )
+    rr_objection = challenge(
+        closure,
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        "challengedRepairRealization",
+        rr_initial,
+        False,
+    )
+    revised_rr_candidate = copy.deepcopy(rr_candidate)
+    revised_rr_candidate["requirement_realizations"][0]["realization_argument"] = (
+        "the revised exact work patch realizes requirement zero"
+    )
+    rr_revision = admit(
+        closure,
+        "turnlock.sqc:RepairRealizationRevision@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "acceptedUniqueCorrection": accepted_uc,
+            "acceptedRealizationScope": accepted_rs18,
+            "candidateRevision": c18,
+            "scopedCandidateView": scoped_ref18,
+            "priorRepairRealization": rr_initial,
+            "priorRepairRealizationChallenge": rr_objection,
+        },
+        revised_rr_candidate,
+    )
+    rr_revision_challenge = challenge(
+        closure,
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        "challengedRepairRealization",
+        rr_revision,
+        True,
+    )
+    surfaces_to_check.extend(
+        [
+            (
+                closure,
+                qlek_of(closure, rs17),
+                {"acceptedUniqueCorrection", "completeCandidateView"},
+            ),
+            (
+                closure,
+                qlek_of(closure, rs_revision),
+                {"acceptedUniqueCorrection", "completeCandidateView", "priorRealizationScope", "priorRealizationScopeChallenge"},
+            ),
+            (
+                closure,
+                qlek_of(closure, rs17_objection),
+                {"acceptedUniqueCorrection", "completeCandidateView", "challengedRealizationScope"},
+            ),
+            (
+                closure,
+                qlek_of(closure, rr_initial),
+                {"acceptedUniqueCorrection", "acceptedRealizationScope", "scopedCandidateView"},
+            ),
+            (
+                closure,
+                qlek_of(closure, rr_revision),
+                {"acceptedUniqueCorrection", "acceptedRealizationScope", "scopedCandidateView", "priorRepairRealization", "priorRepairRealizationChallenge"},
+            ),
+            (
+                closure,
+                qlek_of(closure, rr_objection),
+                {"acceptedUniqueCorrection", "acceptedRealizationScope", "scopedCandidateView", "challengedRepairRealization"},
+            ),
+        ]
+    )
+
+    fixture_surface_memos: dict[int, dict[str, dict]] = {}
+    fixture_snapshot_memos: dict[int, dict[str, dict]] = {}
+
+    def surface(fixture_closure: dict, qlek: str) -> dict:
+        identity = id(fixture_closure)
+        return _protocol_v8_e5c_cognitive_surface_of(
+            root,
+            fixture_closure,
+            contracts,
+            predicates,
+            qualifications,
+            qlek,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            finding_closure_resolver=resolve_fa,
+            presentation_validator=presentation_validator,
+            surface_memo=fixture_surface_memos.setdefault(identity, {}),
+            snapshot_memo=fixture_snapshot_memos.setdefault(identity, {}),
+        )
+
+    exercised: set[str] = set()
+    produced: dict[str, list[dict]] = {}
+    for fixture_closure, qlek, expected_keys in surfaces_to_check:
+        try:
+            first = surface(fixture_closure, qlek)
+            second = surface(fixture_closure, qlek)
+        except ValueError as error:
+            errors.append(f"{prefix} surface construction raised: {error}")
+            continue
+        descriptor = _protocol_v8_e3a_resolve_qlek(fixture_closure, contracts, qlek)
+        contract_id = descriptor["semanticQuestionContract"]
+        exercised.add(contract_id)
+        produced.setdefault(contract_id, []).append(first)
+        if first != second:
+            errors.append(f"{prefix} {contract_id} surface is non-deterministic")
+        if set(first) != {
+            "contract_presentation",
+            "root_basis",
+            "semantic_inputs",
+            "cognitive_constraints",
+        } or set(first["semantic_inputs"]) != expected_keys:
+            errors.append(f"{prefix} {contract_id} surface key mismatch")
+        wrapper = {
+            "cognitive_execution_packet_schema_version": "1.0",
+            **copy.deepcopy(first),
+            "citation_catalog": [],
+        }
+        schema_failures = list(packet_validator.iter_errors(wrapper))
+        if schema_failures:
+            errors.append(
+                f"{prefix} {contract_id} published packet schema mismatch: "
+                f"{schema_failures[0].message}"
+            )
+    if exercised != set(contracts):
+        errors.append(f"{prefix} oracle did not exercise exact 20-contract inventory")
+
+    for contract_id, contract in contracts.items():
+        definition = _mapping(contract.get("definition"))
+        presentation = _protocol_v8_e5c_contract_presentation(
+            contract, presentation_validator
+        )
+        if definition.get("question_kind") == "challenge" and presentation.get(
+            "required_objectives"
+        ) != _mapping(definition.get("challenge")).get("objectives"):
+            errors.append(f"{prefix} {contract_id} challenge objective order changed")
+        if set(presentation).intersection(
+            {"prompt", "promptSha256", "packetSchema", "outputSchema", "bundleSha256"}
+        ):
+            errors.append(f"{prefix} contract presentation leaked realization identity")
+
+    revision_uc_surface = surface(closure, qlek_of(closure, uc_revision_challenge))
+    if set(revision_uc_surface["semantic_inputs"]) != {
+        "discovery",
+        "targetedDiscoveryStatement",
+        "priorUniqueCorrection",
+        "priorUniqueCorrectionChallenge",
+        "challengedUniqueCorrection",
+    }:
+        errors.append(f"{prefix} UC revision challenge inheritance mismatch")
+    revision_rs_surface = surface(closure, qlek_of(closure, rs_revision_challenge))
+    if set(revision_rs_surface["semantic_inputs"]) != {
+        "acceptedUniqueCorrection",
+        "completeCandidateView",
+        "priorRealizationScope",
+        "priorRealizationScopeChallenge",
+        "challengedRealizationScope",
+    }:
+        errors.append(f"{prefix} RS revision challenge inheritance mismatch")
+    rs_initial_surface = surface(closure, qlek_of(closure, rs17))
+    if rs_initial_surface["cognitive_constraints"] != {
+        "non_writable_controlling_authority_paths": [p_control]
+    } or p_hidden in rs_initial_surface["cognitive_constraints"][
+        "non_writable_controlling_authority_paths"
+    ] or base64.urlsafe_b64encode(p_absent_text.encode()).rstrip(b"=").decode() in (
+        rs_initial_surface["cognitive_constraints"][
+            "non_writable_controlling_authority_paths"
+        ]
+    ):
+        errors.append(f"{prefix} RS controlling-authority intersection mismatch")
+    if revision_rs_surface["cognitive_constraints"] != rs_initial_surface[
+        "cognitive_constraints"
+    ]:
+        errors.append(f"{prefix} RS challenge did not inherit exact constraints")
+
+    qlek17 = qlek_of(closure, rs17)
+    qlek18 = qlek_of(closure, rs18)
+    surface17 = surface(closure, qlek17)
+    surface18 = surface(closure, qlek18)
+    if qlek17 == qlek18 or surface17 != surface18:
+        errors.append(f"{prefix} distinct CandidateRevision QLEKs cognition mismatch")
+
+    rr_qleks = (
+        qlek_of(closure, rr_initial),
+        qlek_of(closure, rr_revision),
+        qlek_of(closure, rr_objection),
+        qlek_of(closure, rr_revision_challenge),
+    )
+    for qlek in rr_qleks:
+        rr_surface = surface(closure, qlek)
+        if not contains(rr_surface, p_work) or contains(rr_surface, p_control) or contains(
+            rr_surface, p_hidden
+        ) or "completeCandidateView" in rr_surface["semantic_inputs"]:
+            errors.append(f"{prefix} RepairRealization complete-view visibility leak")
+    nni_surface = surface(closure, qlek_of(closure, nni_objection))
+    if contains(nni_surface, sibling_marker):
+        errors.append(f"{prefix} NNI sibling Discovery statement leaked")
+    decision_surface = surface(closure, qlek_of(closure, decision_revision))
+    dn_surface = surface(closure, qlek_of(closure, dn_challenge))
+    if (
+        decision_surface["semantic_inputs"]["priorDecisionRequiredStatement"]
+        != dn_surface["semantic_inputs"]["decisionRequiredStatement"]
+        or decision_surface["semantic_inputs"]["priorUniqueCorrectionExhaustion"]
+        != dn_surface["semantic_inputs"]["uniqueCorrectionExhaustion"]
+        or decision_surface["semantic_inputs"]["priorDecisionNecessityCandidate"]
+        != dn_surface["semantic_inputs"]["decisionNecessityCandidate"]
+    ):
+        errors.append(f"{prefix} Decision revision prior cognition mismatch")
+
+    snapshot_one = _protocol_v8_e5c_admission_snapshot(
+        root,
+        materiality_closure,
+        contracts,
+        predicates,
+        qualifications,
+        materiality_initial,
+        candidate_materialization_resolver=resolve_candidate,
+        sealed_content_resolver=resolve_content,
+        finding_closure_resolver=resolve_fa,
+        presentation_validator=presentation_validator,
+    )
+    snapshot_repeat = _protocol_v8_e5c_admission_snapshot(
+        root,
+        materiality_closure,
+        contracts,
+        predicates,
+        qualifications,
+        materiality_initial,
+        candidate_materialization_resolver=resolve_candidate,
+        sealed_content_resolver=resolve_content,
+        finding_closure_resolver=resolve_fa,
+        presentation_validator=presentation_validator,
+    )
+    admission_record = _protocol_v8_e3a_resolve_admission_identity(
+        materiality_closure, materiality_initial
+    )
+    witness = _protocol_v8_e2_validated_witness_token(
+        admission_record["qlek"],
+        admission_record["admission_id"],
+        admission_record["candidate"],
+        "E5C-CONVERGENT-WITNESS",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        materiality_closure["e2_state"],
+        admission_record["qlek"],
+        semantic_candidate=admission_record["candidate"],
+        validated_origin_witness=witness,
+    )
+    snapshot_after_witness = _protocol_v8_e5c_admission_snapshot(
+        root,
+        materiality_closure,
+        contracts,
+        predicates,
+        qualifications,
+        materiality_initial,
+        candidate_materialization_resolver=resolve_candidate,
+        sealed_content_resolver=resolve_content,
+        finding_closure_resolver=resolve_fa,
+        presentation_validator=presentation_validator,
+    )
+    if snapshot_one != snapshot_repeat or snapshot_one != snapshot_after_witness:
+        errors.append(f"{prefix} Admission snapshot changed with provenance")
+    if set(snapshot_one) != {"producer_semantic_surface", "semantic_candidate"} or set(
+        snapshot_one["producer_semantic_surface"]
+    ) != {"root_basis", "semantic_inputs", "cognitive_constraints"}:
+        errors.append(f"{prefix} Admission snapshot exact shape mismatch")
+
+    forbidden_snapshot_keys = {
+        "admissionId",
+        "qlek",
+        "executionId",
+        "receipt",
+        "originWitness",
+        "provider",
+        "model",
+        "runId",
+        "rootId",
+        "prompt",
+        "packet",
+        "citation" + "_catalog",
+        "contract_presentation",
+        "artifactId",
+    }
+
+    def structural_keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            result = set(value)
+            for child in value.values():
+                result.update(structural_keys(child))
+            return result
+        if isinstance(value, list):
+            result: set[str] = set()
+            for child in value:
+                result.update(structural_keys(child))
+            return result
+        return set()
+
+    if structural_keys(snapshot_one).intersection(forbidden_snapshot_keys):
+        errors.append(f"{prefix} Admission snapshot leaked provenance")
+
+    quarantined = copy.deepcopy(materiality_closure)
+    conflict_candidate = copy.deepcopy(all_false_materiality)
+    conflict_candidate["rationale"] = "conflicting exact candidate"
+    conflict_id = _protocol_v8_e1_semantic_admission_id(
+        admission_record["qlek"], conflict_candidate
+    )
+    conflict_witness = _protocol_v8_e2_validated_witness_token(
+        admission_record["qlek"],
+        conflict_id,
+        conflict_candidate,
+        "E5C-CONFLICT-WITNESS",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        quarantined["e2_state"],
+        admission_record["qlek"],
+        semantic_candidate=conflict_candidate,
+        validated_origin_witness=conflict_witness,
+    )
+    expect_rejected(
+        "quarantined Admission snapshot",
+        lambda: _protocol_v8_e5c_admission_snapshot(
+            root,
+            quarantined,
+            contracts,
+            predicates,
+            qualifications,
+            materiality_initial,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            finding_closure_resolver=resolve_fa,
+            presentation_validator=presentation_validator,
+        ),
+        "not currently consumable",
+    )
+
+    for contract_id in _PROTOCOL_V8_E5C_RS_CONTRACTS | _PROTOCOL_V8_E5C_RR_CONTRACTS:
+        for produced_surface in produced.get(contract_id, []):
+            structured = structural_keys(produced_surface)
+            if structured.intersection({"candidateRevision", "candidateId", "CandidateRevisionId"}):
+                errors.append(f"{prefix} {contract_id} exposed candidate identity")
+            for view_name in ("completeCandidateView", "scopedCandidateView"):
+                view_value = produced_surface["semantic_inputs"].get(view_name)
+                if isinstance(view_value, dict) and "valueId" in structural_keys(view_value):
+                    errors.append(f"{prefix} {contract_id} exposed CandidateView identity")
+
+    drifted = dict(contracts)
+    drifted.pop(next(iter(drifted)))
+    if not _protocol_v8_e5c_contract_partition_errors(drifted):
+        errors.append(f"{prefix} contract partition drift was accepted")
+    forbidden_fragments = {
+        "citation_catalog",
+        "citation_handle",
+        "free_string_citation",
+        "final_cognitive_packet",
+        "packet_seal",
+        "packet_artifact",
+        "origin_witness",
+        "review_evidence_v6",
+        "supplement_v2",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e5c_")
+        and any(fragment in name for fragment in forbidden_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} forbidden later-stage helper was introduced")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -24430,6 +26445,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e5b_fact_semantic_view_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
