@@ -15224,6 +15224,1591 @@ def _inactive_protocol_v8_e4c_currentness_repair_projection_errors(
     return errors
 
 
+def _protocol_v8_e5a_validate_finding_adjudication_closure(
+    closure: dict,
+    finding_ref: object,
+    finding_closure_resolver,
+) -> dict:
+    """Validate exact FA semantic identity against authoritative C6 closure."""
+    prefix = "inactive protocol v8 E5-A:"
+    semantic = _protocol_v8_e3a_resolve_semantic_value(closure, finding_ref)
+    if semantic.get("valueType") != (
+        "turnlock.semantic-value:FindingAdjudicationBasis@1"
+    ):
+        raise ValueError(f"{prefix} FindingAdjudicationBasis valueType mismatch")
+    value = semantic.get("value")
+    if not isinstance(value, dict) or set(value) != {
+        "schema",
+        "semanticSubject",
+        "currentProtocol",
+        "sourceFinding",
+    }:
+        raise ValueError(f"{prefix} FindingAdjudicationBasis exact key mismatch")
+    if value.get("schema") != "turnlock.finding-adjudication-basis.v1":
+        raise ValueError(f"{prefix} FindingAdjudicationBasis schema mismatch")
+    subject = value.get("semanticSubject")
+    protocol = value.get("currentProtocol")
+    source = value.get("sourceFinding")
+    if not isinstance(subject, dict) or set(subject) != {"selector", "sha256"}:
+        raise ValueError(f"{prefix} FA semanticSubject shape mismatch")
+    if not isinstance(protocol, dict) or set(protocol) != {
+        "protocolId",
+        "bundleSha256",
+    }:
+        raise ValueError(f"{prefix} FA currentProtocol shape mismatch")
+    if not isinstance(source, dict) or set(source) != {
+        "reviewCampaignId",
+        "findingId",
+        "substantiveFindingSha256",
+    }:
+        raise ValueError(f"{prefix} FA sourceFinding shape mismatch")
+    try:
+        adapter = finding_closure_resolver(copy.deepcopy(finding_ref))
+    except Exception as error:
+        raise ValueError(f"{prefix} FA closure resolution failed") from error
+    if not isinstance(adapter, dict) or set(adapter) != {
+        "review_packet",
+        "current_protocol",
+        "source_review_campaign_id",
+        "source_finding",
+    }:
+        raise ValueError(f"{prefix} FA closure adapter shape mismatch")
+    review_packet = adapter.get("review_packet")
+    if not isinstance(review_packet, dict) or set(review_packet) != {
+        "packet_schema_version",
+        "subject",
+        "subject_payload",
+        "authority_contents",
+    }:
+        raise ValueError(f"{prefix} canonical review packet shape mismatch")
+    if review_packet.get("packet_schema_version") != 1:
+        raise ValueError(f"{prefix} canonical review packet version mismatch")
+    packet_subject = review_packet.get("subject")
+    subject_payload = review_packet.get("subject_payload")
+    if not isinstance(packet_subject, dict) or not isinstance(subject_payload, dict):
+        raise ValueError(f"{prefix} canonical review packet subject missing")
+    if (
+        packet_subject.get("selector") != subject.get("selector")
+        or packet_subject.get("sha256") != subject.get("sha256")
+        or subject_payload.get("selector") != subject.get("selector")
+        or sha256_hex(_canonical_json_bytes(subject_payload))
+        != subject.get("sha256")
+    ):
+        raise ValueError(f"{prefix} FA semantic subject cross-binding mismatch")
+    current_protocol = adapter.get("current_protocol")
+    if not isinstance(current_protocol, dict) or set(current_protocol) != {
+        "protocolId",
+        "bundleSha256",
+    } or current_protocol != protocol:
+        raise ValueError(f"{prefix} FA current protocol cross-binding mismatch")
+    source_finding = adapter.get("source_finding")
+    if not isinstance(source_finding, dict):
+        raise ValueError(f"{prefix} source finding record missing")
+    if (
+        adapter.get("source_review_campaign_id")
+        != source.get("reviewCampaignId")
+        or source_finding.get("finding_id") != source.get("findingId")
+        or _finding_subject_sha256(source_finding)
+        != source.get("substantiveFindingSha256")
+    ):
+        raise ValueError(f"{prefix} FA source finding cross-binding mismatch")
+    authority = _mapping(subject_payload.get("authority"))
+    expected: list[tuple[str, object, dict]] = []
+    normative = authority.get("normative_spec")
+    if isinstance(normative, dict):
+        expected.append(("normative-spec", None, normative))
+    else:
+        raise ValueError(f"{prefix} normative authority descriptor missing")
+    for relation, role in (
+        ("architecture_decisions", "architecture-decision"),
+        ("abstraction_constraints", "abstraction-constraint"),
+    ):
+        entries = authority.get(relation)
+        if not isinstance(entries, list):
+            raise ValueError(f"{prefix} authority descriptor collection missing")
+        if any(not isinstance(descriptor, dict) for descriptor in entries):
+            raise ValueError(f"{prefix} invalid authority descriptor")
+        expected.extend(
+            (role, descriptor.get("id"), descriptor)
+            for descriptor in entries
+        )
+    contents = review_packet.get("authority_contents")
+    if not isinstance(contents, list) or len(contents) != len(expected):
+        raise ValueError(f"{prefix} authority content cardinality mismatch")
+    cognitive_authority: list[dict] = []
+    used: set[int] = set()
+    for role, identifier, descriptor in expected:
+        matches = [
+            (index, item)
+            for index, item in enumerate(contents)
+            if isinstance(item, dict)
+            and item.get("role") == role
+            and item.get("id") == identifier
+        ]
+        if len(matches) != 1 or matches[0][0] in used:
+            raise ValueError(f"{prefix} authority content correspondence mismatch")
+        index, content = matches[0]
+        used.add(index)
+        if set(content) != {"role", "id", "path", "sha256", "content_utf8"}:
+            raise ValueError(f"{prefix} authority content exact key mismatch")
+        if (
+            content.get("path") != descriptor.get("path")
+            or content.get("sha256") != descriptor.get("sha256")
+        ):
+            raise ValueError(f"{prefix} authority content path/SHA binding mismatch")
+        text = content.get("content_utf8")
+        if not isinstance(text, str) or sha256_hex(text.encode("utf-8")) != content.get(
+            "sha256"
+        ):
+            raise ValueError(f"{prefix} authority content bytes/SHA mismatch")
+        cognitive_authority.append(
+            {"role": role, "id": identifier, "content_utf8": text}
+        )
+    context = subject_payload.get("formal_assurance_context")
+    if not isinstance(context, dict):
+        raise ValueError(f"{prefix} formal assurance context missing")
+    domains = context.get("formal_semantic_domains")
+    modalities = context.get("behavioral_modalities")
+    assurance_domains = context.get("assurance_domains")
+    if not isinstance(domains, list) or domains != _canonical_formal_semantic_domains(
+        domains
+    ):
+        raise ValueError(f"{prefix} formal semantic domain order is non-canonical")
+    if modalities != _sorted_strings(modalities):
+        raise ValueError(f"{prefix} behavioral modalities are non-canonical")
+    if assurance_domains != _sorted_strings(assurance_domains):
+        raise ValueError(f"{prefix} assurance domains are non-canonical")
+    domain_projection: list[dict] = []
+    domain_keys = (
+        "id",
+        "representation",
+        "module",
+        "integrated_semantics_required",
+        "focused_analyses_are_restrictions",
+    )
+    for domain in domains:
+        if not isinstance(domain, dict) or not set(domain_keys).issubset(domain):
+            raise ValueError(f"{prefix} formal semantic domain shape mismatch")
+        domain_projection.append(
+            {name: copy.deepcopy(domain[name]) for name in domain_keys}
+        )
+    claims = subject_payload.get("claims")
+    if not isinstance(claims, list) or [
+        _mapping(claim).get("id") for claim in claims
+    ] != sorted(_mapping(claim).get("id") for claim in claims):
+        raise ValueError(f"{prefix} claim order is non-canonical")
+    claim_projection: list[dict] = []
+    for claim in claims:
+        if not isinstance(claim, dict):
+            raise ValueError(f"{prefix} claim must be an object")
+        normative_sources = claim.get("normative_sources")
+        if normative_sources != _sorted_strings(normative_sources):
+            raise ValueError(f"{prefix} claim normative_sources are non-canonical")
+        projected_claim = {
+            name: copy.deepcopy(claim.get(name))
+            for name in (
+                "id",
+                "statement",
+                "normative_sources",
+                "assurance_domain",
+            )
+        }
+        for optional in ("modality", "formal_semantic_domain"):
+            if optional in claim:
+                projected_claim[optional] = copy.deepcopy(claim[optional])
+        claim_projection.append(projected_claim)
+    coverage = subject_payload.get("normative_coverage")
+    if not isinstance(coverage, list) or [
+        _mapping(item).get("invariant") for item in coverage
+    ] != sorted(_mapping(item).get("invariant") for item in coverage):
+        raise ValueError(f"{prefix} normative coverage order is non-canonical")
+    coverage_projection: list[dict] = []
+    for item in coverage:
+        if not isinstance(item, dict):
+            raise ValueError(f"{prefix} normative coverage entry must be an object")
+        for field in ("formal_claims", "residual_claims"):
+            if item.get(field) != _sorted_strings(item.get(field)):
+                raise ValueError(f"{prefix} normative coverage claims are non-canonical")
+        coverage_projection.append(
+            {
+                name: copy.deepcopy(item.get(name))
+                for name in (
+                    "invariant",
+                    "canonical_operational_coverage",
+                    "formal_claims",
+                    "residual_claims",
+                )
+            }
+        )
+    return {
+        "formal_assurance_context": {
+            "formal_semantic_domains": domain_projection,
+            "behavioral_modalities": copy.deepcopy(modalities),
+            "assurance_domains": copy.deepcopy(assurance_domains),
+        },
+        "claims": claim_projection,
+        "normative_coverage": coverage_projection,
+        "controlling_authority_contents": cognitive_authority,
+        "source_finding": {
+            "statement": copy.deepcopy(source_finding.get("statement")),
+            "argument": copy.deepcopy(source_finding.get("argument")),
+            "counterexample": copy.deepcopy(source_finding.get("counterexample")),
+        },
+    }
+
+
+def _protocol_v8_e5a_finding_adjudication_cognitive_basis(
+    closure: dict,
+    finding_ref: object,
+    finding_closure_resolver,
+) -> dict:
+    return _protocol_v8_e5a_validate_finding_adjudication_closure(
+        closure, finding_ref, finding_closure_resolver
+    )
+
+
+def _protocol_v8_e5a_finding_adjudication_root_basis(
+    closure: dict,
+    finding_ref: object,
+    finding_closure_resolver,
+) -> dict:
+    return {
+        "kind": "finding-adjudication",
+        **_protocol_v8_e5a_finding_adjudication_cognitive_basis(
+            closure, finding_ref, finding_closure_resolver
+        ),
+    }
+
+
+def _protocol_v8_e5a_qpm_semantic_candidate(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    qpm_ref: object,
+    finding_ref: object,
+) -> dict:
+    """Project exact positive MaterialityAssessment semantic candidate."""
+    status = _protocol_v8_e3c2_qualification_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        qpm_ref,
+        active=set(),
+    )
+    if status["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:QualifiedPositiveMateriality@1"
+    ) or status["reconstructible"] is not True or status["consumable"] is not True:
+        raise ValueError(f"inactive protocol v8 E5-A: QPM Fact is not consumable")
+    qualification_ref = _mapping(status["descriptor"].get("arguments")).get(
+        "qualification"
+    )
+    qualification = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(
+                f"inactive protocol v8 E5-A: {validator_errors[0]}"
+            )
+        closure["_e3b_output_validators"] = validators
+    anchor = _protocol_v8_e3b_admission_context(
+        root,
+        closure,
+        contracts,
+        qualification.get("anchorAdmission"),
+        validators,
+    )
+    anchor_inputs = _mapping(anchor["descriptor"].get("exactLogicalInput"))
+    if anchor_inputs.get("findingAdjudicationBasis") != finding_ref:
+        raise ValueError(f"inactive protocol v8 E5-A: QPM/FA exact binding mismatch")
+    return copy.deepcopy(anchor["candidate"])
+
+
+def _protocol_v8_e5a_surviving_material_cognitive_basis(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    surviving_ref: object,
+    finding_closure_resolver,
+) -> dict:
+    semantic = _protocol_v8_e3a_resolve_semantic_value(closure, surviving_ref)
+    if semantic.get("valueType") != (
+        "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    ):
+        raise ValueError(
+            "inactive protocol v8 E5-A: SurvivingMaterialBasis valueType mismatch"
+        )
+    value = semantic.get("value")
+    if not isinstance(value, dict) or set(value) != {
+        "schema",
+        "findingAdjudicationBasis",
+        "qualifiedPositiveMateriality",
+        "refutationExhaustionWithoutQualifiedRefutation",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E5-A: SurvivingMaterialBasis exact key mismatch"
+        )
+    if value.get("schema") != "turnlock.surviving-material-basis.v1":
+        raise ValueError(
+            "inactive protocol v8 E5-A: SurvivingMaterialBasis schema mismatch"
+        )
+    finding_ref = value["findingAdjudicationBasis"]
+    qpm_ref = value["qualifiedPositiveMateriality"]
+    exhaustion_ref = value["refutationExhaustionWithoutQualifiedRefutation"]
+    qpm_candidate = _protocol_v8_e5a_qpm_semantic_candidate(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        qpm_ref,
+        finding_ref,
+    )
+    exhaustion = _protocol_v8_e3c2_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        exhaustion_ref,
+    )
+    if exhaustion["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1"
+    ) or exhaustion["reconstructible"] is not True or exhaustion[
+        "consumable"
+    ] is not True:
+        raise ValueError(
+            "inactive protocol v8 E5-A: refutation exhaustion Fact is not consumable"
+        )
+    if _mapping(exhaustion["descriptor"].get("arguments")).get(
+        "qualifiedPositiveMateriality"
+    ) != qpm_ref:
+        raise ValueError(
+            "inactive protocol v8 E5-A: refutation exhaustion/QPM binding mismatch"
+        )
+    return {
+        "finding_adjudication": (
+            _protocol_v8_e5a_finding_adjudication_cognitive_basis(
+                closure, finding_ref, finding_closure_resolver
+            )
+        ),
+        "qualified_positive_materiality": qpm_candidate,
+        "refutation_closure": {
+            "kind": "exhausted-without-qualified-refutation"
+        },
+    }
+
+
+def _protocol_v8_e5a_surviving_material_root_basis(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    surviving_ref: object,
+    finding_closure_resolver,
+) -> dict:
+    return {
+        "kind": "surviving-material",
+        **_protocol_v8_e5a_surviving_material_cognitive_basis(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            surviving_ref,
+            finding_closure_resolver,
+        ),
+    }
+
+
+def _protocol_v8_e5a_cognitive_root_basis(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    root_ref: object,
+    finding_closure_resolver,
+) -> dict:
+    semantic = _protocol_v8_e3a_resolve_semantic_value(closure, root_ref)
+    value_type = semantic.get("valueType")
+    if value_type == "turnlock.semantic-value:FindingAdjudicationBasis@1":
+        return _protocol_v8_e5a_finding_adjudication_root_basis(
+            closure, root_ref, finding_closure_resolver
+        )
+    if value_type == "turnlock.semantic-value:SurvivingMaterialBasis@1":
+        return _protocol_v8_e5a_surviving_material_root_basis(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            root_ref,
+            finding_closure_resolver,
+        )
+    raise ValueError(
+        "inactive protocol v8 E5-A: unsupported cognitive root SemanticValue type"
+    )
+
+
+def _protocol_v8_e5a_validate_candidate_view_semantic_value(
+    closure: dict,
+    candidate_view_ref: object,
+    coverage: object,
+) -> dict:
+    semantic = _protocol_v8_e3a_resolve_semantic_value(
+        closure, candidate_view_ref
+    )
+    if semantic.get("valueType") != "turnlock.semantic-value:CandidateView@1":
+        raise ValueError(
+            "inactive protocol v8 E5-A: CandidateView valueType mismatch"
+        )
+    value = semantic.get("value")
+    if not isinstance(value, dict) or set(value) != {
+        "gitObjectFormat",
+        "entries",
+    }:
+        raise ValueError(
+            "inactive protocol v8 E5-A: CandidateView exact top-level shape mismatch"
+        )
+    if value.get("gitObjectFormat") not in {"sha1", "sha256"}:
+        raise ValueError(
+            "inactive protocol v8 E5-A: CandidateView gitObjectFormat mismatch"
+        )
+    entries = value.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError(
+            "inactive protocol v8 E5-A: CandidateView entries must be an array"
+        )
+    materialized_paths: dict[str, bytes] = {}
+    decoded_order: list[bytes] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {
+            "pathBytesBase64url",
+            "state",
+        }:
+            raise ValueError(
+                "inactive protocol v8 E5-A: CandidateView entry shape mismatch"
+            )
+        identity = entry.get("pathBytesBase64url")
+        try:
+            decoded = _protocol_v8_e4a_decode_path_identity(identity)
+        except ValueError as error:
+            raise ValueError(
+                "inactive protocol v8 E5-A: invalid CandidateView path identity"
+            ) from error
+        assert isinstance(identity, str)
+        if identity in materialized_paths:
+            raise ValueError(
+                "inactive protocol v8 E5-A: duplicate CandidateView path"
+            )
+        materialized_paths[identity] = decoded
+        decoded_order.append(decoded)
+        state = entry.get("state")
+        if not isinstance(state, dict):
+            raise ValueError(
+                "inactive protocol v8 E5-A: CandidateView state must be an object"
+            )
+        kind = state.get("kind")
+        if kind == "blob":
+            if set(state) != {"kind", "mode", "content"} or state.get(
+                "mode"
+            ) not in {"100644", "100755"}:
+                raise ValueError(
+                    "inactive protocol v8 E5-A: CandidateView blob state mismatch"
+                )
+            _protocol_v8_e5a_exact_bytes(state.get("content"))
+        elif kind == "symlink":
+            if set(state) != {"kind", "mode", "content"} or state.get(
+                "mode"
+            ) != "120000":
+                raise ValueError(
+                    "inactive protocol v8 E5-A: CandidateView symlink state mismatch"
+                )
+            _protocol_v8_e5a_exact_bytes(state.get("content"))
+        elif kind == "gitlink":
+            if set(state) != {"kind", "mode", "objectId"} or (
+                state.get("mode") != "160000"
+                or not isinstance(state.get("objectId"), str)
+                or not state.get("objectId")
+            ):
+                raise ValueError(
+                    "inactive protocol v8 E5-A: CandidateView gitlink state mismatch"
+                )
+        else:
+            raise ValueError(
+                "inactive protocol v8 E5-A: unsupported CandidateView state kind"
+            )
+    if decoded_order != sorted(decoded_order):
+        raise ValueError(
+            "inactive protocol v8 E5-A: CandidateView path order is non-canonical"
+        )
+    try:
+        exact_coverage = _protocol_v8_e4a_validate_coverage(
+            coverage, materialized_paths
+        )
+    except ValueError as error:
+        raise ValueError(
+            "inactive protocol v8 E5-A: CandidateView CoverageSpec mismatch"
+        ) from error
+    if exact_coverage["kind"] == "readable-paths" and set(
+        exact_coverage["paths"]
+    ) != set(materialized_paths):
+        raise ValueError(
+            "inactive protocol v8 E5-A: scoped CandidateView widens or narrows coverage"
+        )
+    return copy.deepcopy(value)
+
+
+def _protocol_v8_e5a_exact_bytes(value: object) -> bytes:
+    exact, errors = _inline_exact_bytes(
+        value, "inactive protocol v8 E5-A: CandidateView ExactBytes"
+    )
+    if errors or exact is None:
+        raise ValueError(
+            errors[0]
+            if errors
+            else "inactive protocol v8 E5-A: invalid CandidateView ExactBytes"
+        )
+    return exact
+
+
+def _protocol_v8_e5a_candidate_view_cognitive_projection(
+    closure: dict,
+    candidate_view_ref: object,
+    coverage: object,
+) -> dict:
+    value = _protocol_v8_e5a_validate_candidate_view_semantic_value(
+        closure, candidate_view_ref, coverage
+    )
+    projected_entries: list[dict] = []
+    for entry in value["entries"]:
+        identity = entry["pathBytesBase64url"]
+        raw = _protocol_v8_e4a_decode_path_identity(identity)
+        try:
+            path_utf8 = raw.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            path_utf8 = None
+        state = entry["state"]
+        if state["kind"] in {"blob", "symlink"}:
+            projected_state = {
+                "kind": state["kind"],
+                "mode": state["mode"],
+                "content": copy.deepcopy(state["content"]),
+            }
+        else:
+            projected_state = {
+                "kind": "gitlink",
+                "mode": "160000",
+                "object_id": state["objectId"],
+            }
+        projected_entries.append(
+            {
+                "path_bytes_base64url": identity,
+                "path_utf8": path_utf8,
+                "state": projected_state,
+            }
+        )
+    return {
+        "coverage": {"kind": _mapping(coverage).get("kind")},
+        "git_object_format": value["gitObjectFormat"],
+        "entries": projected_entries,
+    }
+
+
+def _inactive_protocol_v8_e5a_cognitive_basis_projection_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise exact C6 FA, SM, and CandidateView cognitive projections."""
+    errors: list[str] = []
+    prefix = "inactive protocol v8 E5-A:"
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(f"{prefix} {error}" for error in catalog_errors)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in validator_errors)
+    if errors:
+        return errors
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            action()
+        except (TypeError, ValueError) as error:
+            if required is not None and required not in str(error):
+                errors.append(f"{prefix} {label} rejected without {required!r}")
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    normative_content = "Normative authority content\n"
+    architecture_content = "Architecture decision content\n"
+    constraint_content = "Abstraction constraint content\n"
+    authority = {
+        "normative_spec": {
+            "path": "docs/specification/turnlock-spec.md",
+            "sha256": sha256_hex(normative_content.encode("utf-8")),
+        },
+        "architecture_decisions": [
+            {
+                "id": "ADR-001",
+                "path": "docs/adr/adr-001-example.md",
+                "sha256": sha256_hex(architecture_content.encode("utf-8")),
+            }
+        ],
+        "abstraction_constraints": [
+            {
+                "id": "ADR-002",
+                "path": "docs/adr/adr-002-example.md",
+                "sha256": sha256_hex(constraint_content.encode("utf-8")),
+            }
+        ],
+    }
+    subject_payload = {
+        "subject_schema_version": 1,
+        "selector": "gate-a-assurance-decomposition-v1",
+        "authority": authority,
+        "formal_assurance_context": {
+            "schema_version": 7,
+            "project": "turnlock-rust",
+            "formal_semantic_domains": [
+                {
+                    "id": "gate-a",
+                    "representation": "tla+",
+                    "module": "GateA",
+                    "path": "formal/models/integrated/GateA.tla",
+                    "integrated_semantics_required": True,
+                    "focused_analyses_are_restrictions": True,
+                }
+            ],
+            "behavioral_modalities": ["liveness", "safety"],
+            "assurance_domains": ["architecture", "formal-behavioral"],
+        },
+        "claims": [
+            {
+                "id": "TL-CLAIM-001",
+                "statement": "The semantic transition is safe.",
+                "normative_sources": ["TL-INV-001"],
+                "assurance_domain": "formal-behavioral",
+                "modality": "safety",
+                "formal_semantic_domain": "gate-a",
+                "unlisted_provenance": "excluded",
+            },
+            {
+                "id": "TL-CLAIM-002",
+                "statement": "The architecture preserves authority.",
+                "normative_sources": ["TL-INV-002"],
+                "assurance_domain": "architecture",
+            },
+        ],
+        "normative_coverage": [
+            {
+                "invariant": "TL-INV-001",
+                "canonical_operational_coverage": "full",
+                "formal_claims": ["TL-CLAIM-001"],
+                "residual_claims": [],
+                "unlisted_provenance": "excluded",
+            },
+            {
+                "invariant": "TL-INV-002",
+                "canonical_operational_coverage": "none",
+                "formal_claims": [],
+                "residual_claims": ["TL-CLAIM-002"],
+            },
+        ],
+    }
+    subject_sha = sha256_hex(_canonical_json_bytes(subject_payload))
+    review_packet = {
+        "packet_schema_version": 1,
+        "subject": {
+            "subject_type": "derived",
+            "selector": subject_payload["selector"],
+            "sha256": subject_sha,
+        },
+        "subject_payload": subject_payload,
+        "authority_contents": [
+            {
+                "role": "normative-spec",
+                "id": None,
+                "path": authority["normative_spec"]["path"],
+                "sha256": authority["normative_spec"]["sha256"],
+                "content_utf8": normative_content,
+            },
+            {
+                "role": "architecture-decision",
+                "id": "ADR-001",
+                "path": authority["architecture_decisions"][0]["path"],
+                "sha256": authority["architecture_decisions"][0]["sha256"],
+                "content_utf8": architecture_content,
+            },
+            {
+                "role": "abstraction-constraint",
+                "id": "ADR-002",
+                "path": authority["abstraction_constraints"][0]["path"],
+                "sha256": authority["abstraction_constraints"][0]["sha256"],
+                "content_utf8": constraint_content,
+            },
+        ],
+    }
+    current_protocol = {
+        "protocolId": "gate-a-campaign-protocol-v8",
+        "bundleSha256": "8" * 64,
+    }
+
+    def source_finding(finding_id: str) -> dict:
+        return {
+            "finding_id": finding_id,
+            "sources": [
+                {
+                    "reviewer_execution_id": "REVIEWER-PROVENANCE",
+                    "raw_finding_id": "RAW-PROVENANCE",
+                }
+            ],
+            "statement": "A substantive material finding.",
+            "argument": "Exact evidence supports the finding.",
+            "counterexample": None,
+        }
+
+    base_closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+    fa_adapters: dict[str, dict] = {}
+
+    def register_fa(
+        closure: dict,
+        campaign_id: str,
+        finding_id: str,
+        *,
+        packet: dict | None = None,
+        protocol: dict | None = None,
+        value_mutator=None,
+        adapter_mutator=None,
+    ) -> dict:
+        finding = source_finding(finding_id)
+        value = {
+            "schema": "turnlock.finding-adjudication-basis.v1",
+            "semanticSubject": {
+                "selector": subject_payload["selector"],
+                "sha256": subject_sha,
+            },
+            "currentProtocol": copy.deepcopy(
+                current_protocol if protocol is None else protocol
+            ),
+            "sourceFinding": {
+                "reviewCampaignId": campaign_id,
+                "findingId": finding_id,
+                "substantiveFindingSha256": _finding_subject_sha256(finding),
+            },
+        }
+        adapter = {
+            "review_packet": copy.deepcopy(
+                review_packet if packet is None else packet
+            ),
+            "current_protocol": copy.deepcopy(
+                current_protocol if protocol is None else protocol
+            ),
+            "source_review_campaign_id": campaign_id,
+            "source_finding": finding,
+        }
+        if value_mutator is not None:
+            value_mutator(value)
+        if adapter_mutator is not None:
+            adapter_mutator(adapter)
+        reference = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:FindingAdjudicationBasis@1",
+            value,
+        )
+        fa_adapters[reference["valueId"]] = adapter
+        return reference
+
+    def resolve_fa(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture FA ref missing")
+        adapter = fa_adapters.get(reference.get("valueId"))
+        if adapter is None:
+            raise ValueError(f"{prefix} fixture FA closure missing")
+        return copy.deepcopy(adapter)
+
+    fa1 = register_fa(base_closure, "REVIEW-CAMPAIGN-1", "FINDING-1")
+    fa2 = register_fa(base_closure, "REVIEW-CAMPAIGN-2", "FINDING-2")
+    fa_basis1 = _protocol_v8_e5a_finding_adjudication_cognitive_basis(
+        base_closure, fa1, resolve_fa
+    )
+    fa_basis2 = _protocol_v8_e5a_finding_adjudication_cognitive_basis(
+        base_closure, fa2, resolve_fa
+    )
+    fa_root = _protocol_v8_e5a_cognitive_root_basis(
+        root,
+        base_closure,
+        contracts,
+        predicates,
+        qualifications,
+        fa1,
+        resolve_fa,
+    )
+    if fa1 == fa2 or fa_basis1 != fa_basis2:
+        errors.append(f"{prefix} distinct FA identities did not share cognition")
+    if set(fa_basis1) != {
+        "formal_assurance_context",
+        "claims",
+        "normative_coverage",
+        "controlling_authority_contents",
+        "source_finding",
+    } or set(fa_root) != {"kind", *fa_basis1.keys()}:
+        errors.append(f"{prefix} FA cognitive/root exact shape mismatch")
+
+    forbidden_keys = {
+        "subject_schema_version",
+        "selector",
+        "sha256",
+        "schema_version",
+        "project",
+        "path",
+        "protocolId",
+        "bundleSha256",
+        "reviewCampaignId",
+        "findingId",
+        "substantiveFindingSha256",
+        "sources",
+        "receipt",
+        "artifactId",
+        "packetId",
+        "packetSha256",
+        "packet_schema_version",
+        "timestamp",
+        "run",
+        "root",
+        "runId",
+        "rootId",
+        "ArtifactRef",
+        "packet",
+        "packet_identity",
+        "promptArtifactRef",
+    }
+
+    def structural_keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            result = set(value)
+            for child in value.values():
+                result.update(structural_keys(child))
+            return result
+        if isinstance(value, list):
+            result: set[str] = set()
+            for child in value:
+                result.update(structural_keys(child))
+            return result
+        return set()
+
+    leaked = structural_keys(fa_root).intersection(forbidden_keys)
+    if leaked:
+        errors.append(f"{prefix} FA cognitive projection leaked provenance fields")
+    if any(
+        set(item) != {"role", "id", "content_utf8"}
+        for item in fa_basis1["controlling_authority_contents"]
+    ) or any(
+        set(item) != {
+            "id",
+            "representation",
+            "module",
+            "integrated_semantics_required",
+            "focused_analyses_are_restrictions",
+        }
+        for item in fa_basis1["formal_assurance_context"][
+            "formal_semantic_domains"
+        ]
+    ):
+        errors.append(f"{prefix} FA whitelist projection mismatch")
+
+    negative_index = 0
+
+    def negative_fa(
+        label: str,
+        *,
+        value_mutator=None,
+        adapter_mutator=None,
+    ) -> None:
+        nonlocal negative_index
+        negative_index += 1
+        reference = register_fa(
+            base_closure,
+            f"REVIEW-NEG-{negative_index}",
+            f"FINDING-NEG-{negative_index}",
+            value_mutator=value_mutator,
+            adapter_mutator=adapter_mutator,
+        )
+        expect_rejected(
+            label,
+            lambda: _protocol_v8_e5a_finding_adjudication_cognitive_basis(
+                base_closure, reference, resolve_fa
+            ),
+        )
+
+    negative_fa(
+        "wrong semantic subject SHA",
+        value_mutator=lambda value: value["semanticSubject"].update(
+            {"sha256": "0" * 64}
+        ),
+    )
+    negative_fa(
+        "wrong semantic subject selector",
+        value_mutator=lambda value: value["semanticSubject"].update(
+            {"selector": "wrong-selector"}
+        ),
+    )
+    negative_fa(
+        "subject payload hash mismatch",
+        adapter_mutator=lambda adapter: adapter["review_packet"][
+            "subject_payload"
+        ].update({"subject_schema_version": 2}),
+    )
+    negative_fa(
+        "wrong current protocol ID",
+        value_mutator=lambda value: value["currentProtocol"].update(
+            {"protocolId": "wrong-protocol"}
+        ),
+    )
+    negative_fa(
+        "wrong protocol bundle SHA",
+        value_mutator=lambda value: value["currentProtocol"].update(
+            {"bundleSha256": "0" * 64}
+        ),
+    )
+    negative_fa(
+        "wrong source ReviewCampaignId",
+        value_mutator=lambda value: value["sourceFinding"].update(
+            {"reviewCampaignId": "WRONG-CAMPAIGN"}
+        ),
+    )
+    negative_fa(
+        "wrong source FindingId",
+        value_mutator=lambda value: value["sourceFinding"].update(
+            {"findingId": "WRONG-FINDING"}
+        ),
+    )
+    negative_fa(
+        "wrong substantiveFindingSha256",
+        value_mutator=lambda value: value["sourceFinding"].update(
+            {"substantiveFindingSha256": "0" * 64}
+        ),
+    )
+    negative_fa(
+        "authority-content path mismatch",
+        adapter_mutator=lambda adapter: adapter["review_packet"][
+            "authority_contents"
+        ][0].update({"path": "wrong/path"}),
+    )
+    negative_fa(
+        "authority-content SHA mismatch",
+        adapter_mutator=lambda adapter: adapter["review_packet"][
+            "authority_contents"
+        ][0].update({"sha256": "0" * 64}),
+    )
+    negative_fa(
+        "authority content bytes mismatch",
+        adapter_mutator=lambda adapter: adapter["review_packet"][
+            "authority_contents"
+        ][0].update({"content_utf8": "wrong bytes"}),
+    )
+    negative_fa(
+        "missing authority content",
+        adapter_mutator=lambda adapter: adapter["review_packet"][
+            "authority_contents"
+        ].pop(),
+    )
+    negative_fa(
+        "extra FA semantic-value field",
+        value_mutator=lambda value: value.update({"extra": True}),
+    )
+    negative_fa(
+        "wrong FA schema",
+        value_mutator=lambda value: value.update({"schema": "wrong"}),
+    )
+
+    positive_materiality = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "the exact finding is materially relevant",
+    }
+    refutation_candidate = {
+        "kind": "refutation-candidate",
+        "ground": "premise-false",
+        "attacked_premise_or_inference": "a necessary premise",
+        "evidence_references": ["E-E5-A"],
+        "argument": "the exact evidence invalidates the premise",
+        "counterexample_disposition": None,
+    }
+
+    def history(branch: str) -> dict:
+        local = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+        local["_e3b_output_validators"] = validators
+        local_fa = register_fa(local, "REVIEW-CAMPAIGN-1", "FINDING-1")
+        materiality = _protocol_v8_e3b_test_admit(
+            local,
+            contracts,
+            "turnlock.sqc:MaterialityAssessmentInitial@1",
+            {"findingAdjudicationBasis": local_fa},
+            positive_materiality,
+        )
+        materiality_key = _protocol_v8_e3b_test_qualification(
+            local,
+            qualifications,
+            "turnlock.qualification:MaterialityAssessmentQualification@1",
+            materiality,
+            {},
+        )
+        qpm = _protocol_v8_e3b_test_fact(
+            local,
+            predicates,
+            "turnlock.predicate:QualifiedPositiveMateriality@1",
+            {"qualification": materiality_key},
+        )
+        initial_input = {
+            "findingAdjudicationBasis": local_fa,
+            "qualifiedPositiveMateriality": qpm,
+        }
+        if branch == "initial-not-established":
+            _protocol_v8_e3b_test_admit(
+                local,
+                contracts,
+                "turnlock.sqc:RefutationInitial@1",
+                initial_input,
+                {"kind": "not-established"},
+            )
+        else:
+            initial = _protocol_v8_e3b_test_admit(
+                local,
+                contracts,
+                "turnlock.sqc:RefutationInitial@1",
+                initial_input,
+                refutation_candidate,
+            )
+            initial_challenge = _protocol_v8_e3b_test_admit(
+                local,
+                contracts,
+                "turnlock.sqc:RefutationChallenge@1",
+                {"challengedRefutation": initial},
+                _protocol_v8_e3b_test_challenge_candidate(
+                    contracts["turnlock.sqc:RefutationChallenge@1"], False
+                ),
+            )
+            revision = _protocol_v8_e3b_test_admit(
+                local,
+                contracts,
+                "turnlock.sqc:RefutationRevision@1",
+                {
+                    **initial_input,
+                    "priorRefutation": initial,
+                    "priorRefutationChallenge": initial_challenge,
+                },
+                refutation_candidate,
+            )
+            _protocol_v8_e3b_test_admit(
+                local,
+                contracts,
+                "turnlock.sqc:RefutationChallenge@1",
+                {"challengedRefutation": revision},
+                _protocol_v8_e3b_test_challenge_candidate(
+                    contracts["turnlock.sqc:RefutationChallenge@1"], False
+                ),
+            )
+        exhaustion = _protocol_v8_e3b_test_fact(
+            local,
+            predicates,
+            "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+            {"qualifiedPositiveMateriality": qpm},
+        )
+        surviving_value = {
+            "schema": "turnlock.surviving-material-basis.v1",
+            "findingAdjudicationBasis": local_fa,
+            "qualifiedPositiveMateriality": qpm,
+            "refutationExhaustionWithoutQualifiedRefutation": exhaustion,
+        }
+        surviving = _protocol_v8_e3a_register_semantic_value(
+            local,
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            surviving_value,
+        )
+        basis = _protocol_v8_e5a_surviving_material_cognitive_basis(
+            root,
+            local,
+            contracts,
+            predicates,
+            qualifications,
+            surviving,
+            resolve_fa,
+        )
+        return {
+            "closure": local,
+            "fa": local_fa,
+            "materiality": materiality,
+            "qpm": qpm,
+            "exhaustion": exhaustion,
+            "surviving": surviving,
+            "basis": basis,
+        }
+
+    history_initial = history("initial-not-established")
+    history_revised = history("revised-challenge-objections")
+    if history_initial["qpm"] != history_revised["qpm"] or (
+        history_initial["exhaustion"] != history_revised["exhaustion"]
+    ) or history_initial["surviving"] != history_revised["surviving"] or (
+        history_initial["basis"] != history_revised["basis"]
+    ):
+        errors.append(f"{prefix} refutation proof branch became cognitive identity")
+    sm_root = _protocol_v8_e5a_cognitive_root_basis(
+        root,
+        history_initial["closure"],
+        contracts,
+        predicates,
+        qualifications,
+        history_initial["surviving"],
+        resolve_fa,
+    )
+    if set(history_initial["basis"]) != {
+        "finding_adjudication",
+        "qualified_positive_materiality",
+        "refutation_closure",
+    } or sm_root.get("kind") != "surviving-material":
+        errors.append(f"{prefix} SM cognitive/root exact shape mismatch")
+    forbidden_sm = {
+        "factId",
+        "predicateRevision",
+        "qualificationKey",
+        "admissionId",
+        "qlek",
+        "branch",
+        "proof_branch",
+    }
+    if structural_keys(sm_root).intersection(forbidden_sm):
+        errors.append(f"{prefix} SM cognitive basis leaked proof identity")
+
+    mismatch = history_initial
+    mismatch_fa2 = register_fa(
+        mismatch["closure"], "REVIEW-CAMPAIGN-2", "FINDING-2"
+    )
+    mismatched_sm = _protocol_v8_e3a_register_semantic_value(
+        mismatch["closure"],
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {
+            "schema": "turnlock.surviving-material-basis.v1",
+            "findingAdjudicationBasis": mismatch_fa2,
+            "qualifiedPositiveMateriality": mismatch["qpm"],
+            "refutationExhaustionWithoutQualifiedRefutation": mismatch[
+                "exhaustion"
+            ],
+        },
+    )
+    expect_rejected(
+        "wrong FA/QPM binding",
+        lambda: _protocol_v8_e5a_surviving_material_cognitive_basis(
+            root,
+            mismatch["closure"],
+            contracts,
+            predicates,
+            qualifications,
+            mismatched_sm,
+            resolve_fa,
+        ),
+        "QPM/FA exact binding mismatch",
+    )
+
+    materiality2 = _protocol_v8_e3b_test_admit(
+        mismatch["closure"],
+        contracts,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": mismatch_fa2},
+        positive_materiality,
+    )
+    key2 = _protocol_v8_e3b_test_qualification(
+        mismatch["closure"],
+        qualifications,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        materiality2,
+        {},
+    )
+    qpm2 = _protocol_v8_e3b_test_fact(
+        mismatch["closure"],
+        predicates,
+        "turnlock.predicate:QualifiedPositiveMateriality@1",
+        {"qualification": key2},
+    )
+    _protocol_v8_e3b_test_admit(
+        mismatch["closure"],
+        contracts,
+        "turnlock.sqc:RefutationInitial@1",
+        {
+            "findingAdjudicationBasis": mismatch_fa2,
+            "qualifiedPositiveMateriality": qpm2,
+        },
+        {"kind": "not-established"},
+    )
+    exhaustion2 = _protocol_v8_e3b_test_fact(
+        mismatch["closure"],
+        predicates,
+        "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+        {"qualifiedPositiveMateriality": qpm2},
+    )
+    mismatched_exhaustion_sm = _protocol_v8_e3a_register_semantic_value(
+        mismatch["closure"],
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {
+            "schema": "turnlock.surviving-material-basis.v1",
+            "findingAdjudicationBasis": mismatch["fa"],
+            "qualifiedPositiveMateriality": mismatch["qpm"],
+            "refutationExhaustionWithoutQualifiedRefutation": exhaustion2,
+        },
+    )
+    expect_rejected(
+        "wrong exhaustion/QPM binding",
+        lambda: _protocol_v8_e5a_surviving_material_cognitive_basis(
+            root,
+            mismatch["closure"],
+            contracts,
+            predicates,
+            qualifications,
+            mismatched_exhaustion_sm,
+            resolve_fa,
+        ),
+        "exhaustion/QPM binding mismatch",
+    )
+
+    materiality_record = _protocol_v8_e3a_resolve_admission_identity(
+        mismatch["closure"], mismatch["materiality"]
+    )
+    conflicting_materiality = copy.deepcopy(positive_materiality)
+    conflicting_materiality["claim_structure"] = True
+    conflict_id = _protocol_v8_e1_semantic_admission_id(
+        materiality_record["qlek"], conflicting_materiality
+    )
+    conflict_token = _protocol_v8_e2_validated_witness_token(
+        materiality_record["qlek"],
+        conflict_id,
+        conflicting_materiality,
+        "IMPORTED-E5-A-CONFLICT",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        mismatch["closure"]["e2_state"],
+        materiality_record["qlek"],
+        semantic_candidate=conflicting_materiality,
+        validated_origin_witness=conflict_token,
+    )
+    historical_qpm = _protocol_v8_e3c2_qualification_fact_status(
+        root,
+        mismatch["closure"],
+        contracts,
+        predicates,
+        qualifications,
+        mismatch["qpm"],
+        active=set(),
+    )
+    if historical_qpm["reconstructible"] is not True or historical_qpm[
+        "consumable"
+    ] is not False:
+        errors.append(f"{prefix} non-consumable QPM fixture mismatch")
+    expect_rejected(
+        "non-consumable SM dependency",
+        lambda: _protocol_v8_e5a_surviving_material_cognitive_basis(
+            root,
+            mismatch["closure"],
+            contracts,
+            predicates,
+            qualifications,
+            mismatch["surviving"],
+            resolve_fa,
+        ),
+        "QPM Fact is not consumable",
+    )
+
+    unsupported = _protocol_v8_e3a_register_semantic_value(
+        base_closure,
+        "turnlock.semantic-value:FindingAdjudicationBasis@2",
+        {"test": "unsupported-root"},
+    )
+    expect_rejected(
+        "unsupported root SemanticValue",
+        lambda: _protocol_v8_e5a_cognitive_root_basis(
+            root,
+            base_closure,
+            contracts,
+            predicates,
+            qualifications,
+            unsupported,
+            resolve_fa,
+        ),
+        "unsupported cognitive root",
+    )
+
+    def encode_path(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+    p_utf8 = encode_path(b"a.txt")
+    p_gitlink = encode_path(b"z-gitlink")
+    p_non_utf8 = encode_path(b"\xff-link")
+    bytes_store = {
+        "BLOB": b"hello\n",
+        "LINK": b"\xfftarget",
+    }
+
+    def content_ref(identity: str) -> dict:
+        content = bytes_store[identity]
+        return {
+            "artifactId": identity,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "byteLength": len(content),
+            "mediaType": "application/octet-stream",
+            "repositoryPath": None,
+        }
+
+    materialization = {
+        "gitObjectFormat": "sha1",
+        "entries": [
+            {
+                "pathBytesBase64url": p_utf8,
+                "kind": "blob",
+                "mode": "100644",
+                "content": content_ref("BLOB"),
+            },
+            {
+                "pathBytesBase64url": p_gitlink,
+                "kind": "gitlink",
+                "mode": "160000",
+                "objectId": "1" * 40,
+            },
+            {
+                "pathBytesBase64url": p_non_utf8,
+                "kind": "symlink",
+                "mode": "120000",
+                "content": content_ref("LINK"),
+            },
+        ],
+    }
+    candidate_closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+    candidate_refs = []
+    for candidate_id in ("C17", "C18"):
+        reference = {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": candidate_id,
+        }
+        _protocol_v8_e3a_register_exact_authority(candidate_closure, reference)
+        candidate_refs.append(reference)
+
+    def resolve_materialization(reference: object) -> dict:
+        return copy.deepcopy(materialization)
+
+    def resolve_content(reference: object) -> bytes:
+        if not isinstance(reference, dict) or reference.get("artifactId") not in bytes_store:
+            raise ValueError(f"{prefix} fixture content missing")
+        content = bytes_store[reference["artifactId"]]
+        if reference != content_ref(reference["artifactId"]):
+            raise ValueError(f"{prefix} fixture content integrity mismatch")
+        return content
+
+    complete_view = _protocol_v8_e4a_construct_candidate_view(
+        candidate_closure,
+        candidate_refs[0],
+        {"kind": "complete"},
+        resolve_materialization,
+        resolve_content,
+    )
+    complete_view18 = _protocol_v8_e4a_construct_candidate_view(
+        candidate_closure,
+        candidate_refs[1],
+        {"kind": "complete"},
+        resolve_materialization,
+        resolve_content,
+    )
+    complete_ref = _protocol_v8_e4a_register_candidate_view(
+        candidate_closure, complete_view
+    )
+    complete_ref18 = _protocol_v8_e4a_register_candidate_view(
+        candidate_closure, complete_view18
+    )
+    complete_projection = _protocol_v8_e5a_candidate_view_cognitive_projection(
+        candidate_closure, complete_ref, {"kind": "complete"}
+    )
+    complete_projection18 = _protocol_v8_e5a_candidate_view_cognitive_projection(
+        candidate_closure, complete_ref18, {"kind": "complete"}
+    )
+    if complete_projection != complete_projection18 or complete_ref != complete_ref18:
+        errors.append(f"{prefix} candidate identity contaminated CandidateView cognition")
+    complete_entries = {
+        entry["path_bytes_base64url"]: entry
+        for entry in complete_projection["entries"]
+    }
+    if complete_projection.get("coverage") != {"kind": "complete"} or (
+        complete_entries[p_utf8]["path_utf8"] != "a.txt"
+        or complete_entries[p_non_utf8]["path_utf8"] is not None
+        or complete_entries[p_gitlink]["state"].get("object_id") != "1" * 40
+    ):
+        errors.append(f"{prefix} complete CandidateView presentation mismatch")
+    candidate_forbidden = {
+        "candidateId",
+        "CandidateRevisionId",
+        "rootTreeObjectId",
+        "artifactId",
+        "materialization",
+        "receipt",
+        "run",
+        "root",
+        "runId",
+        "rootId",
+        "timestamp",
+        "StateRevision",
+        "HEAD",
+        "gitIndex",
+        "workspacePath",
+        "checkoutPath",
+        "paths",
+    }
+    if structural_keys(complete_projection).intersection(candidate_forbidden):
+        errors.append(f"{prefix} CandidateView projection leaked provenance")
+
+    scoped_coverage = _protocol_v8_e4a_canonical_readable_coverage(
+        [p_utf8, p_gitlink]
+    )
+    scoped_view = _protocol_v8_e4a_construct_candidate_view(
+        candidate_closure,
+        candidate_refs[0],
+        scoped_coverage,
+        resolve_materialization,
+        resolve_content,
+    )
+    scoped_ref = _protocol_v8_e4a_register_candidate_view(
+        candidate_closure, scoped_view
+    )
+    scoped_projection = _protocol_v8_e5a_candidate_view_cognitive_projection(
+        candidate_closure, scoped_ref, scoped_coverage
+    )
+    if scoped_projection.get("coverage") != {"kind": "readable-paths"} or {
+        entry["path_bytes_base64url"] for entry in scoped_projection["entries"]
+    } != {p_utf8, p_gitlink}:
+        errors.append(f"{prefix} scoped CandidateView projection mismatch")
+    expect_rejected(
+        "scoped CandidateView widening",
+        lambda: _protocol_v8_e5a_candidate_view_cognitive_projection(
+            candidate_closure,
+            complete_ref,
+            _protocol_v8_e4a_canonical_readable_coverage([p_utf8]),
+        ),
+        "widens or narrows",
+    )
+
+    def malformed_view(label: str, mutator) -> None:
+        value = copy.deepcopy(complete_view)
+        mutator(value)
+        reference = _protocol_v8_e3a_register_semantic_value(
+            candidate_closure,
+            "turnlock.semantic-value:CandidateView@1",
+            value,
+        )
+        expect_rejected(
+            label,
+            lambda: _protocol_v8_e5a_candidate_view_cognitive_projection(
+                candidate_closure, reference, {"kind": "complete"}
+            ),
+        )
+
+    malformed_view("extra CandidateView top field", lambda value: value.update({"extra": 1}))
+    malformed_view(
+        "wrong CandidateView object format",
+        lambda value: value.update({"gitObjectFormat": "sha512"}),
+    )
+    malformed_view(
+        "duplicate CandidateView path",
+        lambda value: value["entries"].append(copy.deepcopy(value["entries"][0])),
+    )
+    malformed_view(
+        "wrong CandidateView path order",
+        lambda value: value["entries"].reverse(),
+    )
+    malformed_view(
+        "invalid CandidateView path base64url",
+        lambda value: value["entries"][0].update({"pathBytesBase64url": "***"}),
+    )
+    malformed_view(
+        "absent CandidateView state",
+        lambda value: value["entries"][0].update({"state": {"kind": "absent"}}),
+    )
+    malformed_view(
+        "wrong CandidateView mode",
+        lambda value: value["entries"][0]["state"].update({"mode": "120000"}),
+    )
+    malformed_view(
+        "non-canonical CandidateView ExactBytes",
+        lambda value: value["entries"][0]["state"].update(
+            {
+                "content": {
+                    "encoding": "base64url",
+                    "data": base64.urlsafe_b64encode(b"hello\n")
+                    .rstrip(b"=")
+                    .decode("ascii"),
+                }
+            }
+        ),
+    )
+    malformed_view(
+        "extra CandidateView state field",
+        lambda value: value["entries"][0]["state"].update({"extra": 1}),
+    )
+
+    schema = json.loads(
+        (root / PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
+        .read_text(encoding="utf-8")
+    )
+    definition_schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$defs": schema["$defs"],
+    }
+    root_validator = Draft202012Validator(
+        {**definition_schema, "$ref": "#/$defs/rootBasis"},
+        format_checker=FormatChecker(),
+    )
+    candidate_validator = Draft202012Validator(
+        {**definition_schema, "$ref": "#/$defs/candidateViewProjection"},
+        format_checker=FormatChecker(),
+    )
+    if list(root_validator.iter_errors(fa_root)) or list(
+        root_validator.iter_errors(sm_root)
+    ):
+        errors.append(f"{prefix} root basis violates published cognitive schema")
+    if list(candidate_validator.iter_errors(complete_projection)) or list(
+        candidate_validator.iter_errors(scoped_projection)
+    ):
+        errors.append(f"{prefix} CandidateView violates published cognitive schema")
+
+    forbidden_helper_fragments = {
+        "citation_catalog",
+        "cognitive_packet",
+        "admission_cognitive_snapshot",
+        "origin_witness",
+        "supplement_v2",
+        "review_evidence_v6",
+        "packet_sealing",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e5a_")
+        and any(fragment in name for fragment in forbidden_helper_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} later C6 projection helper was introduced")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -21100,6 +22685,9 @@ def collect_errors(
 
     errors.extend(_inactive_protocol_candidate_artifact_errors(root))
     errors.extend(_inactive_protocol_v8_semantic_oracle_errors(root))
+    errors.extend(
+        _inactive_protocol_v8_e5a_cognitive_basis_projection_errors(root)
+    )
 
     review_records, review_load_errors = load_review_records(root)
     review_validation_errors = _review_evidence_errors(root, manifest, review_records)
