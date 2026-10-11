@@ -16809,6 +16809,1746 @@ def _inactive_protocol_v8_e5a_cognitive_basis_projection_errors(
     return errors
 
 
+_PROTOCOL_V8_E5B_SEMANTIC_VIEWS = {
+    "turnlock.predicate:AcceptedRealizationScope@1": {
+        "kind": "qualification-anchor-candidate"
+    },
+    "turnlock.predicate:AcceptedRepairRealization@1": {
+        "kind": "qualification-anchor-candidate"
+    },
+    "turnlock.predicate:AcceptedUniqueCorrection@1": {
+        "kind": "qualification-anchor-candidate"
+    },
+    "turnlock.predicate:DecisionNecessityCandidate@1": {
+        "kind": "decision-necessity-candidate",
+        "source_argument": "decisionRequiredStatement",
+    },
+    "turnlock.predicate:DecisionRequiredDiscoveryStatement@1": {
+        "kind": "referenced-targeted-statement",
+        "source_argument": "targetedDiscoveryStatement",
+    },
+    "turnlock.predicate:QualifiedDecisionNecessity@1": {
+        "kind": "qualification-proposition",
+        "proposition": "qualified-decision-necessity",
+    },
+    "turnlock.predicate:QualifiedNoNormativeImpact@1": {
+        "kind": "qualification-proposition",
+        "proposition": "qualified-no-normative-impact",
+    },
+    "turnlock.predicate:QualifiedNonMateriality@1": {
+        "kind": "qualification-proposition",
+        "proposition": "qualified-non-materiality",
+    },
+    "turnlock.predicate:QualifiedPositiveMateriality@1": {
+        "kind": "qualification-anchor-candidate"
+    },
+    "turnlock.predicate:QualifiedRefutation@1": {
+        "kind": "qualification-anchor-candidate"
+    },
+    "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1": {
+        "kind": "exhaustion-proposition",
+        "proposition": "refutation-exhausted-without-qualified-refutation",
+        "subject_argument": "qualifiedPositiveMateriality",
+    },
+    "turnlock.predicate:TargetedDiscoveryStatement@1": {
+        "kind": "argument-field",
+        "field": "statement",
+    },
+    "turnlock.predicate:UniqueCorrectionExhaustion@1": {
+        "kind": "exhaustion-proposition",
+        "proposition": "unique-correction-exhausted",
+        "subject_argument": "targetedDiscoveryStatement",
+    },
+}
+
+
+def _protocol_v8_e5b_predicate_semantic_view_topology_errors(
+    predicates: dict[str, dict],
+) -> list[str]:
+    """Require the exact thirteen published C4 semantic-view definitions."""
+    prefix = "inactive protocol v8 E5-B:"
+    if set(predicates) != set(_PROTOCOL_V8_E5B_SEMANTIC_VIEWS):
+        return [f"{prefix} PredicateRevision inventory mismatch"]
+    errors: list[str] = []
+    for predicate_id, expected in _PROTOCOL_V8_E5B_SEMANTIC_VIEWS.items():
+        actual = _mapping(_mapping(predicates[predicate_id].get("definition")).get(
+            "semantic_view"
+        ))
+        if actual != expected:
+            errors.append(
+                f"{prefix} {predicate_id} semantic_view catalog drift"
+            )
+    return errors
+
+
+def _protocol_v8_e5b_qualification_proposition_fact_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    active: set[str] | None = None,
+) -> dict:
+    """Adapt the three remaining C4 qualification reducers to FactStatus."""
+    prefix = "inactive protocol v8 E5-B:"
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    predicate_id = descriptor.get("predicateRevision")
+    if predicate_id not in {
+        "turnlock.predicate:QualifiedNonMateriality@1",
+        "turnlock.predicate:QualifiedNoNormativeImpact@1",
+        "turnlock.predicate:QualifiedDecisionNecessity@1",
+    }:
+        raise ValueError(f"{prefix} unsupported qualification-proposition Fact")
+    arguments = descriptor.get("arguments")
+    if not isinstance(arguments, dict) or set(arguments) != {"qualification"}:
+        raise ValueError(f"{prefix} qualification Fact arguments mismatch")
+    qualification_ref = arguments["qualification"]
+    _protocol_v8_e3a_resolve_qualification_identity(closure, qualification_ref)
+    stack = active if active is not None else set()
+    memo: dict[str, dict] = {}
+    graph_checked: set[str] = set()
+
+    def dependency(reference: object) -> dict:
+        dependency_descriptor = _protocol_v8_e3a_resolve_fact_identity(
+            closure, reference
+        )
+        if dependency_descriptor.get("predicateRevision") not in {
+            "turnlock.predicate:TargetedDiscoveryStatement@1",
+            "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+            "turnlock.predicate:UniqueCorrectionExhaustion@1",
+            "turnlock.predicate:DecisionNecessityCandidate@1",
+        }:
+            raise ValueError(
+                f"{prefix} unsupported qualification Fact dependency"
+            )
+        return _protocol_v8_e3c3_claimed_fact_dependency(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            _memo=memo,
+            _graph_checked=graph_checked,
+        )
+
+    historical = _protocol_v8_e3b_reduce_qualification(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        qualification_ref,
+        fact_dependency_resolver=dependency,
+        require_current_consumability=False,
+    )
+    current = _protocol_v8_e3b_reduce_qualification(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        qualification_ref,
+        fact_dependency_resolver=dependency,
+        require_current_consumability=True,
+    )
+    if historical is not None and historical.get("fact") != fact_ref:
+        raise ValueError(f"{prefix} qualification derived a different Fact")
+    if current is not None and current.get("fact") != fact_ref:
+        raise ValueError(f"{prefix} current qualification derived a different Fact")
+    return {
+        "reference": copy.deepcopy(fact_ref),
+        "descriptor": descriptor,
+        "reconstructible": historical is not None,
+        "consumable": current is not None,
+    }
+
+
+def _protocol_v8_e5b_fact_status(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    active: set[str] | None = None,
+    _memo: dict[str, dict] | None = None,
+) -> dict:
+    """Dispatch FactStatus through the exact closed lower-stage owner."""
+    prefix = "inactive protocol v8 E5-B:"
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    predicate_id = descriptor.get("predicateRevision")
+    if predicate_id not in _PROTOCOL_V8_E5B_SEMANTIC_VIEWS:
+        raise ValueError(f"{prefix} unsupported PredicateRevision")
+    assert isinstance(fact_ref, dict)
+    fact_id = fact_ref["factId"]
+    stack = active if active is not None else set()
+    if fact_id in stack:
+        raise ValueError(f"{prefix} unlawful semantic Fact resolution cycle")
+    memo = _memo if _memo is not None else {}
+    cached = memo.get(fact_id)
+    if isinstance(cached, dict):
+        return copy.deepcopy(cached)
+    if predicate_id in {
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        "turnlock.predicate:AcceptedRepairRealization@1",
+    }:
+        status = _protocol_v8_e4b_candidate_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+        )
+    elif predicate_id in {
+        "turnlock.predicate:QualifiedPositiveMateriality@1",
+        "turnlock.predicate:QualifiedRefutation@1",
+        "turnlock.predicate:AcceptedUniqueCorrection@1",
+    }:
+        status = _protocol_v8_e3c2_qualification_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            active=stack,
+        )
+    elif predicate_id == (
+        "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1"
+    ):
+        status = _protocol_v8_e3c2_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            active=stack,
+        )
+    elif predicate_id in {
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+    }:
+        status = _protocol_v8_e3c3_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            active=stack,
+        )
+    else:
+        status = _protocol_v8_e5b_qualification_proposition_fact_status(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            active=stack,
+        )
+    if set(status) != {
+        "reference",
+        "descriptor",
+        "reconstructible",
+        "consumable",
+    }:
+        raise ValueError(f"{prefix} lower-stage FactStatus shape mismatch")
+    memo[fact_id] = copy.deepcopy(status)
+    return status
+
+
+def _protocol_v8_e5b_qualification_anchor_candidate(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+) -> object:
+    """Project only the exact qualification anchor semantic candidate."""
+    prefix = "inactive protocol v8 E5-B:"
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    predicate_id = descriptor.get("predicateRevision")
+    if predicate_id in {
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        "turnlock.predicate:AcceptedRepairRealization@1",
+    }:
+        return _protocol_v8_e4b_candidate_anchor_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            fact_ref,
+            candidate_materialization_resolver=candidate_materialization_resolver,
+            sealed_content_resolver=sealed_content_resolver,
+        )
+    if predicate_id not in {
+        "turnlock.predicate:QualifiedPositiveMateriality@1",
+        "turnlock.predicate:QualifiedRefutation@1",
+        "turnlock.predicate:AcceptedUniqueCorrection@1",
+    }:
+        raise ValueError(f"{prefix} unsupported qualification-anchor view")
+    qualification_ref = _mapping(descriptor.get("arguments")).get(
+        "qualification"
+    )
+    qualification = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    validators = closure.get("_e3b_output_validators")
+    if not isinstance(validators, dict):
+        validators, validator_errors = _protocol_v8_e1_output_validators(root)
+        if validator_errors:
+            raise ValueError(f"{prefix} {validator_errors[0]}")
+        closure["_e3b_output_validators"] = validators
+    anchor = _protocol_v8_e3b_admission_context(
+        root,
+        closure,
+        contracts,
+        qualification.get("anchorAdmission"),
+        validators,
+    )
+    return copy.deepcopy(anchor["candidate"])
+
+
+def _protocol_v8_e5b_resolved_fact_semantic_view(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    active: set[str] | None = None,
+    _memo: dict[str, dict] | None = None,
+) -> dict:
+    """Resolve one disposable deterministic C4 Fact semantic-view record."""
+    prefix = "inactive protocol v8 E5-B:"
+    stack = active if active is not None else set()
+    memo = _memo if _memo is not None else {}
+    status = _protocol_v8_e5b_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        active=stack,
+    )
+    if status["reconstructible"] is not True or status["consumable"] is not True:
+        raise ValueError(f"{prefix} Fact is not currently consumable")
+    assert isinstance(fact_ref, dict)
+    fact_id = fact_ref["factId"]
+    cached = memo.get(fact_id)
+    if isinstance(cached, dict):
+        return copy.deepcopy(cached)
+    if fact_id in stack:
+        raise ValueError(f"{prefix} unlawful semantic Fact view cycle")
+    descriptor = status["descriptor"]
+    predicate_id = descriptor.get("predicateRevision")
+    predicate = predicates.get(predicate_id)
+    if not isinstance(predicate, dict):
+        raise ValueError(f"{prefix} PredicateRevision missing from catalog")
+    view = copy.deepcopy(
+        _mapping(_mapping(predicate.get("definition")).get("semantic_view"))
+    )
+    if view != _PROTOCOL_V8_E5B_SEMANTIC_VIEWS.get(predicate_id):
+        raise ValueError(f"{prefix} Predicate semantic_view catalog drift")
+    arguments = _mapping(descriptor.get("arguments"))
+    stack.add(fact_id)
+    try:
+        kind = view.get("kind")
+        if kind == "qualification-anchor-candidate":
+            value = _protocol_v8_e5b_qualification_anchor_candidate(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                fact_ref,
+                candidate_materialization_resolver=(
+                    candidate_materialization_resolver
+                ),
+                sealed_content_resolver=sealed_content_resolver,
+            )
+        elif kind == "argument-field":
+            field = view.get("field")
+            if field not in arguments:
+                raise ValueError(f"{prefix} argument-field source missing")
+            value = copy.deepcopy(arguments[field])
+        elif kind == "referenced-targeted-statement":
+            source = view.get("source_argument")
+            target_ref = arguments.get(source)
+            target = _protocol_v8_e5b_resolved_fact_semantic_view(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                target_ref,
+                candidate_materialization_resolver=(
+                    candidate_materialization_resolver
+                ),
+                sealed_content_resolver=sealed_content_resolver,
+                active=stack,
+                _memo=memo,
+            )
+            value = copy.deepcopy(target["value"])
+            if _mapping(value).get("semantic_disposition") != "decision-required":
+                raise ValueError(
+                    f"{prefix} referenced target is not decision-required"
+                )
+        elif kind == "decision-necessity-candidate":
+            value = _protocol_v8_e3c3_decision_necessity_view(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                fact_ref,
+            )
+            if set(value) != {"kind", "basis"} or value.get("kind") != (
+                "decision-necessity-candidate"
+            ):
+                raise ValueError(f"{prefix} DecisionNecessity view mismatch")
+        elif kind == "qualification-proposition":
+            value = view.get("proposition")
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{prefix} qualification proposition missing")
+        elif kind == "exhaustion-proposition":
+            subject_argument = view.get("subject_argument")
+            subject_fact = arguments.get(subject_argument)
+            if not isinstance(subject_fact, dict):
+                raise ValueError(f"{prefix} exhaustion subject Fact missing")
+            value = {
+                "proposition": view.get("proposition"),
+                "subjectArgument": subject_argument,
+                "subjectFact": copy.deepcopy(subject_fact),
+            }
+        else:
+            raise ValueError(f"{prefix} unsupported semantic-view kind")
+    finally:
+        stack.remove(fact_id)
+    result = {
+        "predicateRevision": predicate_id,
+        "viewDefinition": view,
+        "value": value,
+    }
+    if set(result) != {"predicateRevision", "viewDefinition", "value"}:
+        raise ValueError(f"{prefix} semantic-view record shape mismatch")
+    memo[fact_id] = copy.deepcopy(result)
+    return result
+
+
+def _protocol_v8_e5b_direct_fact_context_lift(
+    root: Path,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    consumer_contract_id: str,
+    logical_input_name: str,
+    fact_ref: object,
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+) -> dict | None:
+    """Apply only the C6 NoNormativeImpactChallenge direct-Fact lift."""
+    prefix = "inactive protocol v8 E5-B:"
+    if (
+        consumer_contract_id != "turnlock.sqc:NoNormativeImpactChallenge@1"
+        or logical_input_name != "targetedDiscoveryStatement"
+    ):
+        return None
+    status = _protocol_v8_e5b_fact_status(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+    )
+    if status["descriptor"].get("predicateRevision") != (
+        "turnlock.predicate:TargetedDiscoveryStatement@1"
+    ):
+        raise ValueError(f"{prefix} NNI lift requires exact Targeted Fact")
+    if status["reconstructible"] is not True or status["consumable"] is not True:
+        raise ValueError(f"{prefix} NNI target Fact is not consumable")
+    target_view = _protocol_v8_e5b_resolved_fact_semantic_view(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        fact_ref,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+    )
+    statement = target_view["value"]
+    if _mapping(statement).get("semantic_disposition") != "no-normative-impact":
+        raise ValueError(f"{prefix} NNI lift target disposition mismatch")
+    producer_ref = _mapping(status["descriptor"].get("arguments")).get(
+        "producerDiscovery"
+    )
+    producer = _protocol_v8_e3a_resolve_admission_identity(closure, producer_ref)
+    producer_descriptor = _protocol_v8_e3a_resolve_qlek(
+        closure, contracts, producer.get("qlek")
+    )
+    if producer_descriptor.get("semanticQuestionContract") not in {
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        "turnlock.sqc:DiscoveryNoNormativeImpactRevision@1",
+    }:
+        raise ValueError(f"{prefix} NNI lift producer contract mismatch")
+    producer_inputs = producer_descriptor.get("exactLogicalInput")
+    if not isinstance(producer_inputs, dict):
+        raise ValueError(f"{prefix} NNI producer logical input missing")
+    surviving_ref = producer_inputs.get("survivingMaterialBasis")
+    surviving = _protocol_v8_e3a_resolve_semantic_value(closure, surviving_ref)
+    if surviving.get("valueType") != (
+        "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    ):
+        raise ValueError(f"{prefix} NNI producer SM type mismatch")
+    return {
+        "rootBasis": _protocol_v8_e5a_surviving_material_root_basis(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            surviving_ref,
+            finding_closure_resolver,
+        ),
+        "targetedStatement": copy.deepcopy(statement),
+    }
+
+
+def _inactive_protocol_v8_e5b_fact_semantic_view_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise all thirteen exact C4 Fact views and the sole C6 lift."""
+    prefix = "inactive protocol v8 E5-B:"
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    validators, validator_errors = _protocol_v8_e1_output_validators(root)
+    errors.extend(f"{prefix} {error}" for error in catalog_errors)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in validator_errors)
+    errors.extend(_protocol_v8_e5b_predicate_semantic_view_topology_errors(predicates))
+    if errors:
+        return errors
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            action()
+        except (TypeError, ValueError) as error:
+            if required is not None and required not in str(error):
+                errors.append(f"{prefix} {label} rejected without {required!r}")
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    def contains(value: object, marker: str) -> bool:
+        if isinstance(value, str):
+            return marker in value
+        if isinstance(value, dict):
+            return any(contains(key, marker) or contains(item, marker) for key, item in value.items())
+        if isinstance(value, list):
+            return any(contains(item, marker) for item in value)
+        return False
+
+    normative_text = "E5-B normative authority\n"
+    subject_payload = {
+        "subject_schema_version": 1,
+        "selector": "gate-a-assurance-decomposition-v1",
+        "authority": {
+            "normative_spec": {
+                "path": "docs/specification/turnlock-spec.md",
+                "sha256": sha256_hex(normative_text.encode("utf-8")),
+            },
+            "architecture_decisions": [],
+            "abstraction_constraints": [],
+        },
+        "formal_assurance_context": {
+            "schema_version": 7,
+            "project": "turnlock-rust",
+            "formal_semantic_domains": [],
+            "behavioral_modalities": [],
+            "assurance_domains": [],
+        },
+        "claims": [],
+        "normative_coverage": [],
+    }
+    subject_sha = sha256_hex(_canonical_json_bytes(subject_payload))
+    review_packet = {
+        "packet_schema_version": 1,
+        "subject": {
+            "subject_type": "derived",
+            "selector": subject_payload["selector"],
+            "sha256": subject_sha,
+        },
+        "subject_payload": subject_payload,
+        "authority_contents": [
+            {
+                "role": "normative-spec",
+                "id": None,
+                "path": "docs/specification/turnlock-spec.md",
+                "sha256": sha256_hex(normative_text.encode("utf-8")),
+                "content_utf8": normative_text,
+            }
+        ],
+    }
+    current_protocol = {
+        "protocolId": "gate-a-campaign-protocol-v8",
+        "bundleSha256": "8" * 64,
+    }
+    finding = {
+        "finding_id": "E5B-FINDING",
+        "sources": [
+            {
+                "reviewer_execution_id": "E5B-REVIEWER",
+                "raw_finding_id": "E5B-RAW",
+            }
+        ],
+        "statement": "E5-B substantive finding",
+        "argument": "E5-B exact finding argument",
+        "counterexample": None,
+    }
+    fa_adapters: dict[str, dict] = {}
+
+    def new_closure() -> dict:
+        closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+        closure["_e3b_output_validators"] = validators
+        return closure
+
+    def register_fa(closure: dict, label: str) -> dict:
+        value = {
+            "schema": "turnlock.finding-adjudication-basis.v1",
+            "semanticSubject": {
+                "selector": subject_payload["selector"],
+                "sha256": subject_sha,
+            },
+            "currentProtocol": copy.deepcopy(current_protocol),
+            "sourceFinding": {
+                "reviewCampaignId": f"E5B-CAMPAIGN-{label}",
+                "findingId": finding["finding_id"],
+                "substantiveFindingSha256": _finding_subject_sha256(finding),
+            },
+        }
+        reference = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:FindingAdjudicationBasis@1",
+            value,
+        )
+        fa_adapters[reference["valueId"]] = {
+            "review_packet": copy.deepcopy(review_packet),
+            "current_protocol": copy.deepcopy(current_protocol),
+            "source_review_campaign_id": f"E5B-CAMPAIGN-{label}",
+            "source_finding": copy.deepcopy(finding),
+        }
+        return reference
+
+    def resolve_fa(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture FA reference missing")
+        adapter = fa_adapters.get(reference.get("valueId"))
+        if adapter is None:
+            raise ValueError(f"{prefix} fixture FA closure missing")
+        return copy.deepcopy(adapter)
+
+    def admit(closure: dict, contract_id: str, inputs: dict, candidate: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract_id, inputs, candidate
+        )
+
+    def challenge(
+        closure: dict,
+        contract_id: str,
+        target_name: str,
+        target_ref: dict,
+        zero: bool,
+    ) -> dict:
+        return admit(
+            closure,
+            contract_id,
+            {target_name: copy.deepcopy(target_ref)},
+            _protocol_v8_e3b_test_challenge_candidate(contracts[contract_id], zero),
+        )
+
+    def qualification(
+        closure: dict, contract_id: str, anchor: dict, additional: dict
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            closure, qualifications, contract_id, anchor, additional
+        )
+
+    def fact(closure: dict, predicate_id: str, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(
+            closure, predicates, predicate_id, arguments
+        )
+
+    materializations: dict[str, dict] = {}
+
+    def candidate(closure: dict, candidate_id: str) -> dict:
+        reference = {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": candidate_id,
+        }
+        _protocol_v8_e3a_register_exact_authority(closure, reference)
+        materializations[candidate_id] = {
+            "gitObjectFormat": "sha1",
+            "entries": [],
+        }
+        return reference
+
+    def resolve_candidate(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture CandidateRevision missing")
+        result = materializations.get(reference.get("authorityId"))
+        if result is None:
+            raise ValueError(f"{prefix} fixture materialization missing")
+        return copy.deepcopy(result)
+
+    def resolve_content(reference: object) -> bytes:
+        raise ValueError(f"{prefix} empty fixture must not resolve content")
+
+    def view(closure: dict, reference: dict) -> dict:
+        return _protocol_v8_e5b_resolved_fact_semantic_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            reference,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+        )
+
+    positive_materiality = {
+        "authority_or_upstream_decision": True,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "the exact finding is materially relevant",
+    }
+    all_false_materiality = {
+        **positive_materiality,
+        "authority_or_upstream_decision": False,
+        "rationale": "all exact materiality axes are false",
+    }
+    refutation_candidate = {
+        "kind": "refutation-candidate",
+        "ground": "premise-false",
+        "attacked_premise_or_inference": "the exact necessary premise",
+        "evidence_references": ["E5B-REFUTATION-EVIDENCE"],
+        "argument": "the exact premise is false",
+        "counterexample_disposition": None,
+    }
+    unique_candidate = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [{"postcondition": "E5-B required state"}],
+        "derivation_claims": [
+            {
+                "claim": "authority entails the required state",
+                "requirement_ordinals": [0],
+                "authority_references": [
+                    {"kind": "authority-content", "role": "normative-spec"}
+                ],
+                "evidence_references": [{"kind": "source-finding"}],
+                "derivation_argument": "authority entails requirement zero",
+            }
+        ],
+        "alternatives_considered": [],
+        "uniqueness_argument": {
+            "authority_references": [
+                {"kind": "authority-content", "role": "normative-spec"}
+            ],
+            "argument": "no distinct compatible correction remains",
+        },
+    }
+
+    def positive_materiality_closure(label: str, refutation_mode: str) -> dict:
+        closure = new_closure()
+        fa = register_fa(closure, label)
+        materiality = admit(
+            closure,
+            "turnlock.sqc:MaterialityAssessmentInitial@1",
+            {"findingAdjudicationBasis": fa},
+            positive_materiality,
+        )
+        materiality_key = qualification(
+            closure,
+            "turnlock.qualification:MaterialityAssessmentQualification@1",
+            materiality,
+            {},
+        )
+        qpm = fact(
+            closure,
+            "turnlock.predicate:QualifiedPositiveMateriality@1",
+            {"qualification": materiality_key},
+        )
+        refutation_inputs = {
+            "findingAdjudicationBasis": fa,
+            "qualifiedPositiveMateriality": qpm,
+        }
+        if refutation_mode == "initial-not-established":
+            admit(
+                closure,
+                "turnlock.sqc:RefutationInitial@1",
+                refutation_inputs,
+                {"kind": "not-established"},
+            )
+        elif refutation_mode == "revised-challenge-objections":
+            initial = admit(
+                closure,
+                "turnlock.sqc:RefutationInitial@1",
+                refutation_inputs,
+                refutation_candidate,
+            )
+            initial_challenge = challenge(
+                closure,
+                "turnlock.sqc:RefutationChallenge@1",
+                "challengedRefutation",
+                initial,
+                False,
+            )
+            revision = admit(
+                closure,
+                "turnlock.sqc:RefutationRevision@1",
+                {
+                    **refutation_inputs,
+                    "priorRefutation": initial,
+                    "priorRefutationChallenge": initial_challenge,
+                },
+                refutation_candidate,
+            )
+            challenge(
+                closure,
+                "turnlock.sqc:RefutationChallenge@1",
+                "challengedRefutation",
+                revision,
+                False,
+            )
+        else:
+            raise ValueError(f"{prefix} unknown refutation fixture mode")
+        exhaustion = fact(
+            closure,
+            "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+            {"qualifiedPositiveMateriality": qpm},
+        )
+        surviving_value = {
+            "schema": "turnlock.surviving-material-basis.v1",
+            "findingAdjudicationBasis": fa,
+            "qualifiedPositiveMateriality": qpm,
+            "refutationExhaustionWithoutQualifiedRefutation": exhaustion,
+        }
+        surviving = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            surviving_value,
+        )
+        return {
+            "closure": closure,
+            "fa": fa,
+            "materiality": materiality,
+            "qpm": qpm,
+            "exhaustion": exhaustion,
+            "surviving": surviving,
+        }
+
+    main = positive_materiality_closure("MAIN", "initial-not-established")
+    closure = main["closure"]
+    nni_marker = "E5B-INITIAL-NNI-MARKER"
+    sibling_marker = "UNIQUE-SIBLING-E5B-MARKER"
+    decision_basis_marker = "E5B-EXACT-DECISION-BASIS"
+    nni_statement = {
+        "statement": nni_marker,
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "exact NNI evidence",
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": "none required",
+            "changed_product_authority_not_required_argument": "none changed",
+            "product_meaning_selection_not_required_argument": "none selected",
+            "accepted_observable_obligation_change_not_required_argument": (
+                "no accepted obligation changes"
+            ),
+        },
+    }
+    decision_statement = {
+        "statement": sibling_marker,
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "exact decision evidence",
+        "existing_authority": [],
+        "affected_layers": ["normative-contract"],
+        "semantic_disposition": "decision-required",
+        "disposition_basis": {
+            "kind": "product-underdetermination",
+            "alternatives": [
+                {
+                    "alternative": "E5B-A",
+                    "authority_compatibility_argument": "A is compatible",
+                },
+                {
+                    "alternative": "E5B-B",
+                    "authority_compatibility_argument": "B is compatible",
+                },
+            ],
+            "material_distinction_argument": decision_basis_marker,
+            "current_authority_non_selection_argument": "authority selects neither",
+        },
+    }
+    discovery_candidate = {
+        "earliest_unresolved_cause": {
+            "classification_statement_ordinal": 0,
+            "evidence_references": [{"kind": "source-finding"}],
+            "causal_explanation": "the exact NNI statement is earliest",
+            "upstream_exclusion_argument": "no earlier cause exists",
+        },
+        "classification_statements": [
+            copy.deepcopy(nni_statement),
+            copy.deepcopy(decision_statement),
+        ],
+    }
+    discovery = admit(
+        closure,
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": main["surviving"]},
+        discovery_candidate,
+    )
+    nni_target = fact(
+        closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": nni_statement},
+    )
+    decision_target = fact(
+        closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": discovery, "statement": decision_statement},
+    )
+    decision_required = fact(
+        closure,
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        {"targetedDiscoveryStatement": decision_target},
+    )
+    uc_not_established = admit(
+        closure,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "discovery": discovery,
+            "survivingMaterialBasis": main["surviving"],
+            "targetedDiscoveryStatement": decision_target,
+        },
+        {"kind": "not-established"},
+    )
+    uc_exhaustion = fact(
+        closure,
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        {"targetedDiscoveryStatement": decision_target},
+    )
+    necessity = fact(
+        closure,
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "decisionRequiredStatement": decision_required,
+            "uniqueCorrectionExhaustion": uc_exhaustion,
+        },
+    )
+    dn_challenge = admit(
+        closure,
+        "turnlock.sqc:DecisionNecessityChallenge@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "decisionRequiredStatement": decision_required,
+            "uniqueCorrectionExhaustion": uc_exhaustion,
+            "decisionNecessityCandidate": necessity,
+        },
+        _protocol_v8_e3b_test_challenge_candidate(
+            contracts["turnlock.sqc:DecisionNecessityChallenge@1"], True
+        ),
+    )
+    dn_key = qualification(
+        closure,
+        "turnlock.qualification:DecisionNecessityQualification@1",
+        discovery,
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "decisionRequiredStatement": decision_required,
+            "uniqueCorrectionExhaustion": uc_exhaustion,
+            "decisionNecessityCandidate": necessity,
+            "decisionNecessityChallenge": dn_challenge,
+        },
+    )
+    qualified_dn = fact(
+        closure,
+        "turnlock.predicate:QualifiedDecisionNecessity@1",
+        {"qualification": dn_key},
+    )
+
+    revised_closure = copy.deepcopy(closure)
+    nni_objection = challenge(
+        revised_closure,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        "targetedDiscoveryStatement",
+        nni_target,
+        False,
+    )
+    revised_marker = "E5B-REVISED-NNI-MARKER"
+    revised_nni = copy.deepcopy(nni_statement)
+    revised_nni["statement"] = revised_marker
+    revised_discovery = admit(
+        revised_closure,
+        "turnlock.sqc:DiscoveryNoNormativeImpactRevision@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "priorNoNormativeImpactStatement": nni_target,
+            "priorNoNormativeImpactChallenge": nni_objection,
+        },
+        {"kind": "revised-candidate", "statement": revised_nni},
+    )
+    revised_target = fact(
+        revised_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {"producerDiscovery": revised_discovery, "statement": revised_nni},
+    )
+
+    nni_zero = challenge(
+        closure,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        "targetedDiscoveryStatement",
+        nni_target,
+        True,
+    )
+    nni_key = qualification(
+        closure,
+        "turnlock.qualification:NoNormativeImpactQualification@1",
+        discovery,
+        {
+            "targetedDiscoveryStatement": nni_target,
+            "noNormativeImpactChallenge": nni_zero,
+        },
+    )
+    qualified_nni = fact(
+        closure,
+        "turnlock.predicate:QualifiedNoNormativeImpact@1",
+        {"qualification": nni_key},
+    )
+
+    uc_anchor = admit(
+        closure,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "discovery": discovery,
+            "survivingMaterialBasis": main["surviving"],
+            "targetedDiscoveryStatement": nni_target,
+        },
+        unique_candidate,
+    )
+    uc_zero = challenge(
+        closure,
+        "turnlock.sqc:UniqueCorrectionChallenge@1",
+        "challengedUniqueCorrection",
+        uc_anchor,
+        True,
+    )
+    uc_key = qualification(
+        closure,
+        "turnlock.qualification:UniqueCorrectionQualification@1",
+        uc_anchor,
+        {"uniqueCorrectionChallenge": uc_zero},
+    )
+    accepted_uc = fact(
+        closure,
+        "turnlock.predicate:AcceptedUniqueCorrection@1",
+        {"qualification": uc_key},
+    )
+
+    c17 = candidate(closure, "C17")
+    complete_view = _protocol_v8_e4a_construct_candidate_view(
+        closure,
+        c17,
+        {"kind": "complete"},
+        resolve_candidate,
+        resolve_content,
+    )
+    complete_view_ref = _protocol_v8_e4a_register_candidate_view(
+        closure, complete_view
+    )
+    rs_candidate = {
+        "readable_paths": [],
+        "writable_paths": [],
+        "completeness_argument": {
+            "requirement_surfaces": [
+                {
+                    "requirement_ordinal": 0,
+                    "surface_paths": [],
+                    "argument": "requirement zero is already realized",
+                }
+            ],
+            "whole_scope_argument": "no physical surface is required",
+        },
+        "minimal_write_authority_argument": {
+            "writable_path_justifications": [],
+            "no_additional_write_authority_argument": "no writes are required",
+        },
+    }
+    rs_anchor = admit(
+        closure,
+        "turnlock.sqc:RealizationScopeInitial@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "acceptedUniqueCorrection": accepted_uc,
+            "candidateRevision": c17,
+            "completeCandidateView": complete_view_ref,
+        },
+        rs_candidate,
+    )
+    rs_zero = challenge(
+        closure,
+        "turnlock.sqc:RealizationScopeChallenge@1",
+        "challengedRealizationScope",
+        rs_anchor,
+        True,
+    )
+    rs_key = qualification(
+        closure,
+        "turnlock.qualification:RealizationScopeQualification@1",
+        rs_anchor,
+        {"realizationScopeChallenge": rs_zero},
+    )
+    accepted_rs = fact(
+        closure,
+        "turnlock.predicate:AcceptedRealizationScope@1",
+        {"qualification": rs_key},
+    )
+    scoped_view = _protocol_v8_e4a_construct_candidate_view(
+        closure,
+        c17,
+        _protocol_v8_e4a_canonical_readable_coverage([]),
+        resolve_candidate,
+        resolve_content,
+    )
+    scoped_view_ref = _protocol_v8_e4a_register_candidate_view(
+        closure, scoped_view
+    )
+    rr_candidate = {
+        "kind": "repair-realization-candidate",
+        "requirement_realizations": [
+            {
+                "requirement_ordinal": 0,
+                "kind": "already-realized",
+                "already_realized_argument": "requirement zero is already realized",
+            }
+        ],
+        "operations": [],
+    }
+    rr_anchor = admit(
+        closure,
+        "turnlock.sqc:RepairRealizationInitial@1",
+        {
+            "survivingMaterialBasis": main["surviving"],
+            "acceptedUniqueCorrection": accepted_uc,
+            "acceptedRealizationScope": accepted_rs,
+            "candidateRevision": c17,
+            "scopedCandidateView": scoped_view_ref,
+        },
+        rr_candidate,
+    )
+    rr_zero = challenge(
+        closure,
+        "turnlock.sqc:RepairRealizationChallenge@1",
+        "challengedRepairRealization",
+        rr_anchor,
+        True,
+    )
+    rr_key = qualification(
+        closure,
+        "turnlock.qualification:RepairRealizationQualification@1",
+        rr_anchor,
+        {"repairRealizationChallenge": rr_zero},
+    )
+    accepted_rr = fact(
+        closure,
+        "turnlock.predicate:AcceptedRepairRealization@1",
+        {"qualification": rr_key},
+    )
+
+    nonmaterial_closure = new_closure()
+    nonmaterial_fa = register_fa(nonmaterial_closure, "NONMATERIAL")
+    nonmaterial_anchor = admit(
+        nonmaterial_closure,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": nonmaterial_fa},
+        all_false_materiality,
+    )
+    nonmaterial_zero = challenge(
+        nonmaterial_closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        "challengedMaterialityAssessment",
+        nonmaterial_anchor,
+        True,
+    )
+    nonmaterial_key = qualification(
+        nonmaterial_closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        nonmaterial_anchor,
+        {"materialityChallenge": nonmaterial_zero},
+    )
+    qualified_nonmaterial = fact(
+        nonmaterial_closure,
+        "turnlock.predicate:QualifiedNonMateriality@1",
+        {"qualification": nonmaterial_key},
+    )
+
+    refutation_closure = new_closure()
+    refutation_fa = register_fa(refutation_closure, "REFUTATION")
+    ref_materiality = admit(
+        refutation_closure,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": refutation_fa},
+        positive_materiality,
+    )
+    ref_materiality_key = qualification(
+        refutation_closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        ref_materiality,
+        {},
+    )
+    ref_qpm = fact(
+        refutation_closure,
+        "turnlock.predicate:QualifiedPositiveMateriality@1",
+        {"qualification": ref_materiality_key},
+    )
+    ref_anchor = admit(
+        refutation_closure,
+        "turnlock.sqc:RefutationInitial@1",
+        {
+            "findingAdjudicationBasis": refutation_fa,
+            "qualifiedPositiveMateriality": ref_qpm,
+        },
+        refutation_candidate,
+    )
+    ref_zero = challenge(
+        refutation_closure,
+        "turnlock.sqc:RefutationChallenge@1",
+        "challengedRefutation",
+        ref_anchor,
+        True,
+    )
+    ref_key = qualification(
+        refutation_closure,
+        "turnlock.qualification:RefutationQualification@1",
+        ref_anchor,
+        {"refutationChallenge": ref_zero},
+    )
+    qualified_refutation = fact(
+        refutation_closure,
+        "turnlock.predicate:QualifiedRefutation@1",
+        {"qualification": ref_key},
+    )
+
+    expected = {
+        "turnlock.predicate:AcceptedRealizationScope@1": (closure, accepted_rs, rs_candidate),
+        "turnlock.predicate:AcceptedRepairRealization@1": (closure, accepted_rr, rr_candidate),
+        "turnlock.predicate:AcceptedUniqueCorrection@1": (closure, accepted_uc, unique_candidate),
+        "turnlock.predicate:DecisionNecessityCandidate@1": (
+            closure,
+            necessity,
+            {
+                "kind": "decision-necessity-candidate",
+                "basis": copy.deepcopy(decision_statement["disposition_basis"]),
+            },
+        ),
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1": (
+            closure,
+            decision_required,
+            decision_statement,
+        ),
+        "turnlock.predicate:QualifiedDecisionNecessity@1": (
+            closure,
+            qualified_dn,
+            "qualified-decision-necessity",
+        ),
+        "turnlock.predicate:QualifiedNoNormativeImpact@1": (
+            closure,
+            qualified_nni,
+            "qualified-no-normative-impact",
+        ),
+        "turnlock.predicate:QualifiedNonMateriality@1": (
+            nonmaterial_closure,
+            qualified_nonmaterial,
+            "qualified-non-materiality",
+        ),
+        "turnlock.predicate:QualifiedPositiveMateriality@1": (
+            closure,
+            main["qpm"],
+            positive_materiality,
+        ),
+        "turnlock.predicate:QualifiedRefutation@1": (
+            refutation_closure,
+            qualified_refutation,
+            refutation_candidate,
+        ),
+        "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1": (
+            closure,
+            main["exhaustion"],
+            {
+                "proposition": "refutation-exhausted-without-qualified-refutation",
+                "subjectArgument": "qualifiedPositiveMateriality",
+                "subjectFact": main["qpm"],
+            },
+        ),
+        "turnlock.predicate:TargetedDiscoveryStatement@1": (
+            closure,
+            nni_target,
+            nni_statement,
+        ),
+        "turnlock.predicate:UniqueCorrectionExhaustion@1": (
+            closure,
+            uc_exhaustion,
+            {
+                "proposition": "unique-correction-exhausted",
+                "subjectArgument": "targetedDiscoveryStatement",
+                "subjectFact": decision_target,
+            },
+        ),
+    }
+    resolved: dict[str, dict] = {}
+    for predicate_id, (fixture_closure, reference, expected_value) in expected.items():
+        try:
+            first = view(fixture_closure, reference)
+            second = view(fixture_closure, reference)
+        except ValueError as error:
+            errors.append(f"{prefix} {predicate_id} positive view raised: {error}")
+            continue
+        expected_record = {
+            "predicateRevision": predicate_id,
+            "viewDefinition": copy.deepcopy(_PROTOCOL_V8_E5B_SEMANTIC_VIEWS[predicate_id]),
+            "value": copy.deepcopy(expected_value),
+        }
+        if first != expected_record or second != first or set(first) != {
+            "predicateRevision",
+            "viewDefinition",
+            "value",
+        }:
+            errors.append(f"{prefix} {predicate_id} semantic-view mismatch")
+        resolved[predicate_id] = first
+    if set(resolved) != set(_PROTOCOL_V8_E5B_SEMANTIC_VIEWS):
+        errors.append(f"{prefix} oracle did not resolve all thirteen Predicates")
+    if resolved.get("turnlock.predicate:DecisionRequiredDiscoveryStatement@1", {}).get(
+        "value"
+    ) != decision_statement or resolved.get(
+        "turnlock.predicate:DecisionNecessityCandidate@1", {}
+    ).get("value", {}).get("basis") != decision_statement["disposition_basis"]:
+        errors.append(f"{prefix} exact decision disposition basis was not preserved")
+
+    provenance_forbidden = {
+        "receipt",
+        "ExecutionId",
+        "run",
+        "root",
+        "originWitness",
+        "provider",
+        "model",
+        "proofBranch",
+        "repositoryPath",
+        "supplement",
+        "factId",
+        "qualificationKey",
+        "admissionId",
+        "qlek",
+        "candidateRevision",
+        "candidateId",
+        "CandidateRevisionId",
+        "CandidateView",
+    }
+
+    def keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            result = set(value)
+            for child in value.values():
+                result.update(keys(child))
+            return result
+        if isinstance(value, list):
+            result: set[str] = set()
+            for child in value:
+                result.update(keys(child))
+            return result
+        return set()
+
+    for predicate_id, record in resolved.items():
+        value_keys = keys(record.get("value"))
+        allowed_fact_ref = predicate_id in {
+            "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+            "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        }
+        forbidden = provenance_forbidden - ({"factId"} if allowed_fact_ref else set())
+        if value_keys.intersection(forbidden):
+            errors.append(f"{prefix} {predicate_id} semantic value leaked provenance")
+
+    before_rs = view(closure, accepted_rs)
+    before_rr = view(closure, accepted_rr)
+    candidate(closure, "C18")
+    if view(closure, accepted_rs) != before_rs or view(closure, accepted_rr) != before_rr:
+        errors.append(f"{prefix} candidate advance changed historical Fact view")
+
+    branch_two = positive_materiality_closure(
+        "MAIN", "revised-challenge-objections"
+    )
+    branch_one_view = view(closure, main["exhaustion"])
+    branch_two_view = view(branch_two["closure"], branch_two["exhaustion"])
+    if main["exhaustion"] != branch_two["exhaustion"] or branch_one_view != branch_two_view:
+        errors.append(f"{prefix} refutation proof branch changed Fact view")
+    if contains(branch_one_view, "initial-not-established") or contains(
+        branch_two_view, "revised-challenge-objections"
+    ):
+        errors.append(f"{prefix} exhaustion view exposed proof branch")
+
+    quarantined = copy.deepcopy(closure)
+    materiality_record = _protocol_v8_e3a_resolve_admission_identity(
+        quarantined, main["materiality"]
+    )
+    conflicting_materiality = copy.deepcopy(positive_materiality)
+    conflicting_materiality["claim_structure"] = True
+    conflict_id = _protocol_v8_e1_semantic_admission_id(
+        materiality_record["qlek"], conflicting_materiality
+    )
+    conflict_token = _protocol_v8_e2_validated_witness_token(
+        materiality_record["qlek"],
+        conflict_id,
+        conflicting_materiality,
+        "IMPORTED-E5-B-CONFLICT",
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        quarantined["e2_state"],
+        materiality_record["qlek"],
+        semantic_candidate=conflicting_materiality,
+        validated_origin_witness=conflict_token,
+    )
+    quarantined_status = _protocol_v8_e5b_fact_status(
+        root,
+        quarantined,
+        contracts,
+        predicates,
+        qualifications,
+        main["qpm"],
+        candidate_materialization_resolver=resolve_candidate,
+        sealed_content_resolver=resolve_content,
+    )
+    if quarantined_status["reconstructible"] is not True or quarantined_status[
+        "consumable"
+    ] is not False:
+        errors.append(f"{prefix} non-consumable fixture did not preserve history")
+    expect_rejected(
+        "non-consumable Fact cognitive use",
+        lambda: view(quarantined, main["qpm"]),
+        "not currently consumable",
+    )
+
+    false_proof_closure = new_closure()
+    false_fa = register_fa(false_proof_closure, "FALSE-PROOF")
+    false_anchor = admit(
+        false_proof_closure,
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        {"findingAdjudicationBasis": false_fa},
+        all_false_materiality,
+    )
+    false_challenge = challenge(
+        false_proof_closure,
+        "turnlock.sqc:MaterialityChallenge@1",
+        "challengedMaterialityAssessment",
+        false_anchor,
+        False,
+    )
+    false_key = qualification(
+        false_proof_closure,
+        "turnlock.qualification:MaterialityAssessmentQualification@1",
+        false_anchor,
+        {"materialityChallenge": false_challenge},
+    )
+    false_fact = fact(
+        false_proof_closure,
+        "turnlock.predicate:QualifiedNonMateriality@1",
+        {"qualification": false_key},
+    )
+    expect_rejected(
+        "self-asserted qualification proposition",
+        lambda: view(false_proof_closure, false_fact),
+        "not currently consumable",
+    )
+
+    initial_root = _protocol_v8_e5a_surviving_material_root_basis(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        main["surviving"],
+        resolve_fa,
+    )
+    initial_lift = _protocol_v8_e5b_direct_fact_context_lift(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        "targetedDiscoveryStatement",
+        nni_target,
+        candidate_materialization_resolver=resolve_candidate,
+        sealed_content_resolver=resolve_content,
+        finding_closure_resolver=resolve_fa,
+    )
+    if initial_lift != {
+        "rootBasis": initial_root,
+        "targetedStatement": nni_statement,
+    } or contains(initial_lift, sibling_marker):
+        errors.append(f"{prefix} initial NNI context lift mismatch or sibling leak")
+    if view(closure, nni_target)["value"] != nni_statement or "rootBasis" in view(
+        closure, nni_target
+    )["value"]:
+        errors.append(f"{prefix} generic Targeted view acquired SM context")
+
+    revised_lift = _protocol_v8_e5b_direct_fact_context_lift(
+        root,
+        revised_closure,
+        contracts,
+        predicates,
+        qualifications,
+        "turnlock.sqc:NoNormativeImpactChallenge@1",
+        "targetedDiscoveryStatement",
+        revised_target,
+        candidate_materialization_resolver=resolve_candidate,
+        sealed_content_resolver=resolve_content,
+        finding_closure_resolver=resolve_fa,
+    )
+    if revised_lift != {
+        "rootBasis": initial_root,
+        "targetedStatement": revised_nni,
+    } or any(
+        contains(revised_lift, marker)
+        for marker in (nni_marker, sibling_marker, "test objection")
+    ):
+        errors.append(f"{prefix} revised NNI context lift leaked prior cognition")
+
+    expect_rejected(
+        "wrong NNI disposition",
+        lambda: _protocol_v8_e5b_direct_fact_context_lift(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            "turnlock.sqc:NoNormativeImpactChallenge@1",
+            "targetedDiscoveryStatement",
+            decision_target,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            finding_closure_resolver=resolve_fa,
+        ),
+        "disposition mismatch",
+    )
+    wrong_base = positive_materiality_closure(
+        "WRONG-PRODUCER", "initial-not-established"
+    )
+    wrong_producer_closure = wrong_base["closure"]
+    wrong_initial_discovery = admit(
+        wrong_producer_closure,
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        {"survivingMaterialBasis": wrong_base["surviving"]},
+        {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": "the exact decision statement is earliest",
+                "upstream_exclusion_argument": "no earlier cause exists",
+            },
+            "classification_statements": [copy.deepcopy(decision_statement)],
+        },
+    )
+    wrong_initial_target = fact(
+        wrong_producer_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {
+            "producerDiscovery": wrong_initial_discovery,
+            "statement": decision_statement,
+        },
+    )
+    wrong_initial_decision = fact(
+        wrong_producer_closure,
+        "turnlock.predicate:DecisionRequiredDiscoveryStatement@1",
+        {"targetedDiscoveryStatement": wrong_initial_target},
+    )
+    admit(
+        wrong_producer_closure,
+        "turnlock.sqc:UniqueCorrectionInitial@1",
+        {
+            "discovery": wrong_initial_discovery,
+            "survivingMaterialBasis": wrong_base["surviving"],
+            "targetedDiscoveryStatement": wrong_initial_target,
+        },
+        {"kind": "not-established"},
+    )
+    wrong_uc_exhaustion = fact(
+        wrong_producer_closure,
+        "turnlock.predicate:UniqueCorrectionExhaustion@1",
+        {"targetedDiscoveryStatement": wrong_initial_target},
+    )
+    wrong_necessity = fact(
+        wrong_producer_closure,
+        "turnlock.predicate:DecisionNecessityCandidate@1",
+        {
+            "survivingMaterialBasis": wrong_base["surviving"],
+            "decisionRequiredStatement": wrong_initial_decision,
+            "uniqueCorrectionExhaustion": wrong_uc_exhaustion,
+        },
+    )
+    decision_objection = admit(
+        wrong_producer_closure,
+        "turnlock.sqc:DecisionNecessityChallenge@1",
+        {
+            "survivingMaterialBasis": wrong_base["surviving"],
+            "decisionRequiredStatement": wrong_initial_decision,
+            "uniqueCorrectionExhaustion": wrong_uc_exhaustion,
+            "decisionNecessityCandidate": wrong_necessity,
+        },
+        _protocol_v8_e3b_test_challenge_candidate(
+            contracts["turnlock.sqc:DecisionNecessityChallenge@1"], False
+        ),
+    )
+    decision_revision_statement = copy.deepcopy(decision_statement)
+    decision_revision_statement["statement"] = "E5B-WRONG-NNI-PRODUCER"
+    wrong_producer = admit(
+        wrong_producer_closure,
+        "turnlock.sqc:DiscoveryDecisionRequiredRevision@1",
+        {
+            "survivingMaterialBasis": wrong_base["surviving"],
+            "priorDecisionRequiredStatement": wrong_initial_decision,
+            "priorDecisionNecessityCandidate": wrong_necessity,
+            "priorDecisionNecessityChallenge": decision_objection,
+        },
+        {"kind": "revised-candidate", "statement": decision_revision_statement},
+    )
+    wrong_producer_lift = fact(
+        wrong_producer_closure,
+        "turnlock.predicate:TargetedDiscoveryStatement@1",
+        {
+            "producerDiscovery": wrong_producer,
+            "statement": decision_revision_statement,
+        },
+    )
+    expect_rejected(
+        "wrong NNI producer family",
+        lambda: _protocol_v8_e5b_direct_fact_context_lift(
+            root,
+            wrong_producer_closure,
+            contracts,
+            predicates,
+            qualifications,
+            "turnlock.sqc:NoNormativeImpactChallenge@1",
+            "targetedDiscoveryStatement",
+            wrong_producer_lift,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            finding_closure_resolver=resolve_fa,
+        ),
+    )
+
+    no_lift_cases = (
+        ("turnlock.sqc:UniqueCorrectionInitial@1", "targetedDiscoveryStatement", nni_target),
+        ("turnlock.sqc:DecisionNecessityChallenge@1", "decisionRequiredStatement", decision_required),
+        ("turnlock.sqc:RealizationScopeInitial@1", "acceptedUniqueCorrection", accepted_uc),
+        ("turnlock.sqc:RepairRealizationInitial@1", "acceptedRealizationScope", accepted_rs),
+    )
+    for contract_id, input_name, reference in no_lift_cases:
+        if _protocol_v8_e5b_direct_fact_context_lift(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            contract_id,
+            input_name,
+            reference,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            finding_closure_resolver=resolve_fa,
+        ) is not None:
+            errors.append(f"{prefix} default direct-Fact context lift was not None")
+
+    drifted = copy.deepcopy(predicates)
+    drifted["turnlock.predicate:TargetedDiscoveryStatement@1"]["definition"][
+        "semantic_view"
+    ]["field"] = "producerDiscovery"
+    if not _protocol_v8_e5b_predicate_semantic_view_topology_errors(drifted):
+        errors.append(f"{prefix} predicate semantic-view topology drift was accepted")
+    expect_rejected(
+        "exact Fact view cycle",
+        lambda: _protocol_v8_e5b_resolved_fact_semantic_view(
+            root,
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            nni_target,
+            candidate_materialization_resolver=resolve_candidate,
+            sealed_content_resolver=resolve_content,
+            active={nni_target["factId"]},
+        ),
+        "cycle",
+    )
+
+    forbidden_fragments = {
+        "admission_cognitive_snapshot",
+        "cognitive_packet",
+        "citation_catalog",
+        "contract_presentation",
+        "cognitive_constraints",
+        "packet_seal",
+        "origin_witness",
+        "review_evidence_v6",
+        "supplement_v2",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e5b_")
+        and any(fragment in name for fragment in forbidden_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} forbidden later-stage helper was introduced")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -22687,6 +24427,9 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_semantic_oracle_errors(root))
     errors.extend(
         _inactive_protocol_v8_e5a_cognitive_basis_projection_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e5b_fact_semantic_view_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
