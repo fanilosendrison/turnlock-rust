@@ -20564,6 +20564,1534 @@ def _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(
     return errors
 
 
+_PROTOCOL_V8_E5D_TARGET_STATEMENT_FIELDS = {
+    "targetedDiscoveryStatement",
+    "priorNoNormativeImpactStatement",
+    "decisionRequiredStatement",
+    "priorDecisionRequiredStatement",
+}
+_PROTOCOL_V8_E5D_CITATION_REFERENCE_FIELDS = {
+    "evidence_references",
+    "authority_references",
+    "existing_authority",
+}
+
+
+def _protocol_v8_e5d_structured_citation_validator(
+    root: Path,
+) -> tuple[Draft202012Validator | None, list[str]]:
+    """Compile only the published structuredCitation definition."""
+    prefix = "inactive protocol v8 E5-D:"
+    try:
+        schema = json.loads(
+            (root / PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
+            .read_text(encoding="utf-8")
+        )
+        validator = Draft202012Validator(
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$defs": schema["$defs"],
+                "$ref": "#/$defs/structuredCitation",
+            },
+            format_checker=FormatChecker(),
+        )
+    except (KeyError, OSError, UnicodeError, json.JSONDecodeError, SchemaError) as error:
+        return None, [f"{prefix} published structured-citation schema load failed: {error}"]
+    return validator, []
+
+
+def _protocol_v8_e5d_canonical_handle_from_structured_citation(
+    citation: object,
+    validator: Draft202012Validator,
+) -> str:
+    """Map one exact published structured citation to its packet-local handle."""
+    prefix = "inactive protocol v8 E5-D:"
+    if list(validator.iter_errors(citation)):
+        raise ValueError(f"{prefix} object is not an exact structured citation")
+    value = _mapping(citation)
+    kind = value.get("kind")
+    if kind == "source-finding":
+        return "source-finding"
+    if kind == "target-discovery-classification":
+        return "target-discovery-classification"
+    if kind == "authority-content":
+        role = value.get("role")
+        if role == "normative-spec":
+            return "authority:normative-spec"
+        if role in {"architecture-decision", "abstraction-constraint"}:
+            return f"authority:{role}:{value.get('id')}"
+    if kind == "assurance-claim":
+        return f"claim:{value.get('claim_id')}"
+    if kind == "normative-coverage":
+        return f"invariant:{value.get('invariant_id')}"
+    if kind == "formal-semantic-domain":
+        return f"formal-semantic-domain:{value.get('domain_id')}"
+    if kind == "behavioral-modality":
+        return f"behavioral-modality:{value.get('modality')}"
+    if kind == "assurance-domain":
+        return f"assurance-domain:{value.get('assurance_domain')}"
+    if kind == "prior-challenge-objection":
+        return f"prior-challenge-objection:{value.get('challenge_objection_id')}"
+    raise ValueError(f"{prefix} structured citation has no canonical handle")
+
+
+def _protocol_v8_e5d_register_citable(
+    registry: dict[str, dict],
+    handle: object,
+    citation: object,
+    material: object,
+) -> None:
+    """Merge one checker-only citable record and reject identity conflicts."""
+    prefix = "inactive protocol v8 E5-D:"
+    if not isinstance(handle, str) or not handle:
+        raise ValueError(f"{prefix} citable handle must be a non-empty string")
+    if citation is not None and not isinstance(citation, dict):
+        raise ValueError(f"{prefix} citable citation must be an object or null")
+    existing = registry.get(handle)
+    if existing is not None:
+        if existing["citation"] != citation:
+            raise ValueError(f"{prefix} same handle has conflicting citation identity")
+        prior_material = existing["material"]
+        if prior_material is not None and material is not None and prior_material != material:
+            raise ValueError(f"{prefix} same handle has conflicting cognitive material")
+        if prior_material is None and material is not None:
+            existing["material"] = copy.deepcopy(material)
+        return
+    if citation is not None:
+        for other_handle, record in registry.items():
+            if record["citation"] is not None and record["citation"] == citation:
+                raise ValueError(
+                    f"{prefix} structured citation maps to multiple handles: "
+                    f"{other_handle!r}, {handle!r}"
+                )
+    registry[handle] = {
+        "citation": copy.deepcopy(citation),
+        "material": copy.deepcopy(material),
+    }
+
+
+def _protocol_v8_e5d_finding_adjudication_basis(root_basis: object) -> dict:
+    """Select the exact FA basis from one normalized FA or SM cognitive root."""
+    prefix = "inactive protocol v8 E5-D:"
+    root = _mapping(root_basis)
+    if root.get("kind") == "finding-adjudication":
+        return root
+    if root.get("kind") == "surviving-material":
+        finding = root.get("finding_adjudication")
+        if isinstance(finding, dict):
+            return finding
+    raise ValueError(f"{prefix} unsupported cognitive root basis")
+
+
+def _protocol_v8_e5d_register_root_citables(
+    registry: dict[str, dict],
+    root_basis: object,
+) -> None:
+    """Register the exact citable FA material visible through the normalized root."""
+    prefix = "inactive protocol v8 E5-D:"
+    finding = _protocol_v8_e5d_finding_adjudication_basis(root_basis)
+    source = finding.get("source_finding")
+    if not isinstance(source, dict):
+        raise ValueError(f"{prefix} source finding cognitive material missing")
+    _protocol_v8_e5d_register_citable(
+        registry, "source-finding", {"kind": "source-finding"}, source
+    )
+    authority_contents = finding.get("controlling_authority_contents")
+    if not isinstance(authority_contents, list):
+        raise ValueError(f"{prefix} controlling authority contents missing")
+    for authority in authority_contents:
+        if not isinstance(authority, dict):
+            raise ValueError(f"{prefix} authority cognitive material must be an object")
+        role = authority.get("role")
+        authority_id = authority.get("id")
+        if role == "normative-spec" and authority_id is None:
+            handle = "authority:normative-spec"
+            citation = {"kind": "authority-content", "role": "normative-spec"}
+        elif role in {"architecture-decision", "abstraction-constraint"} and isinstance(
+            authority_id, str
+        ):
+            handle = f"authority:{role}:{authority_id}"
+            citation = {
+                "kind": "authority-content",
+                "role": role,
+                "id": authority_id,
+            }
+        else:
+            raise ValueError(f"{prefix} authority cognitive identity is invalid")
+        _protocol_v8_e5d_register_citable(registry, handle, citation, authority)
+    for claim in _sequence(finding.get("claims")):
+        if not isinstance(claim, dict) or not isinstance(claim.get("id"), str):
+            raise ValueError(f"{prefix} claim cognitive material is invalid")
+        claim_id = claim["id"]
+        _protocol_v8_e5d_register_citable(
+            registry,
+            f"claim:{claim_id}",
+            {"kind": "assurance-claim", "claim_id": claim_id},
+            claim,
+        )
+    for coverage in _sequence(finding.get("normative_coverage")):
+        if not isinstance(coverage, dict) or not isinstance(
+            coverage.get("invariant"), str
+        ):
+            raise ValueError(f"{prefix} normative coverage material is invalid")
+        invariant = coverage["invariant"]
+        _protocol_v8_e5d_register_citable(
+            registry,
+            f"invariant:{invariant}",
+            {"kind": "normative-coverage", "invariant_id": invariant},
+            coverage,
+        )
+    context = _mapping(finding.get("formal_assurance_context"))
+    for domain in _sequence(context.get("formal_semantic_domains")):
+        if not isinstance(domain, dict) or not isinstance(domain.get("id"), str):
+            raise ValueError(f"{prefix} formal semantic domain is invalid")
+        domain_id = domain["id"]
+        _protocol_v8_e5d_register_citable(
+            registry,
+            f"formal-semantic-domain:{domain_id}",
+            {"kind": "formal-semantic-domain", "domain_id": domain_id},
+            domain,
+        )
+    for modality in _sequence(context.get("behavioral_modalities")):
+        if not isinstance(modality, str):
+            raise ValueError(f"{prefix} behavioral modality is invalid")
+        _protocol_v8_e5d_register_citable(
+            registry,
+            f"behavioral-modality:{modality}",
+            {"kind": "behavioral-modality", "modality": modality},
+            modality,
+        )
+    for assurance_domain in _sequence(context.get("assurance_domains")):
+        if not isinstance(assurance_domain, str):
+            raise ValueError(f"{prefix} assurance domain is invalid")
+        _protocol_v8_e5d_register_citable(
+            registry,
+            f"assurance-domain:{assurance_domain}",
+            {"kind": "assurance-domain", "assurance_domain": assurance_domain},
+            assurance_domain,
+        )
+
+
+def _protocol_v8_e5d_register_structured_citations(
+    registry: dict[str, dict],
+    value: object,
+    validator: Draft202012Validator,
+) -> None:
+    """Identity-register exact structured citations already present in cognition."""
+    if isinstance(value, dict):
+        if not list(validator.iter_errors(value)):
+            handle = _protocol_v8_e5d_canonical_handle_from_structured_citation(
+                value, validator
+            )
+            _protocol_v8_e5d_register_citable(registry, handle, value, None)
+            return
+        for child in value.values():
+            _protocol_v8_e5d_register_structured_citations(
+                registry, child, validator
+            )
+    elif isinstance(value, list):
+        for child in value:
+            _protocol_v8_e5d_register_structured_citations(
+                registry, child, validator
+            )
+
+
+def _protocol_v8_e5d_register_targeted_discovery_material(
+    registry: dict[str, dict],
+    semantic_inputs: dict,
+) -> None:
+    """Register the sole packet-local target classification when directly visible."""
+    statements = [
+        semantic_inputs[field]
+        for field in _PROTOCOL_V8_E5D_TARGET_STATEMENT_FIELDS
+        if field in semantic_inputs
+    ]
+    if not statements:
+        return
+    first = statements[0]
+    if any(statement != first for statement in statements[1:]):
+        raise ValueError(
+            "inactive protocol v8 E5-D: conflicting targeted Discovery statements"
+        )
+    _protocol_v8_e5d_register_citable(
+        registry,
+        "target-discovery-classification",
+        {"kind": "target-discovery-classification"},
+        first,
+    )
+
+
+def _protocol_v8_e5d_register_prior_objections(
+    registry: dict[str, dict],
+    value: object,
+) -> None:
+    """Register exact objections from visible challenge semantic candidates."""
+    if isinstance(value, dict):
+        if set(value) == {"objective_assessments", "objections"}:
+            objections = value.get("objections")
+            if not isinstance(objections, list):
+                raise ValueError(
+                    "inactive protocol v8 E5-D: challenge objections must be an array"
+                )
+            for objection in objections:
+                if not isinstance(objection, dict) or not isinstance(
+                    objection.get("challenge_objection_id"), str
+                ):
+                    raise ValueError(
+                        "inactive protocol v8 E5-D: prior challenge objection is invalid"
+                    )
+                objection_id = objection["challenge_objection_id"]
+                _protocol_v8_e5d_register_citable(
+                    registry,
+                    f"prior-challenge-objection:{objection_id}",
+                    {
+                        "kind": "prior-challenge-objection",
+                        "challenge_objection_id": objection_id,
+                    },
+                    objection,
+                )
+        for child in value.values():
+            _protocol_v8_e5d_register_prior_objections(registry, child)
+    elif isinstance(value, list):
+        for child in value:
+            _protocol_v8_e5d_register_prior_objections(registry, child)
+
+
+def _protocol_v8_e5d_register_accepted_uc_requirements(
+    registry: dict[str, dict],
+    semantic_inputs: dict,
+) -> None:
+    """Register ordinals only from an exact accepted positive UC semantic view."""
+    accepted = semantic_inputs.get("acceptedUniqueCorrection")
+    if not isinstance(accepted, dict) or accepted.get("kind") != (
+        "unique-correction-candidate"
+    ):
+        return
+    requirements = accepted.get("correction_requirements")
+    if not isinstance(requirements, list):
+        raise ValueError(
+            "inactive protocol v8 E5-D: AcceptedUniqueCorrection requirements missing"
+        )
+    for ordinal, requirement in enumerate(requirements):
+        _protocol_v8_e5d_register_citable(
+            registry,
+            f"unique-correction-requirement:{ordinal}",
+            None,
+            requirement,
+        )
+
+
+def _protocol_v8_e5d_register_candidate_view_paths(
+    registry: dict[str, dict],
+    semantic_inputs: dict,
+) -> None:
+    """Register only exact paths visible in complete or scoped CandidateView inputs."""
+    for field in ("completeCandidateView", "scopedCandidateView"):
+        view = semantic_inputs.get(field)
+        if view is None:
+            continue
+        entries = _mapping(view).get("entries")
+        if not isinstance(entries, list):
+            raise ValueError(
+                "inactive protocol v8 E5-D: CandidateView entries missing"
+            )
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(
+                entry.get("path_bytes_base64url"), str
+            ):
+                raise ValueError(
+                    "inactive protocol v8 E5-D: CandidateView path material invalid"
+                )
+            path_identity = entry["path_bytes_base64url"]
+            _protocol_v8_e5d_register_citable(
+                registry,
+                f"candidate-path:{path_identity}",
+                None,
+                entry,
+            )
+
+
+def _protocol_v8_e5d_citable_registry_of(
+    surface: object,
+    structured_citation_validator: Draft202012Validator,
+) -> dict[str, dict]:
+    """Build the disposable citable registry from one exact normalized surface."""
+    prefix = "inactive protocol v8 E5-D:"
+    if not isinstance(surface, dict) or set(surface) != {
+        "contract_presentation",
+        "root_basis",
+        "semantic_inputs",
+        "cognitive_constraints",
+    }:
+        raise ValueError(f"{prefix} CognitiveSurface exact shape mismatch")
+    semantic_inputs = surface.get("semantic_inputs")
+    if not isinstance(semantic_inputs, dict):
+        raise ValueError(f"{prefix} semantic_inputs must be an object")
+    registry: dict[str, dict] = {}
+    _protocol_v8_e5d_register_root_citables(registry, surface.get("root_basis"))
+    _protocol_v8_e5d_register_structured_citations(
+        registry, semantic_inputs, structured_citation_validator
+    )
+    _protocol_v8_e5d_register_targeted_discovery_material(
+        registry, semantic_inputs
+    )
+    _protocol_v8_e5d_register_prior_objections(registry, semantic_inputs)
+    _protocol_v8_e5d_register_accepted_uc_requirements(registry, semantic_inputs)
+    _protocol_v8_e5d_register_candidate_view_paths(registry, semantic_inputs)
+    return registry
+
+
+def _protocol_v8_e5d_canonical_citation_catalog_of(
+    surface: object,
+    structured_citation_validator: Draft202012Validator,
+) -> list[dict]:
+    """Strip internal material and return the canonical UTF-8 handle ordering."""
+    registry = _protocol_v8_e5d_citable_registry_of(
+        surface, structured_citation_validator
+    )
+    return [
+        {
+            "free_string_handle": handle,
+            "citation": copy.deepcopy(registry[handle]["citation"]),
+        }
+        for handle in sorted(registry, key=lambda item: item.encode("utf-8"))
+    ]
+
+
+def _protocol_v8_e5d_validate_citation_references(
+    value: object,
+    citation_catalog: object,
+) -> None:
+    """Resolve only exact citation-bearing keys against one rebuilt catalog."""
+    prefix = "inactive protocol v8 E5-D:"
+    if not isinstance(citation_catalog, list):
+        raise ValueError(f"{prefix} citation catalog must be an array")
+    handles = [
+        entry.get("free_string_handle")
+        for entry in citation_catalog
+        if isinstance(entry, dict)
+    ]
+    citations = [
+        entry.get("citation")
+        for entry in citation_catalog
+        if isinstance(entry, dict) and entry.get("citation") is not None
+    ]
+
+    def walk(current: object) -> None:
+        if isinstance(current, dict):
+            for key, child in current.items():
+                if key not in _PROTOCOL_V8_E5D_CITATION_REFERENCE_FIELDS:
+                    walk(child)
+                    continue
+                if not isinstance(child, list):
+                    raise ValueError(f"{prefix} citation-bearing field must be an array")
+                if key == "evidence_references":
+                    kinds = {
+                        "string" if isinstance(reference, str)
+                        else "object" if isinstance(reference, dict)
+                        else "invalid"
+                        for reference in child
+                    }
+                    if "invalid" in kinds or len(kinds) > 1:
+                        raise ValueError(
+                            f"{prefix} evidence references have mixed or invalid type"
+                        )
+                    if kinds == {"string"}:
+                        for reference in child:
+                            if handles.count(reference) != 1:
+                                raise ValueError(
+                                    f"{prefix} unresolved free-string citation handle"
+                                )
+                    elif kinds == {"object"}:
+                        for reference in child:
+                            if sum(reference == citation for citation in citations) != 1:
+                                raise ValueError(
+                                    f"{prefix} unresolved structured evidence citation"
+                                )
+                else:
+                    for reference in child:
+                        if not isinstance(reference, dict) or sum(
+                            reference == citation for citation in citations
+                        ) != 1:
+                            raise ValueError(
+                                f"{prefix} unresolved structured authority citation"
+                            )
+        elif isinstance(current, list):
+            for child in current:
+                walk(child)
+
+    walk(value)
+
+
+def _protocol_v8_e5d_validate_completion_citations(
+    contract: dict,
+    output: object,
+    citation_catalog: object,
+    output_validators: dict[str, Draft202012Validator],
+) -> object:
+    """Project through E1, then validate completion references as consumers only."""
+    prefix = "inactive protocol v8 E5-D:"
+    question_kind = _mapping(contract.get("definition")).get("question_kind")
+    validator_key = (
+        "challenge-output" if question_kind == "challenge" else "adjudication-output"
+    )
+    validator = output_validators.get(validator_key)
+    if validator is None:
+        raise ValueError(f"{prefix} exact output validator missing")
+    candidate, projection_errors = _protocol_v8_e1_project_semantic_candidate(
+        contract, output, validator, prefix
+    )
+    if projection_errors:
+        raise ValueError(f"{prefix} completion projection failed: {projection_errors[0]}")
+    _protocol_v8_e5d_validate_citation_references(candidate, citation_catalog)
+    return copy.deepcopy(candidate)
+
+
+def _protocol_v8_e5d_cognitive_projection_of(
+    root: Path,
+    protocol_bundle: object,
+    qlek: object,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    *,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    finding_closure_resolver,
+    presentation_validator: Draft202012Validator,
+    packet_validator: Draft202012Validator,
+    structured_citation_validator: Draft202012Validator,
+    surface_memo: dict[str, dict] | None = None,
+    snapshot_memo: dict[str, dict] | None = None,
+) -> dict:
+    """Construct one exact final packet and canonical document bytes from P and K."""
+    prefix = "inactive protocol v8 E5-D:"
+    if not isinstance(protocol_bundle, dict):
+        raise ValueError(f"{prefix} protocol bundle must be an object")
+    if (
+        protocol_bundle.get("protocol_bundle_schema_version") != 8
+        or protocol_bundle.get("protocol_id") != "gate-a-campaign-protocol-v8"
+        or _mapping(protocol_bundle.get("schemas")).get(
+            "cognitive-execution-packet"
+        )
+        != PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE
+    ):
+        raise ValueError(f"{prefix} exact P8 protocol binding mismatch")
+    descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, qlek)
+    contract_id = descriptor.get("semanticQuestionContract")
+    realizations = [
+        realization
+        for realization in _sequence(protocol_bundle.get("question_realizations"))
+        if isinstance(realization, dict)
+        and realization.get("semantic_question_contract") == contract_id
+    ]
+    if len(realizations) != 1:
+        raise ValueError(f"{prefix} target contract realization cardinality is not one")
+    if realizations[0].get("packet_schema") != "cognitive-execution-packet":
+        raise ValueError(f"{prefix} target realization packet schema mismatch")
+    surface = _protocol_v8_e5c_cognitive_surface_of(
+        root,
+        closure,
+        contracts,
+        predicates,
+        qualifications,
+        qlek,
+        candidate_materialization_resolver=candidate_materialization_resolver,
+        sealed_content_resolver=sealed_content_resolver,
+        finding_closure_resolver=finding_closure_resolver,
+        presentation_validator=presentation_validator,
+        surface_memo=surface_memo,
+        snapshot_memo=snapshot_memo,
+    )
+    catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        surface, structured_citation_validator
+    )
+    _protocol_v8_e5d_validate_citation_references(
+        surface["semantic_inputs"], catalog
+    )
+    packet = {
+        "cognitive_execution_packet_schema_version": "1.0",
+        "contract_presentation": copy.deepcopy(surface["contract_presentation"]),
+        "root_basis": copy.deepcopy(surface["root_basis"]),
+        "semantic_inputs": copy.deepcopy(surface["semantic_inputs"]),
+        "cognitive_constraints": copy.deepcopy(surface["cognitive_constraints"]),
+        "citation_catalog": catalog,
+    }
+    schema_errors = sorted(
+        packet_validator.iter_errors(packet),
+        key=lambda error: tuple(str(item) for item in error.path),
+    )
+    if schema_errors:
+        raise ValueError(
+            f"{prefix} final packet schema violation: {schema_errors[0].message}"
+        )
+    return {
+        "packet": packet,
+        "packet_bytes": _canonical_json_document_bytes(packet),
+    }
+
+
+def _inactive_protocol_v8_e5d_cognitive_packet_citation_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise canonical citations and final packets for all twenty P8 SQCs."""
+    prefix = "inactive protocol v8 E5-D:"
+    errors: list[str] = []
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    output_validators, output_errors = _protocol_v8_e1_output_validators(root)
+    presentation_validator, packet_validator, packet_schema_errors = (
+        _protocol_v8_e5c_packet_schema_validators(root)
+    )
+    structured_validator, structured_errors = (
+        _protocol_v8_e5d_structured_citation_validator(root)
+    )
+    bundle, bundle_errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_BUNDLE_REFERENCE,
+        f"{prefix} exact P8 bundle",
+        REVIEW_PROTOCOLS_PREFIX,
+        REVIEW_PROTOCOL_BUNDLE_SUFFIX,
+        require_canonical=True,
+    )
+    errors.extend(f"{prefix} {error}" for error in catalog_errors)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in output_errors)
+    errors.extend(packet_schema_errors)
+    errors.extend(structured_errors)
+    errors.extend(f"{prefix} {error}" for error in bundle_errors)
+    if (
+        errors
+        or presentation_validator is None
+        or packet_validator is None
+        or structured_validator is None
+        or bundle is None
+    ):
+        return errors
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            action()
+        except (TypeError, ValueError) as error:
+            if required is not None and required not in str(error):
+                errors.append(f"{prefix} {label} rejected without {required!r}")
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    def structural_keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            result = set(value)
+            for child in value.values():
+                result.update(structural_keys(child))
+            return result
+        if isinstance(value, list):
+            result: set[str] = set()
+            for child in value:
+                result.update(structural_keys(child))
+            return result
+        return set()
+
+    # Reuse E5-C's lawful disposable history driver while replacing only its
+    # deliberately pre-citation placeholder strings with the canonical root handle.
+    captured: dict[tuple[int, str], dict] = {}
+    original_surface = _protocol_v8_e5c_cognitive_surface_of
+    original_admit = _protocol_v8_e3b_test_admit
+
+    def canonicalize_fixture_references(value: object) -> object:
+        result = copy.deepcopy(value)
+
+        def visit(current: object) -> None:
+            if isinstance(current, dict):
+                for key, child in current.items():
+                    if key == "evidence_references" and isinstance(child, list) and all(
+                        isinstance(item, str) for item in child
+                    ):
+                        current[key] = ["source-finding" for _ in child]
+                    else:
+                        visit(child)
+            elif isinstance(current, list):
+                for child in current:
+                    visit(child)
+
+        visit(result)
+        return result
+
+    def citation_ready_admit(
+        closure: dict,
+        fixture_contracts: dict[str, dict],
+        contract_id: str,
+        inputs: dict,
+        candidate: object,
+    ) -> dict:
+        return original_admit(
+            closure,
+            fixture_contracts,
+            contract_id,
+            inputs,
+            canonicalize_fixture_references(candidate),
+        )
+
+    def capturing_surface(*args, **kwargs):
+        result = original_surface(*args, **kwargs)
+        if len(args) >= 6 and isinstance(args[5], str):
+            closure = args[1]
+            qlek = args[5]
+            captured.setdefault(
+                (id(closure), qlek),
+                {
+                    "root": args[0],
+                    "closure": closure,
+                    "contracts": args[2],
+                    "predicates": args[3],
+                    "qualifications": args[4],
+                    "qlek": qlek,
+                    "candidate_materialization_resolver": kwargs.get(
+                        "candidate_materialization_resolver"
+                    ),
+                    "sealed_content_resolver": kwargs.get("sealed_content_resolver"),
+                    "finding_closure_resolver": kwargs.get("finding_closure_resolver"),
+                },
+            )
+        return result
+
+    globals()["_protocol_v8_e3b_test_admit"] = citation_ready_admit
+    globals()["_protocol_v8_e5c_cognitive_surface_of"] = capturing_surface
+    try:
+        lower_errors = _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(root)
+    finally:
+        globals()["_protocol_v8_e5c_cognitive_surface_of"] = original_surface
+        globals()["_protocol_v8_e3b_test_admit"] = original_admit
+    if lower_errors:
+        errors.extend(f"{prefix} lower-layer fixture failed: {error}" for error in lower_errors)
+        return errors
+
+    records_by_contract: dict[str, list[dict]] = {}
+    for record in captured.values():
+        try:
+            descriptor = _protocol_v8_e3a_resolve_qlek(
+                record["closure"], contracts, record["qlek"]
+            )
+        except ValueError:
+            continue
+        contract_id = descriptor.get("semanticQuestionContract")
+        if isinstance(contract_id, str):
+            records_by_contract.setdefault(contract_id, []).append(record)
+    if set(records_by_contract) != set(contracts):
+        errors.append(f"{prefix} disposable histories did not cover exact 20-contract inventory")
+        return errors
+
+    surface_memos: dict[int, dict[str, dict]] = {}
+    snapshot_memos: dict[int, dict[str, dict]] = {}
+
+    def project(record: dict, selected_bundle: dict | None = None) -> dict:
+        closure = record["closure"]
+        identity = id(closure)
+        return _protocol_v8_e5d_cognitive_projection_of(
+            root,
+            bundle if selected_bundle is None else selected_bundle,
+            record["qlek"],
+            closure,
+            contracts,
+            predicates,
+            qualifications,
+            candidate_materialization_resolver=record[
+                "candidate_materialization_resolver"
+            ],
+            sealed_content_resolver=record["sealed_content_resolver"],
+            finding_closure_resolver=record["finding_closure_resolver"],
+            presentation_validator=presentation_validator,
+            packet_validator=packet_validator,
+            structured_citation_validator=structured_validator,
+            surface_memo=surface_memos.setdefault(identity, {}),
+            snapshot_memo=snapshot_memos.setdefault(identity, {}),
+        )
+
+    projections: dict[str, dict] = {}
+    exercised: set[str] = set()
+    challenge_exercised: set[str] = set()
+    for contract_id in sorted(contracts):
+        record = records_by_contract[contract_id][0]
+        try:
+            first = project(record)
+            second = project(record)
+        except ValueError as error:
+            errors.append(f"{prefix} {contract_id} packet construction raised: {error}")
+            continue
+        projections[contract_id] = first
+        exercised.add(contract_id)
+        if _mapping(contracts[contract_id].get("definition")).get(
+            "question_kind"
+        ) == "challenge":
+            challenge_exercised.add(contract_id)
+        if first != second:
+            errors.append(f"{prefix} {contract_id} packet projection is not functional")
+        if set(first) != {"packet", "packet_bytes"}:
+            errors.append(f"{prefix} {contract_id} projection return shape mismatch")
+            continue
+        packet = first["packet"]
+        if set(packet) != {
+            "cognitive_execution_packet_schema_version",
+            "contract_presentation",
+            "root_basis",
+            "semantic_inputs",
+            "cognitive_constraints",
+            "citation_catalog",
+        }:
+            errors.append(f"{prefix} {contract_id} final packet shape mismatch")
+        if not packet.get("citation_catalog"):
+            errors.append(f"{prefix} {contract_id} citation catalog is empty")
+        if json.loads(first["packet_bytes"]) != packet or first[
+            "packet_bytes"
+        ] != _canonical_json_document_bytes(packet):
+            errors.append(f"{prefix} {contract_id} canonical packet byte mismatch")
+        keys = structural_keys(packet)
+        if keys.intersection(
+            {
+                "candidateRevision",
+                "candidateId",
+                "CandidateRevisionId",
+                "qlek",
+                "QLEK",
+                "logicalQuestionDescriptor",
+                "admissionId",
+                "receipt",
+                "runId",
+                "rootId",
+                "executionId",
+                "artifactId",
+                "repositoryPath",
+                "packetSha256",
+                "rawOutput",
+                "provider",
+                "model",
+                "FactId",
+            }
+        ):
+            errors.append(f"{prefix} {contract_id} packet leaked identity/provenance")
+        handles = [
+            entry["free_string_handle"] for entry in packet["citation_catalog"]
+        ]
+        if handles != sorted(handles, key=lambda item: item.encode("utf-8")) or len(
+            handles
+        ) != len(set(handles)):
+            errors.append(f"{prefix} {contract_id} catalog ordering/uniqueness mismatch")
+        citations = [
+            entry["citation"]
+            for entry in packet["citation_catalog"]
+            if entry["citation"] is not None
+        ]
+        if len({_canonical_json_bytes(item) for item in citations}) != len(citations):
+            errors.append(f"{prefix} {contract_id} duplicate structured citation")
+    if exercised != set(contracts):
+        errors.append(f"{prefix} oracle did not construct all exact 20 final packets")
+    expected_challenges = {
+        contract_id
+        for contract_id, contract in contracts.items()
+        if _mapping(contract.get("definition")).get("question_kind") == "challenge"
+    }
+    if challenge_exercised != expected_challenges or len(challenge_exercised) != 7:
+        errors.append(f"{prefix} oracle did not construct all seven challenge packets")
+
+    rich_root = {
+        "kind": "finding-adjudication",
+        "formal_assurance_context": {
+            "formal_semantic_domains": [
+                {
+                    "id": "operational",
+                    "representation": "tla+",
+                    "module": "Operational",
+                    "integrated_semantics_required": True,
+                    "focused_analyses_are_restrictions": True,
+                }
+            ],
+            "behavioral_modalities": ["reachability", "safety"],
+            "assurance_domains": ["architecture", "formal-behavioral"],
+        },
+        "claims": [
+            {
+                "id": "TL-CLAIM-001",
+                "statement": "E5-D exact claim",
+                "normative_sources": ["TL-INV-001"],
+                "assurance_domain": "formal-behavioral",
+                "modality": "safety",
+                "formal_semantic_domain": "operational",
+            }
+        ],
+        "normative_coverage": [
+            {
+                "invariant": "TL-INV-001",
+                "canonical_operational_coverage": "full",
+                "formal_claims": ["TL-CLAIM-001"],
+                "residual_claims": [],
+            }
+        ],
+        "controlling_authority_contents": [
+            {"role": "normative-spec", "id": None, "content_utf8": "normative"},
+            {
+                "role": "architecture-decision",
+                "id": "ADR-001",
+                "content_utf8": "architecture",
+            },
+            {
+                "role": "abstraction-constraint",
+                "id": "ADR-002",
+                "content_utf8": "abstraction",
+            },
+        ],
+        "source_finding": {
+            "statement": "E5-D finding",
+            "argument": "E5-D argument",
+            "counterexample": None,
+        },
+    }
+
+    def synthetic_surface(inputs: dict, root_value: dict | None = None) -> dict:
+        return {
+            "contract_presentation": {
+                "question_kind": "initial",
+                "role": "materiality-assessor",
+                "task": "materiality-assessment",
+                "semantic_result_variants": ["MaterialityAssessmentValue"],
+            },
+            "root_basis": copy.deepcopy(rich_root if root_value is None else root_value),
+            "semantic_inputs": copy.deepcopy(inputs),
+            "cognitive_constraints": {},
+        }
+
+    root_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface({}), structured_validator
+    )
+    root_handles = {entry["free_string_handle"] for entry in root_catalog}
+    expected_root_handles = {
+        "source-finding",
+        "authority:normative-spec",
+        "authority:architecture-decision:ADR-001",
+        "authority:abstraction-constraint:ADR-002",
+        "claim:TL-CLAIM-001",
+        "invariant:TL-INV-001",
+        "formal-semantic-domain:operational",
+        "behavioral-modality:safety",
+        "behavioral-modality:reachability",
+        "assurance-domain:formal-behavioral",
+        "assurance-domain:architecture",
+    }
+    if not expected_root_handles.issubset(root_handles):
+        errors.append(f"{prefix} root citable inventory is incomplete")
+
+    view_entry = {
+        "path_bytes_base64url": "P",
+        "path_utf8": "?",
+        "state": {
+            "kind": "blob",
+            "mode": "100644",
+            "content": {"encoding": "utf-8", "data": "x"},
+        },
+    }
+    path_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface(
+            {
+                "completeCandidateView": {
+                    "coverage": {"kind": "complete"},
+                    "git_object_format": "sha1",
+                    "entries": [view_entry],
+                }
+            }
+        ),
+        structured_validator,
+    )
+    path_entry = next(
+        (entry for entry in path_catalog if entry["free_string_handle"] == "candidate-path:P"),
+        None,
+    )
+    if path_entry != {"free_string_handle": "candidate-path:P", "citation": None}:
+        errors.append(f"{prefix} canonical candidate path handle mismatch")
+
+    def path_material(identity: str, data: str) -> dict:
+        return {
+            "path_bytes_base64url": identity,
+            "path_utf8": identity,
+            "state": {
+                "kind": "blob",
+                "mode": "100644",
+                "content": {"encoding": "utf-8", "data": data},
+            },
+        }
+
+    scoped_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface(
+            {
+                "scopedCandidateView": {
+                    "coverage": {"kind": "readable-paths"},
+                    "git_object_format": "sha1",
+                    "entries": [path_material("P2", "two")],
+                }
+            }
+        ),
+        structured_validator,
+    )
+    scoped_handles = {entry["free_string_handle"] for entry in scoped_catalog}
+    if "candidate-path:P2" not in scoped_handles or scoped_handles.intersection(
+        {"candidate-path:P1", "candidate-path:P3"}
+    ):
+        errors.append(f"{prefix} scoped CandidateView path visibility widened")
+
+    accepted_uc = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [
+            {"postcondition": "first"},
+            {"postcondition": "second"},
+        ],
+        "derivation_claims": [],
+        "alternatives_considered": [],
+        "uniqueness_argument": {"authority_references": [], "argument": "unique"},
+    }
+    uc_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface({"acceptedUniqueCorrection": accepted_uc}),
+        structured_validator,
+    )
+    uc_entries = {
+        entry["free_string_handle"]: entry["citation"] for entry in uc_catalog
+    }
+    if uc_entries.get("unique-correction-requirement:0", "missing") is not None or (
+        uc_entries.get("unique-correction-requirement:1", "missing") is not None
+    ):
+        errors.append(f"{prefix} AcceptedUC requirement handle mismatch")
+    prior_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface(
+            {
+                "priorUniqueCorrection": accepted_uc,
+                "challengedUniqueCorrection": accepted_uc,
+            }
+        ),
+        structured_validator,
+    )
+    if any(
+        entry["free_string_handle"].startswith("unique-correction-requirement:")
+        for entry in prior_catalog
+    ):
+        errors.append(f"{prefix} prior UC acquired an ordinal namespace")
+
+    objection = {
+        "challenge_objection_id": "OBJ-E5D-1",
+        "objective": "objective",
+        "statement": "statement",
+        "argument": "argument",
+        "evidence_references": ["source-finding"],
+    }
+    objection_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface(
+            {
+                "priorChallenge": {
+                    "objective_assessments": [
+                        {"objective": "objective", "objection_ids": ["OBJ-E5D-1"]}
+                    ],
+                    "objections": [objection],
+                }
+            }
+        ),
+        structured_validator,
+    )
+    objection_entry = next(
+        (
+            entry
+            for entry in objection_catalog
+            if entry["free_string_handle"]
+            == "prior-challenge-objection:OBJ-E5D-1"
+        ),
+        None,
+    )
+    if objection_entry != {
+        "free_string_handle": "prior-challenge-objection:OBJ-E5D-1",
+        "citation": {
+            "kind": "prior-challenge-objection",
+            "challenge_objection_id": "OBJ-E5D-1",
+        },
+    }:
+        errors.append(f"{prefix} prior challenge objection handle mismatch")
+
+    targeted = {
+        "statement": "target",
+        "evidence_references": [{"kind": "source-finding"}],
+        "evidence_argument": "evidence",
+        "existing_authority": [],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {},
+    }
+    target_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface({"targetedDiscoveryStatement": targeted}),
+        structured_validator,
+    )
+    if {
+        "free_string_handle": "target-discovery-classification",
+        "citation": {"kind": "target-discovery-classification"},
+    } not in target_catalog:
+        errors.append(f"{prefix} targeted Discovery handle missing")
+    identity_only_surface = synthetic_surface(
+        {
+            "acceptedUniqueCorrection": {
+                **accepted_uc,
+                "derivation_claims": [
+                    {
+                        "evidence_references": [
+                            {"kind": "target-discovery-classification"}
+                        ]
+                    }
+                ],
+            }
+        }
+    )
+    identity_only_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        identity_only_surface, structured_validator
+    )
+    if not any(
+        entry["free_string_handle"] == "target-discovery-classification"
+        for entry in identity_only_catalog
+    ) or structural_keys(identity_only_surface).intersection(
+        {"targetedDiscoveryStatement", "producerDiscovery", "admissionId", "qlek"}
+    ):
+        errors.append(f"{prefix} target identity-only inheritance leaked hidden cognition")
+
+    registry: dict[str, dict] = {}
+    _protocol_v8_e5d_register_citable(
+        registry, "source-finding", {"kind": "source-finding"}, {"a": 1}
+    )
+    expect_rejected(
+        "same-handle material conflict",
+        lambda: _protocol_v8_e5d_register_citable(
+            registry, "source-finding", {"kind": "source-finding"}, {"a": 2}
+        ),
+        "conflicting cognitive material",
+    )
+    expect_rejected(
+        "same-handle citation conflict",
+        lambda: _protocol_v8_e5d_register_citable(
+            registry,
+            "source-finding",
+            {"kind": "target-discovery-classification"},
+            {"a": 1},
+        ),
+        "conflicting citation identity",
+    )
+    collision_registry: dict[str, dict] = {}
+    _protocol_v8_e5d_register_citable(
+        collision_registry, "A", {"kind": "source-finding"}, None
+    )
+    expect_rejected(
+        "structured citation collision",
+        lambda: _protocol_v8_e5d_register_citable(
+            collision_registry, "B", {"kind": "source-finding"}, None
+        ),
+        "multiple handles",
+    )
+
+    reversed_root = copy.deepcopy(rich_root)
+    reversed_root["controlling_authority_contents"].reverse()
+    reversed_root["formal_assurance_context"]["behavioral_modalities"].reverse()
+    reversed_root["formal_assurance_context"]["assurance_domains"].reverse()
+    reversed_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        synthetic_surface({}, reversed_root), structured_validator
+    )
+    if reversed_catalog != root_catalog:
+        errors.append(f"{prefix} catalog depends on citable discovery order")
+
+    malformed_authority_root = copy.deepcopy(rich_root)
+    malformed_authority_root["controlling_authority_contents"].append(
+        {
+            "role": "architecture-decision",
+            "id": "ADR-001",
+            "content_utf8": "conflicting architecture",
+        }
+    )
+    expect_rejected(
+        "root authority material conflict",
+        lambda: _protocol_v8_e5d_canonical_citation_catalog_of(
+            synthetic_surface({}, malformed_authority_root), structured_validator
+        ),
+        "conflicting cognitive material",
+    )
+    expect_rejected(
+        "candidate path material conflict",
+        lambda: _protocol_v8_e5d_canonical_citation_catalog_of(
+            synthetic_surface(
+                {
+                    "completeCandidateView": {
+                        "coverage": {"kind": "complete"},
+                        "git_object_format": "sha1",
+                        "entries": [
+                            path_material("P", "one"),
+                            path_material("P", "different"),
+                        ],
+                    }
+                }
+            ),
+            structured_validator,
+        ),
+        "conflicting cognitive material",
+    )
+    other_target = copy.deepcopy(targeted)
+    other_target["statement"] = "other target"
+    expect_rejected(
+        "target Discovery material conflict",
+        lambda: _protocol_v8_e5d_canonical_citation_catalog_of(
+            synthetic_surface(
+                {
+                    "targetedDiscoveryStatement": targeted,
+                    "priorNoNormativeImpactStatement": other_target,
+                }
+            ),
+            structured_validator,
+        ),
+        "conflicting targeted Discovery",
+    )
+
+    historical_surface = synthetic_surface(
+        {
+            "priorRefutation": {
+                "kind": "refutation-candidate",
+                "evidence_references": ["source-finding"],
+            },
+            "structured": {"evidence_references": [{"kind": "source-finding"}]},
+        }
+    )
+    historical_catalog = _protocol_v8_e5d_canonical_citation_catalog_of(
+        historical_surface, structured_validator
+    )
+    try:
+        _protocol_v8_e5d_validate_citation_references(
+            historical_surface["semantic_inputs"], historical_catalog
+        )
+    except ValueError as error:
+        errors.append(f"{prefix} historical citation re-resolution failed: {error}")
+    unknown_surface = copy.deepcopy(historical_surface)
+    unknown_surface["semantic_inputs"]["priorRefutation"]["evidence_references"] = [
+        "unknown-e5d-handle"
+    ]
+    expect_rejected(
+        "unknown historical string citation",
+        lambda: _protocol_v8_e5d_validate_citation_references(
+            unknown_surface["semantic_inputs"], historical_catalog
+        ),
+        "unresolved free-string",
+    )
+
+    completion_catalog = root_catalog + [
+        {"free_string_handle": "candidate-path:P", "citation": None},
+        {
+            "free_string_handle": "target-discovery-classification",
+            "citation": {"kind": "target-discovery-classification"},
+        },
+    ]
+    refutation_output = {
+        "adjudication_output_schema_version": "1.0",
+        "task": "refutation",
+        "result": {
+            "kind": "refutation-candidate",
+            "ground": "premise-false",
+            "attacked_premise_or_inference": "premise",
+            "evidence_references": ["source-finding"],
+            "argument": "argument",
+            "counterexample_disposition": None,
+        },
+    }
+    try:
+        _protocol_v8_e5d_validate_completion_citations(
+            contracts["turnlock.sqc:RefutationInitial@1"],
+            refutation_output,
+            completion_catalog,
+            output_validators,
+        )
+    except ValueError as error:
+        errors.append(f"{prefix} Refutation completion citation failed: {error}")
+    bad_refutation = copy.deepcopy(refutation_output)
+    bad_refutation["result"]["evidence_references"] = ["not-a-citation"]
+    expect_rejected(
+        "Refutation unknown completion handle",
+        lambda: _protocol_v8_e5d_validate_completion_citations(
+            contracts["turnlock.sqc:RefutationInitial@1"],
+            bad_refutation,
+            completion_catalog,
+            output_validators,
+        ),
+        "unresolved free-string",
+    )
+
+    challenge_contract = contracts["turnlock.sqc:RealizationScopeChallenge@1"]
+    challenge_definition = _mapping(challenge_contract.get("definition"))
+    objectives = list(_sequence(_mapping(challenge_definition.get("challenge")).get("objectives")))
+
+    def challenge_output(reference: str) -> dict:
+        objection_id = "OBJ-E5D-COMPLETION"
+        return {
+            "challenge_output_schema_version": "1.0",
+            "challenge_kind": "derivation",
+            "objective_assessments": [
+                {
+                    "objective": objective,
+                    "objection_ids": [objection_id] if index == 0 else [],
+                }
+                for index, objective in enumerate(objectives)
+            ],
+            "objections": [
+                {
+                    "challenge_objection_id": objection_id,
+                    "objective": objectives[0],
+                    "statement": "objection",
+                    "argument": "argument",
+                    "evidence_references": [reference],
+                }
+            ],
+        }
+
+    catalog_before_completion = copy.deepcopy(completion_catalog)
+    for reference in ("source-finding", "candidate-path:P"):
+        try:
+            _protocol_v8_e5d_validate_completion_citations(
+                challenge_contract,
+                challenge_output(reference),
+                completion_catalog,
+                output_validators,
+            )
+        except ValueError as error:
+            errors.append(f"{prefix} Challenge completion citation failed: {error}")
+    expect_rejected(
+        "Challenge hidden path citation",
+        lambda: _protocol_v8_e5d_validate_completion_citations(
+            challenge_contract,
+            challenge_output("candidate-path:P-HIDDEN"),
+            completion_catalog,
+            output_validators,
+        ),
+        "unresolved free-string",
+    )
+
+    discovery_statement = {
+        "statement": "completion discovery",
+        "evidence_references": [
+            {"kind": "source-finding"},
+            {"kind": "authority-content", "role": "normative-spec"},
+        ],
+        "evidence_argument": "evidence",
+        "existing_authority": [
+            {"kind": "authority-content", "role": "normative-spec"}
+        ],
+        "affected_layers": ["architecture-or-implementation"],
+        "semantic_disposition": "no-normative-impact",
+        "disposition_basis": {
+            "new_product_authority_not_required_argument": "none",
+            "changed_product_authority_not_required_argument": "none",
+            "product_meaning_selection_not_required_argument": "none",
+            "accepted_observable_obligation_change_not_required_argument": "none",
+        },
+    }
+    discovery_output = {
+        "adjudication_output_schema_version": "1.0",
+        "task": "discovery-classification",
+        "result": {
+            "earliest_unresolved_cause": {
+                "classification_statement_ordinal": 0,
+                "evidence_references": [{"kind": "source-finding"}],
+                "causal_explanation": "cause",
+                "upstream_exclusion_argument": "none earlier",
+            },
+            "classification_statements": [discovery_statement],
+        },
+    }
+    try:
+        _protocol_v8_e5d_validate_completion_citations(
+            contracts["turnlock.sqc:DiscoveryClassificationInitial@1"],
+            discovery_output,
+            completion_catalog,
+            output_validators,
+        )
+    except ValueError as error:
+        errors.append(f"{prefix} Discovery completion citation failed: {error}")
+    bad_discovery = copy.deepcopy(discovery_output)
+    bad_discovery["result"]["classification_statements"][0][
+        "existing_authority"
+    ] = [
+        {
+            "kind": "authority-content",
+            "role": "architecture-decision",
+            "id": "ADR-999",
+        }
+    ]
+    expect_rejected(
+        "Discovery unresolved existing_authority",
+        lambda: _protocol_v8_e5d_validate_completion_citations(
+            contracts["turnlock.sqc:DiscoveryClassificationInitial@1"],
+            bad_discovery,
+            completion_catalog,
+            output_validators,
+        ),
+        "unresolved structured authority",
+    )
+    bad_discovery_evidence = copy.deepcopy(discovery_output)
+    bad_discovery_evidence["result"]["classification_statements"][0][
+        "evidence_references"
+    ] = [
+        {
+            "kind": "authority-content",
+            "role": "architecture-decision",
+            "id": "ADR-999",
+        }
+    ]
+    expect_rejected(
+        "Discovery unresolved structured evidence citation",
+        lambda: _protocol_v8_e5d_validate_completion_citations(
+            contracts["turnlock.sqc:DiscoveryClassificationInitial@1"],
+            bad_discovery_evidence,
+            completion_catalog,
+            output_validators,
+        ),
+        "unresolved structured evidence",
+    )
+
+    unique_output_candidate = {
+        "kind": "unique-correction-candidate",
+        "correction_requirements": [{"postcondition": "required"}],
+        "derivation_claims": [
+            {
+                "claim": "claim",
+                "requirement_ordinals": [0],
+                "authority_references": [
+                    {"kind": "authority-content", "role": "normative-spec"}
+                ],
+                "evidence_references": [
+                    {"kind": "target-discovery-classification"}
+                ],
+                "derivation_argument": "derivation",
+            }
+        ],
+        "alternatives_considered": [],
+        "uniqueness_argument": {
+            "authority_references": [
+                {"kind": "authority-content", "role": "normative-spec"}
+            ],
+            "argument": "unique",
+        },
+    }
+    unique_output = {
+        "adjudication_output_schema_version": "1.0",
+        "task": "unique-correction-derivation",
+        "result": unique_output_candidate,
+    }
+    try:
+        _protocol_v8_e5d_validate_completion_citations(
+            contracts["turnlock.sqc:UniqueCorrectionInitial@1"],
+            unique_output,
+            completion_catalog,
+            output_validators,
+        )
+    except ValueError as error:
+        errors.append(f"{prefix} UniqueCorrection completion citation failed: {error}")
+    if completion_catalog != catalog_before_completion:
+        errors.append(f"{prefix} completion citation validation mutated the catalog")
+
+    first_record = records_by_contract["turnlock.sqc:MaterialityAssessmentInitial@1"][0]
+    before_witness = project(first_record)
+    state = first_record["closure"]["e2_state"]
+    admission = state["admissions"].get(first_record["qlek"])
+    if not isinstance(admission, dict):
+        errors.append(f"{prefix} provenance fixture Admission missing")
+    else:
+        witness = _protocol_v8_e2_validated_witness_token(
+            first_record["qlek"],
+            admission["admission_id"],
+            admission["candidate"],
+            "E5D-CONVERGENT-WITNESS",
+        )
+        _protocol_v8_e2_t5_reconcile_external_history(
+            state,
+            first_record["qlek"],
+            semantic_candidate=admission["candidate"],
+            validated_origin_witness=witness,
+        )
+        surface_memos.pop(id(first_record["closure"]), None)
+        snapshot_memos.pop(id(first_record["closure"]), None)
+        after_witness = project(first_record)
+        if before_witness != after_witness:
+            errors.append(f"{prefix} provenance-only witness changed packet/catalog")
+
+    rs_records = records_by_contract["turnlock.sqc:RealizationScopeInitial@1"]
+    equal_packet_pair: tuple[dict, dict] | None = None
+    for left_index, left in enumerate(rs_records):
+        for right in rs_records[left_index + 1 :]:
+            if left["qlek"] == right["qlek"]:
+                continue
+            try:
+                left_projection = project(left)
+                right_projection = project(right)
+            except ValueError:
+                continue
+            if left_projection == right_projection:
+                equal_packet_pair = (left_projection, right_projection)
+                break
+        if equal_packet_pair is not None:
+            break
+    if equal_packet_pair is None:
+        errors.append(f"{prefix} distinct QLEKs/equal packet fixture was not established")
+
+    drift_record = first_record
+    drift_contract = _protocol_v8_e3a_resolve_qlek(
+        drift_record["closure"], contracts, drift_record["qlek"]
+    )["semanticQuestionContract"]
+    drifted_bundle = copy.deepcopy(bundle)
+    realization = next(
+        item
+        for item in drifted_bundle["question_realizations"]
+        if item["semantic_question_contract"] == drift_contract
+    )
+    realization["packet_schema"] = "challenge-output"
+    expect_rejected(
+        "protocol realization packet-schema drift",
+        lambda: project(drift_record, drifted_bundle),
+        "packet schema mismatch",
+    )
+    missing_bundle = copy.deepcopy(bundle)
+    missing_bundle["question_realizations"] = [
+        item
+        for item in missing_bundle["question_realizations"]
+        if item["semantic_question_contract"] != drift_contract
+    ]
+    expect_rejected(
+        "missing protocol realization",
+        lambda: project(drift_record, missing_bundle),
+        "cardinality",
+    )
+    duplicate_bundle = copy.deepcopy(bundle)
+    duplicate_bundle["question_realizations"].append(copy.deepcopy(realization))
+    duplicate_bundle["question_realizations"][-1]["packet_schema"] = (
+        "cognitive-execution-packet"
+    )
+    expect_rejected(
+        "duplicate protocol realization",
+        lambda: project(drift_record, duplicate_bundle),
+        "cardinality",
+    )
+
+    forbidden_fragments = {
+        "packet_artifact_seal",
+        "persist_packet",
+        "dispatch_provider",
+        "execution_receipt",
+        "origin_witness_projection",
+        "review_evidence_v6_projection",
+        "supplement_v2_projection",
+        "activate_protocol_v8",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e5d_")
+        and any(fragment in name for fragment in forbidden_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} forbidden later-stage helper was introduced")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -26448,6 +27976,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e5d_cognitive_packet_citation_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
