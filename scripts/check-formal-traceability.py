@@ -23389,6 +23389,1024 @@ def _inactive_protocol_v8_e6b_review_campaign_projection_errors(
     return errors
 
 
+_PROTOCOL_V8_E6C_FORBIDDEN_OWNERSHIP_KEYS = {
+    "supporting_executions",
+    "reused_executions",
+    "adjudicating_review_id",
+    "materiality_assessment_execution_receipt",
+    "materiality_challenge_execution_receipt",
+    "refutation_execution_receipt",
+    "refutation_challenge_execution_receipt",
+    "refutation_exhaustion_terminal_receipt",
+    "origin_witnesses",
+    "origin_witness_ownership",
+}
+
+
+def _protocol_v8_e6c_supplement_v2_validator(
+    root: Path,
+) -> tuple[Draft202012Validator | None, list[str]]:
+    """Compile supplement-v2 with its exact semantic-identity dependency."""
+    prefix = "inactive protocol v8 E6-C:"
+    supplement_schema, supplement_errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_FINDING_ADJUDICATION_SUPPLEMENT_V2_SCHEMA_REFERENCE,
+        f"{prefix} supplement-v2 schema",
+        REVIEW_SCHEMAS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=True,
+    )
+    identity_schema, identity_errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE,
+        f"{prefix} semantic identity schema",
+        REVIEW_SCHEMAS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=True,
+    )
+    errors = supplement_errors + identity_errors
+    if supplement_schema is None or identity_schema is None:
+        return None, errors
+    try:
+        registry = Registry().with_resource(
+            identity_schema["$id"], Resource.from_contents(identity_schema)
+        )
+        validator = Draft202012Validator(
+            supplement_schema,
+            registry=registry,
+            format_checker=FormatChecker(),
+        )
+    except (KeyError, SchemaError) as error:
+        errors.append(f"{prefix} published supplement-v2 schema load failed: {error}")
+        return None, errors
+    return validator, errors
+
+
+def _protocol_v8_e6c_structural_keys(value: object) -> set[str]:
+    """Collect structural keys only; prose never creates ownership fields."""
+    if isinstance(value, dict):
+        result = set(value)
+        for child in value.values():
+            result.update(_protocol_v8_e6c_structural_keys(child))
+        return result
+    if isinstance(value, list):
+        result: set[str] = set()
+        for child in value:
+            result.update(_protocol_v8_e6c_structural_keys(child))
+        return result
+    return set()
+
+
+def _protocol_v8_e6c_finding_adjudication_ref_from_fact(
+    closure: dict,
+    contracts: dict[str, dict],
+    fact_ref: object,
+) -> dict:
+    """Follow exact Fact→qualification→anchor→QLEK closure to its FA input."""
+    descriptor = _protocol_v8_e3a_resolve_fact_identity(closure, fact_ref)
+    qualification_ref = _mapping(descriptor.get("arguments")).get("qualification")
+    qualification = _protocol_v8_e3a_resolve_qualification_identity(
+        closure, qualification_ref
+    )
+    admission_ref = qualification.get("anchorAdmission")
+    admission = _protocol_v8_e3a_resolve_admission_identity(closure, admission_ref)
+    if not _protocol_v8_e3a_admission_consumable(closure, admission_ref):
+        raise ValueError("effective Fact anchor Admission is not currently consumable")
+    question = _protocol_v8_e3a_resolve_qlek(
+        closure, contracts, admission.get("qlek")
+    )
+    finding_ref = _mapping(question.get("exactLogicalInput")).get(
+        "findingAdjudicationBasis"
+    )
+    semantic = _protocol_v8_e3a_resolve_semantic_value(closure, finding_ref)
+    if semantic.get("valueType") != (
+        "turnlock.semantic-value:FindingAdjudicationBasis@1"
+    ):
+        raise ValueError("effective Fact does not resolve exact FindingAdjudicationBasis")
+    assert isinstance(finding_ref, dict)
+    return copy.deepcopy(finding_ref)
+
+
+def _protocol_v8_e6c_supplement_v2_projection_errors(
+    root: Path,
+    supplement: object,
+    *,
+    current_subject: object,
+    source_review_id: object,
+    source_finding: object,
+    closure: dict,
+    contracts: dict[str, dict],
+    predicates: dict[str, dict],
+    qualifications: dict[str, dict],
+    finding_closure_resolver,
+    supplement_validator: Draft202012Validator,
+    candidate_materialization_resolver,
+    sealed_content_resolver,
+    label: str = "inactive protocol v8 E6-C supplement-v2",
+) -> list[str]:
+    """Validate one complete supplement projection against injected history."""
+    errors = _schema_violations(supplement_validator, supplement, label)
+    if not isinstance(supplement, dict):
+        return errors
+    leaked = _protocol_v8_e6c_structural_keys(supplement).intersection(
+        _PROTOCOL_V8_E6C_FORBIDDEN_OWNERSHIP_KEYS
+    )
+    if leaked:
+        errors.append(f"{label}: forbidden P7 ownership structural keys {sorted(leaked)!r}")
+    protocol = _mapping(supplement.get("protocol"))
+    expected_protocol = {
+        "protocol_id": "gate-a-campaign-protocol-v8",
+        "bundle_sha256": PROTOCOL_V8_BUNDLE_REFERENCE["sha256"],
+    }
+    if protocol != expected_protocol:
+        errors.append(f"{label}: protocol identity is not exact P8")
+    expected_subject = (
+        {
+            "selector": current_subject.get("selector"),
+            "sha256": current_subject.get("sha256"),
+        }
+        if isinstance(current_subject, dict)
+        else None
+    )
+    if expected_subject is None or supplement.get("semantic_subject") != expected_subject:
+        errors.append(f"{label}: semantic_subject is not exact current S")
+    source = _mapping(supplement.get("source_finding"))
+    if not isinstance(source_finding, dict) or source_review_id != source.get(
+        "review_id"
+    ) or source_finding.get("finding_id") != source.get("finding_id"):
+        errors.append(f"{label}: source ReviewCampaign/finding does not resolve exactly")
+        validated_finding_sha = None
+    else:
+        validated_finding_sha = _finding_subject_sha256(source_finding)
+        if source.get("substantive_finding_sha256") != validated_finding_sha:
+            errors.append(f"{label}: substantive finding sha256 mismatch")
+    if errors:
+        return errors
+
+    effective = _mapping(supplement.get("effective_adjudication"))
+    kind = effective.get("kind")
+    finding_ref: dict
+    try:
+        if kind in {"qualified-non-material", "qualified-refutation"}:
+            fact_ref = effective.get("fact")
+            status = _protocol_v8_e5b_fact_status(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                fact_ref,
+                candidate_materialization_resolver=(
+                    candidate_materialization_resolver
+                ),
+                sealed_content_resolver=sealed_content_resolver,
+            )
+            expected_predicate = {
+                "qualified-non-material": (
+                    "turnlock.predicate:QualifiedNonMateriality@1"
+                ),
+                "qualified-refutation": "turnlock.predicate:QualifiedRefutation@1",
+            }[kind]
+            if status["descriptor"].get("predicateRevision") != expected_predicate:
+                raise ValueError("effective adjudication kind/Fact predicate mismatch")
+            if status["reconstructible"] is not True:
+                raise ValueError("effective Fact is not reconstructible")
+            if status["consumable"] is not True:
+                raise ValueError("effective Fact is not currently consumable")
+            finding_ref = _protocol_v8_e6c_finding_adjudication_ref_from_fact(
+                closure, contracts, fact_ref
+            )
+        elif kind == "surviving-material":
+            surviving_ref = effective.get("basis")
+            _protocol_v8_e5a_surviving_material_cognitive_basis(
+                root,
+                closure,
+                contracts,
+                predicates,
+                qualifications,
+                surviving_ref,
+                finding_closure_resolver,
+            )
+            surviving = _protocol_v8_e3a_resolve_semantic_value(
+                closure, surviving_ref
+            )
+            if surviving.get("valueType") != (
+                "turnlock.semantic-value:SurvivingMaterialBasis@1"
+            ):
+                raise ValueError("effective adjudication kind/valueType mismatch")
+            finding_ref = copy.deepcopy(
+                _mapping(surviving.get("value")).get("findingAdjudicationBasis")
+            )
+        else:
+            raise ValueError("effective adjudication kind is not one of exact three")
+        _protocol_v8_e5a_validate_finding_adjudication_closure(
+            closure, finding_ref, finding_closure_resolver
+        )
+        finding_semantic = _protocol_v8_e3a_resolve_semantic_value(
+            closure, finding_ref
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        return [*errors, f"{label}: {error}"]
+
+    finding_value = _mapping(finding_semantic.get("value"))
+    expected_fa_source = {
+        "reviewCampaignId": source["review_id"],
+        "findingId": source["finding_id"],
+        "substantiveFindingSha256": validated_finding_sha,
+    }
+    expected_fa_protocol = {
+        "protocolId": protocol["protocol_id"],
+        "bundleSha256": protocol["bundle_sha256"],
+    }
+    if finding_value.get("semanticSubject") != supplement.get("semantic_subject"):
+        errors.append(f"{label}: resolved FA names another semantic subject S")
+    if finding_value.get("currentProtocol") != expected_fa_protocol:
+        errors.append(f"{label}: resolved FA names another protocol P")
+    if finding_value.get("sourceFinding") != expected_fa_source:
+        errors.append(f"{label}: resolved FA names another source finding")
+    return errors
+
+
+def _protocol_v8_e6c_repository_supplement_prehistory_errors(
+    supplement: object,
+    *,
+    current_subject: object,
+    record_index: dict[str, list[dict]],
+    supplement_validator: Draft202012Validator,
+    label: str,
+) -> tuple[tuple | None, list[str]]:
+    """Validate every repository-known v2 fact before the history boundary."""
+    errors = _schema_violations(supplement_validator, supplement, label)
+    if not isinstance(supplement, dict):
+        return None, errors
+    leaked = _protocol_v8_e6c_structural_keys(supplement).intersection(
+        _PROTOCOL_V8_E6C_FORBIDDEN_OWNERSHIP_KEYS
+    )
+    if leaked:
+        errors.append(f"{label}: forbidden P7 ownership structural keys {sorted(leaked)!r}")
+    protocol = _mapping(supplement.get("protocol"))
+    if protocol != {
+        "protocol_id": "gate-a-campaign-protocol-v8",
+        "bundle_sha256": PROTOCOL_V8_BUNDLE_REFERENCE["sha256"],
+    }:
+        errors.append(f"{label}: protocol identity is not exact P8")
+    expected_subject = (
+        {
+            "selector": current_subject.get("selector"),
+            "sha256": current_subject.get("sha256"),
+        }
+        if isinstance(current_subject, dict)
+        else None
+    )
+    if expected_subject is None or supplement.get("semantic_subject") != expected_subject:
+        errors.append(f"{label}: supplement semantic subject is not current S")
+    source = _mapping(supplement.get("source_finding"))
+    source_records = record_index.get(source.get("review_id"), [])
+    source_record = source_records[0] if len(source_records) == 1 else None
+    matches = [
+        finding
+        for finding in _sequence(_mapping(source_record).get("findings"))
+        if isinstance(finding, dict)
+        and finding.get("finding_id") == source.get("finding_id")
+    ]
+    if source_record is None or len(matches) != 1:
+        errors.append(f"{label}: source finding does not resolve exactly")
+        return None, errors
+    validated_sha = _finding_subject_sha256(matches[0])
+    if source.get("substantive_finding_sha256") != validated_sha:
+        errors.append(f"{label}: substantive finding sha256 mismatch")
+    if errors:
+        return None, errors
+    return (
+        source.get("review_id"),
+        source.get("finding_id"),
+        validated_sha,
+        protocol.get("protocol_id"),
+        protocol.get("bundle_sha256"),
+    ), []
+
+
+def _inactive_protocol_v8_e6c_finding_adjudication_supplement_projection_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise all three supplement-v2 projections over disposable history."""
+    prefix = "inactive protocol v8 E6-C:"
+    errors: list[str] = []
+    manifest, manifest_errors = _load_yaml(root, MANIFEST_RELATIVE)
+    subject, subject_errors = (
+        build_gate_a_review_subject(root, manifest)
+        if isinstance(manifest, dict)
+        else (None, [])
+    )
+    packet_bytes, packet_errors = (
+        build_gate_a_review_packet_bytes(root, manifest)
+        if isinstance(manifest, dict)
+        else (None, [])
+    )
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    predicates, qualifications, catalog_errors = _protocol_v8_e3a_catalog_maps(root)
+    output_validators, output_errors = _protocol_v8_e1_output_validators(root)
+    validator, validator_errors = _protocol_v8_e6c_supplement_v2_validator(root)
+    for collection in (
+        manifest_errors,
+        subject_errors,
+        packet_errors,
+        contract_errors,
+        catalog_errors,
+        output_errors,
+        validator_errors,
+    ):
+        errors.extend(f"{prefix} {error}" for error in collection)
+    if (
+        not isinstance(manifest, dict)
+        or not isinstance(subject, dict)
+        or packet_bytes is None
+        or validator is None
+    ):
+        return errors
+    try:
+        review_packet = json.loads(packet_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        return errors + [f"{prefix} canonical review packet parse failed: {error}"]
+    exact_subject = {
+        "selector": subject.get("selector"),
+        "sha256": subject.get("sha256"),
+    }
+    exact_protocol = {
+        "protocolId": "gate-a-campaign-protocol-v8",
+        "bundleSha256": PROTOCOL_V8_BUNDLE_REFERENCE["sha256"],
+    }
+    supplement_protocol = {
+        "protocol_id": exact_protocol["protocolId"],
+        "bundle_sha256": exact_protocol["bundleSha256"],
+    }
+    fa_adapters: dict[str, dict] = {}
+
+    def finding(campaign_id: str, finding_id: str) -> dict:
+        return {
+            "finding_id": finding_id,
+            "sources": [
+                {
+                    "execution_id": f"EXEC-{campaign_id}",
+                    "raw_finding_id": f"RAW-{finding_id}",
+                }
+            ],
+            "statement": f"E6-C substantive finding {finding_id}",
+            "argument": f"E6-C exact argument {finding_id}",
+            "counterexample": None,
+        }
+
+    def new_closure() -> dict:
+        closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+        closure["_e3b_output_validators"] = output_validators
+        return closure
+
+    def register_fa(
+        closure: dict,
+        campaign_id: str,
+        finding_id: str,
+        *,
+        packet: dict | None = None,
+        protocol: dict | None = None,
+    ) -> tuple[dict, dict]:
+        source_finding = finding(campaign_id, finding_id)
+        selected_packet = copy.deepcopy(review_packet if packet is None else packet)
+        selected_subject = _mapping(selected_packet.get("subject"))
+        selected_protocol = copy.deepcopy(
+            exact_protocol if protocol is None else protocol
+        )
+        value = {
+            "schema": "turnlock.finding-adjudication-basis.v1",
+            "semanticSubject": {
+                "selector": selected_subject.get("selector"),
+                "sha256": selected_subject.get("sha256"),
+            },
+            "currentProtocol": selected_protocol,
+            "sourceFinding": {
+                "reviewCampaignId": campaign_id,
+                "findingId": finding_id,
+                "substantiveFindingSha256": _finding_subject_sha256(
+                    source_finding
+                ),
+            },
+        }
+        reference = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:FindingAdjudicationBasis@1",
+            value,
+        )
+        fa_adapters[reference["valueId"]] = {
+            "review_packet": selected_packet,
+            "current_protocol": copy.deepcopy(selected_protocol),
+            "source_review_campaign_id": campaign_id,
+            "source_finding": copy.deepcopy(source_finding),
+        }
+        return reference, source_finding
+
+    def resolve_fa(reference: object) -> dict:
+        if not isinstance(reference, dict):
+            raise ValueError(f"{prefix} fixture FA reference missing")
+        adapter = fa_adapters.get(reference.get("valueId"))
+        if adapter is None:
+            raise ValueError(f"{prefix} fixture FA closure missing")
+        return copy.deepcopy(adapter)
+
+    def admit(closure: dict, contract: str, inputs: dict, candidate: object) -> dict:
+        return _protocol_v8_e3b_test_admit(
+            closure, contracts, contract, inputs, candidate
+        )
+
+    def challenge(
+        closure: dict, contract: str, input_name: str, target: dict, zero: bool
+    ) -> dict:
+        return admit(
+            closure,
+            contract,
+            {input_name: copy.deepcopy(target)},
+            _protocol_v8_e3b_test_challenge_candidate(contracts[contract], zero),
+        )
+
+    def qualification(
+        closure: dict, contract: str, anchor: dict, additional: dict
+    ) -> dict:
+        return _protocol_v8_e3b_test_qualification(
+            closure, qualifications, contract, anchor, additional
+        )
+
+    def fact(closure: dict, predicate: str, arguments: dict) -> dict:
+        return _protocol_v8_e3b_test_fact(
+            closure, predicates, predicate, arguments
+        )
+
+    all_false_materiality = {
+        "authority_or_upstream_decision": False,
+        "claim_structure": False,
+        "normative_provenance": False,
+        "modality_or_assurance_domain": False,
+        "coverage_or_residual_assurance": False,
+        "interaction_scope": False,
+        "candidate_model_authorization": False,
+        "rationale": "all exact E6-C materiality axes are false",
+    }
+    positive_materiality = {
+        **all_false_materiality,
+        "authority_or_upstream_decision": True,
+        "rationale": "one exact E6-C materiality axis is true",
+    }
+    refutation_candidate = {
+        "kind": "refutation-candidate",
+        "ground": "premise-false",
+        "attacked_premise_or_inference": "the exact E6-C premise",
+        "evidence_references": ["E6-C-EVIDENCE"],
+        "argument": "the exact E6-C premise is false",
+        "counterexample_disposition": None,
+    }
+
+    def nonmaterial_history(
+        campaign_id: str,
+        finding_id: str,
+        *,
+        zero_challenge: bool = True,
+        packet: dict | None = None,
+        protocol: dict | None = None,
+    ) -> dict:
+        closure = new_closure()
+        fa_ref, source_finding = register_fa(
+            closure, campaign_id, finding_id, packet=packet, protocol=protocol
+        )
+        anchor = admit(
+            closure,
+            "turnlock.sqc:MaterialityAssessmentInitial@1",
+            {"findingAdjudicationBasis": fa_ref},
+            all_false_materiality,
+        )
+        challenged = challenge(
+            closure,
+            "turnlock.sqc:MaterialityChallenge@1",
+            "challengedMaterialityAssessment",
+            anchor,
+            zero_challenge,
+        )
+        key = qualification(
+            closure,
+            "turnlock.qualification:MaterialityAssessmentQualification@1",
+            anchor,
+            {"materialityChallenge": challenged},
+        )
+        return {
+            "closure": closure,
+            "fa": fa_ref,
+            "source": source_finding,
+            "anchor": anchor,
+            "effective": fact(
+                closure,
+                "turnlock.predicate:QualifiedNonMateriality@1",
+                {"qualification": key},
+            ),
+        }
+
+    def positive_prefix(
+        campaign_id: str,
+        finding_id: str,
+        *,
+        packet: dict | None = None,
+        protocol: dict | None = None,
+    ) -> dict:
+        closure = new_closure()
+        fa_ref, source_finding = register_fa(
+            closure, campaign_id, finding_id, packet=packet, protocol=protocol
+        )
+        materiality = admit(
+            closure,
+            "turnlock.sqc:MaterialityAssessmentInitial@1",
+            {"findingAdjudicationBasis": fa_ref},
+            positive_materiality,
+        )
+        key = qualification(
+            closure,
+            "turnlock.qualification:MaterialityAssessmentQualification@1",
+            materiality,
+            {},
+        )
+        qpm = fact(
+            closure,
+            "turnlock.predicate:QualifiedPositiveMateriality@1",
+            {"qualification": key},
+        )
+        return {
+            "closure": closure,
+            "fa": fa_ref,
+            "source": source_finding,
+            "qpm": qpm,
+        }
+
+    def refutation_history(campaign_id: str, finding_id: str) -> dict:
+        history = positive_prefix(campaign_id, finding_id)
+        closure = history["closure"]
+        anchor = admit(
+            closure,
+            "turnlock.sqc:RefutationInitial@1",
+            {
+                "findingAdjudicationBasis": history["fa"],
+                "qualifiedPositiveMateriality": history["qpm"],
+            },
+            refutation_candidate,
+        )
+        challenged = challenge(
+            closure,
+            "turnlock.sqc:RefutationChallenge@1",
+            "challengedRefutation",
+            anchor,
+            True,
+        )
+        key = qualification(
+            closure,
+            "turnlock.qualification:RefutationQualification@1",
+            anchor,
+            {"refutationChallenge": challenged},
+        )
+        history.update(
+            {
+                "anchor": anchor,
+                "effective": fact(
+                    closure,
+                    "turnlock.predicate:QualifiedRefutation@1",
+                    {"qualification": key},
+                ),
+            }
+        )
+        return history
+
+    def surviving_history(campaign_id: str, finding_id: str) -> dict:
+        history = positive_prefix(campaign_id, finding_id)
+        closure = history["closure"]
+        admit(
+            closure,
+            "turnlock.sqc:RefutationInitial@1",
+            {
+                "findingAdjudicationBasis": history["fa"],
+                "qualifiedPositiveMateriality": history["qpm"],
+            },
+            {"kind": "not-established"},
+        )
+        exhaustion = fact(
+            closure,
+            "turnlock.predicate:RefutationExhaustionWithoutQualifiedRefutation@1",
+            {"qualifiedPositiveMateriality": history["qpm"]},
+        )
+        surviving = _protocol_v8_e3a_register_semantic_value(
+            closure,
+            "turnlock.semantic-value:SurvivingMaterialBasis@1",
+            {
+                "schema": "turnlock.surviving-material-basis.v1",
+                "findingAdjudicationBasis": history["fa"],
+                "qualifiedPositiveMateriality": history["qpm"],
+                "refutationExhaustionWithoutQualifiedRefutation": exhaustion,
+            },
+        )
+        history.update({"exhaustion": exhaustion, "effective": surviving})
+        return history
+
+    histories = {
+        "qualified-non-material": nonmaterial_history(
+            "REVIEW-E6C-N", "FINDING-E6C-N"
+        ),
+        "qualified-refutation": refutation_history(
+            "REVIEW-E6C-R", "FINDING-E6C-R"
+        ),
+        "surviving-material": surviving_history(
+            "REVIEW-E6C-S", "FINDING-E6C-S"
+        ),
+    }
+
+    def supplement_for(kind: str, history: dict) -> dict:
+        effective = (
+            {"kind": kind, "basis": copy.deepcopy(history["effective"])}
+            if kind == "surviving-material"
+            else {"kind": kind, "fact": copy.deepcopy(history["effective"])}
+        )
+        fa_value = _mapping(
+            _protocol_v8_e3a_resolve_semantic_value(
+                history["closure"], history["fa"]
+            ).get("value")
+        )
+        return {
+            "supplement_schema_version": "2.0",
+            "semantic_subject": copy.deepcopy(fa_value["semanticSubject"]),
+            "protocol": copy.deepcopy(supplement_protocol),
+            "source_finding": {
+                "review_id": fa_value["sourceFinding"]["reviewCampaignId"],
+                "finding_id": fa_value["sourceFinding"]["findingId"],
+                "substantive_finding_sha256": fa_value["sourceFinding"][
+                    "substantiveFindingSha256"
+                ],
+            },
+            "effective_adjudication": effective,
+        }
+
+    # Candidate and content resolution are outside all three adjudication branches.
+    def forbidden_candidate_resolver(_reference: object) -> dict:
+        raise ValueError(f"{prefix} candidate resolution is forbidden")
+
+    def forbidden_content_resolver(_reference: object) -> bytes:
+        raise ValueError(f"{prefix} content resolution is forbidden")
+
+    supplements = {
+        kind: supplement_for(kind, history)
+        for kind, history in histories.items()
+    }
+
+    def history_source_review_id(history: dict) -> object:
+        return _mapping(
+            _mapping(
+                _protocol_v8_e3a_resolve_semantic_value(
+                    history["closure"], history["fa"]
+                ).get("value")
+            ).get("sourceFinding")
+        ).get("reviewCampaignId")
+
+    def projection_errors(kind: str, candidate: dict, history: dict | None = None) -> list[str]:
+        selected = histories[kind] if history is None else history
+        return _protocol_v8_e6c_supplement_v2_projection_errors(
+            root,
+            candidate,
+            current_subject=exact_subject,
+            source_review_id=history_source_review_id(selected),
+            source_finding=selected["source"],
+            closure=selected["closure"],
+            contracts=contracts,
+            predicates=predicates,
+            qualifications=qualifications,
+            finding_closure_resolver=resolve_fa,
+            supplement_validator=validator,
+            candidate_materialization_resolver=forbidden_candidate_resolver,
+            sealed_content_resolver=forbidden_content_resolver,
+        )
+
+    for kind, supplement in supplements.items():
+        schema_failures = _schema_violations(validator, supplement, f"{prefix} {kind}")
+        if schema_failures:
+            errors.extend(schema_failures)
+            continue
+        errors.extend(projection_errors(kind, supplement))
+
+    def expect_rejected(
+        name: str,
+        kind: str,
+        candidate: dict,
+        required: str | None = None,
+        history: dict | None = None,
+        current_subject_override: dict | None = None,
+        source_override: dict | None = None,
+        source_review_id_override: object = None,
+    ) -> None:
+        selected = histories[kind] if history is None else history
+        observed = _protocol_v8_e6c_supplement_v2_projection_errors(
+            root,
+            candidate,
+            current_subject=(
+                exact_subject
+                if current_subject_override is None
+                else current_subject_override
+            ),
+            source_review_id=(
+                history_source_review_id(selected)
+                if source_review_id_override is None
+                else source_review_id_override
+            ),
+            source_finding=(selected["source"] if source_override is None else source_override),
+            closure=selected["closure"],
+            contracts=contracts,
+            predicates=predicates,
+            qualifications=qualifications,
+            finding_closure_resolver=resolve_fa,
+            supplement_validator=validator,
+            candidate_materialization_resolver=forbidden_candidate_resolver,
+            sealed_content_resolver=forbidden_content_resolver,
+        )
+        if not observed:
+            errors.append(f"{prefix} expected rejection: {name}")
+        elif required is not None and not any(required in item for item in observed):
+            errors.append(f"{prefix} {name} rejected without {required!r}")
+
+    base = supplements["qualified-non-material"]
+    for name, field, value, required in (
+        ("wrong protocol_id", ("protocol", "protocol_id"), "wrong", "exact P8"),
+        ("wrong bundle_sha256", ("protocol", "bundle_sha256"), "0" * 64, "exact P8"),
+        ("wrong subject selector", ("semantic_subject", "selector"), "wrong", "current S"),
+        ("wrong subject SHA", ("semantic_subject", "sha256"), "1" * 64, "current S"),
+        ("wrong source review", ("source_finding", "review_id"), "REVIEW-WRONG", "resolve exactly"),
+        ("wrong source finding", ("source_finding", "finding_id"), "FINDING-WRONG", "resolve exactly"),
+        ("wrong finding hash", ("source_finding", "substantive_finding_sha256"), "2" * 64, "sha256 mismatch"),
+    ):
+        candidate = copy.deepcopy(base)
+        candidate[field[0]][field[1]] = value
+        expect_rejected(name, "qualified-non-material", candidate, required)
+
+    forbidden = copy.deepcopy(base)
+    forbidden["supporting_executions"] = []
+    expect_rejected(
+        "forbidden P7 ownership field",
+        "qualified-non-material",
+        forbidden,
+        "forbidden P7 ownership",
+    )
+    dangling_fact = copy.deepcopy(base)
+    dangling_fact["effective_adjudication"]["fact"]["factId"] = (
+        "semantic-fact-sha256:" + "0" * 64
+    )
+    expect_rejected(
+        "dangling SemanticFactRef",
+        "qualified-non-material",
+        dangling_fact,
+        "dangling FactRef",
+    )
+    dangling_value = copy.deepcopy(supplements["surviving-material"])
+    dangling_value["effective_adjudication"]["basis"]["valueId"] = (
+        "semantic-value-sha256:" + "0" * 64
+    )
+    expect_rejected(
+        "dangling SemanticValueRef",
+        "surviving-material",
+        dangling_value,
+        "dangling semantic-value ref",
+    )
+    wrong_relation = copy.deepcopy(base)
+    wrong_relation["effective_adjudication"] = {
+        "kind": "qualified-non-material",
+        "fact": copy.deepcopy(histories["qualified-refutation"]["effective"]),
+    }
+    expect_rejected(
+        "wrong kind/reference relationship",
+        "qualified-non-material",
+        wrong_relation,
+    )
+
+    nonreconstructible = nonmaterial_history(
+        "REVIEW-E6C-BAD", "FINDING-E6C-BAD", zero_challenge=False
+    )
+    nonreconstructible_supplement = supplement_for(
+        "qualified-non-material", nonreconstructible
+    )
+    expect_rejected(
+        "non-reconstructible Fact",
+        "qualified-non-material",
+        nonreconstructible_supplement,
+        "not reconstructible",
+        history=nonreconstructible,
+    )
+
+    nonconsumable = copy.deepcopy(histories["qualified-non-material"])
+    anchor_record = _protocol_v8_e3a_resolve_admission_identity(
+        nonconsumable["closure"], nonconsumable["anchor"]
+    )
+    conflicting = copy.deepcopy(anchor_record["candidate"])
+    conflicting["claim_structure"] = not conflicting["claim_structure"]
+    conflict_id = _protocol_v8_e1_semantic_admission_id(
+        anchor_record["qlek"], conflicting
+    )
+    _protocol_v8_e2_t5_reconcile_external_history(
+        nonconsumable["closure"]["e2_state"],
+        anchor_record["qlek"],
+        semantic_candidate=conflicting,
+        validated_origin_witness=_protocol_v8_e2_validated_witness_token(
+            anchor_record["qlek"], conflict_id, conflicting, "E6C-CONFLICT"
+        ),
+    )
+    expect_rejected(
+        "non-consumable Fact",
+        "qualified-non-material",
+        base,
+        "not currently consumable",
+        history=nonconsumable,
+    )
+
+    surviving = histories["surviving-material"]
+    foreign_fa, _foreign_source = register_fa(
+        surviving["closure"], "REVIEW-E6C-FOREIGN", "FINDING-E6C-FOREIGN"
+    )
+    surviving_value = _mapping(
+        _protocol_v8_e3a_resolve_semantic_value(
+            surviving["closure"], surviving["effective"]
+        ).get("value")
+    )
+    wrong_sm_ref = _protocol_v8_e3a_register_semantic_value(
+        surviving["closure"],
+        "turnlock.semantic-value:SurvivingMaterialBasis@1",
+        {**copy.deepcopy(surviving_value), "findingAdjudicationBasis": foreign_fa},
+    )
+    wrong_sm = copy.deepcopy(supplements["surviving-material"])
+    wrong_sm["effective_adjudication"]["basis"] = wrong_sm_ref
+    expect_rejected(
+        "SurvivingMaterialBasis wrong FA binding",
+        "surviving-material",
+        wrong_sm,
+        "QPM/FA exact binding mismatch",
+    )
+
+    other_source = nonmaterial_history("REVIEW-E6C-OTHER", "FINDING-E6C-OTHER")
+    source_mismatch = copy.deepcopy(base)
+    source_mismatch["effective_adjudication"]["fact"] = copy.deepcopy(
+        other_source["effective"]
+    )
+    expect_rejected(
+        "resolved FA names another source finding",
+        "qualified-non-material",
+        source_mismatch,
+        "another source finding",
+        history=other_source,
+        source_override=histories["qualified-non-material"]["source"],
+        source_review_id_override=base["source_finding"]["review_id"],
+    )
+
+    alternate_packet = copy.deepcopy(review_packet)
+    alternate_payload = copy.deepcopy(alternate_packet["subject_payload"])
+    alternate_payload["project"] = "E6-C alternate semantic subject"
+    alternate_sha = sha256_hex(_canonical_json_bytes(alternate_payload))
+    alternate_packet["subject_payload"] = alternate_payload
+    alternate_packet["subject"]["sha256"] = alternate_sha
+    alternate_subject_history = nonmaterial_history(
+        "REVIEW-E6C-N", "FINDING-E6C-N", packet=alternate_packet
+    )
+    alternate_subject_supplement = copy.deepcopy(base)
+    alternate_subject_supplement["effective_adjudication"]["fact"] = copy.deepcopy(
+        alternate_subject_history["effective"]
+    )
+    expect_rejected(
+        "resolved FA names another S",
+        "qualified-non-material",
+        alternate_subject_supplement,
+        "another semantic subject S",
+        history=alternate_subject_history,
+    )
+    wrong_protocol = {
+        "protocolId": "gate-a-campaign-protocol-v8",
+        "bundleSha256": "9" * 64,
+    }
+    alternate_protocol_history = nonmaterial_history(
+        "REVIEW-E6C-N",
+        "FINDING-E6C-N",
+        protocol=wrong_protocol,
+    )
+    alternate_protocol_supplement = copy.deepcopy(base)
+    alternate_protocol_supplement["effective_adjudication"]["fact"] = copy.deepcopy(
+        alternate_protocol_history["effective"]
+    )
+    expect_rejected(
+        "resolved FA names another P",
+        "qualified-non-material",
+        alternate_protocol_supplement,
+        "another protocol P",
+        history=alternate_protocol_history,
+    )
+
+    provenance_history = copy.deepcopy(histories["qualified-refutation"])
+    provenance_history["closure"]["_origin_witness_provenance"] = {
+        "selected_proof_receipt": "different-provenance-only-witness"
+    }
+    if projection_errors(
+        "qualified-refutation",
+        supplements["qualified-refutation"],
+        provenance_history,
+    ):
+        errors.append(f"{prefix} provenance-only history change altered projection")
+    candidate_history = copy.deepcopy(histories["surviving-material"])
+    _protocol_v8_e3a_register_exact_authority(
+        candidate_history["closure"],
+        {
+            "kind": "exact-authority",
+            "authorityType": "turnlock.authority:candidate-revision.v2",
+            "authorityId": "E6C-CANDIDATE-ADVANCE",
+        },
+    )
+    if projection_errors(
+        "surviving-material",
+        supplements["surviving-material"],
+        candidate_history,
+    ):
+        errors.append(f"{prefix} candidate advance altered supplement projection")
+
+    source_record = {
+        "review_id": base["source_finding"]["review_id"],
+        "findings": [copy.deepcopy(histories["qualified-non-material"]["source"])],
+    }
+    repository_records = [
+        (root / "formal/reviews/evidence/__E6C__.json", source_record)
+    ]
+    repository_supplements = [
+        (root / "formal/reviews/supplements/__E6C__.json", copy.deepcopy(base))
+    ]
+    ownership_functions = (
+        "_supplement_effective_receipt_refs",
+        "_supplement_terminal_receipt_refs",
+        "_supplement_supporting_execution_graph",
+        "_effective_supplement_adjudication_errors",
+    )
+    originals = {name: globals()[name] for name in ownership_functions}
+
+    def forbidden_ownership(*_args, **_kwargs):
+        raise AssertionError("E6-C traversed P7 receipt ownership")
+
+    try:
+        for name in ownership_functions:
+            globals()[name] = forbidden_ownership
+        repository_errors = _finding_adjudication_supplement_errors(
+            root,
+            manifest,
+            repository_records,
+            repository_supplements,
+            exact_subject,
+        )
+    except AssertionError as error:
+        errors.append(f"{prefix} {error}")
+        repository_errors = []
+    finally:
+        for name, original in originals.items():
+            globals()[name] = original
+    if not any("Authoritative History unavailable" in item for item in repository_errors):
+        errors.append(f"{prefix} repository did not fail closed at Authoritative History")
+    for forbidden_text in (
+        "must bind a protocol-v7 bundle",
+        "adjudicating_review_id",
+        "supporting_executions",
+    ):
+        if any(forbidden_text in item for item in repository_errors):
+            errors.append(f"{prefix} v2 repository dispatch entered P7 interpretation")
+
+    duplicate_errors = _finding_adjudication_supplement_errors(
+        root,
+        manifest,
+        repository_records,
+        [
+            (root / "formal/reviews/supplements/__E6C_A__.json", copy.deepcopy(base)),
+            (root / "formal/reviews/supplements/__E6C_B__.json", copy.deepcopy(base)),
+        ],
+        exact_subject,
+    )
+    if not any("duplicate protocol-v8 supplement-v2 semantic key" in item for item in duplicate_errors):
+        errors.append(f"{prefix} duplicate exact v2 semantic key was accepted")
+
+    p7_probe = {
+        "supplement_schema_version": "1.0",
+        "protocol": {"protocol_bundle": copy.deepcopy(PROTOCOL_V8_BUNDLE_REFERENCE)},
+    }
+    p7_errors = _finding_adjudication_supplement_errors(
+        root,
+        manifest,
+        repository_records,
+        [(root / "formal/reviews/supplements/__E6C_P7__.json", p7_probe)],
+        exact_subject,
+    )
+    if not any("must bind a protocol-v7 bundle" in item for item in p7_errors):
+        errors.append(f"{prefix} historical P7 dispatch no longer reached P7 path")
+
+    if _finding_adjudication_supplement_errors(
+        root, manifest, repository_records, [], exact_subject
+    ):
+        errors.append(f"{prefix} zero supplement-v2 law was not preserved")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -28236,8 +29254,24 @@ def _finding_adjudication_supplement_errors(
         for _path, record in records
         if isinstance(record.get("review_id"), str)
     }
+    v2_record_index: dict[str, list[dict]] = {}
+    for _path, record in records:
+        review_id = record.get("review_id")
+        if isinstance(review_id, str):
+            v2_record_index.setdefault(review_id, []).append(record)
     bundle_cache: dict[str, tuple[dict | None, list[str]]] = {}
     semantic_keys: Counter[tuple] = Counter()
+    v2_semantic_keys: Counter[tuple] = Counter()
+    v2_history_boundaries: list[tuple[str, tuple]] = []
+    v2_validator: Draft202012Validator | None = None
+    if any(
+        supplement.get("supplement_schema_version") == "2.0"
+        for _path, supplement in supplements
+    ):
+        v2_validator, v2_validator_errors = (
+            _protocol_v8_e6c_supplement_v2_validator(root)
+        )
+        errors.extend(v2_validator_errors)
     receipt_owners: Counter[tuple] = Counter()
     campaign_receipts = {
         (_mapping(ref).get("path"), _mapping(ref).get("sha256"))
@@ -28246,6 +29280,24 @@ def _finding_adjudication_supplement_errors(
     }
     for path, supplement in supplements:
         label = path.relative_to(root).as_posix()
+        if supplement.get("supplement_schema_version") == "2.0":
+            if v2_validator is None:
+                errors.append(f"{label}: protocol-v8 supplement-v2 schema unavailable")
+                continue
+            semantic_key, v2_errors = (
+                _protocol_v8_e6c_repository_supplement_prehistory_errors(
+                    supplement,
+                    current_subject=current_subject,
+                    record_index=v2_record_index,
+                    supplement_validator=v2_validator,
+                    label=label,
+                )
+            )
+            errors.extend(v2_errors)
+            if semantic_key is not None:
+                v2_semantic_keys[semantic_key] += 1
+                v2_history_boundaries.append((label, semantic_key))
+            continue
         protocol = _mapping(supplement.get("protocol"))
         bundle_ref = _mapping(protocol.get("protocol_bundle"))
         bundle, bundle_errors = _load_protocol_bundle_document(
@@ -28370,6 +29422,15 @@ def _finding_adjudication_supplement_errors(
         errors.extend(
             _effective_supplement_adjudication_errors(supplement, contexts, label)
         )
+    for key, count in v2_semantic_keys.items():
+        if count > 1:
+            errors.append(f"duplicate protocol-v8 supplement-v2 semantic key {key!r}")
+    for label, key in v2_history_boundaries:
+        if v2_semantic_keys[key] == 1:
+            errors.append(
+                f"{label}: protocol-v8 supplement-v2 Authoritative History "
+                "unavailable; effective semantic adjudication cannot be established"
+            )
     for key, count in semantic_keys.items():
         if count > 1:
             errors.append(f"duplicate supplement semantic key {key!r}")
@@ -29306,6 +30367,11 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_projection_oracle_errors(root))
     errors.extend(
         _inactive_protocol_v8_e6b_review_campaign_projection_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e6c_finding_adjudication_supplement_projection_errors(
+            root
+        )
     )
 
     review_records, review_load_errors = load_review_records(root)
