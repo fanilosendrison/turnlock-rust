@@ -299,6 +299,10 @@ _PROTOCOL_V8_SEMANTIC_ORACLE_CACHE: dict[
     tuple[object, ...],
     dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
 ] = {}
+_PROTOCOL_V8_PROJECTION_ORACLE_CACHE: dict[
+    tuple[object, ...],
+    dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
+] = {}
 _PROTOCOL_V8_SEMANTIC_ORACLE_CACHE_LIMIT = 32
 _PROTOCOL_V8_SEMANTIC_ORACLE_DEPENDENCY_SET_LIMIT = 8
 
@@ -16765,6 +16769,9 @@ def _inactive_protocol_v8_e5a_cognitive_basis_projection_errors(
         lambda value: value["entries"][0]["state"].update({"extra": 1}),
     )
 
+    _record_validation_dependency(
+        Path(PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
+    )
     schema = json.loads(
         (root / PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
         .read_text(encoding="utf-8")
@@ -18610,6 +18617,12 @@ def _protocol_v8_e5c_packet_schema_validators(
 ) -> tuple[Draft202012Validator | None, Draft202012Validator | None, list[str]]:
     """Compile exact published presentation and packet schema validators."""
     prefix = "inactive protocol v8 E5-C:"
+    _record_validation_dependency(
+        Path(PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
+    )
+    _record_validation_dependency(
+        Path(PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE["path"])
+    )
     try:
         packet_schema = json.loads(
             (root / PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
@@ -20582,6 +20595,9 @@ def _protocol_v8_e5d_structured_citation_validator(
 ) -> tuple[Draft202012Validator | None, list[str]]:
     """Compile only the published structuredCitation definition."""
     prefix = "inactive protocol v8 E5-D:"
+    _record_validation_dependency(
+        Path(PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
+    )
     try:
         schema = json.loads(
             (root / PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"])
@@ -23388,6 +23404,16 @@ def _protocol_v8_semantic_oracles():
     )
 
 
+def _protocol_v8_projection_oracles():
+    return (
+        _inactive_protocol_v8_e5a_cognitive_basis_projection_errors,
+        _inactive_protocol_v8_e5b_fact_semantic_view_errors,
+        _inactive_protocol_v8_e5c_contract_cognitive_surface_errors,
+        _inactive_protocol_v8_e5d_cognitive_packet_citation_errors,
+        _inactive_protocol_v8_e6a_semantic_question_binding_projection_errors,
+    )
+
+
 def _validation_dependency_fingerprint(
     root: Path,
     dependencies: tuple[Path, ...],
@@ -23505,6 +23531,21 @@ def _inactive_protocol_v8_semantic_oracle_errors(root: Path) -> list[str]:
             for error in oracle(root)
         ],
         _PROTOCOL_V8_SEMANTIC_ORACLE_CACHE,
+    )
+
+
+def _inactive_protocol_v8_projection_oracle_errors(root: Path) -> list[str]:
+    """Evaluate top-level protocol-v8 projection oracles once per exact corpus."""
+    oracles = _protocol_v8_projection_oracles()
+    return _content_addressed_validation_errors(
+        root,
+        oracles,
+        lambda: [
+            error
+            for oracle in oracles
+            for error in oracle(root)
+        ],
+        _PROTOCOL_V8_PROJECTION_ORACLE_CACHE,
     )
 
 
@@ -29262,21 +29303,7 @@ def collect_errors(
 
     errors.extend(_inactive_protocol_candidate_artifact_errors(root))
     errors.extend(_inactive_protocol_v8_semantic_oracle_errors(root))
-    errors.extend(
-        _inactive_protocol_v8_e5a_cognitive_basis_projection_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e5b_fact_semantic_view_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e5d_cognitive_packet_citation_errors(root)
-    )
-    errors.extend(
-        _inactive_protocol_v8_e6a_semantic_question_binding_projection_errors(root)
-    )
+    errors.extend(_inactive_protocol_v8_projection_oracle_errors(root))
     errors.extend(
         _inactive_protocol_v8_e6b_review_campaign_projection_errors(root)
     )
