@@ -22666,6 +22666,713 @@ def _inactive_protocol_v8_e6a_semantic_question_binding_projection_errors(
     return errors
 
 
+def _protocol_v8_e6b_review_evidence_validator(
+    root: Path,
+) -> tuple[Draft202012Validator | None, list[str]]:
+    """Load the exact published review-evidence-v6 structural authority."""
+    return _load_meta_schema_validator(
+        root,
+        PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE,
+        "inactive protocol v8 E6-B review-evidence-v6 meta-schema",
+    )
+
+
+def _protocol_v8_e6b_structural_keys(value: object) -> set[str]:
+    """Collect structural keys only; prose values never define campaign fields."""
+    if isinstance(value, dict):
+        result = set(value)
+        for child in value.values():
+            result.update(_protocol_v8_e6b_structural_keys(child))
+        return result
+    if isinstance(value, list):
+        result: set[str] = set()
+        for child in value:
+            result.update(_protocol_v8_e6b_structural_keys(child))
+        return result
+    return set()
+
+
+def _protocol_v8_e6b_review_campaign_projection_errors(
+    record: object,
+    bundle: object,
+    review_packet_bytes: bytes | None,
+    execution_contexts: object,
+    minimum_reviewers: object,
+    record_validator: Draft202012Validator,
+    label: str = "inactive protocol v8 E6-B campaign",
+) -> list[str]:
+    """Validate deterministic P8 campaign projection over resolved initial evidence."""
+    schema_errors = _schema_violations(record_validator, record, label)
+    if schema_errors:
+        return schema_errors
+    assert isinstance(record, dict)
+    if not isinstance(bundle, dict):
+        return [f"{label}: exact protocol-v8 bundle is unavailable"]
+    errors: list[str] = []
+    protocol = _mapping(record.get("protocol"))
+    if record.get("schema_version") != "6.0":
+        errors.append(f"{label}: schema_version must be 6.0")
+    if (
+        bundle.get("protocol_bundle_schema_version") != 8
+        or bundle.get("protocol_id") != "gate-a-campaign-protocol-v8"
+        or _mapping(bundle.get("meta_schemas")).get("review-evidence")
+        != PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE
+    ):
+        errors.append(f"{label}: exact P8 review-evidence binding mismatch")
+    if protocol.get("protocol_bundle") != PROTOCOL_V8_BUNDLE_REFERENCE:
+        errors.append(f"{label}: protocol bundle reference is not exact P8")
+    if record.get("review_class") != bundle.get("review_class") or record.get(
+        "review_class"
+    ) != GATE_A_REVIEW_CLASS:
+        errors.append(f"{label}: review_class does not equal exact P8 review class")
+    if protocol.get("prompt") != _mapping(bundle.get("prompts")).get(
+        "initial-reviewer"
+    ):
+        errors.append(f"{label}: protocol prompt is not exact P8 initial-reviewer")
+
+    gate_a_subjects = _gate_a_derived_subjects(record.get("subjects"))
+    if len(gate_a_subjects) != 1:
+        errors.append(f"{label}: campaign must declare exactly one Gate A derived subject")
+    elif review_packet_bytes is None:
+        errors.append(f"{label}: exact Gate A review packet bytes are unavailable")
+    else:
+        errors.extend(
+            _gate_a_review_packet_errors(
+                review_packet_bytes,
+                gate_a_subjects[0],
+                f"{label}: protocol.review_packet",
+            )
+        )
+
+    if "supporting_executions" in record:
+        errors.append(f"{label}: supporting_executions is forbidden in P8 campaign")
+    if "re_adjudications" in record:
+        errors.append(f"{label}: re_adjudications is forbidden in P8 campaign")
+    forbidden_campaign_keys = {
+        "effective_adjudication",
+        "qlek",
+        "semanticAdmission",
+        "semantic_admission",
+        "semanticFact",
+        "semantic_fact",
+        "qualificationKey",
+        "qualification_key",
+    }
+    leaked = _protocol_v8_e6b_structural_keys(record).intersection(
+        forbidden_campaign_keys
+    )
+    if leaked:
+        errors.append(f"{label}: campaign contains forbidden semantic closure fields")
+
+    executions = [
+        execution
+        for execution in _sequence(record.get("executions"))
+        if isinstance(execution, dict)
+    ]
+    execution_ids = [execution.get("execution_id") for execution in executions]
+    if any(not isinstance(identity, str) for identity in execution_ids) or len(
+        execution_ids
+    ) != len(set(execution_ids)):
+        errors.append(f"{label}: execution_id values must be strings and unique")
+    contexts = execution_contexts if isinstance(execution_contexts, dict) else {}
+    if set(contexts) != set(execution_ids):
+        errors.append(f"{label}: execution contexts must exactly match execution IDs")
+
+    raw_paths = [
+        _mapping(execution.get("raw_output")).get("path") for execution in executions
+    ]
+    if any(not isinstance(path, str) for path in raw_paths) or len(raw_paths) != len(
+        set(raw_paths)
+    ):
+        errors.append(f"{label}: raw output repository paths must be strings and unique")
+
+    raw_findings_by_execution: dict[str, dict[str, dict]] = {}
+    for execution in executions:
+        execution_id = execution.get("execution_id")
+        exec_label = f"{label}: execution {execution_id!r}"
+        objectives = [
+            objective
+            for objective in _sequence(execution.get("attack_objectives"))
+            if isinstance(objective, str)
+        ]
+        if len(objectives) != len(GATE_A_ATTACK_OBJECTIVES) or set(objectives) != set(
+            GATE_A_ATTACK_OBJECTIVES
+        ):
+            errors.append(
+                f"{exec_label}: attack_objectives must equal exact 14 Gate A objectives"
+            )
+        review_packet = _mapping(protocol.get("review_packet"))
+        prompt = _mapping(protocol.get("prompt"))
+        if execution.get("review_packet_sha256") != review_packet.get("sha256"):
+            errors.append(
+                f"{exec_label}: review_packet_sha256 must equal protocol review packet"
+            )
+        if execution.get("prompt_sha256") != prompt.get("sha256"):
+            errors.append(f"{exec_label}: prompt_sha256 must equal protocol prompt")
+        context = contexts.get(execution_id)
+        if not isinstance(context, dict) or set(context) != {
+            "receipt",
+            "qualifying_attempt",
+            "raw_findings",
+        }:
+            errors.append(f"{exec_label}: exact execution context is missing or malformed")
+            continue
+        receipt = context.get("receipt")
+        qualifying_attempt = context.get("qualifying_attempt")
+        raw_findings = context.get("raw_findings")
+        if not isinstance(receipt, dict) or not isinstance(raw_findings, dict):
+            errors.append(f"{exec_label}: resolved receipt/raw findings are unavailable")
+            continue
+        errors.extend(
+            _initial_reviewer_receipt_errors(
+                record,
+                execution,
+                receipt,
+                qualifying_attempt if isinstance(qualifying_attempt, dict) else None,
+            )
+        )
+        declared_ids = {
+            raw_id
+            for raw_id in _sequence(execution.get("raw_finding_ids"))
+            if isinstance(raw_id, str)
+        }
+        if declared_ids != set(raw_findings):
+            errors.append(
+                f"{exec_label}: raw_finding_ids do not equal exact parsed raw findings"
+            )
+        if isinstance(execution_id, str):
+            raw_findings_by_execution[execution_id] = raw_findings
+
+    if isinstance(minimum_reviewers, int) and minimum_reviewers >= 1:
+        errors.extend(
+            _reviewer_acquisition_conformance_errors(
+                bundle, executions, minimum_reviewers, label
+            )
+        )
+
+    destinations: dict[tuple[str, str], list[str]] = {}
+    finding_ids: list[str] = []
+    for finding in _sequence(record.get("findings")):
+        if not isinstance(finding, dict):
+            continue
+        finding_id = finding.get("finding_id")
+        if isinstance(finding_id, str):
+            finding_ids.append(finding_id)
+        if set(finding).intersection({"materiality", "status", "disposition"}):
+            errors.append(
+                f"{label}: finding {finding_id!r} contains post-review adjudication"
+            )
+        sources = [
+            source
+            for source in _sequence(finding.get("sources"))
+            if isinstance(source, dict)
+        ]
+        if len(sources) != 1:
+            errors.append(f"{label}: finding {finding_id!r} must have exactly one source")
+            continue
+        source = sources[0]
+        execution_id = source.get("execution_id")
+        raw_finding_id = source.get("raw_finding_id")
+        raw_finding = raw_findings_by_execution.get(execution_id, {}).get(
+            raw_finding_id
+        )
+        if raw_finding is None:
+            errors.append(
+                f"{label}: finding {finding_id!r} references unknown raw source"
+            )
+            continue
+        key = (execution_id, raw_finding_id)
+        destinations.setdefault(key, []).append(finding_id)
+        for field in ("statement", "argument", "counterexample"):
+            if finding.get(field) != raw_finding.get(field):
+                errors.append(
+                    f"{label}: finding {finding_id!r} {field} must equal exact raw finding"
+                )
+    if len(finding_ids) != len(set(finding_ids)):
+        errors.append(f"{label}: normalized finding_id values must be unique")
+    for key, targets in sorted(destinations.items()):
+        if len(targets) != 1:
+            errors.append(
+                f"{label}: raw finding {key!r} maps to multiple normalized findings"
+            )
+    for execution_id, raw_findings in sorted(raw_findings_by_execution.items()):
+        for raw_finding_id in sorted(raw_findings):
+            if (execution_id, raw_finding_id) not in destinations:
+                errors.append(
+                    f"{label}: raw finding {(execution_id, raw_finding_id)!r} "
+                    "has no normalized destination"
+                )
+    return errors
+
+
+def _protocol_v8_e6b_review_campaign_repository_errors(
+    root: Path,
+    manifest: dict,
+    record: dict,
+    bundle: dict,
+    selected_validators: dict[str, Draft202012Validator | None],
+    label: str,
+) -> list[str]:
+    """Resolve only initial-review campaign evidence, then delegate pure checks."""
+    record_validator, validator_errors = _protocol_v8_e6b_review_evidence_validator(
+        root
+    )
+    errors = list(validator_errors)
+    if record_validator is None:
+        return errors
+    schema_errors = _schema_violations(record_validator, record, label)
+    if schema_errors:
+        return errors + schema_errors
+    protocol = _mapping(record.get("protocol"))
+    if protocol.get("protocol_bundle") != PROTOCOL_V8_BUNDLE_REFERENCE:
+        errors.append(f"{label}: protocol bundle reference is not exact P8")
+    packet_bytes, packet_errors = _read_review_artifact(
+        root,
+        _mapping(protocol.get("review_packet")),
+        f"{label}: protocol.review_packet",
+        REVIEW_PACKET_PREFIX,
+        REVIEW_PACKET_SUFFIX,
+    )
+    errors.extend(packet_errors)
+    _, prompt_errors = _read_review_artifact(
+        root,
+        _mapping(protocol.get("prompt")),
+        f"{label}: protocol.prompt",
+        REVIEW_PROMPT_PREFIX,
+        REVIEW_PROMPT_SUFFIX,
+    )
+    errors.extend(prompt_errors)
+    profile_map = _protocol_profile_map(bundle)
+    bundle_sha = PROTOCOL_V8_BUNDLE_REFERENCE["sha256"]
+    contexts: dict[str, dict] = {}
+    for execution in _sequence(record.get("executions")):
+        if not isinstance(execution, dict):
+            continue
+        execution_id = execution.get("execution_id")
+        exec_label = f"{label}: execution {execution_id!r}"
+        receipt, receipt_errors = _load_execution_receipt(
+            root,
+            _mapping(execution.get("execution_receipt")),
+            f"{exec_label} execution_receipt",
+            selected_validators.get("execution-receipt"),
+        )
+        errors.extend(receipt_errors)
+        qualifying_attempt = None
+        if receipt is not None:
+            receipt_errors, qualifying_attempt = _validate_execution_receipt(
+                root,
+                receipt,
+                f"{exec_label} execution_receipt",
+                profile_map,
+                bundle_sha,
+                selected_validators,
+            )
+            errors.extend(receipt_errors)
+        raw_findings, raw_errors = _raw_review_errors(
+            root,
+            f"{exec_label} raw_output",
+            execution,
+            selected_validators.get("raw-review-output"),
+        )
+        errors.extend(raw_errors)
+        if (
+            isinstance(execution_id, str)
+            and receipt is not None
+            and raw_findings is not None
+        ):
+            contexts[execution_id] = {
+                "receipt": receipt,
+                "qualifying_attempt": qualifying_attempt,
+                "raw_findings": raw_findings,
+            }
+    minimum_reviewers = _mapping(
+        _mapping(manifest.get("policy")).get("hostile_review")
+    ).get("minimum_independent_reviewers")
+    errors.extend(
+        _protocol_v8_e6b_review_campaign_projection_errors(
+            record,
+            bundle,
+            packet_bytes,
+            contexts,
+            minimum_reviewers,
+            record_validator,
+            label,
+        )
+    )
+    return errors
+
+
+def _inactive_protocol_v8_e6b_review_campaign_projection_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise protocol-v8 campaign projection without repository fixture writes."""
+    prefix = "inactive protocol v8 E6-B:"
+    errors: list[str] = []
+    exact_bundle, bundle_errors = _load_protocol_bundle_document(
+        root,
+        PROTOCOL_V8_BUNDLE_REFERENCE,
+        f"{prefix} exact P8 bundle",
+        {},
+    )
+    validator, validator_errors = _protocol_v8_e6b_review_evidence_validator(root)
+    manifest, manifest_errors = _load_yaml(root, MANIFEST_RELATIVE)
+    subject, subject_errors = (
+        build_gate_a_review_subject(root, manifest)
+        if isinstance(manifest, dict)
+        else (None, [])
+    )
+    packet_bytes, packet_errors = (
+        build_gate_a_review_packet_bytes(root, manifest)
+        if isinstance(manifest, dict)
+        else (None, [])
+    )
+    errors.extend(f"{prefix} {error}" for error in bundle_errors)
+    errors.extend(f"{prefix} {error}" for error in validator_errors)
+    errors.extend(f"{prefix} {error}" for error in manifest_errors)
+    errors.extend(f"{prefix} {error}" for error in subject_errors)
+    errors.extend(f"{prefix} {error}" for error in packet_errors)
+    if (
+        exact_bundle is None
+        or validator is None
+        or not isinstance(manifest, dict)
+        or subject is None
+        or packet_bytes is None
+    ):
+        return errors
+    if (
+        exact_bundle.get("protocol_bundle_schema_version") != 8
+        or exact_bundle.get("protocol_id") != "gate-a-campaign-protocol-v8"
+        or _mapping(exact_bundle.get("meta_schemas")).get("review-evidence")
+        != PROTOCOL_V8_REVIEW_EVIDENCE_V6_SCHEMA_REFERENCE
+    ):
+        return errors + [f"{prefix} exact published P8 bundle binding mismatch"]
+
+    oracle_bundle = copy.deepcopy(exact_bundle)
+    oracle_bundle["reviewer_profiles"] = [
+        {
+            "profile_id": "PROFILE-E6B-A",
+            "provider": "provider-a",
+            "request_model": "model-a",
+            "frontier_eligible": True,
+            "identity_resolution": {"kind": "provider-reported"},
+        },
+        {
+            "profile_id": "PROFILE-E6B-B",
+            "provider": "provider-b",
+            "request_model": "model-b",
+            "frontier_eligible": True,
+            "identity_resolution": {"kind": "provider-reported"},
+        },
+    ]
+    _mapping(_mapping(oracle_bundle.get("policies")).get("reviewer_acquisition"))[
+        "profile_order"
+    ] = ["PROFILE-E6B-A", "PROFILE-E6B-B"]
+
+    packet_ref = {
+        "path": "formal/reviews/packets/__E6B__.json",
+        "sha256": sha256_hex(packet_bytes),
+    }
+    prompt_ref = copy.deepcopy(
+        _mapping(oracle_bundle.get("prompts")).get("initial-reviewer")
+    )
+    substantive = {
+        "statement": "identical E6-B substantive finding",
+        "argument": "identical E6-B substantive argument",
+        "counterexample": None,
+    }
+
+    def raw_finding(raw_id: str) -> dict:
+        return {
+            "raw_finding_id": raw_id,
+            "attack_objectives": [GATE_A_ATTACK_OBJECTIVES[0]],
+            "affected_claims": [],
+            "affected_invariants": [],
+            "affected_coverage_entries": [],
+            "evidence_references": ["E6-B evidence"],
+            **copy.deepcopy(substantive),
+        }
+
+    raw_a = raw_finding("RAW-E6B-A")
+    raw_b = raw_finding("RAW-E6B-B")
+
+    def raw_document(finding: dict) -> dict:
+        return {
+            "raw_review_schema_version": "1.0",
+            "objective_assessments": [
+                {
+                    "objective": objective,
+                    "finding_ids": [finding["raw_finding_id"]] if index == 0 else [],
+                }
+                for index, objective in enumerate(GATE_A_ATTACK_OBJECTIVES)
+            ],
+            "findings": [copy.deepcopy(finding)],
+        }
+
+    raw_documents = {
+        "EXEC-E6B-A": raw_document(raw_a),
+        "EXEC-E6B-B": raw_document(raw_b),
+    }
+    raw_refs = {
+        execution_id: {
+            "path": f"formal/reviews/raw/__E6B_{execution_id[-1]}__.json",
+            "sha256": sha256_hex(_canonical_json_document_bytes(document)),
+        }
+        for execution_id, document in raw_documents.items()
+    }
+
+    def execution(
+        suffix: str,
+        profile_id: str,
+        provider: str,
+        model: str,
+        model_version: str,
+        raw_id: str,
+    ) -> dict:
+        execution_id = f"EXEC-E6B-{suffix}"
+        receipt_bytes = _canonical_json_document_bytes(
+            {"synthetic_receipt": execution_id}
+        )
+        return {
+            "execution_id": execution_id,
+            "reviewer_type": "frontier-llm",
+            "reviewer_profile_id": profile_id,
+            "provider": provider,
+            "model": model,
+            "model_version": model_version,
+            "review_packet_sha256": packet_ref["sha256"],
+            "prompt_sha256": prompt_ref["sha256"],
+            "isolated_context": True,
+            "cross_reviewer_visibility_before_seal": False,
+            "attack_objectives": list(GATE_A_ATTACK_OBJECTIVES),
+            "raw_output": copy.deepcopy(raw_refs[execution_id]),
+            "raw_finding_ids": [raw_id],
+            "execution_receipt": {
+                "path": f"formal/reviews/executions/__E6B_{suffix}__.json",
+                "sha256": sha256_hex(receipt_bytes),
+            },
+        }
+
+    executions = [
+        execution(
+            "A", "PROFILE-E6B-A", "provider-a", "model-a", "model-a-v1", "RAW-E6B-A"
+        ),
+        execution(
+            "B", "PROFILE-E6B-B", "provider-b", "model-b", "model-b-v1", "RAW-E6B-B"
+        ),
+    ]
+
+    def receipt(execution_record: dict) -> tuple[dict, dict]:
+        execution_id = execution_record["execution_id"]
+        attempt = {
+            "attempt_id": f"ATTEMPT-{execution_id}",
+            "raw_output": copy.deepcopy(execution_record["raw_output"]),
+        }
+        value = {
+            "execution_id": execution_id,
+            "role": INITIAL_REVIEWER_ROLE,
+            "reviewer_profile_id": execution_record["reviewer_profile_id"],
+            "request": {
+                "provider": execution_record["provider"],
+                "model": execution_record["model"],
+            },
+            "resolved_identity": {
+                "provider": execution_record["provider"],
+                "model": execution_record["model"],
+                "model_version": execution_record["model_version"],
+            },
+            "isolated_context": True,
+            "cross_reviewer_visibility_before_seal": False,
+            "input": {
+                "prompt": copy.deepcopy(prompt_ref),
+                "packet": copy.deepcopy(packet_ref),
+            },
+        }
+        return value, attempt
+
+    contexts: dict[str, dict] = {}
+    for execution_record in executions:
+        receipt_value, attempt = receipt(execution_record)
+        execution_id = execution_record["execution_id"]
+        raw_id = execution_record["raw_finding_ids"][0]
+        contexts[execution_id] = {
+            "receipt": receipt_value,
+            "qualifying_attempt": attempt,
+            "raw_findings": {
+                raw_id: copy.deepcopy(raw_documents[execution_id]["findings"][0])
+            },
+        }
+
+    findings = [
+        {
+            "finding_id": "FINDING-E6B-A",
+            "sources": [
+                {"execution_id": "EXEC-E6B-A", "raw_finding_id": "RAW-E6B-A"}
+            ],
+            **copy.deepcopy(substantive),
+        },
+        {
+            "finding_id": "FINDING-E6B-B",
+            "sources": [
+                {"execution_id": "EXEC-E6B-B", "raw_finding_id": "RAW-E6B-B"}
+            ],
+            **copy.deepcopy(substantive),
+        },
+    ]
+    record = {
+        "schema_version": "6.0",
+        "review_id": "REVIEW-E6B",
+        "review_class": GATE_A_REVIEW_CLASS,
+        "repository_commit": "a" * 40,
+        "subjects": [copy.deepcopy(subject)],
+        "protocol": {
+            "review_packet": copy.deepcopy(packet_ref),
+            "prompt": copy.deepcopy(prompt_ref),
+            "protocol_bundle": copy.deepcopy(PROTOCOL_V8_BUNDLE_REFERENCE),
+        },
+        "executions": copy.deepcopy(executions),
+        "findings": copy.deepcopy(findings),
+        "supersedes_review_ids": [],
+        "started_at": "E6-B-started",
+        "completed_at": "E6-B-completed",
+    }
+
+    def projection_errors(candidate: dict, contexts_value=None, bundle_value=None) -> list[str]:
+        return _protocol_v8_e6b_review_campaign_projection_errors(
+            candidate,
+            oracle_bundle if bundle_value is None else bundle_value,
+            packet_bytes,
+            contexts if contexts_value is None else contexts_value,
+            2,
+            validator,
+        )
+
+    valid_schema_errors = _schema_violations(validator, record, f"{prefix} valid record")
+    if valid_schema_errors:
+        errors.extend(valid_schema_errors)
+        return errors
+    errors.extend(projection_errors(record))
+
+    def expect_rejected(
+        name: str,
+        candidate: dict,
+        required: str | None = None,
+        contexts_value=None,
+        bundle_value=None,
+    ) -> None:
+        observed = projection_errors(candidate, contexts_value, bundle_value)
+        if not observed:
+            errors.append(f"{prefix} expected rejection: {name}")
+        elif required is not None and not any(required in error for error in observed):
+            errors.append(f"{prefix} {name} rejected without {required!r}")
+
+    for field in ("supporting_executions", "re_adjudications"):
+        candidate = copy.deepcopy(record)
+        candidate[field] = []
+        expect_rejected(field, candidate)
+    for field in ("materiality", "status", "disposition"):
+        candidate = copy.deepcopy(record)
+        candidate["findings"][0][field] = {}
+        expect_rejected(f"finding {field}", candidate)
+    semantic_identity = copy.deepcopy(record)
+    semantic_identity["executions"][0]["qlek"] = "qlek-sha256:" + "0" * 64
+    expect_rejected("semantic execution identity field", semantic_identity)
+
+    wrong_class = copy.deepcopy(record)
+    wrong_class["review_class"] = "evidence-interpretation"
+    expect_rejected("wrong review class", wrong_class, "review_class")
+    wrong_prompt = copy.deepcopy(record)
+    wrong_prompt["protocol"]["prompt"] = {
+        "path": "formal/reviews/prompts/__E6B_WRONG__.md",
+        "sha256": "1" * 64,
+    }
+    expect_rejected("wrong protocol prompt", wrong_prompt, "protocol prompt")
+    wrong_bundle = copy.deepcopy(record)
+    wrong_bundle["protocol"]["protocol_bundle"] = {
+        "path": "formal/reviews/protocols/__E6B_WRONG__.json",
+        "sha256": "2" * 64,
+    }
+    expect_rejected("wrong protocol bundle", wrong_bundle, "protocol bundle")
+    wrong_subject = copy.deepcopy(record)
+    wrong_subject["subjects"][0]["sha256"] = "3" * 64
+    expect_rejected("Gate A subject mismatch", wrong_subject, "does not equal")
+
+    duplicate_execution = copy.deepcopy(record)
+    duplicate_execution["executions"][1]["execution_id"] = "EXEC-E6B-A"
+    expect_rejected("duplicate execution ID", duplicate_execution, "unique")
+    wrong_objectives = copy.deepcopy(record)
+    wrong_objectives["executions"][0]["attack_objectives"].append(
+        "incorrect-evidence-lifting"
+    )
+    expect_rejected("fifteenth initial-review objective", wrong_objectives, "14")
+
+    missing_destination = copy.deepcopy(record)
+    missing_destination["findings"].pop()
+    expect_rejected(
+        "raw finding without destination", missing_destination, "no normalized destination"
+    )
+    duplicate_destination = copy.deepcopy(record)
+    duplicate_finding = copy.deepcopy(duplicate_destination["findings"][0])
+    duplicate_finding["finding_id"] = "FINDING-E6B-C"
+    duplicate_destination["findings"].append(duplicate_finding)
+    expect_rejected(
+        "multiple normalized destinations", duplicate_destination, "multiple normalized"
+    )
+    unknown_source = copy.deepcopy(record)
+    unknown_source["findings"][0]["sources"][0]["raw_finding_id"] = "RAW-UNKNOWN"
+    expect_rejected("unknown raw source", unknown_source, "unknown raw source")
+    for field, changed in (
+        ("statement", "changed statement"),
+        ("argument", "changed argument"),
+        ("counterexample", "changed counterexample"),
+    ):
+        mismatch = copy.deepcopy(record)
+        mismatch["findings"][0][field] = changed
+        expect_rejected(f"normalized {field} mismatch", mismatch, field)
+    finding_collision = copy.deepcopy(record)
+    finding_collision["findings"][1]["finding_id"] = "FINDING-E6B-A"
+    expect_rejected("finding ID collision", finding_collision, "finding_id")
+
+    if _reviewer_acquisition_conformance_errors(
+        oracle_bundle, executions, 2, f"{prefix} acquisition positive"
+    ):
+        errors.append(f"{prefix} valid P8 reviewer acquisition was rejected")
+    collapsed_executions = copy.deepcopy(executions)
+    collapsed_executions[1]["provider"] = collapsed_executions[0]["provider"]
+    collapsed_executions[1]["model_version"] = collapsed_executions[0][
+        "model_version"
+    ]
+    if not _reviewer_acquisition_conformance_errors(
+        oracle_bundle, collapsed_executions, 2, f"{prefix} acquisition collision"
+    ):
+        errors.append(f"{prefix} collapsed effective reviewer identities were accepted")
+
+    finding_hash = _finding_subject_sha256(record["findings"][0])
+    provenance_changed = copy.deepcopy(record)
+    provenance_changed["supersedes_review_ids"] = ["REVIEW-E6B-PRIOR"]
+    provenance_changed["started_at"] = "other-start"
+    provenance_changed["completed_at"] = "other-completion"
+    if _finding_subject_sha256(provenance_changed["findings"][0]) != finding_hash:
+        errors.append(f"{prefix} campaign provenance changed substantive finding hash")
+
+    forbidden_fragments = {
+        "supplement_v2",
+        "effective_adjudication",
+        "qualified_non_material_projection",
+        "qualified_refutation_projection",
+        "surviving_material_projection",
+        "activate_protocol_v8",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e6b_")
+        and any(fragment in name for fragment in forbidden_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} forbidden later-stage helper was introduced")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -25970,7 +26677,7 @@ def _reviewer_acquisition_conformance_errors(
 ) -> list[str]:
     """Reconstruct deterministic initial-reviewer acquisition."""
     schema_version = bundle.get("protocol_bundle_schema_version")
-    if schema_version not in (5, 6, 7):
+    if schema_version not in (5, 6, 7, 8):
         return []
 
     errors: list[str] = []
@@ -26567,7 +27274,7 @@ def _review_evidence_errors(
         evidence_reference: dict = {}
         if bundle is not None:
             version = bundle.get("protocol_bundle_schema_version")
-            if version in (4, 5, 6, 7):
+            if version in (4, 5, 6, 7, 8):
                 evidence_reference = _mapping(
                     _mapping(bundle.get("meta_schemas")).get("review-evidence")
                 )
@@ -26644,6 +27351,19 @@ def _review_evidence_errors(
                 f"{label}: protocol.prompt must equal the protocol bundle "
                 "initial-reviewer prompt"
             )
+
+        if _mapping(bundle).get("protocol_bundle_schema_version") == 8:
+            errors.extend(
+                _protocol_v8_e6b_review_campaign_repository_errors(
+                    root,
+                    manifest,
+                    record,
+                    bundle,
+                    selected_validators,
+                    label,
+                )
+            )
+            continue
 
         supporting: dict[tuple, dict] = {}
         supporting_paths: list[str] = []
@@ -28556,6 +29276,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e6a_semantic_question_binding_projection_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e6b_review_campaign_projection_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
