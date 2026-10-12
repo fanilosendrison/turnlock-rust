@@ -11518,6 +11518,7 @@ class ProtocolV8SemanticOracleCacheTests(unittest.TestCase):
         for name in (
             "_INACTIVE_PROTOCOL_ARTIFACT_ORACLE_CACHE",
             "_PROTOCOL_V8_SEMANTIC_ORACLE_CACHE",
+            "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE",
         ):
             cache = getattr(checker, name, None)
             if cache is not None:
@@ -11527,6 +11528,7 @@ class ProtocolV8SemanticOracleCacheTests(unittest.TestCase):
         for name in (
             "_INACTIVE_PROTOCOL_ARTIFACT_ORACLE_CACHE",
             "_PROTOCOL_V8_SEMANTIC_ORACLE_CACHE",
+            "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE",
         ):
             cache = getattr(checker, name, None)
             if cache is not None:
@@ -11733,6 +11735,400 @@ class ProtocolV8SemanticOracleCacheTests(unittest.TestCase):
             self.assertEqual(first, second)
             for oracle in oracles.values():
                 self.assertEqual(2, oracle.call_count)
+
+
+class ProtocolV8ProjectionOracleCacheTests(unittest.TestCase):
+    ORACLE_NAMES = (
+        "_inactive_protocol_v8_e5a_cognitive_basis_projection_errors",
+        "_inactive_protocol_v8_e5b_fact_semantic_view_errors",
+        "_inactive_protocol_v8_e5c_contract_cognitive_surface_errors",
+        "_inactive_protocol_v8_e5d_cognitive_packet_citation_errors",
+        "_inactive_protocol_v8_e6a_semantic_question_binding_projection_errors",
+    )
+    DEPENDENCY = Path("dependency.json")
+
+    def setUp(self) -> None:
+        cache = getattr(checker, "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE", None)
+        if cache is not None:
+            cache.clear()
+
+    def tearDown(self) -> None:
+        cache = getattr(checker, "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE", None)
+        if cache is not None:
+            cache.clear()
+
+    def _patched_oracles(self, observer=None):
+        context = mock.patch.multiple(
+            checker,
+            **{name: mock.DEFAULT for name in self.ORACLE_NAMES},
+        )
+        oracles = context.start()
+        self.addCleanup(context.stop)
+        for oracle in oracles.values():
+            oracle.return_value = []
+        if observer is not None:
+            oracles[self.ORACLE_NAMES[0]].side_effect = observer
+        return oracles
+
+    def _real_counting_oracles(self):
+        counts = {name: 0 for name in self.ORACLE_NAMES}
+        originals = {
+            name: getattr(checker, name)
+            for name in self.ORACLE_NAMES
+        }
+
+        def wrapper(name, original):
+            def observed(root: Path) -> list[str]:
+                counts[name] += 1
+                return original(root)
+
+            return observed
+
+        return tuple(
+            wrapper(name, originals[name])
+            for name in self.ORACLE_NAMES
+        ), counts
+
+    def _recorded_dependencies(self, invocation) -> set[Path]:
+        dependencies: set[Path] = set()
+        token = checker._VALIDATION_DEPENDENCY_RECORDER.set(dependencies)
+        try:
+            invocation()
+        finally:
+            checker._VALIDATION_DEPENDENCY_RECORDER.reset(token)
+        return dependencies
+
+    def _raw_group_errors(self, root: Path) -> list[str]:
+        return [
+            error
+            for oracle in checker._protocol_v8_projection_oracles()
+            for error in oracle(root)
+        ]
+
+    def _capture_outcome(self, invocation):
+        try:
+            return ("return", invocation())
+        except Exception as error:
+            return ("exception", type(error))
+
+    def test_e5a_records_cognitive_packet_schema_dependency(self) -> None:
+        dependency = Path(
+            checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"]
+        )
+
+        observed = self._recorded_dependencies(
+            lambda: checker._inactive_protocol_v8_e5a_cognitive_basis_projection_errors(
+                ROOT
+            )
+        )
+
+        self.assertIn(dependency, observed)
+
+    def test_e5c_records_cognitive_packet_schema_dependency(self) -> None:
+        dependency = Path(
+            checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"]
+        )
+
+        observed = self._recorded_dependencies(
+            lambda: checker._protocol_v8_e5c_packet_schema_validators(ROOT)
+        )
+
+        self.assertIn(dependency, observed)
+
+    def test_e5c_records_semantic_identity_schema_dependency(self) -> None:
+        dependency = Path(
+            checker.PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE["path"]
+        )
+
+        observed = self._recorded_dependencies(
+            lambda: checker._protocol_v8_e5c_packet_schema_validators(ROOT)
+        )
+
+        self.assertIn(dependency, observed)
+
+    def test_e5d_records_cognitive_packet_schema_dependency(self) -> None:
+        dependency = Path(
+            checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"]
+        )
+
+        observed = self._recorded_dependencies(
+            lambda: checker._protocol_v8_e5d_structured_citation_validator(ROOT)
+        )
+
+        self.assertIn(dependency, observed)
+
+    def test_real_cognitive_schema_content_change_invalidates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            schema_path = root / Path(
+                checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
+                    "path"
+                ]
+            )
+            oracles, counts = self._real_counting_oracles()
+            with mock.patch.object(
+                checker,
+                "_protocol_v8_projection_oracles",
+                return_value=oracles,
+            ):
+                first = checker._inactive_protocol_v8_projection_oracle_errors(root)
+                second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+                self.assertEqual({name: 1 for name in self.ORACLE_NAMES}, counts)
+
+                schema = json.loads(schema_path.read_text(encoding="utf-8"))
+                self.assertNotIn("$comment", schema)
+                schema["$comment"] = "issue-57-cache-invalidation-sentinel"
+                schema_path.write_text(
+                    json.dumps(schema, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                third = checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            self.assertEqual(first, third)
+            self.assertEqual({name: 2 for name in self.ORACLE_NAMES}, counts)
+
+    def test_real_missing_cognitive_schema_matches_uncached_behavior(self) -> None:
+        with tempfile.TemporaryDirectory() as cached_temporary, \
+             tempfile.TemporaryDirectory() as raw_temporary:
+            cached_root = make_fixture(cached_temporary)
+            raw_root = make_fixture(raw_temporary)
+            relative = Path(
+                checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
+                    "path"
+                ]
+            )
+
+            first = checker._inactive_protocol_v8_projection_oracle_errors(
+                cached_root
+            )
+            self.assertEqual([], first)
+            (cached_root / relative).unlink()
+            cached_outcome = self._capture_outcome(
+                lambda: checker._inactive_protocol_v8_projection_oracle_errors(
+                    cached_root
+                )
+            )
+
+            checker._PROTOCOL_V8_PROJECTION_ORACLE_CACHE.clear()
+            (raw_root / relative).unlink()
+            raw_outcome = self._capture_outcome(
+                lambda: self._raw_group_errors(raw_root)
+            )
+
+            self.assertEqual(raw_outcome, cached_outcome)
+            self.assertEqual("exception", cached_outcome[0])
+            self.assertIs(FileNotFoundError, cached_outcome[1])
+
+    def test_real_symlinked_cognitive_schema_is_not_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            schema_path = root / Path(
+                checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
+                    "path"
+                ]
+            )
+            target = root / "issue-57-cognitive-schema-target.json"
+            target.write_bytes(schema_path.read_bytes())
+            schema_path.unlink()
+            schema_path.symlink_to(target)
+            oracles, counts = self._real_counting_oracles()
+
+            with mock.patch.object(
+                checker,
+                "_protocol_v8_projection_oracles",
+                return_value=oracles,
+            ):
+                first = checker._inactive_protocol_v8_projection_oracle_errors(root)
+                second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            self.assertEqual({name: 2 for name in self.ORACLE_NAMES}, counts)
+
+    def test_group_definition_is_exact_and_excludes_e6b(self) -> None:
+        expected = tuple(getattr(checker, name) for name in self.ORACLE_NAMES)
+
+        observed = checker._protocol_v8_projection_oracles()
+
+        self.assertEqual(expected, observed)
+        self.assertEqual(5, len(observed))
+        self.assertNotIn(
+            checker._inactive_protocol_v8_e6b_review_campaign_projection_errors,
+            observed,
+        )
+
+    def test_group_preserves_oracle_and_error_order(self) -> None:
+        observed_order = []
+        with mock.patch.multiple(
+            checker,
+            **{name: mock.DEFAULT for name in self.ORACLE_NAMES},
+        ) as oracles:
+            for name, oracle in oracles.items():
+                oracle.side_effect = (
+                    lambda root, oracle_name=name: (
+                        observed_order.append(oracle_name),
+                        [f"{oracle_name} sentinel"],
+                    )[1]
+                )
+
+            errors = checker._inactive_protocol_v8_projection_oracle_errors(
+                Path("unused")
+            )
+
+        self.assertEqual(list(self.ORACLE_NAMES), observed_order)
+        self.assertEqual(
+            [f"{name} sentinel" for name in self.ORACLE_NAMES],
+            errors,
+        )
+
+    def test_identical_content_reuses_result_across_different_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            root_a = parent / "root-a"
+            root_b = parent / "root-b"
+            root_a.mkdir()
+            root_b.mkdir()
+            for root in (root_a, root_b):
+                (root / self.DEPENDENCY).write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_projection_oracle_errors(root_a)
+            second = checker._inactive_protocol_v8_projection_oracle_errors(root_b)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(1, oracle.call_count)
+
+    def test_dependency_content_change_invalidates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dependency = root / self.DEPENDENCY
+            dependency.write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            checker._inactive_protocol_v8_projection_oracle_errors(root)
+            checker._inactive_protocol_v8_projection_oracle_errors(root)
+            dependency.write_text('{"version": 2}\n')
+            checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
+
+    def test_cached_errors_remain_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / self.DEPENDENCY).write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                checker._load_json(candidate_root, self.DEPENDENCY)
+                return ["projection oracle sentinel"]
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_projection_oracle_errors(root)
+            second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            self.assertEqual(["projection oracle sentinel"], first)
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(1, oracle.call_count)
+
+    def test_missing_dependency_is_not_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_projection_oracle_errors(root)
+            second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            self.assertTrue(any("cannot read dependency.json" in error for error in first))
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
+
+    def test_non_regular_dependency_is_not_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / self.DEPENDENCY).mkdir()
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_projection_oracle_errors(root)
+            second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            self.assertTrue(any("cannot read dependency.json" in error for error in first))
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
+
+    def test_symlinked_dependency_is_not_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target.json"
+            target.write_text('{"version": 1}\n')
+            (root / self.DEPENDENCY).symlink_to(target)
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            oracles = self._patched_oracles(observe)
+            first = checker._inactive_protocol_v8_projection_oracle_errors(root)
+            second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            self.assertEqual([], first)
+            self.assertEqual(first, second)
+            for oracle in oracles.values():
+                self.assertEqual(2, oracle.call_count)
+
+    def test_implementation_identity_change_invalidates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / self.DEPENDENCY).write_text('{"version": 1}\n')
+
+            def observe(candidate_root: Path) -> list[str]:
+                _, errors = checker._load_json(candidate_root, self.DEPENDENCY)
+                return errors
+
+            with mock.patch.multiple(
+                checker,
+                **{name: mock.DEFAULT for name in self.ORACLE_NAMES},
+            ) as first_oracles:
+                for oracle in first_oracles.values():
+                    oracle.return_value = []
+                first_oracles[self.ORACLE_NAMES[0]].side_effect = observe
+                checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            with mock.patch.multiple(
+                checker,
+                **{name: mock.DEFAULT for name in self.ORACLE_NAMES},
+            ) as second_oracles:
+                for oracle in second_oracles.values():
+                    oracle.return_value = []
+                second_oracles[self.ORACLE_NAMES[0]].side_effect = observe
+                checker._inactive_protocol_v8_projection_oracle_errors(root)
+
+            for oracle in first_oracles.values():
+                self.assertEqual(1, oracle.call_count)
+            for oracle in second_oracles.values():
+                self.assertEqual(1, oracle.call_count)
 
 
 if __name__ == "__main__":
