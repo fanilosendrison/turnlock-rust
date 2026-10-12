@@ -22092,6 +22092,580 @@ def _inactive_protocol_v8_e5d_cognitive_packet_citation_errors(
     return errors
 
 
+def _protocol_v8_e6a_exact_semantic_value_refs(value: object) -> list[dict]:
+    """Extract only exact SemanticValueRefV1 objects, never lookalikes."""
+    references: list[dict] = []
+    if isinstance(value, dict):
+        if set(value) == {"kind", "valueType", "valueId"} and value.get(
+            "kind"
+        ) == "semantic-value":
+            references.append(copy.deepcopy(value))
+        else:
+            for child in value.values():
+                references.extend(
+                    _protocol_v8_e6a_exact_semantic_value_refs(child)
+                )
+    elif isinstance(value, list):
+        for child in value:
+            references.extend(_protocol_v8_e6a_exact_semantic_value_refs(child))
+    return references
+
+
+def _protocol_v8_e6a_semantic_value_preimage_closure_of(
+    closure: dict,
+    contracts: dict[str, dict],
+    descriptor: object,
+) -> list[dict]:
+    """Resolve the exact transitive value-only closure of one valid descriptor."""
+    prefix = "inactive protocol v8 E6-A:"
+    recomputed_qlek, descriptor_errors = _protocol_v8_e1_recompute_structural_qlek(
+        contracts, descriptor
+    )
+    if descriptor_errors or recomputed_qlek is None:
+        raise ValueError(
+            f"{prefix} invalid LogicalQuestionDescriptor: "
+            f"{descriptor_errors[0] if descriptor_errors else 'QLEK unavailable'}"
+        )
+    if not isinstance(descriptor, dict):
+        raise ValueError(f"{prefix} descriptor must be an object")
+    exact_input = descriptor.get("exactLogicalInput")
+    if not isinstance(exact_input, dict):
+        raise ValueError(f"{prefix} descriptor exactLogicalInput must be an object")
+
+    direct_references = [
+        copy.deepcopy(reference)
+        for reference in exact_input.values()
+        if isinstance(reference, dict)
+        and set(reference) == {"kind", "valueType", "valueId"}
+        and reference.get("kind") == "semantic-value"
+    ]
+    active_value_ids: set[str] = set()
+    resolved_by_id: dict[str, dict] = {}
+
+    def visit(reference: dict) -> None:
+        value_id = reference.get("valueId")
+        if not isinstance(value_id, str):
+            raise ValueError(f"{prefix} SemanticValueRef valueId missing")
+        if value_id in active_value_ids:
+            raise ValueError(f"{prefix} semantic-value dependency cycle")
+        preimage = _protocol_v8_e3a_resolve_semantic_value(closure, reference)
+        if preimage.get("valueType") != reference.get("valueType"):
+            raise ValueError(f"{prefix} SemanticValueRef valueType mismatch")
+        prior = resolved_by_id.get(value_id)
+        item = {
+            "ref": copy.deepcopy(reference),
+            "value": copy.deepcopy(preimage.get("value")),
+        }
+        if prior is not None:
+            if prior != item:
+                raise ValueError(f"{prefix} inconsistent semantic-value identity")
+            return
+        active_value_ids.add(value_id)
+        try:
+            for nested in _protocol_v8_e6a_exact_semantic_value_refs(
+                preimage.get("value")
+            ):
+                visit(nested)
+        finally:
+            active_value_ids.remove(value_id)
+        resolved_by_id[value_id] = item
+
+    for reference in direct_references:
+        visit(reference)
+    return sorted(
+        resolved_by_id.values(),
+        key=lambda item: (
+            item["ref"]["valueType"].encode("utf-8"),
+            item["ref"]["valueId"].encode("utf-8"),
+        ),
+    )
+
+
+def _protocol_v8_e6a_semantic_question_binding_of(
+    closure: dict,
+    contracts: dict[str, dict],
+    qlek: object,
+) -> dict:
+    """Construct the exact four-field SemanticQuestionBinding for one QLEK."""
+    descriptor = _protocol_v8_e3a_resolve_qlek(closure, contracts, qlek)
+    assert isinstance(qlek, str)
+    return {
+        "semantic_question_binding_schema_version": "1.0",
+        "logical_question_descriptor": copy.deepcopy(descriptor),
+        "qlek": qlek,
+        "semantic_values": _protocol_v8_e6a_semantic_value_preimage_closure_of(
+            closure, contracts, descriptor
+        ),
+    }
+
+
+def _protocol_v8_e6a_strong_semantic_question_binding_errors(
+    closure: dict,
+    contracts: dict[str, dict],
+    binding: object,
+    label: str = "inactive protocol v8 E6-A binding",
+) -> list[str]:
+    """Compose E2 structural validation with exact authoritative closure equality."""
+    qlek, errors = _protocol_v8_e2_binding_errors(contracts, binding, label)
+    if errors:
+        return errors
+    assert isinstance(binding, dict)
+    try:
+        authoritative_descriptor = _protocol_v8_e3a_resolve_qlek(
+            closure, contracts, qlek
+        )
+        if binding.get("logical_question_descriptor") != authoritative_descriptor:
+            raise ValueError(
+                "inactive protocol v8 E6-A: binding descriptor is not exact "
+                "authoritative QLEK preimage"
+            )
+        expected = _protocol_v8_e6a_semantic_value_preimage_closure_of(
+            closure, contracts, authoritative_descriptor
+        )
+    except (TypeError, ValueError) as error:
+        return [f"{label}: {error}"]
+    if binding.get("semantic_values") != expected:
+        errors.append(
+            f"{label}: semantic_values do not equal exact transitive closure"
+        )
+    return errors
+
+
+def _protocol_v8_e6a_strong_origin_witness_binding_errors(
+    closure: dict,
+    contracts: dict[str, dict],
+    binding: object,
+) -> list[str]:
+    """Apply only strong binding validation for later witness projection stages."""
+    return _protocol_v8_e6a_strong_semantic_question_binding_errors(
+        closure,
+        contracts,
+        binding,
+        "inactive protocol v8 E6-A origin witness binding",
+    )
+
+
+def _protocol_v8_e6a_binding_schema_validator(
+    root: Path,
+) -> tuple[Draft202012Validator | None, list[str]]:
+    """Compile the exact published binding schema with semantic identity registry."""
+    prefix = "inactive protocol v8 E6-A:"
+    binding_schema, binding_errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_SEMANTIC_QUESTION_BINDING_SCHEMA_REFERENCE,
+        f"{prefix} binding schema",
+        REVIEW_SCHEMAS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=True,
+    )
+    identity_schema, identity_errors = _load_json_object_artifact(
+        root,
+        PROTOCOL_V8_SEMANTIC_IDENTITY_SCHEMA_REFERENCE,
+        f"{prefix} semantic identity schema",
+        REVIEW_SCHEMAS_PREFIX,
+        REVIEW_JSON_OUTPUT_SUFFIX,
+        require_canonical=True,
+    )
+    errors = binding_errors + identity_errors
+    if binding_schema is None or identity_schema is None:
+        return None, errors
+    try:
+        registry = Registry().with_resource(
+            identity_schema["$id"], Resource.from_contents(identity_schema)
+        )
+        validator = Draft202012Validator(
+            binding_schema,
+            registry=registry,
+            format_checker=FormatChecker(),
+        )
+    except (KeyError, SchemaError) as error:
+        errors.append(f"{prefix} published binding schema load failed: {error}")
+        return None, errors
+    return validator, errors
+
+
+def _inactive_protocol_v8_e6a_semantic_question_binding_projection_errors(
+    root: Path,
+) -> list[str]:
+    """Exercise exact value-only transitive bindings over lawful disposable graphs."""
+    prefix = "inactive protocol v8 E6-A:"
+    errors: list[str] = []
+    contracts, contract_errors = _protocol_v8_e1_contract_map(root)
+    schema_validator, schema_errors = _protocol_v8_e6a_binding_schema_validator(root)
+    errors.extend(f"{prefix} {error}" for error in contract_errors)
+    errors.extend(f"{prefix} {error}" for error in schema_errors)
+    if errors or schema_validator is None:
+        return errors
+
+    def expect_rejected(label: str, action, required: str | None = None) -> None:
+        try:
+            result = action()
+        except (TypeError, ValueError) as error:
+            if required is not None and required not in str(error):
+                errors.append(f"{prefix} {label} rejected without {required!r}")
+            return
+        if isinstance(result, list) and result:
+            if required is not None and not any(required in item for item in result):
+                errors.append(f"{prefix} {label} rejected without {required!r}")
+            return
+        errors.append(f"{prefix} expected rejection: {label}")
+
+    captured: dict[tuple[int, str], dict] = {}
+    original_surface = _protocol_v8_e5c_cognitive_surface_of
+
+    def capturing_surface(*args, **kwargs):
+        surface = original_surface(*args, **kwargs)
+        if len(args) >= 6 and isinstance(args[5], str):
+            closure = args[1]
+            qlek = args[5]
+            captured.setdefault(
+                (id(closure), qlek),
+                {"closure": closure, "qlek": qlek},
+            )
+        return surface
+
+    globals()["_protocol_v8_e5c_cognitive_surface_of"] = capturing_surface
+    try:
+        fixture_errors = _inactive_protocol_v8_e5c_contract_cognitive_surface_errors(
+            root
+        )
+    finally:
+        globals()["_protocol_v8_e5c_cognitive_surface_of"] = original_surface
+    if fixture_errors:
+        errors.extend(f"{prefix} lawful fixture failed: {error}" for error in fixture_errors)
+        return errors
+
+    records_by_contract: dict[str, list[dict]] = {}
+    for record in captured.values():
+        try:
+            descriptor = _protocol_v8_e3a_resolve_qlek(
+                record["closure"], contracts, record["qlek"]
+            )
+        except ValueError:
+            continue
+        contract_id = descriptor.get("semanticQuestionContract")
+        if isinstance(contract_id, str):
+            records_by_contract.setdefault(contract_id, []).append(record)
+
+    required_contracts = {
+        "turnlock.sqc:MaterialityAssessmentInitial@1",
+        "turnlock.sqc:DiscoveryClassificationInitial@1",
+        "turnlock.sqc:RealizationScopeInitial@1",
+        "turnlock.sqc:MaterialityAssessmentRevision@1",
+    }
+    if not required_contracts.issubset(records_by_contract):
+        errors.append(f"{prefix} lawful fixture inventory is incomplete")
+        return errors
+
+    def record(contract_id: str) -> dict:
+        return records_by_contract[contract_id][0]
+
+    def construct(selected: dict) -> dict:
+        return _protocol_v8_e6a_semantic_question_binding_of(
+            selected["closure"], contracts, selected["qlek"]
+        )
+
+    fa_record = record("turnlock.sqc:MaterialityAssessmentInitial@1")
+    sm_record = record("turnlock.sqc:DiscoveryClassificationInitial@1")
+    rs_record = record("turnlock.sqc:RealizationScopeInitial@1")
+    revision_record = record("turnlock.sqc:MaterialityAssessmentRevision@1")
+    fixtures = (fa_record, sm_record, rs_record, revision_record)
+    bindings: dict[str, dict] = {}
+    for selected in fixtures:
+        try:
+            first = construct(selected)
+            second = construct(selected)
+        except ValueError as error:
+            errors.append(f"{prefix} binding construction raised: {error}")
+            continue
+        contract_id = first["logical_question_descriptor"][
+            "semanticQuestionContract"
+        ]
+        bindings[contract_id] = first
+        if first != second:
+            errors.append(f"{prefix} repeated binding construction changed output")
+        if set(first) != {
+            "semantic_question_binding_schema_version",
+            "logical_question_descriptor",
+            "qlek",
+            "semantic_values",
+        }:
+            errors.append(f"{prefix} binding exact shape mismatch")
+        schema_failures = list(schema_validator.iter_errors(first))
+        if schema_failures:
+            errors.append(
+                f"{prefix} generated binding schema violation: "
+                f"{schema_failures[0].message}"
+            )
+        strong_errors = _protocol_v8_e6a_strong_semantic_question_binding_errors(
+            selected["closure"], contracts, first
+        )
+        if strong_errors:
+            errors.extend(strong_errors)
+        witness_errors = _protocol_v8_e6a_strong_origin_witness_binding_errors(
+            selected["closure"], contracts, first
+        )
+        if witness_errors:
+            errors.extend(witness_errors)
+        try:
+            _protocol_v8_e3a_resolve_dependency_graph(
+                selected["closure"], contracts, [("qlek", selected["qlek"])]
+            )
+        except ValueError as error:
+            errors.append(f"{prefix} ground dependency graph failed: {error}")
+
+    fa_binding = bindings.get("turnlock.sqc:MaterialityAssessmentInitial@1")
+    sm_binding = bindings.get("turnlock.sqc:DiscoveryClassificationInitial@1")
+    rs_binding = bindings.get("turnlock.sqc:RealizationScopeInitial@1")
+    revision_binding = bindings.get("turnlock.sqc:MaterialityAssessmentRevision@1")
+    if None in (fa_binding, sm_binding, rs_binding, revision_binding):
+        return errors
+    assert isinstance(fa_binding, dict)
+    assert isinstance(sm_binding, dict)
+    assert isinstance(rs_binding, dict)
+    assert isinstance(revision_binding, dict)
+
+    def value_types(binding: dict) -> list[str]:
+        return [item["ref"]["valueType"] for item in binding["semantic_values"]]
+
+    fa_type = "turnlock.semantic-value:FindingAdjudicationBasis@1"
+    sm_type = "turnlock.semantic-value:SurvivingMaterialBasis@1"
+    view_type = "turnlock.semantic-value:CandidateView@1"
+    if value_types(fa_binding) != [fa_type]:
+        errors.append(f"{prefix} FA-only binding closure mismatch")
+    if set(value_types(sm_binding)) != {fa_type, sm_type} or len(
+        sm_binding["semantic_values"]
+    ) != 2:
+        errors.append(f"{prefix} SM-to-FA transitive closure mismatch")
+    if set(value_types(rs_binding)) != {fa_type, sm_type, view_type} or len(
+        rs_binding["semantic_values"]
+    ) != 3:
+        errors.append(f"{prefix} RS semantic-value closure mismatch")
+    for binding in (fa_binding, sm_binding, rs_binding, revision_binding):
+        identities = [
+            (item["ref"]["valueType"], item["ref"]["valueId"])
+            for item in binding["semantic_values"]
+        ]
+        if identities != sorted(identities) or len(identities) != len(set(identities)):
+            errors.append(f"{prefix} canonical ordering or deduplication mismatch")
+
+    revision_descriptor = revision_binding["logical_question_descriptor"]
+    revision_direct_ids = {
+        value["valueId"]
+        for value in revision_descriptor["exactLogicalInput"].values()
+        if isinstance(value, dict)
+        and set(value) == {"kind", "valueType", "valueId"}
+        and value.get("kind") == "semantic-value"
+    }
+    if {item["ref"]["valueId"] for item in revision_binding["semantic_values"]} != (
+        revision_direct_ids
+    ):
+        errors.append(f"{prefix} SemanticAdmission ancestry was inlined")
+
+    rs_descriptor = rs_binding["logical_question_descriptor"]
+    rs_direct_value_ids = {
+        value["valueId"]
+        for value in rs_descriptor["exactLogicalInput"].values()
+        if isinstance(value, dict)
+        and set(value) == {"kind", "valueType", "valueId"}
+        and value.get("kind") == "semantic-value"
+    }
+    expected_rs_ids = set(rs_direct_value_ids)
+    sm_entry = next(
+        item for item in rs_binding["semantic_values"] if item["ref"]["valueType"] == sm_type
+    )
+    expected_rs_ids.update(
+        reference["valueId"]
+        for reference in _protocol_v8_e6a_exact_semantic_value_refs(sm_entry["value"])
+    )
+    if {item["ref"]["valueId"] for item in rs_binding["semantic_values"]} != expected_rs_ids:
+        errors.append(f"{prefix} Fact or ExactAuthority dependency was inlined")
+    if any(
+        item["ref"].get("valueType") == "turnlock.authority:candidate-revision.v2"
+        for item in rs_binding["semantic_values"]
+    ):
+        errors.append(f"{prefix} CandidateRevision was represented as semantic value")
+
+    missing_nested = copy.deepcopy(sm_binding)
+    missing_nested["semantic_values"] = [
+        item
+        for item in missing_nested["semantic_values"]
+        if item["ref"]["valueType"] != fa_type
+    ]
+    expect_rejected(
+        "direct-only SM binding missing nested FA",
+        lambda: _protocol_v8_e6a_strong_semantic_question_binding_errors(
+            sm_record["closure"], contracts, missing_nested
+        ),
+        "exact transitive closure",
+    )
+
+    unrelated_value = {"unrelated": "E6-A"}
+    unrelated_ref = _protocol_v8_e3a_register_semantic_value(
+        sm_record["closure"],
+        "turnlock.semantic-value:E6AUnrelated@1",
+        unrelated_value,
+    )
+    extra = copy.deepcopy(sm_binding)
+    extra["semantic_values"].append(
+        {"ref": unrelated_ref, "value": unrelated_value}
+    )
+    extra["semantic_values"].sort(
+        key=lambda item: (item["ref"]["valueType"], item["ref"]["valueId"])
+    )
+    expect_rejected(
+        "extra unrelated semantic value",
+        lambda: _protocol_v8_e6a_strong_semantic_question_binding_errors(
+            sm_record["closure"], contracts, extra
+        ),
+        "exact transitive closure",
+    )
+
+    wrong_value = copy.deepcopy(sm_binding)
+    wrong_value["semantic_values"][0]["value"] = {"altered": True}
+    expect_rejected(
+        "wrong supplied semantic value",
+        lambda: _protocol_v8_e6a_strong_semantic_question_binding_errors(
+            sm_record["closure"], contracts, wrong_value
+        ),
+        "valueId does not match",
+    )
+    wrong_order = copy.deepcopy(sm_binding)
+    wrong_order["semantic_values"].reverse()
+    expect_rejected(
+        "noncanonical semantic value order",
+        lambda: _protocol_v8_e6a_strong_semantic_question_binding_errors(
+            sm_record["closure"], contracts, wrong_order
+        ),
+        "ordered by (valueType, valueId)",
+    )
+    duplicate = copy.deepcopy(sm_binding)
+    duplicate["semantic_values"].append(copy.deepcopy(duplicate["semantic_values"][0]))
+    expect_rejected(
+        "duplicate semantic value preimage",
+        lambda: _protocol_v8_e6a_strong_semantic_question_binding_errors(
+            sm_record["closure"], contracts, duplicate
+        ),
+        "duplicate semantic value preimage",
+    )
+
+    missing_authority = copy.deepcopy(sm_record["closure"])
+    nested_fa_id = next(
+        item["ref"]["valueId"]
+        for item in sm_binding["semantic_values"]
+        if item["ref"]["valueType"] == fa_type
+    )
+    missing_authority["semantic_values"].pop(nested_fa_id, None)
+    expect_rejected(
+        "nested FA absent from authoritative closure",
+        lambda: _protocol_v8_e6a_semantic_question_binding_of(
+            missing_authority, contracts, sm_record["qlek"]
+        ),
+        "dangling semantic-value ref",
+    )
+
+    dedup_closure = _protocol_v8_e3a_new_closure(_protocol_v8_e2_new_state())
+    fa_value = copy.deepcopy(fa_binding["semantic_values"][0]["value"])
+    fa_ref = _protocol_v8_e3a_register_semantic_value(
+        dedup_closure, fa_type, fa_value
+    )
+    duplicate_sm_value = {
+        "first": copy.deepcopy(fa_ref),
+        "second": [copy.deepcopy(fa_ref)],
+    }
+    duplicate_sm_ref = _protocol_v8_e3a_register_semantic_value(
+        dedup_closure, sm_type, duplicate_sm_value
+    )
+    duplicate_descriptor = {
+        "schema": "turnlock.logical-question-descriptor.v1",
+        "semanticQuestionContract": "turnlock.sqc:DiscoveryClassificationInitial@1",
+        "exactLogicalInput": {"survivingMaterialBasis": duplicate_sm_ref},
+    }
+    duplicate_qlek = _protocol_v8_e3a_register_question(
+        dedup_closure, contracts, duplicate_descriptor
+    )
+    dedup_binding = _protocol_v8_e6a_semantic_question_binding_of(
+        dedup_closure, contracts, duplicate_qlek
+    )
+    if len(dedup_binding["semantic_values"]) != 2:
+        errors.append(f"{prefix} multiply reachable semantic value was not deduplicated")
+
+    lookalike = {
+        "kind": "semantic-value",
+        "valueType": fa_type,
+        "valueId": fa_ref["valueId"],
+        "extra": True,
+    }
+    if _protocol_v8_e6a_exact_semantic_value_refs(lookalike):
+        errors.append(f"{prefix} non-exact SemanticValueRef lookalike was accepted")
+
+    artifact_a = {"path": "synthetic/a", "sha256": "a" * 64}
+    artifact_b = {"path": "synthetic/b", "sha256": "b" * 64}
+    projected_a = {"artifact": artifact_a, "binding": copy.deepcopy(sm_binding)}
+    projected_b = {"artifact": artifact_b, "binding": copy.deepcopy(sm_binding)}
+    if projected_a["binding"] != projected_b["binding"]:
+        errors.append(f"{prefix} binding depends on ArtifactRef locator")
+    forbidden_binding_keys = {
+        "ArtifactRef",
+        "path",
+        "repositoryPath",
+        "bindingSha256",
+        "packet",
+        "run",
+        "root",
+        "ExecutionId",
+    }
+
+    def keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            result = set(value)
+            for child in value.values():
+                result.update(keys(child))
+            return result
+        if isinstance(value, list):
+            result: set[str] = set()
+            for child in value:
+                result.update(keys(child))
+            return result
+        return set()
+
+    if keys(sm_binding).intersection(forbidden_binding_keys):
+        errors.append(f"{prefix} binding leaked artifact/provenance identity")
+
+    cycle_dependencies = {
+        ("semantic-value", "A"): [("semantic-value", "B")],
+        ("semantic-value", "B"): [("semantic-value", "A")],
+    }
+    expect_rejected(
+        "synthetic semantic dependency cycle",
+        lambda: _protocol_v8_e3a_resolve_dependency_graph(
+            dedup_closure,
+            contracts,
+            [("semantic-value", "A")],
+            dependency_function=lambda node: cycle_dependencies.get(node, []),
+        ),
+        "unlawful semantic dependency cycle",
+    )
+
+    forbidden_fragments = {
+        "review_evidence_v6",
+        "review_campaign_projection",
+        "supplement_v2",
+        "effective_adjudication",
+        "repository_projection",
+        "activate_protocol_v8",
+    }
+    introduced = {
+        name
+        for name in globals()
+        if name.startswith("_protocol_v8_e6a_")
+        and any(fragment in name for fragment in forbidden_fragments)
+    }
+    if introduced:
+        errors.append(f"{prefix} forbidden later-stage helper was introduced")
+    return errors
+
+
 def _protocol_v8_semantic_oracles():
     return (
         _inactive_protocol_v8_e1_semantic_identity_errors,
@@ -27979,6 +28553,9 @@ def collect_errors(
     )
     errors.extend(
         _inactive_protocol_v8_e5d_cognitive_packet_citation_errors(root)
+    )
+    errors.extend(
+        _inactive_protocol_v8_e6a_semantic_question_binding_projection_errors(root)
     )
 
     review_records, review_load_errors = load_review_records(root)
