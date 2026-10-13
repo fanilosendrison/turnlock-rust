@@ -6,6 +6,7 @@ from contextvars import ContextVar
 import base64
 import copy
 import hashlib
+import importlib.util
 import json
 import math
 import re
@@ -30161,6 +30162,39 @@ def _realization_errors(
     return errors
 
 
+def _render_generated_mapping_from_validated(
+    root: Path,
+    manifest: dict,
+    review_records: list[tuple[Path, dict]],
+    current_subject: dict,
+    gate_a: dict,
+) -> bytes:
+    """Invoke the exact fixture-local renderer with already validated state."""
+    renderer_path = root / "scripts" / "render-formal-mapping.py"
+    spec = importlib.util.spec_from_file_location(
+        "formal_mapping_renderer",
+        renderer_path,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {renderer_path}")
+    renderer_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renderer_module)
+    projection = getattr(renderer_module, "render_mapping_from_validated")
+    if not callable(projection):
+        raise TypeError("render_mapping_from_validated must be callable")
+    rendered = projection(
+        root,
+        manifest=manifest,
+        review_records=review_records,
+        current_subject=current_subject,
+        gate_a=gate_a,
+        gate_a_subject_selector=GATE_A_SUBJECT_SELECTOR,
+    )
+    if not isinstance(rendered, str):
+        raise TypeError("render_mapping_from_validated must return str")
+    return rendered.encode("utf-8")
+
+
 def collect_errors(
     root: Path,
     *,
@@ -30444,18 +30478,36 @@ def collect_errors(
                 "run python scripts/render-formal-mapping.py"
             )
         else:
-            result = subprocess.run(
-                [sys.executable, str(renderer), "--stdout"],
-                cwd=root,
-                capture_output=True,
-                check=False,
-            )
-            if result.returncode != 0:
-                errors.append(
-                    "generated formal invariant mapping could not be rendered: "
-                    + concise_subprocess_failure(result.stderr, result.returncode)
+            rendered_mapping = None
+            if not errors:
+                try:
+                    rendered_mapping = _render_generated_mapping_from_validated(
+                        root,
+                        manifest,
+                        review_records,
+                        current_subject,
+                        gate_a,
+                    )
+                except Exception:
+                    pass
+            if rendered_mapping is None:
+                result = subprocess.run(
+                    [sys.executable, str(renderer), "--stdout"],
+                    cwd=root,
+                    capture_output=True,
+                    check=False,
                 )
-            elif mapping_path.read_bytes() != result.stdout:
+                if result.returncode != 0:
+                    errors.append(
+                        "generated formal invariant mapping could not be rendered: "
+                        + concise_subprocess_failure(result.stderr, result.returncode)
+                    )
+                else:
+                    rendered_mapping = result.stdout
+            if (
+                rendered_mapping is not None
+                and mapping_path.read_bytes() != rendered_mapping
+            ):
                 errors.append(
                     "generated formal invariant mapping is stale; "
                     "run python scripts/render-formal-mapping.py"
