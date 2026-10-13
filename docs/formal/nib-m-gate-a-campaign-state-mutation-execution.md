@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "6.0.1"
+version: "7.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -20,9 +20,20 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+It consumes:
 
-Version `6.0.1` is a dependency-only synchronization with NIB-S `10.0.0`. It
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+NIB-M-GATE-A-CONTRACTS 1.2.0
+```
+
+Version `7.0.0` is a breaking construction-contract revision. It adds the exact
+protocol-v8 semantic Execution authorization, atomic semantic Arm, authoritative
+M6 validation retention, completion/admission reconciliation, conflict, and
+cross-domain merge effects while preserving all P1-P7 behavior. No production
+runner state exists, so no runtime migration mechanism is required.
+
+Version `6.0.1` was a dependency-only synchronization with NIB-S `10.0.0`. It
 changes no mutation algorithm, type, ownership, retry, hard-limit, provider,
 recovery, or repository semantic. The retained
 `ReviewCampaignPrerequisiteBasisRefV1.reviewContext` remains exact immutable
@@ -56,10 +67,13 @@ It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
 semantics, formal-assurance claims, review evidence, or verification evidence.
 
-This brief defines the complete M2 authoritative mutation language and the
-algorithms that admit campaign facts into Authoritative History.
+This brief defines the complete M2 authoritative run-mutation language, the
+algorithms that admit campaign facts into Authoritative History, and the exact
+T4/T5 global semantic-history effects.
 
-Every successful mutation is one atomic append-only `StateRevision`.
+Every successful GateARun mutation is one atomic append-only `StateRevision`.
+T4 and T5 are separate global semantic-history transitions and create no
+GateARun `StateRevision`.
 
 M2 validates authority, identity, structural consistency, causal preconditions,
 and global invariants.
@@ -106,6 +120,18 @@ authoritative state is not encoded as another branch of this union.
 
 It rejects the invocation as an implementation/process/integrity failure.
 
+The separate global semantic completion boundary is exactly:
+
+```ts
+reconcileSemanticCompletion(
+  request: ReconcileSemanticCompletionRequestV1
+): Promise<ReconcileSemanticCompletionResultV1>;
+```
+
+T5 uses the exact cross-module request/result declared by M0 and the persistence
+brief. Neither global boundary uses `CommitAuthoritativeMutationRequest` or
+requires GateARun WriteAuthority.
+
 ## 3. Serialized mutation envelope
 
 `AuthoritativeMutationRef.artifact` must contain UTF-8 JSON validating exactly
@@ -137,12 +163,15 @@ type GateAStateMutationV1 =
   | EstablishReviewCampaignBundleV1
   | EstablishOperationalBlockersV1
   | AuthorizeExecutionV1
+  | AuthorizeSemanticExecutionV1
   | ArmExecutionDispatchV1
+  | ArmSemanticExecutionDispatchV1
   | AdmitExecutionOutcomeV1
   | AdmitExecutionUncertaintyV1
   | AdmitExecutionRecoveryV1
   | AdmitAssuranceLedgerDeltaV1
   | AdmitMechanicalValidationObservationV1
+  | AdmitProtocolV8SemanticValidationV1
   | AdmitGateAQualificationV1
   | EstablishPublicationIntentV1
   | AdmitPublicationObservationQualificationV1
@@ -2710,3 +2739,384 @@ whose exact publication obligation remains outstanding.
 
 The snapshot/integrity M2 brief performs all resulting-state reconstruction and
 invariant validation before SQLite commit.
+
+## 23. Protocol-v8 semantic mutation boundary
+
+Keep exactly two independent authority dimensions:
+
+```text
+WriteAuthorityRef
+→ exclusive authority for one GateARun mutation stream
+
+AdmissionAuthorityRefV1
+→ exclusive live semantic-dispatch authority for one exact QLEK
+```
+
+One never substitutes for the other. T2 and T3 require both. T1, T4, and T5 do
+not require GateARun write authority because they do not mutate a GateARun.
+
+Every new protocol-v8 semantic operation below is legal only for the exact
+published P8 bundle. While `formal/verification.yaml` selects P6, none becomes
+active campaign behavior. P6 remains current, P7 remains permanently inactive,
+and P8 remains inactive.
+
+## 24. T2 AuthorizeSemanticExecutionV1
+
+Use the exact M0 representation:
+
+```ts
+interface AuthorizeSemanticExecutionV1 {
+  readonly kind:
+    "authorize-semantic-execution";
+  readonly workItemId:
+    WorkItemId;
+  readonly basis:
+    ExecutionCreationRequestBasis;
+  readonly semanticQuestion:
+    ValidatedSemanticQuestionRefV1;
+  readonly admissionAuthority:
+    AdmissionAuthorityRefV1;
+}
+```
+
+Accept only existing public bases `initial-work`, `protocol-retry`, and
+`proven-not-executed`. Do not add `operator-replacement` to the public semantic
+T2 basis.
+
+In the same run mutation transaction require exactly:
+
+```text
+exact local GateARun WriteAuthority is held
+exact local AdmissionAuthority lock handle is held
+admissionAuthority.domainId == local SemanticAuthorityDomainId
+admissionAuthority.epoch == exact current epoch
+admissionAuthority.generation == exact latest grant for (K, current epoch)
+semanticQuestion.qlek == admissionAuthority.qlek
+semanticQuestion binding/evidence intact
+WorkItem exists
+WorkItem is an exact native P8 semantic WorkItem under the later M5 operation contract
+no consumable Admission exists for K
+no SemanticAdmissionConflict exists for K
+no protocol-valid completion awaits reconciliation
+no unvalidated captured semantic completion exists for K
+no unresolved semantic hazard exists for K
+no other non-retired local unarmed semantic trajectory exists for K
+all ordinary AuthorizeExecutionV1 outer rules hold
+```
+
+The future synchronized M5 operation schema supplies the exact marker/binding
+for a native P8 semantic WorkItem. M2 does not infer it from role strings and
+does not design the M5 schema here.
+
+When `semanticQuestion.boundCandidateRevisionId != null`, require that exact
+CandidateRevision to exist in this GateARun and require
+`WorkItem.candidateId == semanticQuestion.boundCandidateRevisionId`. Do not
+require currentness at T2; fresh candidate currentness belongs to T3.
+
+Atomically insert in one exact run `StateRevision`:
+
+```text
+one new ExecutionRef
+its ordinary exact execution-creation basis
+one SemanticExecutionBindingRefV1
+```
+
+No visible authoritative revision may contain a new P8 semantic Execution
+without its binding. Never write authority generation into
+`SemanticExecutionBindingRefV1`.
+
+If exact reconstructed state already contains one non-retired native unarmed
+semantic trajectory for K, do not create a sibling. Expose it through
+`SemanticQuestionStateV1.resumableUnarmedExecution`, even when it belongs to
+another GateARun. Progressing it requires separate normal WriteAuthority for the
+owning run. A busy owning-run lock never permits another same-K Execution.
+
+A never-Armed local semantic Execution ceases to be resumable only when retained
+authoritative run history makes it definitively non-dispatchable before Arm,
+including authoritative pre-Arm supersession, irreversible run termination, or
+candidate-bound current-candidate inequality. Temporary blockage and absence of
+a live process owner do not retire it.
+
+## 25. Generic semantic authorization exclusion
+
+Preserve `AuthorizeExecutionV1` unchanged for historical/current
+non-P8-semantic execution, including P8 initial-reviewer execution. Once the
+future M5 operation contract identifies a WorkItem as a native P8 semantic
+question:
+
+```text
+generic AuthorizeExecutionV1
+→ INVALID_MUTATION
+```
+
+Only `AuthorizeSemanticExecutionV1` may create its Execution.
+
+Existing generic operator replacement must reject any prior Execution carrying a
+P8 `SemanticExecutionBindingRefV1`:
+
+```text
+AdmitOperatorResolutionV1
++
+semantic prior Execution
++
+request to atomically create operator-replacement successor
+→ INVALID_MUTATION
+```
+
+C9-B defines no semantic operator-replacement mechanism. Exact PNE and
+protocol-authorized semantic retry remain possible only through lawful T2
+bases.
+
+## 26. T3 ArmSemanticExecutionDispatchV1
+
+Use the exact M0 representation. In one single `BEGIN IMMEDIATE` authoritative
+transaction require:
+
+```text
+all ordinary ArmExecutionDispatchV1 preconditions
+SemanticExecutionBinding(E,K) exists
+no prior normal Arm(E)
+no prior SemanticArmBinding(E,...)
+exact local AdmissionAuthority handle is held
+authority domain == local domain
+authority K == binding K
+authority epoch == current domain epoch
+authority generation == latest durable generation for (K, epoch)
+no Admission claim currently permits reuse
+no conflict exists
+no captured semantic completion awaits validation
+no protocol-valid semantic completion awaits reconciliation
+no unresolved semantic hazard from another trajectory exists
+E is the exact retained native unarmed trajectory for K
+```
+
+When the binding contains non-null bound candidate C, read exact authoritative
+`GateARun.currentCandidate` inside this same transaction and require
+`currentCandidate.candidateId == C`. Combine this direct check with the expected
+run `StateRevision` CAS. Never accept caller-provided currentness. This one
+linearization point prevents candidate advance between check and Arm.
+
+When the binding is candidate-independent, perform no candidate-ID equality
+check. WorkItem candidate provenance remains occurrence provenance and never
+becomes QLEK identity.
+
+One successful transaction introduces in the same run revision:
+
+```text
+ordinary M2 Arm(E)
++
+SemanticArmBinding(E, K, local domainId, current epoch, authority generation)
+```
+
+No partial state is legal. The commit durably establishes
+`POSSIBLY-DISPATCHED` and semantic sampling hazard before M4 may cross its
+external effect boundary.
+
+After successful T3 commit, release the exact process-local QLEK lock handle
+before returning normal success. Durable grant and Arm binding remain. On
+`stale-state`, `ownership-lost`, or another non-commit result, do not silently
+release or reuse authority; the caller explicitly invokes
+`releaseAdmissionAuthority` when abandoning the attempt.
+
+If an Execution has `SemanticExecutionBindingRefV1`:
+
+```text
+generic ArmExecutionDispatchV1
+→ INVALID_MUTATION
+```
+
+Only `ArmSemanticExecutionDispatchV1` may Arm it.
+
+## 27. AdmitProtocolV8SemanticValidationV1
+
+Admit exact future M6 output through:
+
+```ts
+interface AdmitProtocolV8SemanticValidationV1 {
+  readonly kind:
+    "admit-protocol-v8-semantic-validation";
+  readonly result:
+    ProtocolV8SemanticValidationResultV1;
+}
+```
+
+Require:
+
+```text
+exact execution exists
+SemanticExecutionBinding exists
+result.qlek == exact binding.qlek
+exact normal Arm exists
+exact SemanticArmBinding exists
+exact CapturedExecutionResult exists
+no TechnicalExecutionFailure exists
+result.execution equals exact retained execution locator
+all validationEvidence intact
+no prior incompatible P8 semantic validation exists for E
+```
+
+For `protocol-valid`, additionally require exact equality between
+`result.semanticQuestionBinding` and `binding.semanticQuestionBinding`, plus
+intact candidate, execution-receipt-v4, origin-witness-v1, and binding artifacts.
+M2 verifies exact authoritative M6 provenance, retained-history agreement, and
+artifact integrity only. It never decides whether those artifacts semantically
+prove V.
+
+A protocol-invalid authoritative result means a completed semantic response
+exists and deterministic P8 validation established no protocol-valid candidate.
+It clears hazard for exact E but does not itself authorize another Execution;
+T2 still requires the exact owning M5 retry/replacement basis.
+
+A protocol-valid result does not create SemanticAdmission. It creates mandatory
+T4 reconciliation. Until T4 completes, K is non-consumable and same-K resampling
+is forbidden. This mutation is run-local authoritative history and increments
+the exact owning GateARun `StateRevision`.
+
+## 28. T4 ReconcileSemanticCompletion
+
+T4 requires no GateARun WriteAuthority and writes only global semantic history.
+Implement exactly:
+
+```text
+resolve exact local SemanticExecutionBinding(E,K)
+require exact authoritative P8 semantic validation for E
+require classification == protocol-valid
+
+acquire exact K lock non-blocking
+if BUSY:
+    return busy(K)
+
+BEGIN IMMEDIATE authoritative DB
+
+re-read exact execution, binding, SemanticArmBinding, captured result,
+protocol-valid validation, and global semantic state K
+require every immutable ref intact
+
+incoming = exact SemanticAdmissionRecordV1 from M6 validation
+W = exact M6-validated origin witness artifact
+
+if no existing admission claim for K:
+    insert incoming claim and first origin witness atomically
+    COMMIT
+    release K lock
+    return admitted
+
+if exact same admissionId exists:
+    require exact semanticCandidate SHA equality
+    require exact semanticQuestionBinding SHA equality
+    append exact witness only when absent
+    COMMIT only when a new fact exists; otherwise ROLLBACK read-equivalent transaction
+    release K lock
+    return converged(witnessAdded)
+
+if one or more different admissionIds exist:
+    require same admissionId never maps to different candidate bytes
+    require same K never maps to incompatible semantic-question-binding bytes
+    require same candidate bytes never map to incompatible admissionId
+    insert incoming claim if new
+    insert incoming witness if new
+    append every distinct canonical conflict pair:
+        lower admissionId → admissionA
+        higher admissionId → admissionB
+    select no winner
+    COMMIT
+    release K lock
+    return conflict
+```
+
+T4 never checks whether the originating candidate is still current. A lawfully
+Armed old-candidate protocol-valid completion reconciles into exact old K.
+
+Same K/same V produces one admission, zero or more additional lawful witnesses,
+no new admission, and no resampling. Same K/different V retains every claim,
+appends canonical conflicts, sets consumability to null, and selects no first,
+last, majority, model, or current-run winner.
+
+T4 increments no GateARun `StateRevision`.
+
+## 29. T5 semantic merge effects
+
+Persistence/ownership owns T5 coordination and transaction boundaries. Within
+that exact transaction, mutation semantics are:
+
+```text
+append every new external hazard clearance
+append every new external unresolved hazard
+append every external unarmed trajectory as audit-only provenance
+
+for every validated external admission:
+    merge with exact T4 same-K/same-V/different-V rules
+    union exact lawful witnesses
+
+for every pending protocol-valid completion:
+    reconcile through the exact T4 admission/conflict algorithm
+
+append every required canonical conflict pair
+```
+
+Imported unarmed trajectories never become local Executions, never enter
+`semantic_execution_bindings`, and never become armable. Same-K/same-V imported
+history retains one admission and unions witnesses. Same admissionId requires
+exact candidate and semantic-question-binding SHA equality; different candidate
+bytes are `IDENTITY-HASH-COLLISION` / integrity failure. Same K plus the same
+candidate bytes but an incompatible admissionId is semantic identity integrity
+failure, not winner selection. Same-K/different-V creates conflicts and no
+winner.
+
+T5 transfers no receipt ownership, `reused_executions[]`,
+`supporting_executions[]`, or ReviewCampaign provenance. Origin witnesses retain
+their original execution and domain. T5 increments no GateARun `StateRevision`.
+
+## 30. Hazard effects and crash behavior
+
+For exact local Armed semantic Execution E, hazard clears only through exact
+PROVEN-NOT-EXECUTED recovery, exact `TechnicalExecutionFailure`, exact
+authoritative protocol-invalid validation, or protocol-valid validation plus its
+corresponding admission and lawful origin witness. The technical branch is
+lawful because accepted M4-A positively proves no completed semantic response.
+
+Never clear hazard from timeout, process death, missing response, MAYBE-SENT,
+unknown, UNRESOLVABLE, operator acknowledgement, progression supersession,
+candidate staleness, run termination, root change, or Admission absence.
+
+Preserve exactly:
+
+```text
+T2 crash after commit before T3
+→ Execution + binding remain
+→ no Arm and no hazard
+→ later T1 returns same resumable unarmed Execution
+
+T3 crash after commit
+→ normal Arm + SemanticArmBinding remain
+→ hazard blocks fresh same-K sampling
+
+captured response crash before M6 validation
+→ captured result remains
+→ validation-required; no resampling
+
+protocol-valid validation crash before T4
+→ validation remains
+→ reconciliation-required; no resampling
+
+T4 crash before commit
+→ no partial Admission/witness; retry T4
+
+T4 crash after commit
+→ exact claims/witnesses/conflicts reconstruct
+→ retry converges idempotently
+```
+
+## 31. Existing behavior and module dependencies
+
+Do not reinterpret `AuthorizeExecutionV1`, `ArmExecutionDispatchV1`, P6
+classification, P6 execution receipt v3, current retry semantics, recovery, or
+publication except for exact native-P8 semantic generic-path exclusions above.
+P8 initial-reviewer execution remains outside C1 single-admission semantics.
+
+Do not modify the Pi M4 Dependency Contract. QLEK remains runner-owned metadata
+outside the Pi adapter surface. Later M1 owns scheduling and cross-run ownership
+orchestration; later M5 owns semantic-question derivation/operation marking and
+qualification; later M6 owns QLEK recomputation, P8 completion validation and
+external-history validation; M7 owns CandidateView construction; M8 owns
+operator/recovery policy. C9-B designs none of those internal algorithms.
