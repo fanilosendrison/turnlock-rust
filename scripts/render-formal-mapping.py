@@ -74,13 +74,36 @@ def render_mapping(root: Path) -> str:
     current_subject, subject_errors = checker.build_gate_a_review_subject(root, data)
     if subject_errors:
         raise MappingRenderError("\n".join(subject_errors))
-    gate_a = validation_summary["gate_a"]
+    return render_mapping_from_validated(
+        root,
+        manifest=data,
+        review_records=review_records,
+        current_subject=current_subject,
+        gate_a=validation_summary["gate_a"],
+        gate_a_subject_selector=checker.GATE_A_SUBJECT_SELECTOR,
+    )
 
-    claims = [claim for claim in data.get("claims", []) if isinstance(claim, dict)]
-    coverage = [
-        entry for entry in data.get("normative_coverage", []) if isinstance(entry, dict)
+
+def render_mapping_from_validated(
+    root: Path,
+    *,
+    manifest: dict,
+    review_records: list[tuple[Path, dict]],
+    current_subject: dict,
+    gate_a: dict,
+    gate_a_subject_selector: str,
+) -> str:
+    """Project an already successfully validated formal-traceability state."""
+    root = root.resolve()
+    claims = [
+        claim for claim in manifest.get("claims", []) if isinstance(claim, dict)
     ]
-    realizations = data.get("formal_realizations", [])
+    coverage = [
+        entry
+        for entry in manifest.get("normative_coverage", [])
+        if isinstance(entry, dict)
+    ]
+    realizations = manifest.get("formal_realizations", [])
     if not isinstance(realizations, list):
         realizations = []
 
@@ -96,9 +119,9 @@ def render_mapping(root: Path) -> str:
                 classification_counts.get(classification, 0) + 1
             )
 
-    evidence_policy = data.get("policy", {}).get("hostile_review", {})
+    evidence_policy = manifest.get("policy", {}).get("hostile_review", {})
     mechanical_policy = (
-        data.get("policy", {}).get("mechanical_evidence", {}).get("tlc", {})
+        manifest.get("policy", {}).get("mechanical_evidence", {}).get("tlc", {})
     )
     review_evidence_schema = evidence_policy.get(
         "evidence_schema", "formal/reviews/review-evidence.schema.json"
@@ -148,7 +171,7 @@ def render_mapping(root: Path) -> str:
         [
             "",
             "Gate A assurance-decomposition subject:",
-            f"- selector: `{checker.GATE_A_SUBJECT_SELECTOR}`",
+            f"- selector: `{gate_a_subject_selector}`",
             f"- SHA-256: `{current_subject['sha256']}`",
         ]
     )
