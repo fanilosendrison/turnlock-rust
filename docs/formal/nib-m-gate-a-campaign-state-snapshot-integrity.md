@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "5.0.1"
+version: "6.0.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -20,9 +20,20 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+It consumes:
 
-Version `5.0.1` is a dependency-only synchronization with NIB-S `10.0.0`. It
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+NIB-M-GATE-A-CONTRACTS 1.2.0
+```
+
+Version `6.0.0` is a breaking construction-contract revision. It adds exact
+schema-v2 semantic-history integrity, global QLEK-state reconstruction, hazard
+and consumability derivation, and separate semantic read APIs while deliberately
+leaving `GateARunSnapshot` unchanged. No production runner state exists, so no
+runtime migration mechanism is required.
+
+Version `5.0.1` was a dependency-only synchronization with NIB-S `10.0.0`. It
 changes no snapshot algorithm, integrity rule, type, ownership, retry,
 hard-limit, provider, recovery, or repository semantic. The retained
 `ReviewCampaignPrerequisiteBasisRefV1.reviewContext` remains exact immutable
@@ -55,11 +66,12 @@ It is implementation-construction authority only. It does not define TURNLOCK
 product semantics, canonical formal semantics, hostile-review protocol
 semantics, formal-assurance claims, review evidence, or verification evidence.
 
-This brief defines how M2 reconstructs one exact `GateARunSnapshot` from
-append-only Authoritative History and how it determines whether retained state
-is trustworthy.
+This brief defines how M2 reconstructs one exact `GateARunSnapshot` and the
+separate global `SemanticQuestionStateV1`/`SemanticExecutionStateV1` projections
+from append-only Authoritative History, and how it determines whether retained
+state is trustworthy.
 
-The snapshot is a deterministic read-side projection.
+Every projection is deterministic read-side state.
 
 It is not separately persisted authority.
 
@@ -80,11 +92,16 @@ interface LoadGateARunSnapshotRequest {
 }
 ```
 
-Successful load returns the exact NIB-S:
+Successful run-local load returns the exact NIB-S:
 
 ```ts
 GateARunSnapshot
 ```
+
+The separate global read APIs consume exact
+`LoadSemanticQuestionStateRequestV1` and
+`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.2.0 contracts
+closed in section 20.
 
 There is no normal union branch for unknown/corrupt state.
 
@@ -151,7 +168,7 @@ no foreign-key violation
 ```
 
 An open database that silently lacks an append-only trigger is not accepted as
-valid M2 v1 storage.
+valid M2 schema-v2 storage.
 
 ### 4.2 Revision integrity
 
@@ -1973,6 +1990,384 @@ const snapshot = await campaignState.loadGateARunSnapshot({ runId });
 ```
 
 Ownership acquisition uses this same reconstruction after generation insertion.
+
+## 20. Protocol-v8 global semantic read boundary
+
+Keep `GateARunSnapshot` unchanged and run-local. Do not add global P8 semantic
+fields to it. Expose global semantic authority through the separate
+`loadSemanticQuestionState` and `loadSemanticExecutionState` APIs declared by
+M0 1.2.0.
+
+Keep exactly two independent authority dimensions:
+
+```text
+WriteAuthorityRef
+→ exclusive authority for one GateARun mutation stream
+
+AdmissionAuthorityRefV1
+→ exclusive live semantic-dispatch authority for one exact QLEK
+```
+
+One never substitutes for the other. T2 and T3 require both. T1, T4, and T5 do
+not require GateARun write authority because they do not mutate a GateARun.
+
+Reconstruct every semantic read from exact authoritative schema-v2 rows and
+retained run history within one exact SQLite read snapshot. Never derive it from
+mutable workspace, repository scan, current P/S reread, M5/M6 cache, receipt
+ownership, filesystem-directory ownership, or process memory. Process memory
+may establish live-lock effectiveness only; it never contributes durable state.
+No cache is authority.
+
+## 21. SemanticQuestionState reconstruction
+
+For exact QLEK K, derive `SemanticQuestionStateV1` with:
+
+```text
+domainId = exact singleton semantic_domain.domain_id
+qlek = K
+currentEpoch = exact maximum contiguous epoch
+latestGrantGeneration = max generation for (K,currentEpoch), or null
+localExecutions = every exact local semantic binding with optional Arm/validation
+admissionClaims = every exact admission claim for K
+originWitnesses = every exact lawful witness for those claims
+conflicts = every exact canonical conflict pair
+unvalidatedCapturedExecutions = Armed semantic captured completions without P8 validation
+pendingProtocolValidValidations = protocol-valid validations not yet reconciled
+unresolvedHazards = every derived unresolved local/imported hazard
+resumableUnarmedExecution = exact sole non-retired native unarmed trajectory, or null
+consumableAdmission = exact derived consumable claim, or null
+```
+
+Order duplicate-free arrays exactly:
+
+```text
+localExecutions:
+(runId, executionId) ASCII ascending
+
+admissionClaims:
+admissionId ASCII ascending
+
+originWitnesses:
+(admissionId, sourceDomainId, originExecutionId, witness.sha256)
+ASCII ascending
+
+conflicts:
+(admissionA.admissionId, admissionB.admissionId)
+ASCII ascending
+
+unvalidatedCapturedExecutions:
+(runId, executionId) ASCII ascending
+
+pendingProtocolValidValidations:
+(execution.runId, execution.executionId) ASCII ascending
+
+unresolvedHazards:
+(qlek, kind, source/local domain identity, executionId)
+ASCII ascending
+```
+
+`consumableAdmission` is non-null iff exactly one claim exists, at least one
+exact lawful origin witness exists for it, conflicts is empty,
+`unvalidatedCapturedExecutions` is empty,
+`pendingProtocolValidValidations` is empty, and `unresolvedHazards` is empty.
+Otherwise it is null. Never require evidence-root ownership, run equality, or
+root equality.
+
+## 22. T1 branch priority
+
+Before and after taking live coordination locks, apply exact reconstructed state
+in this order:
+
+```text
+1. conflicts non-empty
+   → conflict
+
+2. pendingProtocolValidValidations non-empty
+   → reconciliation-required
+
+3. unvalidatedCapturedExecutions non-empty
+   → validation-required
+
+4. unresolvedHazards non-empty
+   → hazard-blocked
+
+5. consumableAdmission non-null
+   → reuse
+
+6. otherwise
+   → acquire live QLEK authority
+```
+
+The existing non-retired native unarmed trajectory does not create a sibling;
+it is returned as `state.resumableUnarmedExecution` with acquired authority so
+later M1 can obtain the exact owning-run WriteAuthority and resume it.
+
+## 23. Semantic hazard derivation
+
+For locally Armed semantic Execution E, derive hazard until exact authoritative
+history contains one of:
+
+```text
+exact PROVEN-NOT-EXECUTED recovery for E
+
+OR
+
+exact TechnicalExecutionFailure for E
+
+OR
+
+exact authoritative protocol-v8 protocol-invalid validation for E
+
+OR
+
+exact protocol-valid validation for E
++
+corresponding exact Admission(K,V)
++
+lawful exact origin witness for E
+```
+
+The technical branch is lawful because accepted M4-A positively proves no
+completed semantic response exists. Hazard clearance remains distinct from
+retry/replacement authorization.
+
+Never clear a local hazard from timeout, process death, missing response,
+MAYBE-SENT, unknown, UNRESOLVABLE, operator acknowledgement, progression
+supersession, candidate staleness, run termination, root change, or absence of
+Admission.
+
+An Armed semantic Execution with `CapturedExecutionResult` and no
+`ProtocolV8SemanticValidationResultV1` appears in
+`unvalidatedCapturedExecutions` and remains hazardous; M1/M6 must classify that
+exact completion before any new sample. An authoritative protocol-valid result
+without reconciled claim/witness appears in
+`pendingProtocolValidValidations` and remains hazardous.
+
+An imported external hazard is unresolved iff its exact
+`semantic_external_hazards` row exists and no matching
+`semantic_external_hazard_clearances` row exists. Retain a clearance that arrives
+before an older hazard export; exact positive clearance is monotone and an
+out-of-order source export cannot resurrect the hazard.
+
+A local never-Armed semantic trajectory is resumable until authoritative run
+history makes it definitively non-dispatchable before Arm. Candidate-bound
+current-candidate inequality may retire a never-Armed trajectory; candidate
+staleness never clears a post-Arm hazard.
+
+## 24. Semantic execution read API
+
+`loadSemanticQuestionState` uses one exact SQLite read snapshot and returns the
+state in sections 21 through 23.
+
+`loadSemanticExecutionState({runId, executionId})` resolves the exact run-local
+Execution. Return `non-semantic` when no
+`SemanticExecutionBindingRefV1` exists. Otherwise return `semantic` with the
+exact immutable binding and optional exact Arm and P8 validation. This API maps
+run-local history to QLEK without modifying `GateARunSnapshot`.
+
+A `resumableUnarmedExecution` may name another GateARun and grants no write
+authority over that run. A busy owning-run lock never authorizes a sibling
+same-K Execution.
+
+## 25. Schema-v2 semantic-history integrity
+
+In addition to every existing integrity rule, fail closed on any of:
+
+```text
+more than one semantic_domain row
+missing epoch 1
+non-contiguous domain epochs
+non-contiguous AdmissionAuthority generation for one (K,epoch)
+semantic binding names nonexistent Execution
+semantic binding run/workItem differs from exact Execution history
+same Execution has two QLEKs
+semantic Arm exists without semantic execution binding
+normal Arm for semantic Execution exists without same-transition SemanticArmBinding
+SemanticArmBinding exists without normal Arm
+SemanticArmBinding K differs from execution binding K
+SemanticArmBinding epoch/generation lacks exact durable grant
+protocol-v8 semantic validation exists for unarmed semantic Execution
+semantic validation K differs from execution binding K
+protocol-valid validation lacks required immutable refs
+protocol-invalid validation carries protocol-valid-only fields
+same admissionId resolves to incompatible candidate bytes
+same QLEK resolves to incompatible semantic-question-binding bytes
+origin witness names nonexistent admission claim
+origin witness qlek/admission mismatch
+conflict pair uses same admission twice
+conflict pair not canonical ordered
+external source hazard changes QLEK
+external source hazard changes source Arm generation
+same source domain + closed epoch has two different history exports
+more than one non-retired native unarmed local trajectory exists for one K
+```
+
+Require every native semantic Execution to have exactly one binding introduced
+in the same StateRevision. Require normal Arm and SemanticArmBinding to share one
+StateRevision. Require every P8 validation to bind one exact Armed semantic
+Execution. Require the exact protocol-valid-only artifact fields iff
+classification is protocol-valid.
+
+Do not create or reconstruct primitive SemanticFact authority. SemanticFact
+remains a deterministic C4/M5/M6 derivation from exact consumable semantic
+closure.
+
+## 26. Export and external-history projection integrity
+
+Require every `SemanticHistoryExportV1` array to satisfy the exact canonical
+ordering and duplicate-freedom declared by M0 and the persistence brief. Require
+`successorEpoch == closedEpoch + 1`, complete artifact closure, exact source
+domain identity, and one export record atomically closing the exact old epoch and
+opening the successor.
+
+Require every accepted `ValidatedExternalSemanticHistoryRefV1` to carry exact
+future-M6 authority, intact source/evidence artifacts, non-local source domain,
+and complete witnessed admissions, pending completions, hazards, clearances, and
+audit-only unarmed trajectories. Imported unarmed trajectories never become
+local Executions or bindings.
+
+Same-K/same-V claims converge to one exact claim plus witnesses. Same-K/different
+V claims create every canonical pair and no winner. Never copy predecessor
+receipt ownership, `reused_executions[]`, `supporting_executions[]`, or
+ReviewCampaign provenance to a consuming run/root.
+
+## 27. Protocol-v8 crash reconstruction
+
+Reconstruct exactly:
+
+```text
+T1 crash before grant commit
+→ no grant
+
+T1 crash after grant commit
+→ historical grant; later generation required
+
+T2 crash after commit before T3
+→ bound unarmed Execution, no hazard, same trajectory resumable
+
+T3 crash after commit
+→ normal Arm + SemanticArmBinding + hazard
+
+captured response crash before M6 validation
+→ unvalidatedCapturedExecutions contains E
+
+protocol-valid validation crash before T4
+→ pendingProtocolValidValidations contains result
+
+T4 crash before commit
+→ no partial claim/witness
+
+T4 crash after commit
+→ exact claim/witness/conflict state; retry converges
+
+export/T5 crash before authoritative commit
+→ no epoch change; orphan CAS bytes permitted
+
+export/T5 crash after authoritative commit
+→ complete new epoch and complete export/merge facts
+→ every prior-epoch authority ref ineffective
+```
+
+## 28. Required M2 protocol-v8 invariants
+
+```text
+M2-P8-01
+One stateRoot has exactly one SemanticAuthorityDomainId.
+
+M2-P8-02
+QLEK never contains semantic domain identity.
+
+M2-P8-03
+AdmissionAuthority and GateARun WriteAuthority are distinct.
+
+M2-P8-04
+At most one live AdmissionAuthority can exist for one K in one domain.
+
+M2-P8-05
+Every native P8 semantic Execution has exactly one immutable QLEK binding before
+provider dispatch.
+
+M2-P8-06
+SemanticExecutionBinding never contains authority generation.
+
+M2-P8-07
+Normal Arm and SemanticArmBinding are one atomic run revision.
+
+M2-P8-08
+Candidate-bound currentness is checked atomically with Semantic Arm.
+
+M2-P8-09
+No admitted/blocked/conflicted/pending/hazardous K may produce a fresh semantic
+sample.
+
+M2-P8-10
+A protocol-valid completion cannot be discarded.
+
+M2-P8-11
+First admission and first lawful origin witness are atomic.
+
+M2-P8-12
+Same K/same V converges to one admission and additional witnesses.
+
+M2-P8-13
+Same K/different V creates conflict and no winner.
+
+M2-P8-14
+Candidate/run staleness never erases admission reconciliation.
+
+M2-P8-15
+UNRESOLVABLE never clears semantic hazard.
+
+M2-P8-16
+Progression supersession never clears semantic hazard.
+
+M2-P8-17
+SemanticFact has no primitive persisted source of truth.
+
+M2-P8-18
+Cross-run/root reuse never transfers receipt ownership.
+
+M2-P8-19
+Global semantic reads are reconstructed, never cached authority.
+
+M2-P8-20
+T1/T4/T5 do not increment a GateARun StateRevision.
+
+M2-P8-21
+T2/T3 semantic run mutations do increment the exact owning GateARun revision.
+
+M2-P8-22
+Every protocol-v8 semantic validation is bound to exactly one Armed semantic
+Execution.
+
+M2-P8-23
+An imported external hazard remains blocking until exact positive clearance
+exists.
+
+M2-P8-24
+External unarmed trajectories are never directly armable locally.
+
+M2-P8-25
+Epoch advance invalidates all older AdmissionAuthorityRef values.
+
+M2-P8-26
+No generic operator replacement creates a successor of a semantic Execution.
+
+M2-P8-27
+P6 execution behavior remains unchanged while P8 remains inactive.
+```
+
+## 29. Activation and construction exclusions
+
+All P8 semantic APIs remain inactive campaign behavior while
+`formal/verification.yaml` selects P6. P6 remains current, P7 permanently
+inactive, and P8 inactive. Administrative export/T5 construction interfaces do
+not activate P8.
+
+Do not implement M1 scheduling/cross-run orchestration, M4 Pi placement, M5
+semantic derivation/reducers/Facts, M6 QLEK/completion/external-history
+validation, M7 CandidateView, M8 policy, primitive SemanticFact persistence,
+production code, a SQLite package choice, or any Dependency Contract here.
 
 The mutation/execution M2 brief calls reconstruction inside every uncommitted
 write transaction before commit.
