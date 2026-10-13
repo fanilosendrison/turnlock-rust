@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "3.0.1"
+version: "3.0.2"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -26,6 +26,21 @@ It consumes:
 NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
 NIB-M-GATE-A-CONTRACTS 1.2.0
 ```
+
+Version `3.0.2` is a dependency-only construction synchronization. It binds M2
+persistence/ownership to active
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.0`. It makes:
+
+```text
+no TURNLOCK product semantic change
+no hostile-review protocol semantic change
+no M2 persistence algorithm change
+no SQLite schema-version change
+no QLEK / Admission / fencing semantic change
+no retry or recovery semantic change
+```
+
+The SQLite authoritative schema remains exactly `2`.
 
 Version `3.0.1` is an additive construction-completeness correction. It closes
 the exact projection of positively cleared local semantic hazards into
@@ -120,14 +135,28 @@ Snapshot reconstruction and retained-state integrity are defined by
 
 M2 uses SQLite as the transactional engine for Authoritative History.
 
-The exact Node SQLite package/version/API is not selected by the coding agent.
-GREEN is blocked until an accepted Dependency Contract named:
+M2 persistence consumes:
 
 ```text
-DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE
+DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE 1.0.0
 ```
 
-defines the exact binding used by M2.
+The active contract closes the package and consumed dependency behavior exactly:
+
+```text
+runtime package:
+better-sqlite3@13.0.3
+
+runtime floor:
+Node.js >=22.19.0
+
+bundled SQLite:
+3.53.4
+```
+
+M2 owns why and where these dependency mechanisms realize accepted persistence,
+ownership, and coordination requirements. The Dependency Contract owns their
+external-library behavior.
 
 ## 2. Inputs
 
@@ -748,41 +777,35 @@ StateRevision
 
 ## 12. Dependency Contract requirement
 
-Before GREEN, `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` must define at minimum:
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.0` is active and required by
+GREEN.
+
+Use that contract as the sole external-dependency authority for:
 
 ```text
-exact package and version
-supported Node versions
-open/close semantics
-BEGIN IMMEDIATE semantics
-BUSY error identity
-busy_timeout support
-WAL support
-synchronous=FULL behavior
-transaction rollback behavior
-process-crash recovery guarantees
+package identity
+Node floor
+SQLite version
+connection API
+PRAGMAs
+BEGIN IMMEDIATE realization
+BUSY/error mapping
+integer behavior
+close/rollback behavior
+process-crash lock release
 prepared statements
-foreign-key enforcement
-error taxonomy
-connection lifetime
-ability to keep an ownership transaction open indefinitely
-behavior on filesystem/I/O corruption
-schema-v2 support
-semantic-authority/domain.sqlite
-dynamically addressed per-QLEK lock SQLite files
-many simultaneous open lock connections
-long-lived BEGIN IMMEDIATE on one QLEK lock DB
-short-lived BEGIN IMMEDIATE on domain lock DB
-busy_timeout = 0 lock behavior
-OS/process-crash release of those locks
-coexistence with WAL authoritative DB
-deterministic multi-QLEK acquisition
-non-blocking BUSY observation
-no hidden lease/heartbeat behavior
+foreign-key behavior
+many-open-connection behavior
 ```
 
-The implementation agent may not substitute a different SQLite package because
-its API is more convenient.
+The package and consumed dependency behavior are closed by the active contract.
+Do not substitute another SQLite package or behavior because it is more
+convenient.
+
+This brief remains M2 authority for why those mechanisms are used, including the
+`stateRoot` layout, authoritative schema version 2, run ownership, QLEK/domain
+coordination topology, M2 state semantics, artifact-store relationship,
+T1/T4/T5 lock ordering, and semantic-history export/reconciliation.
 
 ## 13. Example
 
@@ -1776,8 +1799,9 @@ All protocol-v8 semantic operations remain inactive while
 permanently inactive, and P8 remains inactive. Administrative export/T5
 interfaces do not make P8 current.
 
-Do not select a SQLite package. GREEN remains blocked on
-`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE`, extended by section 12 and all schema-v2,
-coordination-database, dynamic per-QLEK connection, crash-release, WAL
-coexistence, deterministic multi-lock, non-blocking BUSY, and no-lease behavior
-specified here.
+GREEN must consume active
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.0` for the exact selected
+package and external dependency behavior. The DC realizes, but does not redefine,
+all schema-v2, coordination-database, dynamic per-QLEK connection,
+crash-release, WAL-coexistence, deterministic multi-lock, non-blocking BUSY, and
+no-lease requirements specified here.
