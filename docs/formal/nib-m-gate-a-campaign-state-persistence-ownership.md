@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "3.0.2"
+version: "3.0.3"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -26,6 +26,25 @@ It consumes:
 NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
 NIB-M-GATE-A-CONTRACTS 1.2.0
 ```
+
+Version `3.0.3` is a dependency-only construction correction. Its only
+correction is the exact JavaScript `bigint` representation for integer-valued
+PRAGMA verification under active
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. It makes exactly:
+
+```text
+no package change
+no SQLite version change
+no Node floor change
+no transaction change
+no persistence algorithm change
+no schema-version change
+no product semantic change
+no protocol semantic change
+no QLEK/Admission/recovery change
+```
+
+The SQLite authoritative schema remains exactly `2`.
 
 Version `3.0.2` is a dependency-only construction synchronization. It binds M2
 persistence/ownership to active
@@ -138,7 +157,7 @@ M2 uses SQLite as the transactional engine for Authoritative History.
 M2 persistence consumes:
 
 ```text
-DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE 1.0.0
+DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE 1.0.1
 ```
 
 The active contract closes the package and consumed dependency behavior exactly:
@@ -777,7 +796,7 @@ StateRevision
 
 ## 12. Dependency Contract requirement
 
-`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.0` is active and required by
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1` is active and required by
 GREEN.
 
 Use that contract as the sole external-dependency authority for:
@@ -1800,7 +1819,7 @@ permanently inactive, and P8 remains inactive. Administrative export/T5
 interfaces do not make P8 current.
 
 GREEN must consume active
-`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.0` for the exact selected
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1` for the exact selected
 package and external dependency behavior. The DC realizes, but does not redefine,
 all schema-v2, coordination-database, dynamic per-QLEK connection,
 crash-release, WAL-coexistence, deterministic multi-lock, non-blocking BUSY, and
