@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-13"
 step_id: 2
 id: NIB-M-GATE-A-CONTRACTS
-version: "1.1.0"
+version: "1.2.0"
 scope: gate-a-campaign-runner/contracts
 status: active
 consumers: [architect, coding-agent]
@@ -19,11 +19,17 @@ superseded_by: []
 
 Implement the first active Module Brief for undecomposed M0 `contracts`.
 
-Version `1.1.0` closes the two M5-A construction obligations omitted from
+Version `1.2.0` additively synchronizes M0 representation and runtime
+validation with the protocol-v8 M2 semantic-authority boundary. It changes no
+existing identity, canonicalization, dependency, protocol, semantic, or
+authority rule. It retains the exact 19-domain deterministic runner-ID registry,
+`zod@4.6.7`, and the future `DC-ZOD-GATE-A-CONTRACTS` requirement.
+
+Version `1.1.0` closed the two M5-A construction obligations omitted from
 version `1.0.0`: expose the exact `CampaignArtifactStore` TypeScript contract
 without implementing its effectful behavior, and provide exact structural
 runtime validation for execution-receipt schema v3 before M5-A sealing. This
-minor revision adds backward-compatible M0 contract surface and changes no
+minor revision added backward-compatible M0 contract surface and changed no
 identity, canonicalization, dependency, protocol, semantic, or authority rule.
 
 Consume exactly:
@@ -1961,4 +1967,735 @@ why receipt-v3 Zod success creates no hostile-review or evidence authority
 why schema/Python/M6 authority remains unchanged
 ```
 
-Implement no behavior beyond this contract during C9-A.1.
+Sections 1 through 41 retain the complete prior C9-A.1 contract. C9-B adds only
+the protocol-v8 M2 representation and validation surface in sections 42 through
+49.
+
+## 42. C9-B protocol-v8 M2 contract synchronization
+
+Expose the exact cross-module representations in sections 43 through 49. M0
+owns their TypeScript declaration and strict runtime representation validation
+only. M2 owns authoritative persistence and transition behavior; M6 owns every
+mechanical protocol/semantic validation identified below.
+
+The exact 19-domain `deriveId` registry remains unchanged. C9-B introduces no
+new deterministic runner-ID domain.
+
+## 43. Semantic authority, execution, and validation types
+
+Expose:
+
+```ts
+type SemanticAuthorityDomainId = string;
+type SemanticCoordinationEpoch = number;
+type AdmissionAuthorityGeneration = number;
+
+interface AdmissionAuthorityRefV1 {
+  readonly schema:
+    "gate-a-admission-authority.v1";
+  readonly domainId:
+    SemanticAuthorityDomainId;
+  readonly qlek:
+    QLEK;
+  readonly epoch:
+    SemanticCoordinationEpoch;
+  readonly generation:
+    AdmissionAuthorityGeneration;
+  readonly sessionId:
+    RunnerSessionId;
+}
+
+interface SemanticExecutionLocatorV1 {
+  readonly runId: GateARunId;
+  readonly workItemId: WorkItemId;
+  readonly executionId: ExecutionId;
+}
+
+interface ValidatedSemanticQuestionRefV1 {
+  readonly schema:
+    "gate-a-validated-semantic-question.v1";
+  readonly qlek:
+    QLEK;
+  readonly semanticQuestionBinding:
+    ArtifactRef;
+  readonly boundCandidateRevisionId:
+    CandidateRevisionId | null;
+  readonly validationEvidence:
+    readonly ArtifactRef[];
+}
+
+interface SemanticExecutionBindingRefV1 {
+  readonly schema:
+    "gate-a-semantic-execution-binding.v1";
+  readonly execution:
+    SemanticExecutionLocatorV1;
+  readonly qlek:
+    QLEK;
+  readonly boundCandidateRevisionId:
+    CandidateRevisionId | null;
+  readonly semanticQuestionBinding:
+    ArtifactRef;
+  readonly validationEvidence:
+    readonly ArtifactRef[];
+}
+
+interface SemanticArmBindingRefV1 {
+  readonly schema:
+    "gate-a-semantic-arm-binding.v1";
+  readonly execution:
+    SemanticExecutionLocatorV1;
+  readonly qlek:
+    QLEK;
+  readonly domainId:
+    SemanticAuthorityDomainId;
+  readonly epoch:
+    SemanticCoordinationEpoch;
+  readonly generation:
+    AdmissionAuthorityGeneration;
+}
+```
+
+Validate `SemanticAuthorityDomainId` exactly as:
+
+```text
+^SEM-DOMAIN-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+```
+
+Treat it as operational provenance, never semantic identity and never a QLEK
+input. Validate both counter types with:
+
+```text
+Number.isSafeInteger(value)
+value >= 1
+```
+
+Never wrap either counter. Treat a value beyond `Number.MAX_SAFE_INTEGER` as
+implementation/integrity capacity exhaustion.
+
+Require `ValidatedSemanticQuestionRefV1.validationEvidence` and
+`SemanticExecutionBindingRefV1.validationEvidence` to be non-empty and
+duplicate-free by exact `ArtifactRef` equality. Interpret a null
+`boundCandidateRevisionId` as candidate-independent authorization metadata and a
+non-null value as the exact C5 mechanically validated bound candidate. Never
+add this metadata as another QLEK input. Do not add authority generation to
+`SemanticExecutionBindingRefV1`.
+
+Expose:
+
+```ts
+type ProtocolV8SemanticValidationResultV1 =
+  | {
+      readonly schema:
+        "gate-a-protocol-v8-semantic-validation.v1";
+      readonly classification:
+        "protocol-valid";
+      readonly execution:
+        SemanticExecutionLocatorV1;
+      readonly qlek:
+        QLEK;
+      readonly semanticAdmissionId:
+        SemanticAdmissionId;
+      readonly semanticCandidate:
+        ArtifactRef;
+      readonly semanticQuestionBinding:
+        ArtifactRef;
+      readonly executionReceipt:
+        ArtifactRef;
+      readonly originWitness:
+        ArtifactRef;
+      readonly protocolErrors:
+        readonly [];
+      readonly validationEvidence:
+        readonly ArtifactRef[];
+    }
+  | {
+      readonly schema:
+        "gate-a-protocol-v8-semantic-validation.v1";
+      readonly classification:
+        "protocol-invalid";
+      readonly execution:
+        SemanticExecutionLocatorV1;
+      readonly qlek:
+        QLEK;
+      readonly protocolErrors:
+        readonly [string, ...string[]];
+      readonly validationEvidence:
+        readonly ArtifactRef[];
+    };
+
+type ProtocolV8ProtocolValidSemanticCompletionRefV1 =
+  Extract<
+    ProtocolV8SemanticValidationResultV1,
+    { readonly classification: "protocol-valid" }
+  >;
+
+type ProtocolV8ProtocolInvalidSemanticCompletionRefV1 =
+  Extract<
+    ProtocolV8SemanticValidationResultV1,
+    { readonly classification: "protocol-invalid" }
+  >;
+```
+
+Require validation evidence to be non-empty and duplicate-free. M0 validates
+only these closed representations.
+
+## 44. Admission, hazard, and derived-state types
+
+Expose:
+
+```ts
+interface SemanticAdmissionRecordV1 {
+  readonly schema:
+    "gate-a-semantic-admission.v1";
+  readonly qlek:
+    QLEK;
+  readonly admissionId:
+    SemanticAdmissionId;
+  readonly semanticCandidate:
+    ArtifactRef;
+  readonly semanticQuestionBinding:
+    ArtifactRef;
+}
+
+interface SemanticAdmissionWitnessRefV1 {
+  readonly qlek:
+    QLEK;
+  readonly admissionId:
+    SemanticAdmissionId;
+  readonly sourceDomainId:
+    SemanticAuthorityDomainId;
+  readonly originExecutionId:
+    ExecutionId;
+  readonly witness:
+    ArtifactRef;
+}
+
+interface SemanticAdmissionConflictRefV1 {
+  readonly qlek:
+    QLEK;
+  readonly admissionA:
+    SemanticAdmissionRecordV1;
+  readonly admissionB:
+    SemanticAdmissionRecordV1;
+}
+
+type SemanticSamplingHazardRefV1 =
+  | {
+      readonly kind:
+        "local-armed-execution";
+      readonly qlek:
+        QLEK;
+      readonly execution:
+        SemanticExecutionLocatorV1;
+      readonly arm:
+        SemanticArmBindingRefV1;
+    }
+  | {
+      readonly kind:
+        "external-armed-execution";
+      readonly qlek:
+        QLEK;
+      readonly sourceDomainId:
+        SemanticAuthorityDomainId;
+      readonly sourceExecution:
+        SemanticExecutionLocatorV1;
+      readonly sourceEpoch:
+        SemanticCoordinationEpoch;
+      readonly sourceGeneration:
+        AdmissionAuthorityGeneration;
+      readonly evidence:
+        readonly ArtifactRef[];
+    };
+
+interface ExternalSemanticHazardClearanceRefV1 {
+  readonly sourceDomainId:
+    SemanticAuthorityDomainId;
+  readonly sourceExecution:
+    SemanticExecutionLocatorV1;
+  readonly qlek:
+    QLEK;
+  readonly kind:
+    | "proven-not-executed"
+    | "terminal-technical-no-completion"
+    | "protocol-invalid-no-candidate"
+    | "admission-reconciled";
+  readonly evidence:
+    readonly ArtifactRef[];
+}
+
+interface ExternalSemanticUnarmedTrajectoryRefV1 {
+  readonly sourceDomainId:
+    SemanticAuthorityDomainId;
+  readonly sourceExecution:
+    SemanticExecutionLocatorV1;
+  readonly qlek:
+    QLEK;
+  readonly evidence:
+    readonly ArtifactRef[];
+}
+
+interface SemanticExecutionStateV1 {
+  readonly binding:
+    SemanticExecutionBindingRefV1;
+  readonly arm:
+    SemanticArmBindingRefV1 | null;
+  readonly validation:
+    ProtocolV8SemanticValidationResultV1 | null;
+}
+
+interface SemanticQuestionStateV1 {
+  readonly schema:
+    "gate-a-semantic-question-state.v1";
+  readonly domainId:
+    SemanticAuthorityDomainId;
+  readonly qlek:
+    QLEK;
+  readonly currentEpoch:
+    SemanticCoordinationEpoch;
+  readonly latestGrantGeneration:
+    AdmissionAuthorityGeneration | null;
+  readonly localExecutions:
+    readonly SemanticExecutionStateV1[];
+  readonly admissionClaims:
+    readonly SemanticAdmissionRecordV1[];
+  readonly originWitnesses:
+    readonly SemanticAdmissionWitnessRefV1[];
+  readonly conflicts:
+    readonly SemanticAdmissionConflictRefV1[];
+  readonly unvalidatedCapturedExecutions:
+    readonly SemanticExecutionLocatorV1[];
+  readonly pendingProtocolValidValidations:
+    readonly ProtocolV8ProtocolValidSemanticCompletionRefV1[];
+  readonly unresolvedHazards:
+    readonly SemanticSamplingHazardRefV1[];
+  readonly resumableUnarmedExecution:
+    SemanticExecutionLocatorV1 | null;
+  readonly consumableAdmission:
+    SemanticAdmissionRecordV1 | null;
+}
+```
+
+Require every external hazard, clearance, and unarmed-trajectory evidence array
+to be non-empty and duplicate-free. A clearance is provenance and never creates
+another semantic candidate. An external unarmed trajectory is audit/reconciliation
+provenance only and never becomes a local armable Execution. Require every
+conflict to bind both claims to its exact QLEK, contain distinct admission IDs,
+and order them by admission ID ASCII ascending. Expose no winner field. Treat
+`SemanticQuestionStateV1` and hazard state as derived read projections, never
+persisted status objects or mutable `hazard = true/false` fields.
+
+Treat `SemanticAdmissionRecordV1.semanticQuestionBinding` as reconstructibility
+and provenance. It does not enter `SemanticAdmissionId`.
+
+## 45. Authority and semantic-history APIs
+
+Expose:
+
+```ts
+interface AcquireAdmissionAuthorityRequestV1 {
+  readonly qlek: QLEK;
+  readonly sessionId: RunnerSessionId;
+}
+
+type AcquireAdmissionAuthorityResultV1 =
+  | {
+      readonly kind: "acquired";
+      readonly authority: AdmissionAuthorityRefV1;
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "reuse";
+      readonly admission: SemanticAdmissionRecordV1;
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "validation-required";
+      readonly executions:
+        readonly [SemanticExecutionLocatorV1, ...SemanticExecutionLocatorV1[]];
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "reconciliation-required";
+      readonly completions:
+        readonly [
+          ProtocolV8ProtocolValidSemanticCompletionRefV1,
+          ...ProtocolV8ProtocolValidSemanticCompletionRefV1[]
+        ];
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "hazard-blocked";
+      readonly hazards:
+        readonly [SemanticSamplingHazardRefV1, ...SemanticSamplingHazardRefV1[]];
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "conflict";
+      readonly conflicts:
+        readonly [SemanticAdmissionConflictRefV1, ...SemanticAdmissionConflictRefV1[]];
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "busy";
+      readonly qlek: QLEK;
+    };
+
+interface ReleaseAdmissionAuthorityRequestV1 {
+  readonly authority: AdmissionAuthorityRefV1;
+}
+
+type ReleaseAdmissionAuthorityResultV1 =
+  | { readonly kind: "released" }
+  | { readonly kind: "not-held" };
+
+interface ReconcileSemanticCompletionRequestV1 {
+  readonly execution: SemanticExecutionLocatorV1;
+}
+
+type ReconcileSemanticCompletionResultV1 =
+  | {
+      readonly kind: "admitted";
+      readonly admission: SemanticAdmissionRecordV1;
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "converged";
+      readonly admission: SemanticAdmissionRecordV1;
+      readonly witnessAdded: boolean;
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "conflict";
+      readonly state: SemanticQuestionStateV1;
+    }
+  | {
+      readonly kind: "busy";
+      readonly qlek: QLEK;
+    };
+
+interface LoadSemanticQuestionStateRequestV1 {
+  readonly qlek: QLEK;
+}
+
+interface LoadSemanticExecutionStateRequestV1 {
+  readonly runId: GateARunId;
+  readonly executionId: ExecutionId;
+}
+
+type LoadSemanticExecutionStateResultV1 =
+  | {
+      readonly kind: "semantic";
+      readonly state: SemanticExecutionStateV1;
+    }
+  | { readonly kind: "non-semantic" };
+```
+
+The M2 public service also exposes these pure/read-only conceptual signatures:
+
+```ts
+loadSemanticQuestionState(
+  request: LoadSemanticQuestionStateRequestV1
+): Promise<SemanticQuestionStateV1>;
+
+loadSemanticExecutionState(
+  request: LoadSemanticExecutionStateRequestV1
+): Promise<LoadSemanticExecutionStateResultV1>;
+```
+
+## 46. Protocol-v8 M2 mutation representations
+
+Expose:
+
+```ts
+interface AuthorizeSemanticExecutionV1 {
+  readonly kind:
+    "authorize-semantic-execution";
+  readonly workItemId:
+    WorkItemId;
+  readonly basis:
+    ExecutionCreationRequestBasis;
+  readonly semanticQuestion:
+    ValidatedSemanticQuestionRefV1;
+  readonly admissionAuthority:
+    AdmissionAuthorityRefV1;
+}
+
+interface ArmSemanticExecutionDispatchV1 {
+  readonly kind:
+    "arm-semantic-execution-dispatch";
+  readonly executionId:
+    ExecutionId;
+  readonly workItemId:
+    WorkItemId;
+  readonly ownershipGeneration:
+    OwnershipGeneration;
+  readonly admissionAuthority:
+    AdmissionAuthorityRefV1;
+  readonly revalidationBasis:
+    readonly ArtifactRef[];
+  readonly dispatchEvidence:
+    readonly ArtifactRef[];
+  readonly recoveryCapability:
+    RecoveryCapabilityRef | null;
+}
+
+interface AdmitProtocolV8SemanticValidationV1 {
+  readonly kind:
+    "admit-protocol-v8-semantic-validation";
+  readonly result:
+    ProtocolV8SemanticValidationResultV1;
+}
+```
+
+## 47. Semantic-history export and reconciliation types
+
+Expose:
+
+```ts
+interface SemanticHistoryAuthorityGrantV1 {
+  readonly qlek: QLEK;
+  readonly epoch: SemanticCoordinationEpoch;
+  readonly generation: AdmissionAuthorityGeneration;
+  readonly sessionId: RunnerSessionId;
+}
+
+interface SemanticHistoryExportV1 {
+  readonly schema:
+    "gate-a-semantic-history-export.v1";
+  readonly sourceDomainId:
+    SemanticAuthorityDomainId;
+  readonly closedEpoch:
+    SemanticCoordinationEpoch;
+  readonly successorEpoch:
+    SemanticCoordinationEpoch;
+  readonly authorityGrants:
+    readonly SemanticHistoryAuthorityGrantV1[];
+  readonly executionBindings:
+    readonly SemanticExecutionBindingRefV1[];
+  readonly armBindings:
+    readonly SemanticArmBindingRefV1[];
+  readonly semanticValidations:
+    readonly ProtocolV8SemanticValidationResultV1[];
+  readonly admissionClaims:
+    readonly SemanticAdmissionRecordV1[];
+  readonly originWitnesses:
+    readonly SemanticAdmissionWitnessRefV1[];
+  readonly unresolvedHazards:
+    readonly Extract<
+      SemanticSamplingHazardRefV1,
+      { readonly kind: "external-armed-execution" }
+    >[];
+  readonly hazardClearances:
+    readonly ExternalSemanticHazardClearanceRefV1[];
+  readonly unarmedTrajectories:
+    readonly ExternalSemanticUnarmedTrajectoryRefV1[];
+  readonly artifactClosure:
+    readonly ArtifactRef[];
+}
+
+interface ExportSemanticHistoryRequestV1 {
+  readonly sessionId: RunnerSessionId;
+}
+
+type ExportSemanticHistoryResultV1 =
+  | {
+      readonly kind: "exported";
+      readonly history: ArtifactRef;
+      readonly sourceDomainId: SemanticAuthorityDomainId;
+      readonly closedEpoch: SemanticCoordinationEpoch;
+      readonly successorEpoch: SemanticCoordinationEpoch;
+    }
+  | {
+      readonly kind: "busy";
+      readonly scope: "domain" | "qlek";
+      readonly qlek: QLEK | null;
+    };
+
+interface SemanticAdmissionWithWitnessesV1 {
+  readonly admission:
+    SemanticAdmissionRecordV1;
+  readonly witnesses:
+    readonly [
+      SemanticAdmissionWitnessRefV1,
+      ...SemanticAdmissionWitnessRefV1[]
+    ];
+}
+
+interface ValidatedExternalSemanticHistoryRefV1 {
+  readonly schema:
+    "gate-a-validated-external-semantic-history.v1";
+  readonly sourceHistory:
+    ArtifactRef;
+  readonly sourceDomainId:
+    SemanticAuthorityDomainId;
+  readonly closedEpoch:
+    SemanticCoordinationEpoch;
+  readonly successorEpoch:
+    SemanticCoordinationEpoch;
+  readonly admissions:
+    readonly SemanticAdmissionWithWitnessesV1[];
+  readonly pendingProtocolValidCompletions:
+    readonly ProtocolV8ProtocolValidSemanticCompletionRefV1[];
+  readonly unresolvedHazards:
+    readonly Extract<
+      SemanticSamplingHazardRefV1,
+      { readonly kind: "external-armed-execution" }
+    >[];
+  readonly hazardClearances:
+    readonly ExternalSemanticHazardClearanceRefV1[];
+  readonly unarmedTrajectories:
+    readonly ExternalSemanticUnarmedTrajectoryRefV1[];
+  readonly validationEvidence:
+    readonly ArtifactRef[];
+}
+
+interface ReconcileExternalSemanticHistoryRequestV1 {
+  readonly history:
+    ValidatedExternalSemanticHistoryRefV1;
+}
+
+type ReconcileExternalSemanticHistoryResultV1 =
+  | {
+      readonly kind: "reconciled";
+      readonly sourceHistory: ArtifactRef;
+      readonly sourceDomainId: SemanticAuthorityDomainId;
+      readonly newEpoch: SemanticCoordinationEpoch;
+      readonly affectedQleks: readonly QLEK[];
+    }
+  | {
+      readonly kind: "already-reconciled";
+      readonly sourceHistory: ArtifactRef;
+      readonly sourceDomainId: SemanticAuthorityDomainId;
+    }
+  | {
+      readonly kind: "busy";
+      readonly scope: "domain" | "qlek";
+      readonly qlek: QLEK | null;
+    };
+```
+
+Require `successorEpoch == closedEpoch + 1`, non-empty duplicate-free witness
+tuples, non-empty duplicate-free external validation evidence, canonical array
+ordering, and duplicate freedom under the owning contracts.
+
+## 48. Exact protocol-v8 schema bindings
+
+Bind future M6 protocol-valid validation to exactly:
+
+```text
+execution receipt
+path = formal/reviews/schemas/execution-receipt-v4.schema.json
+SHA-256 = 9d5e0b50bf9b5464fadc9c57edfa265935bdf0ace9fcaf1c9770e5f7e7ab312c
+
+semantic question binding
+path = formal/reviews/schemas/semantic-question-binding-v1.schema.json
+SHA-256 = fae52d48d08df8e9c3d7cafc74899913f4cc5655fb0a7ac8eb594df6edece15e
+
+semantic admission origin witness
+path = formal/reviews/schemas/semantic-admission-origin-witness-v1.schema.json
+SHA-256 = acdcf78b6862080f5147df525bc919e2b8eb6eb94b3c920fee8b9886e582607b
+
+semantic identity
+path = formal/reviews/schemas/semantic-identity-v1.schema.json
+SHA-256 = fc9e6a4dc241508c50a1d1671c9f43bd04ab257a8d0ad5b6319ba5522966a3f3
+```
+
+These content-addressed schemas, their existing Python validation, and future M6
+mechanical/protocol validation remain authority. M0/Zod never replaces them.
+For a protocol-valid result, M6 must mechanically establish exactly:
+
+```text
+semanticCandidate
+→ exact C2 CanonicalJsonValueBytesV1(V)
+→ mediaType == application/json
+→ runner-owned immutable ArtifactRef
+→ repositoryPath == null
+
+semanticQuestionBinding
+→ exact P8 semantic-question-binding-v1 representation
+
+executionReceipt
+→ exact P8 execution-receipt-v4
+
+originWitness
+→ exact P8 semantic-admission-origin-witness-v1
+
+semanticAdmissionId
+→ exact C2 SemanticAdmissionId(K,V)
+
+execution
+→ exact SemanticExecutionBinding(E,K)
+
+origin witness
+→ exact E/K/V/receipt/Arm binding
+```
+
+M2 verifies only authoritative M6 provenance, agreement with retained M2
+history, and artifact integrity; M2 does not redo these semantic/mechanical
+derivations.
+
+## 49. C9-B runtime validator closure
+
+Use the existing `zod@4.6.7` strict `safeParse` discipline and stable
+`ContractValidationResult` boundary for every new serialized type in sections
+43 through 47 and for every new request, result, and mutation representation.
+At minimum export:
+
+```text
+validateSemanticAuthorityDomainId
+validateSemanticCoordinationEpoch
+validateAdmissionAuthorityGeneration
+validateAdmissionAuthorityRefV1
+validateSemanticExecutionLocatorV1
+validateValidatedSemanticQuestionRefV1
+validateSemanticExecutionBindingRefV1
+validateSemanticArmBindingRefV1
+validateProtocolV8SemanticValidationResultV1
+validateProtocolV8ProtocolValidSemanticCompletionRefV1
+validateProtocolV8ProtocolInvalidSemanticCompletionRefV1
+validateSemanticAdmissionRecordV1
+validateSemanticAdmissionWitnessRefV1
+validateSemanticAdmissionConflictRefV1
+validateSemanticSamplingHazardRefV1
+validateExternalSemanticHazardClearanceRefV1
+validateExternalSemanticUnarmedTrajectoryRefV1
+validateSemanticExecutionStateV1
+validateSemanticQuestionStateV1
+validateAcquireAdmissionAuthorityRequestV1
+validateAcquireAdmissionAuthorityResultV1
+validateReleaseAdmissionAuthorityRequestV1
+validateReleaseAdmissionAuthorityResultV1
+validateAuthorizeSemanticExecutionV1
+validateArmSemanticExecutionDispatchV1
+validateAdmitProtocolV8SemanticValidationV1
+validateReconcileSemanticCompletionRequestV1
+validateReconcileSemanticCompletionResultV1
+validateLoadSemanticQuestionStateRequestV1
+validateLoadSemanticExecutionStateRequestV1
+validateLoadSemanticExecutionStateResultV1
+validateSemanticHistoryAuthorityGrantV1
+validateSemanticHistoryExportV1
+validateExportSemanticHistoryRequestV1
+validateExportSemanticHistoryResultV1
+validateSemanticAdmissionWithWitnessesV1
+validateValidatedExternalSemanticHistoryRefV1
+validateReconcileExternalSemanticHistoryRequestV1
+validateReconcileExternalSemanticHistoryResultV1
+```
+
+Apply strict closed objects, no coercion, no defaults, no transforms, no
+passthrough, no unknown-field stripping, deterministic issue mapping, and every
+exact non-empty/duplicate-free/ordering/cross-field constraint above.
+Representation validation creates no semantic, protocol, currentness,
+qualification, persistence, or conflict-resolution authority.
+
+Retain exactly:
+
+```text
+zod@4.6.7
+future DC-ZOD-GATE-A-CONTRACTS required
+19 current deriveId domains
+```
+
+`SemanticAuthorityDomainId` is UUIDv4 occurrence identity generated by M2, not
+`deriveId`. Epoch and generation are safe-integer counters, not hashes.
