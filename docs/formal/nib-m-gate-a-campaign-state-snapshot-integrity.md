@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "6.0.0"
+version: "6.0.1"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -26,6 +26,22 @@ It consumes:
 NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
 NIB-M-GATE-A-CONTRACTS 1.2.0
 ```
+
+Version `6.0.1` is an additive construction-completeness correction. It closes
+integrity validation for the exact local positive-clearance projection,
+clearance evidence closure, and out-of-order export anti-resurrection rule. It
+makes:
+
+```text
+no TURNLOCK product semantic change
+no protocol semantic change
+no QLEK identity change
+no Admission semantics change
+no recovery classification change
+no SQLite schema-version change
+```
+
+The SQLite authoritative schema remains exactly `2`.
 
 Version `6.0.0` is a breaking construction-contract revision. It adds exact
 schema-v2 semantic-history integrity, global QLEK-state reconstruction, hazard
@@ -2230,6 +2246,91 @@ Same-K/same-V claims converge to one exact claim plus witnesses. Same-K/differen
 V claims create every canonical pair and no winner. Never copy predecessor
 receipt ownership, `reused_executions[]`, `supporting_executions[]`, or
 ReviewCampaign provenance to a consuming run/root.
+
+For every local Armed P8 semantic Execution `E`, independently reconstruct:
+
+```text
+K = exact retained SemanticExecutionBinding(E).qlek
+D = exact local SemanticAuthorityDomainId
+L = exact SemanticExecutionLocatorV1 for E
+```
+
+Then reconstruct zero or exactly one local positive clearance from the exact
+four exhaustive authority branches and exact evidence mappings in persistence
+sections 23.1 through 23.3. Before accepting any
+`SemanticHistoryExportV1`, enforce exactly:
+
+```text
+locally cleared Armed semantic Execution
++
+missing corresponding local exported clearance
+→ invalid semantic-history export construction
+
+local exported clearance kind does not match exact local authoritative fact
+→ INTEGRITY_FAILURE
+
+local exported clearance evidence differs from the exact persistence mapping
+→ INTEGRITY_FAILURE
+
+local exported clearance sourceDomainId != local domain ID
+→ INTEGRITY_FAILURE
+
+imported retained clearance rewritten to local sourceDomainId
+→ INTEGRITY_FAILURE
+
+clearance references wrong execution or wrong QLEK
+→ INTEGRITY_FAILURE
+
+clearance evidence missing from artifactClosure
+→ invalid semantic-history export construction
+```
+
+Require every local exported clearance to use `sourceExecution = L` and
+`qlek = K`. Require its evidence to be the exact `orderedUnique` sequence for
+its branch, including the exact retained introducing mutation artifact. Require
+every evidence `ArtifactRef` to occur in `artifactClosure` under the existing
+canonical `(sha256, artifactId)` ordering and duplicate suppression.
+
+Require `hazardClearances` to equal the canonical duplicate-free union of every
+exact locally derived clearance plus every already-retained imported clearance.
+For imported clearances preserve exact `sourceDomainId`, `sourceExecution`,
+`qlek`, `kind`, and `evidence`; never rewrite source provenance.
+
+Two incompatible local clearance kinds for exact
+`(D, E.executionId, K)` are `INTEGRITY_FAILURE`. Never merge them or choose a
+winner. Never manufacture a clearance for an unresolved local hazard. Never
+accept any local clearance derived from timeout, process death, MAYBE-SENT,
+missing response, unknown, UNRESOLVABLE, operator acknowledgement, progression
+supersession, candidate staleness, run termination, or absence of Admission.
+
+Require export monotonicity: once exact positive local authority clears `E`,
+every later complete export contains that exact local clearance. A retained
+matching clearance always makes the corresponding imported hazard resolved,
+regardless of export arrival order. An older export never resurrects a
+positively cleared hazard.
+
+### 26.1 Required anti-cheat example
+
+```text
+epoch/source export X1:
+E unresolved
+→ hazard(E)
+
+later:
+E = PROVEN-NOT-EXECUTED
+
+later export X2:
+→ clearance(E, proven-not-executed)
+
+destination receives X2 first:
+→ stores clearance
+
+destination later receives X1:
+→ may store historical hazard
+→ matching clearance already exists
+→ hazard MUST remain resolved
+→ no same-K resampling hazard is resurrected
+```
 
 ## 27. Protocol-v8 crash reconstruction
 
