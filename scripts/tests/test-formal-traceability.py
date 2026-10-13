@@ -416,6 +416,19 @@ def make_fixture(temporary: str) -> Path:
     return fixture_root
 
 
+def load_renderer(root: Path):
+    renderer_path = root / "scripts" / "render-formal-mapping.py"
+    renderer_spec = importlib.util.spec_from_file_location(
+        "formal_mapping_renderer_test",
+        renderer_path,
+    )
+    if renderer_spec is None or renderer_spec.loader is None:
+        raise RuntimeError(f"cannot load {renderer_path}")
+    renderer = importlib.util.module_from_spec(renderer_spec)
+    renderer_spec.loader.exec_module(renderer)
+    return renderer
+
+
 def _load_cached_yaml_text(path: Path) -> object:
     text = path.read_text()
 
@@ -1820,8 +1833,28 @@ def fake_gate_a_subject() -> tuple[dict, dict]:
 
 class FormalTraceabilityTests(unittest.TestCase):
     def test_repository_conforms(self) -> None:
-        errors, summary = checker.collect_errors(ROOT)
+        renderer_subprocesses = []
+        original_run = subprocess.run
+
+        def observe_subprocess(*args, **kwargs):
+            command = args[0] if args else kwargs.get("args")
+            if command and any("render-formal-mapping.py" in str(arg) for arg in command):
+                renderer_subprocesses.append(command)
+            return original_run(*args, **kwargs)
+
+        with mock.patch.object(
+            checker,
+            "_render_generated_mapping_from_validated",
+            wraps=checker._render_generated_mapping_from_validated,
+        ) as fast_path, mock.patch.object(
+            checker.subprocess,
+            "run",
+            side_effect=observe_subprocess,
+        ):
+            errors, summary = checker.collect_errors(ROOT)
         self.assertEqual([], errors)
+        self.assertEqual(1, fast_path.call_count)
+        self.assertEqual([], renderer_subprocesses)
         self.assertEqual(42, summary["invariants"])
         self.assertEqual(83, summary["claims"])
         self.assertFalse(summary["gate_a"]["ready"])
@@ -1829,6 +1862,34 @@ class FormalTraceabilityTests(unittest.TestCase):
             "hostile assurance-decomposition review evidence required",
             summary["gate_a"]["reason"],
         )
+
+        manifest = load_manifest(ROOT)
+        review_records, review_errors = checker.load_review_records(ROOT)
+        self.assertEqual([], review_errors)
+        current_subject, subject_errors = checker.build_gate_a_review_subject(
+            ROOT, manifest
+        )
+        self.assertEqual([], subject_errors)
+        projection_inputs = (
+            manifest,
+            review_records,
+            current_subject,
+            summary["gate_a"],
+        )
+        input_copies = copy.deepcopy(projection_inputs)
+        projection = load_renderer(ROOT).render_mapping_from_validated(
+            ROOT,
+            manifest=manifest,
+            review_records=review_records,
+            current_subject=current_subject,
+            gate_a=summary["gate_a"],
+            gate_a_subject_selector=checker.GATE_A_SUBJECT_SELECTOR,
+        )
+        self.assertEqual(
+            (ROOT / MAPPING_RELATIVE).read_bytes(),
+            projection.encode("utf-8"),
+        )
+        self.assertEqual(input_copies, projection_inputs)
 
     def test_schema_v3_required(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -3023,8 +3084,31 @@ class FormalTraceabilityTests(unittest.TestCase):
             mapping_path = fixture_root / MAPPING_RELATIVE
             mapping_path.write_text("stale", encoding="utf-8")
             before = mapping_path.read_bytes()
+            renderer_subprocesses = []
+            original_run = subprocess.run
 
-            errors, _ = checker.collect_errors(fixture_root, check_generated=True)
+            def observe_subprocess(*args, **kwargs):
+                command = args[0] if args else kwargs.get("args")
+                if command and any(
+                    "render-formal-mapping.py" in str(arg) for arg in command
+                ):
+                    renderer_subprocesses.append(command)
+                return original_run(*args, **kwargs)
+
+            with mock.patch.object(
+                checker,
+                "_render_generated_mapping_from_validated",
+                wraps=checker._render_generated_mapping_from_validated,
+            ) as fast_path, mock.patch.object(
+                checker.subprocess,
+                "run",
+                side_effect=observe_subprocess,
+            ):
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=True
+                )
+            self.assertEqual(1, fast_path.call_count)
+            self.assertEqual([], renderer_subprocesses)
             self.assertTrue(
                 any(
                     "generated formal invariant mapping is stale" in error
@@ -3033,6 +3117,83 @@ class FormalTraceabilityTests(unittest.TestCase):
                 errors,
             )
             self.assertEqual(before, mapping_path.read_bytes())
+
+    def test_validated_mapping_failure_uses_renderer_subprocess_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            mapping_path = fixture_root / MAPPING_RELATIVE
+            resolved_root = fixture_root.resolve()
+            expected_command = [
+                sys.executable,
+                str(resolved_root / "scripts" / "render-formal-mapping.py"),
+                "--stdout",
+            ]
+            fallback_result = subprocess.CompletedProcess(
+                expected_command,
+                0,
+                stdout=mapping_path.read_bytes(),
+                stderr=b"",
+            )
+            with mock.patch.object(
+                checker,
+                "_render_generated_mapping_from_validated",
+                side_effect=RuntimeError("controlled fast-path failure"),
+            ) as fast_path, mock.patch.object(
+                checker.subprocess,
+                "run",
+                return_value=fallback_result,
+            ) as fallback:
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=True
+                )
+            self.assertEqual([], errors)
+            self.assertEqual(1, fast_path.call_count)
+            fallback.assert_called_once_with(
+                expected_command,
+                cwd=resolved_root,
+                capture_output=True,
+                check=False,
+            )
+
+    def test_e6c_error_blocks_validated_mapping_fast_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            mapping_path = fixture_root / MAPPING_RELATIVE
+            resolved_root = fixture_root.resolve()
+            expected_command = [
+                sys.executable,
+                str(resolved_root / "scripts" / "render-formal-mapping.py"),
+                "--stdout",
+            ]
+            fallback_result = subprocess.CompletedProcess(
+                expected_command,
+                0,
+                stdout=mapping_path.read_bytes(),
+                stderr=b"",
+            )
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_v8_e6c_finding_adjudication_supplement_projection_errors",
+                return_value=["E6-C fast-path sentinel"],
+            ), mock.patch.object(
+                checker,
+                "_render_generated_mapping_from_validated",
+            ) as fast_path, mock.patch.object(
+                checker.subprocess,
+                "run",
+                return_value=fallback_result,
+            ) as fallback:
+                errors, _ = checker.collect_errors(
+                    fixture_root, check_generated=True
+                )
+            self.assertIn("E6-C fast-path sentinel", errors)
+            fast_path.assert_not_called()
+            fallback.assert_called_once_with(
+                expected_command,
+                cwd=resolved_root,
+                capture_output=True,
+                check=False,
+            )
 
     def test_renderer_stdout_matches_committed_mapping_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -8236,18 +8397,40 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
             self.assertEqual([], errors)
             self.assertTrue(summary["gate_a"]["ready"])
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(fixture_root / "scripts" / "render-formal-mapping.py"),
-                    "--stdout",
-                ],
-                cwd=fixture_root,
-                capture_output=True,
-                text=True,
+            manifest = load_manifest(fixture_root)
+            review_records, review_errors = checker.load_review_records(fixture_root)
+            self.assertEqual([], review_errors)
+            current_subject, subject_errors = checker.build_gate_a_review_subject(
+                fixture_root, manifest
             )
-            self.assertEqual(0, result.returncode, result.stderr)
-            self.assertIn("Formal-Architecture-Ready: READY", result.stdout)
+            self.assertEqual([], subject_errors)
+            projection_inputs = (
+                manifest,
+                review_records,
+                current_subject,
+                summary["gate_a"],
+            )
+            input_copies = copy.deepcopy(projection_inputs)
+            renderer = load_renderer(fixture_root)
+            first = renderer.render_mapping_from_validated(
+                fixture_root,
+                manifest=manifest,
+                review_records=review_records,
+                current_subject=current_subject,
+                gate_a=summary["gate_a"],
+                gate_a_subject_selector=checker.GATE_A_SUBJECT_SELECTOR,
+            )
+            second = renderer.render_mapping_from_validated(
+                fixture_root,
+                manifest=manifest,
+                review_records=review_records,
+                current_subject=current_subject,
+                gate_a=summary["gate_a"],
+                gate_a_subject_selector=checker.GATE_A_SUBJECT_SELECTOR,
+            )
+            self.assertEqual(first.encode("utf-8"), second.encode("utf-8"))
+            self.assertEqual(input_copies, projection_inputs)
+            self.assertIn("Formal-Architecture-Ready: READY", first)
 
     def test_renderer_refuses_ready_projection_when_review_evidence_is_invalid(
         self,
