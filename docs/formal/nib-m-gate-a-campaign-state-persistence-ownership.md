@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "3.0.0"
+version: "3.0.1"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -26,6 +26,22 @@ It consumes:
 NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
 NIB-M-GATE-A-CONTRACTS 1.2.0
 ```
+
+Version `3.0.1` is an additive construction-completeness correction. It closes
+the exact projection of positively cleared local semantic hazards into
+`SemanticHistoryExportV1.hazardClearances`, including their immutable evidence
+closure and out-of-order export monotonicity. It makes:
+
+```text
+no TURNLOCK product semantic change
+no protocol semantic change
+no QLEK identity change
+no Admission semantics change
+no recovery classification change
+no SQLite schema-version change
+```
+
+The SQLite authoritative schema remains exactly `2`.
 
 Version `3.0.0` is a breaking construction-contract revision. It establishes one
 coherent M2 semantic-authority domain per configured `stateRoot`, authoritative
@@ -1299,6 +1315,271 @@ artifactClosure:
 ```
 
 Use unsigned UTF-8/ASCII byte order as applicable.
+
+### 23.1 Local positive-clearance projection
+
+For every local Armed P8 semantic Execution `E`, let:
+
+```text
+K =
+exact retained SemanticExecutionBinding(E).qlek
+
+D =
+exact local SemanticAuthorityDomainId
+
+L =
+exact SemanticExecutionLocatorV1 for E
+```
+
+When and only when exact retained local authority positively clears the semantic
+hazard for `E`, export exactly one:
+
+```ts
+ExternalSemanticHazardClearanceRefV1 {
+  sourceDomainId: D,
+  sourceExecution: L,
+  qlek: K,
+  kind: exact mapping in section 23.3,
+  evidence: exact mapping in section 23.3,
+}
+```
+
+Never manufacture a clearance for an unresolved hazard.
+
+### 23.2 Introducing mutation artifact
+
+Define mechanically:
+
+```text
+introducingMutationArtifact(F)
+```
+
+as the exact immutable `ArtifactRef` named by the unique authoritative
+`state_revisions` row whose mutation first introduced run-local fact `F`. Use
+the retained artifact itself. Do not construct or reseal another copy.
+
+### 23.3 Exhaustive clearance-kind and evidence mapping
+
+These four mappings are exhaustive. No other local fact creates an exported
+semantic hazard clearance.
+
+For exact authoritative:
+
+```text
+ExecutionRecoveryResolution {
+  executionId = E.executionId
+  classification = "PROVEN-NOT-EXECUTED"
+}
+```
+
+produce:
+
+```text
+kind =
+"proven-not-executed"
+
+evidence =
+orderedUnique([
+  introducingMutationArtifact(the exact admitted recovery resolution),
+  ...resolution.evidence
+])
+```
+
+The introducing mutation is the exact retained
+`AdmitExecutionRecoveryV1` artifact. Its inclusion guarantees non-empty
+evidence independently of the inner evidence array.
+
+For exact authoritative:
+
+```text
+TechnicalExecutionFailure F
+where
+F.execution == E
+and
+F.completedResponse == false
+```
+
+produce:
+
+```text
+kind =
+"terminal-technical-no-completion"
+
+evidence =
+orderedUnique([
+  introducingMutationArtifact(F),
+  ...F.failureEvidence
+])
+```
+
+This applies whether `F` was introduced through direct
+`AdmitExecutionOutcomeV1` or through `AdmitExecutionRecoveryV1` with
+`PROVEN-COMPLETED` and `recoveredOutcome.kind = technical-failure`. The
+Execution may have only one authoritative terminal outcome. Contradictory
+terminal sources remain `INTEGRITY_FAILURE`.
+
+For exact authoritative:
+
+```text
+ProtocolV8SemanticValidationResultV1 R
+
+R.execution == E
+R.qlek == K
+R.classification == "protocol-invalid"
+```
+
+produce:
+
+```text
+kind =
+"protocol-invalid-no-candidate"
+
+evidence =
+orderedUnique([
+  introducingMutationArtifact(R),
+  ...R.validationEvidence
+])
+```
+
+The introducing mutation is the exact retained
+`AdmitProtocolV8SemanticValidationV1` artifact.
+
+For exact authoritative protocol-valid result `R` for `E`, require:
+
+```text
+matching exact SemanticAdmissionRecordV1 A
+
+A.qlek == K
+A.admissionId == R.semanticAdmissionId
+
+and
+
+one exact lawful SemanticAdmissionWitnessRefV1 W where:
+
+W.qlek == K
+W.admissionId == A.admissionId
+W.sourceDomainId == D
+W.originExecutionId == E.executionId
+W.witness == R.originWitness
+```
+
+Then produce:
+
+```text
+kind =
+"admission-reconciled"
+
+evidence =
+orderedUnique([
+  introducingMutationArtifact(R),
+  R.originWitness,
+  R.executionReceipt,
+  R.semanticQuestionBinding,
+  R.semanticCandidate,
+  ...R.validationEvidence
+])
+```
+
+Do not use candidate currentness. Do not use receipt ownership.
+
+Never derive local clearance from:
+
+```text
+timeout
+process death
+MAYBE-SENT
+missing response
+unknown
+UNRESOLVABLE
+operator acknowledgement
+progression supersession
+candidate staleness
+run termination
+absence of Admission
+```
+
+### 23.4 Local uniqueness and exact export union
+
+For one exact:
+
+```text
+(D, E.executionId, K)
+```
+
+derive zero or exactly one local clearance kind. Two incompatible local
+clearance kinds for the same exact semantic Execution are
+`INTEGRITY_FAILURE`; never merge them or select a winner.
+
+For every `SemanticHistoryExportV1`, set:
+
+```text
+hazardClearances =
+canonical duplicate-free union of:
+
+A.
+every exact locally derived clearance from sections 23.1 through 23.3
+
+plus
+
+B.
+every already-retained imported ExternalSemanticHazardClearanceRefV1
+from semantic_external_hazard_clearances
+```
+
+For each imported clearance preserve exactly:
+
+```text
+sourceDomainId
+sourceExecution
+qlek
+kind
+evidence
+```
+
+Never rewrite an imported `sourceDomainId` to the local domain ID.
+
+### 23.5 Export monotonicity and artifact closure
+
+Require:
+
+```text
+if a local Armed semantic Execution E was ever exported as an unresolved hazard
+
+and exact later local authority clears E
+
+then every later complete export MUST include the exact local clearance for E
+```
+
+Therefore both arrival orders are safe:
+
+```text
+older hazard export
+→ newer clearance export
+
+and
+
+newer clearance export
+→ older hazard export
+```
+
+In either order, destination reconstruction must eventually satisfy:
+
+```text
+matching clearance exists
+→ imported hazard is not unresolved
+```
+
+An older export must not resurrect a positively cleared hazard.
+
+For every exported clearance, require:
+
+```text
+every exact ArtifactRef in clearance.evidence
+MUST appear in SemanticHistoryExportV1.artifactClosure
+```
+
+Apply the existing canonical `(sha256, artifactId)` ordering and duplicate
+suppression. Do not otherwise redesign `artifactClosure`.
 
 ## 24. T5 external-history transaction realization
 
