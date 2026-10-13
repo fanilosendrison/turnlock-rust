@@ -11929,16 +11929,37 @@ class ProtocolV8ProjectionOracleCacheTests(unittest.TestCase):
         "_inactive_protocol_v8_e6a_semantic_question_binding_projection_errors",
     )
     DEPENDENCY = Path("dependency.json")
+    _REAL_BASELINE_IMPLEMENTATION_IDENTITY = None
+    _REAL_BASELINE_DEPENDENCIES = None
+    _REAL_BASELINE_FINGERPRINT = None
+    _REAL_BASELINE_RESULT = None
+    _REAL_BASELINE_CACHE_SNAPSHOT = None
+    _REAL_BASELINE_CONSTRUCTIONS = 0
+    _REAL_SUCCESSFUL_COMPLETE_GROUP_EVALUATIONS = 0
 
     def setUp(self) -> None:
         cache = getattr(checker, "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE", None)
         if cache is not None:
             cache.clear()
+        self._real_identity_lookup_evaluations = 0
 
     def tearDown(self) -> None:
         cache = getattr(checker, "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE", None)
         if cache is not None:
             cache.clear()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cache = getattr(checker, "_PROTOCOL_V8_PROJECTION_ORACLE_CACHE", None)
+        try:
+            if cls._REAL_BASELINE_CONSTRUCTIONS:
+                if cls._REAL_BASELINE_CONSTRUCTIONS != 1:
+                    raise AssertionError("real projection cache baseline repeated")
+                if cls._REAL_SUCCESSFUL_COMPLETE_GROUP_EVALUATIONS != 1:
+                    raise AssertionError("real projection group evaluation count changed")
+        finally:
+            if cache is not None:
+                cache.clear()
 
     def _patched_oracles(self, observer=None):
         context = mock.patch.multiple(
@@ -11953,24 +11974,91 @@ class ProtocolV8ProjectionOracleCacheTests(unittest.TestCase):
             oracles[self.ORACLE_NAMES[0]].side_effect = observer
         return oracles
 
-    def _real_counting_oracles(self):
-        counts = {name: 0 for name in self.ORACLE_NAMES}
-        originals = {
-            name: getattr(checker, name)
-            for name in self.ORACLE_NAMES
+    @classmethod
+    def _ensure_real_projection_cache_baseline(cls) -> None:
+        if cls._REAL_BASELINE_CACHE_SNAPSHOT is not None:
+            return
+
+        cache = checker._PROTOCOL_V8_PROJECTION_ORACLE_CACHE
+        cache.clear()
+        implementation_identity = checker._protocol_v8_projection_oracles()
+        cls._REAL_BASELINE_CONSTRUCTIONS += 1
+        result = checker._inactive_protocol_v8_projection_oracle_errors(ROOT)
+        if result != []:
+            raise AssertionError(f"real projection baseline failed: {result!r}")
+
+        implementation_cache = cache.get(implementation_identity)
+        if implementation_cache is None or len(implementation_cache) != 1:
+            raise AssertionError("real baseline did not record one dependency tuple")
+        dependencies, cached_results = next(iter(implementation_cache.items()))
+        if len(cached_results) != 1:
+            raise AssertionError("real baseline did not record one fingerprint")
+        fingerprint, cached_result = next(iter(cached_results.items()))
+        if cached_result != tuple(result):
+            raise AssertionError("real baseline cached result differs from evaluation")
+        cognitive_schema = Path(
+            checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE["path"]
+        )
+        if cognitive_schema not in dependencies:
+            raise AssertionError("real baseline omitted cognitive packet schema")
+
+        cls._REAL_BASELINE_IMPLEMENTATION_IDENTITY = tuple(implementation_identity)
+        cls._REAL_BASELINE_DEPENDENCIES = tuple(dependencies)
+        cls._REAL_BASELINE_FINGERPRINT = bytes(fingerprint)
+        cls._REAL_BASELINE_RESULT = tuple(cached_result)
+        cls._REAL_BASELINE_CACHE_SNAPSHOT = (
+            cls._REAL_BASELINE_IMPLEMENTATION_IDENTITY,
+            cls._REAL_BASELINE_DEPENDENCIES,
+            cls._REAL_BASELINE_FINGERPRINT,
+            cls._REAL_BASELINE_RESULT,
+        )
+        cls._REAL_SUCCESSFUL_COMPLETE_GROUP_EVALUATIONS += 1
+
+    def _restore_real_projection_cache_baseline(self) -> None:
+        self._ensure_real_projection_cache_baseline()
+        snapshot = type(self)._REAL_BASELINE_CACHE_SNAPSHOT
+        if snapshot is None:
+            raise AssertionError("real projection cache baseline is unavailable")
+        implementation_identity, dependencies, fingerprint, cached_result = snapshot
+        cache = checker._PROTOCOL_V8_PROJECTION_ORACLE_CACHE
+        cache.clear()
+        cache[implementation_identity] = {
+            dependencies: {fingerprint: tuple(cached_result)}
         }
 
-        def wrapper(name, original):
-            def observed(root: Path) -> list[str]:
-                counts[name] += 1
-                return original(root)
+        self.assertIn(implementation_identity, cache)
+        self.assertEqual(
+            {dependencies: {fingerprint: cached_result}},
+            cache[implementation_identity],
+        )
 
-            return observed
+    def _observe_real_identity_cache_lookup(
+        self,
+        root: Path,
+        sentinel_errors: list[str],
+    ) -> list[str]:
+        self._ensure_real_projection_cache_baseline()
+        implementation_identity = type(
+            self
+        )._REAL_BASELINE_IMPLEMENTATION_IDENTITY
+        if implementation_identity is None:
+            raise AssertionError("real implementation identity is unavailable")
 
-        return tuple(
-            wrapper(name, originals[name])
-            for name in self.ORACLE_NAMES
-        ), counts
+        # _content_addressed_validation_errors decides lookup before evaluation,
+        # and its callback is not part of implementation_identity. The authentic
+        # baseline supplies the real identity, dependencies, fingerprint, and
+        # cached result; this sentinel observes only the lookup decision against
+        # the fixture's actual filesystem state.
+        def evaluate() -> list[str]:
+            self._real_identity_lookup_evaluations += 1
+            return list(sentinel_errors)
+
+        return checker._content_addressed_validation_errors(
+            root,
+            implementation_identity,
+            evaluate,
+            checker._PROTOCOL_V8_PROJECTION_ORACLE_CACHE,
+        )
 
     def _recorded_dependencies(self, invocation) -> set[Path]:
         dependencies: set[Path] = set()
@@ -12041,94 +12129,159 @@ class ProtocolV8ProjectionOracleCacheTests(unittest.TestCase):
         self.assertIn(dependency, observed)
 
     def test_real_cognitive_schema_content_change_invalidates(self) -> None:
+        self._ensure_real_projection_cache_baseline()
         with tempfile.TemporaryDirectory() as temporary:
             root = make_fixture(temporary)
-            schema_path = root / Path(
-                checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
-                    "path"
-                ]
-            )
-            oracles, counts = self._real_counting_oracles()
-            with mock.patch.object(
-                checker,
-                "_protocol_v8_projection_oracles",
-                return_value=oracles,
+            self._restore_real_projection_cache_baseline()
+            dependencies = type(self)._REAL_BASELINE_DEPENDENCIES
+            baseline_fingerprint = type(self)._REAL_BASELINE_FINGERPRINT
+            baseline_result = type(self)._REAL_BASELINE_RESULT
+            if (
+                dependencies is None
+                or baseline_fingerprint is None
+                or baseline_result is None
             ):
-                first = checker._inactive_protocol_v8_projection_oracle_errors(root)
-                second = checker._inactive_protocol_v8_projection_oracle_errors(root)
-                self.assertEqual({name: 1 for name in self.ORACLE_NAMES}, counts)
-
-                schema = json.loads(schema_path.read_text(encoding="utf-8"))
-                self.assertNotIn("$comment", schema)
-                schema["$comment"] = "issue-57-cache-invalidation-sentinel"
-                schema_path.write_text(
-                    json.dumps(schema, ensure_ascii=False, indent=2) + "\n",
-                    encoding="utf-8",
-                )
-                third = checker._inactive_protocol_v8_projection_oracle_errors(root)
-
-            self.assertEqual([], first)
-            self.assertEqual(first, second)
-            self.assertEqual(first, third)
-            self.assertEqual({name: 2 for name in self.ORACLE_NAMES}, counts)
-
-    def test_real_missing_cognitive_schema_matches_uncached_behavior(self) -> None:
-        with tempfile.TemporaryDirectory() as cached_temporary, \
-             tempfile.TemporaryDirectory() as raw_temporary:
-            cached_root = make_fixture(cached_temporary)
-            raw_root = make_fixture(raw_temporary)
+                self.fail("real projection cache baseline evidence is incomplete")
             relative = Path(
                 checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
                     "path"
                 ]
             )
-
-            first = checker._inactive_protocol_v8_projection_oracle_errors(
-                cached_root
+            schema_path = root / relative
+            self.assertIn(relative, dependencies)
+            self.assertEqual(
+                baseline_fingerprint,
+                checker._validation_dependency_fingerprint(root, dependencies),
             )
-            self.assertEqual([], first)
+
+            sentinel_errors = ["projection cache content mutation sentinel"]
+            first = self._observe_real_identity_cache_lookup(root, sentinel_errors)
+            self.assertEqual(0, self._real_identity_lookup_evaluations)
+            self.assertEqual(list(baseline_result), first)
+
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            self.assertNotIn("$comment", schema)
+            schema["$comment"] = "issue-57-cache-invalidation-sentinel"
+            schema_path.write_text(
+                json.dumps(schema, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            mutated_fingerprint = checker._validation_dependency_fingerprint(
+                root,
+                dependencies,
+            )
+            self.assertIsNotNone(mutated_fingerprint)
+            self.assertNotEqual(baseline_fingerprint, mutated_fingerprint)
+
+            second = self._observe_real_identity_cache_lookup(root, sentinel_errors)
+            self.assertEqual(1, self._real_identity_lookup_evaluations)
+            self.assertEqual(sentinel_errors, second)
+
+    def test_real_missing_cognitive_schema_matches_uncached_behavior(self) -> None:
+        self._ensure_real_projection_cache_baseline()
+        with tempfile.TemporaryDirectory() as cached_temporary, \
+             tempfile.TemporaryDirectory() as raw_temporary:
+            cached_root = make_fixture(cached_temporary)
+            raw_root = make_fixture(raw_temporary)
+            self._restore_real_projection_cache_baseline()
+            dependencies = type(self)._REAL_BASELINE_DEPENDENCIES
+            baseline_fingerprint = type(self)._REAL_BASELINE_FINGERPRINT
+            baseline_result = type(self)._REAL_BASELINE_RESULT
+            if (
+                dependencies is None
+                or baseline_fingerprint is None
+                or baseline_result is None
+            ):
+                self.fail("real projection cache baseline evidence is incomplete")
+            relative = Path(
+                checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
+                    "path"
+                ]
+            )
+            self.assertEqual(
+                baseline_fingerprint,
+                checker._validation_dependency_fingerprint(
+                    cached_root,
+                    dependencies,
+                ),
+            )
             (cached_root / relative).unlink()
-            cached_outcome = self._capture_outcome(
-                lambda: checker._inactive_protocol_v8_projection_oracle_errors(
-                    cached_root
+            self.assertIsNone(
+                checker._validation_dependency_fingerprint(
+                    cached_root,
+                    dependencies,
                 )
             )
+
+            sentinel_errors = ["projection cache missing dependency sentinel"]
+            cached_result = self._observe_real_identity_cache_lookup(
+                cached_root,
+                sentinel_errors,
+            )
+            self.assertEqual(1, self._real_identity_lookup_evaluations)
+            self.assertEqual(sentinel_errors, cached_result)
+            self.assertNotEqual(list(baseline_result), cached_result)
 
             checker._PROTOCOL_V8_PROJECTION_ORACLE_CACHE.clear()
             (raw_root / relative).unlink()
             raw_outcome = self._capture_outcome(
                 lambda: self._raw_group_errors(raw_root)
             )
-
-            self.assertEqual(raw_outcome, cached_outcome)
-            self.assertEqual("exception", cached_outcome[0])
-            self.assertIs(FileNotFoundError, cached_outcome[1])
+            self.assertEqual("exception", raw_outcome[0])
+            self.assertIs(FileNotFoundError, raw_outcome[1])
 
     def test_real_symlinked_cognitive_schema_is_not_cached(self) -> None:
+        self._ensure_real_projection_cache_baseline()
         with tempfile.TemporaryDirectory() as temporary:
             root = make_fixture(temporary)
-            schema_path = root / Path(
+            self._restore_real_projection_cache_baseline()
+            dependencies = type(self)._REAL_BASELINE_DEPENDENCIES
+            baseline_fingerprint = type(self)._REAL_BASELINE_FINGERPRINT
+            if dependencies is None or baseline_fingerprint is None:
+                self.fail("real projection cache baseline evidence is incomplete")
+            relative = Path(
                 checker.PROTOCOL_V8_COGNITIVE_EXECUTION_PACKET_SCHEMA_REFERENCE[
                     "path"
                 ]
+            )
+            schema_path = root / relative
+            self.assertEqual(
+                baseline_fingerprint,
+                checker._validation_dependency_fingerprint(root, dependencies),
             )
             target = root / "issue-57-cognitive-schema-target.json"
             target.write_bytes(schema_path.read_bytes())
             schema_path.unlink()
             schema_path.symlink_to(target)
-            oracles, counts = self._real_counting_oracles()
+            self.assertIsNone(
+                checker._validation_dependency_fingerprint(root, dependencies)
+            )
 
-            with mock.patch.object(
-                checker,
-                "_protocol_v8_projection_oracles",
-                return_value=oracles,
-            ):
-                first = checker._inactive_protocol_v8_projection_oracle_errors(root)
-                second = checker._inactive_protocol_v8_projection_oracle_errors(root)
+            sentinel_errors = ["projection cache symlink sentinel"]
+            first = self._observe_real_identity_cache_lookup(root, sentinel_errors)
+            self.assertEqual(1, self._real_identity_lookup_evaluations)
+            second = self._observe_real_identity_cache_lookup(root, sentinel_errors)
+            self.assertEqual(2, self._real_identity_lookup_evaluations)
+            self.assertEqual(sentinel_errors, first)
+            self.assertEqual(sentinel_errors, second)
 
-            self.assertEqual([], first)
-            self.assertEqual(first, second)
-            self.assertEqual({name: 2 for name in self.ORACLE_NAMES}, counts)
+            self.assertEqual(
+                [],
+                checker._inactive_protocol_v8_e5a_cognitive_basis_projection_errors(
+                    root
+                ),
+            )
+            presentation_validator, packet_validator, packet_errors = (
+                checker._protocol_v8_e5c_packet_schema_validators(root)
+            )
+            self.assertEqual([], packet_errors)
+            self.assertIsNotNone(presentation_validator)
+            self.assertIsNotNone(packet_validator)
+            citation_validator, citation_errors = (
+                checker._protocol_v8_e5d_structured_citation_validator(root)
+            )
+            self.assertEqual([], citation_errors)
+            self.assertIsNotNone(citation_validator)
 
     def test_group_definition_is_exact_and_excludes_e6b(self) -> None:
         expected = tuple(getattr(checker, name) for name in self.ORACLE_NAMES)
