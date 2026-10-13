@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "2.0.12"
+version: "3.0.0"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -20,9 +20,21 @@ superseded_by: []
 This document is one of three active Module Briefs that together close M2
 `campaign-state` for the Gate A hostile-review campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+It consumes:
 
-Version `2.0.12` is a dependency-only synchronization with NIB-S `10.0.0`. It
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+NIB-M-GATE-A-CONTRACTS 1.2.0
+```
+
+Version `3.0.0` is a breaking construction-contract revision. It establishes one
+coherent M2 semantic-authority domain per configured `stateRoot`, authoritative
+schema version 2, the domain/QLEK SQLite coordination realization, global
+semantic-history storage, export and external reconciliation. No production
+runner state exists, so no runtime migration mechanism is required. Schema-v1
+runtime state is not migrated.
+
+Version `2.0.12` was a dependency-only synchronization with NIB-S `10.0.0`. It
 changes no persistence algorithm, ownership, type, retry, hard-limit, provider,
 recovery, or repository semantic. The retained
 `ReviewCampaignPrerequisiteBasisRefV1.reviewContext` remains exact immutable
@@ -80,7 +92,9 @@ product semantics, canonical formal semantics, hostile-review protocol
 semantics, formal-assurance claims, review evidence, or verification evidence.
 
 This brief defines the physical persistence, immutable-artifact storage,
-bootstrap, write-ownership, and fencing mechanics for M2 `campaign-state`.
+bootstrap, run write ownership, semantic-domain coordination, QLEK live
+exclusion, semantic-history export/reconciliation transaction boundaries, and
+fencing mechanics for M2 `campaign-state`.
 
 Mutation semantics are defined by
 `NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION`.
@@ -108,6 +122,10 @@ CreateGateARunAndAcquireInitialOwnershipRequest
 AcquireWriteOwnershipRequest
 LoadGateARunSnapshotRequest
 CommitAuthoritativeMutationRequest
+AcquireAdmissionAuthorityRequestV1
+ReleaseAdmissionAuthorityRequestV1
+ExportSemanticHistoryRequestV1
+ReconcileExternalSemanticHistoryRequestV1
 ```
 
 This brief additionally fixes the construction-time M2 configuration:
@@ -141,6 +159,11 @@ M2 owns this exact layout below `stateRoot`:
 │   └── campaign-state.sqlite
 ├── ownership/
 │   └── <GateARunId>.sqlite
+├── semantic-authority/
+│   ├── domain.sqlite
+│   └── qlek/
+│       └── <first-two-hex>/
+│           └── <qlek-64-lowercase-hex>.sqlite
 ├── artifacts/
 │   └── sha256/
 │       └── <first-two-hex>/
@@ -153,12 +176,17 @@ another accepted NIB explicitly selects a subdirectory under a separate mutable
 workspace root.
 
 `authoritative/campaign-state.sqlite` is the sole M2 Authoritative History
-database.
+database for all GateARun-local and all global protocol-v8 semantic history in
+the domain. Do not create a second semantic database.
 
 Artifact files under `artifacts/sha256/` are durable immutable bytes but are not
 authoritative merely because they exist.
 
-`ownership/*.sqlite` files contain no campaign semantics.
+`ownership/*.sqlite` and `semantic-authority/*.sqlite` files contain no campaign
+or semantic truth. They are OS/process coordination mechanisms only.
+
+For QLEK `qlek-sha256:<digest>`, use the exact existing 64-lowercase-hex
+`digest` in the QLEK lock path without rehashing it.
 
 ## 4. SQLite configuration
 
@@ -184,12 +212,13 @@ and commits exactly one atomic authoritative transition.
 Schema version is exactly:
 
 ```text
-1
+2
 ```
 
 Unknown schema version is `INTEGRITY_FAILURE`.
 
-No automatic migration exists in v1.
+No automatic migration exists. Schema-v1 runtime state is not migrated because
+no production campaign runner state exists.
 
 ### 4.2 Per-run ownership database
 
@@ -244,6 +273,20 @@ state_revisions
 ownership_generations
 preflight_establishments
 artifact_registry
+semantic_domain
+semantic_coordination_epochs
+semantic_admission_authority_grants
+semantic_execution_bindings
+semantic_arm_bindings
+protocol_v8_semantic_validations
+semantic_admission_claims
+semantic_admission_witnesses
+semantic_admission_conflicts
+semantic_history_exports
+semantic_external_history_reconciliations
+semantic_external_hazards
+semantic_external_hazard_clearances
+semantic_external_unarmed_trajectories
 ```
 
 Domain relations defined by the companion M2 briefs use the same database.
@@ -708,6 +751,18 @@ error taxonomy
 connection lifetime
 ability to keep an ownership transaction open indefinitely
 behavior on filesystem/I/O corruption
+schema-v2 support
+semantic-authority/domain.sqlite
+dynamically addressed per-QLEK lock SQLite files
+many simultaneous open lock connections
+long-lived BEGIN IMMEDIATE on one QLEK lock DB
+short-lived BEGIN IMMEDIATE on domain lock DB
+busy_timeout = 0 lock behavior
+OS/process-crash release of those locks
+coexistence with WAL authoritative DB
+deterministic multi-QLEK acquisition
+non-blocking BUSY observation
+no hidden lease/heartbeat behavior
 ```
 
 The implementation agent may not substitute a different SQLite package because
@@ -784,7 +839,7 @@ Any request carrying generation `1` is thereafter fenced.
 
 ## 15. Constraints
 
-* SQLite is the sole authoritative transaction engine in v1.
+* SQLite is the sole authoritative transaction engine in schema v2.
 * No mutable snapshot file is authoritative.
 * No filesystem lock file is ownership authority.
 * No lease timeout can transfer authority.
@@ -825,3 +880,623 @@ authoritative mutation.
 
 The snapshot/integrity M2 brief owns the snapshot reconstruction and integrity
 calls used by bootstrap, ownership acquisition, load, and commit.
+
+## 17. Coherent semantic-authority domain
+
+Fix exactly:
+
+```text
+one CampaignStateRuntimeConfig.stateRoot
+=
+one coherent M2 Authoritative History domain
+```
+
+All GateARuns intended to observe or reuse each other's exact protocol-v8
+semantic admissions must use the same `stateRoot`. Different roots are
+physically disconnected authority domains until explicit T5 reconciliation.
+QLEK contains no `stateRoot`, `SemanticAuthorityDomainId`, filesystem path, or
+database identity.
+
+On fresh authoritative-database creation, generate exactly one immutable local
+`SemanticAuthorityDomainId` with Node cryptographic randomness as:
+
+```text
+SEM-DOMAIN-<lowercase UUIDv4>
+```
+
+Persist it in the singleton `semantic_domain` row. It is operational provenance,
+not semantic identity, and never enters QLEK. Initialize the domain-global
+`SemanticCoordinationEpoch` to `1`.
+
+## 18. Semantic coordination databases
+
+Configure `semantic-authority/domain.sqlite` and every per-QLEK lock database
+with:
+
+```text
+journal_mode = DELETE
+synchronous = FULL
+busy_timeout = 0
+```
+
+Each contains one sentinel table only. Exclusive ownership is one connection
+holding `BEGIN IMMEDIATE`. Persist no PID, heartbeat, lease deadline, timestamp,
+semantic candidate, Admission, QLEK payload, lock-held flag, owner PID, lease
+expiry, or live-authority boolean in a coordination database.
+
+Use `domain.sqlite` as a short-lived process-coordination gate serializing:
+
+```text
+new AdmissionAuthority generation issuance
+semantic-history export epoch closure
+T5 cross-domain reconciliation
+```
+
+Never hold the domain gate for an entire LLM execution.
+
+Use one per-QLEK lock for T1 acquisition, T2/T3 through one live
+`AdmissionAuthorityRefV1`, T4 reconciliation, semantic-history export closure,
+and T5 reconciliation. For T1, retain the lock from successful acquisition
+until successful T3, explicit release, or process death. For T4, T5, and export,
+use it only for short-lived transaction coordination.
+
+## 19. Authority dimensions and counters
+
+Keep exactly two independent authority dimensions:
+
+```text
+WriteAuthorityRef
+→ exclusive authority for one GateARun mutation stream
+
+AdmissionAuthorityRefV1
+→ exclusive live semantic-dispatch authority for one exact QLEK
+```
+
+One never substitutes for the other. T2 and T3 require both. T1, T4, and T5 do
+not require GateARun write authority because they do not mutate a GateARun.
+
+`SemanticCoordinationEpoch` is domain-global, starts at `1`, advances only by the
+exact export/T5 contracts below, and never wraps. `AdmissionAuthorityGeneration`
+is monotone per `(QLEK, epoch)`, begins at `1`, and increments by exactly one for
+each successful T1 acquisition in that epoch. A later epoch begins generation
+at `1`; never compare generations across epochs. Overflow beyond
+`Number.MAX_SAFE_INTEGER` fails closed as implementation/integrity capacity
+exhaustion.
+
+## 20. T1 AdmissionAuthority acquisition and release
+
+Implement `acquireAdmissionAuthority(K, session)` exactly:
+
+```text
+validate request
+
+acquire domain coordination gate non-blocking
+if BUSY:
+    return busy(K)
+
+acquire exact per-QLEK lock non-blocking
+if BUSY:
+    release domain gate
+    return busy(K)
+
+BEGIN IMMEDIATE authoritative database
+
+reconstruct exact SemanticQuestionState(K)
+apply exact T1 branch priority from the snapshot/integrity brief
+
+if branch is not acquired:
+    ROLLBACK authoritative database
+    release QLEK lock
+    release domain gate
+    return exact branch
+
+epoch = exact current SemanticCoordinationEpoch
+
+generation =
+    max grant generation for (K, epoch) + 1
+    or 1 when no grant exists
+
+require safe-integer generation
+
+append exact AdmissionAuthorityGrant(K, epoch, generation, session)
+COMMIT authoritative database
+
+register exact open QLEK lock handle process-locally under:
+    (K, session, epoch, generation)
+
+release domain gate
+
+return acquired(
+    AdmissionAuthorityRefV1,
+    freshly reconstructed state
+)
+```
+
+Evaluate the exact reconstructed branch priority before and after taking live
+coordination locks. A crash after durable grant commit but before local handle
+registration leaves the grant as history; OS lock release permits a later T1 to
+issue a newer generation. Never reuse the stale grant as a live handle.
+
+`releaseAdmissionAuthority` writes no authoritative fact, deletes no grant,
+ROLLBACKs/closes only the exact lock-database transaction, removes the
+process-local handle, and returns `released`; return `not-held` when that exact
+handle is absent. A later acquisition receives a new generation.
+
+Never wait while attempting another run ownership lock under an already-held
+QLEK authority. If the run owning a cross-run resumable trajectory is busy, the
+caller explicitly releases AdmissionAuthority and retries later; it never waits
+holding K or creates another same-K Execution.
+
+## 21. Authoritative schema-v2 semantic relations
+
+Retain every schema-v1 relation and add the append-only relations listed in
+section 5. Install the same aborting `BEFORE UPDATE` and `BEFORE DELETE` triggers
+on every new authoritative relation. Define at least these logical columns and
+constraints:
+
+```text
+semantic_domain
+---------------
+singleton_key = 1 PRIMARY KEY
+domain_id UNIQUE NOT NULL
+created_schema_version = 2
+
+semantic_coordination_epochs
+----------------------------
+epoch PRIMARY KEY
+reason ∈ {initial, export, external-reconciliation}
+source_domain_id nullable
+source_history_sha256 nullable
+export_sha256 nullable
+
+epochs contiguous from 1
+
+semantic_admission_authority_grants
+-----------------------------------
+qlek
+epoch
+generation
+session_id
+PRIMARY KEY(qlek, epoch, generation)
+
+generation contiguous from 1 within (qlek, epoch)
+
+semantic_execution_bindings
+---------------------------
+execution_id PRIMARY KEY
+run_id
+work_item_id
+qlek
+bound_candidate_revision_id nullable
+semantic_question_binding_sha256
+introduced_run_revision
+
+semantic_arm_bindings
+---------------------
+execution_id PRIMARY KEY
+qlek
+domain_id
+epoch
+generation
+introduced_run_revision
+
+protocol_v8_semantic_validations
+--------------------------------
+execution_id PRIMARY KEY
+qlek
+classification
+semantic_admission_id nullable
+semantic_candidate_sha256 nullable
+semantic_question_binding_sha256 nullable
+execution_receipt_sha256 nullable
+origin_witness_sha256 nullable
+introduced_run_revision
+
+all semantic candidate/witness/receipt fields non-null
+iff classification == protocol-valid
+
+semantic_admission_claims
+-------------------------
+qlek
+admission_id
+semantic_candidate_sha256
+semantic_question_binding_sha256
+PRIMARY KEY(qlek, admission_id)
+
+semantic_admission_witnesses
+----------------------------
+witness_sha256 PRIMARY KEY
+qlek
+admission_id
+source_domain_id
+origin_execution_id
+
+semantic_admission_conflicts
+----------------------------
+qlek
+admission_a_id
+admission_b_id
+PRIMARY KEY(qlek, admission_a_id, admission_b_id)
+CHECK admission_a_id < admission_b_id
+
+semantic_history_exports
+------------------------
+export_sha256 PRIMARY KEY
+closed_epoch UNIQUE
+successor_epoch UNIQUE
+
+semantic_external_history_reconciliations
+-----------------------------------------
+source_domain_id
+source_closed_epoch
+source_history_sha256
+target_epoch
+PRIMARY KEY(source_domain_id, source_history_sha256)
+UNIQUE(source_domain_id, source_closed_epoch)
+
+semantic_external_hazards
+-------------------------
+source_domain_id
+source_execution_id
+qlek
+source_epoch
+source_generation
+source_history_sha256
+PRIMARY KEY(source_domain_id, source_execution_id, qlek)
+
+semantic_external_hazard_clearances
+-----------------------------------
+source_domain_id
+source_execution_id
+qlek
+clearance_kind
+source_history_sha256
+PRIMARY KEY(source_domain_id, source_execution_id, qlek)
+
+semantic_external_unarmed_trajectories
+--------------------------------------
+source_domain_id
+source_execution_id
+qlek
+source_history_sha256
+PRIMARY KEY(source_domain_id, source_execution_id, qlek)
+```
+
+Treat the same source domain plus same closed epoch with a different source
+history SHA as `SEMANTIC-HISTORY-INTEGRITY-FAILURE`.
+
+Create no `semantic_facts`, `fact_status`, `qualification_status`,
+`semantic_status`, `qlek_status`, `admission_pending`,
+`current_semantic_execution`, `consumed_flag`, or equivalent mutable semantic
+status table. SemanticFact remains derived/reconstructible under C4/M5/M6
+authority.
+
+## 22. Lock ordering
+
+Use exactly:
+
+```text
+T1:
+domain gate
+→ exact QLEK lock
+→ authoritative DB
+
+T4:
+exact QLEK lock
+→ authoritative DB
+
+export/T5:
+domain gate
+→ authoritative DB BEGIN IMMEDIATE
+→ determine exact QLEK set
+→ QLEK locks in QLEK ASCII ascending order, non-blocking
+```
+
+If an export/T5 QLEK lock is busy, release every already acquired QLEK lock,
+ROLLBACK the authoritative DB, release the domain gate, and return `busy` with
+that QLEK. This avoids deadlock with T2/T3/T4, which already hold one exact QLEK
+lock before entering the authoritative DB.
+
+## 23. Semantic-history export
+
+Implement `exportSemanticHistory` exactly:
+
+```text
+acquire domain gate non-blocking
+if BUSY:
+    return busy(domain)
+
+BEGIN IMMEDIATE authoritative DB
+
+determine every local QLEK present in:
+    grants
+    semantic execution bindings
+    arm bindings
+    validations
+    claims
+    external hazards
+    external unarmed history
+
+sort QLEKs exact ascending
+acquire every exact QLEK lock in that order, non-blocking
+
+if any lock BUSY:
+    release all acquired QLEK locks
+    ROLLBACK authoritative DB
+    release domain gate
+    return busy(qlek)
+
+currentEpoch = exact max epoch
+successorEpoch = currentEpoch + 1
+require safe integer
+
+reconstruct exact complete SemanticHistoryExportV1
+from this same authoritative transaction snapshot
+
+closedEpoch = currentEpoch
+successorEpoch = currentEpoch + 1
+
+canonical serialize with M0 CanonicalRunnerJsonBytesV1
+seal through CampaignArtifactStore as application/json
+require repositoryPath == null
+verify sealed artifact
+
+append semantic_coordination_epochs(
+    successorEpoch,
+    reason = export,
+    export_sha256
+)
+append semantic_history_exports(
+    export_sha256,
+    closedEpoch,
+    successorEpoch
+)
+
+COMMIT authoritative DB
+release every QLEK lock
+release domain gate
+return exported
+```
+
+Seal bytes before DB commit; orphan CAS bytes are allowed if the DB commit
+fails. Change no GateARun `StateRevision`. Epoch advance invalidates every
+previously issued AdmissionAuthorityRef.
+
+Export local hazards and unarmed trajectories in external form with
+`sourceDomainId = local domain ID`. Require `successorEpoch == closedEpoch + 1`.
+Sort duplicate-free arrays exactly:
+
+```text
+authorityGrants:
+(qlek, epoch, generation)
+
+executionBindings:
+(qlek, execution.runId, execution.executionId)
+
+armBindings:
+(qlek, execution.runId, execution.executionId)
+
+semanticValidations:
+(qlek, execution.runId, execution.executionId)
+
+admissionClaims:
+(qlek, admissionId)
+
+originWitnesses:
+(qlek, admissionId, sourceDomainId, originExecutionId, witness.sha256)
+
+unresolvedHazards:
+(qlek, sourceDomainId, sourceExecution.executionId)
+
+hazardClearances:
+(qlek, sourceDomainId, sourceExecution.executionId)
+
+unarmedTrajectories:
+(qlek, sourceDomainId, sourceExecution.executionId)
+
+artifactClosure:
+(sha256, artifactId)
+```
+
+Use unsigned UTF-8/ASCII byte order as applicable.
+
+## 24. T5 external-history transaction realization
+
+Consume only exact `ValidatedExternalSemanticHistoryRefV1` produced by future
+M6 from an exact M2 export. M6 owns validation that the source export is
+self-consistent, complete for its closed epoch, correctly bound to its source
+domain, has lawful admission/witness closure, exact pending completions,
+positively established clearances, never-Armed trajectories, intact artifacts,
+and exact QLEK/admission/witness/Arm bindings. M2 does not reproduce those M6
+semantic/protocol validations.
+
+Implement the T5 coordination and transaction exactly:
+
+```text
+validate M0 representation
+verify sourceHistory and validationEvidence intact
+require sourceDomainId != local SemanticAuthorityDomainId
+
+if exact (sourceDomainId, sourceHistory.sha256) already reconciled:
+    return already-reconciled
+
+if same sourceDomainId + same closedEpoch already recorded
+with different sourceHistory.sha256:
+    fail SEMANTIC-HISTORY-INTEGRITY-FAILURE
+
+acquire domain gate non-blocking
+if BUSY:
+    return busy(domain)
+
+BEGIN IMMEDIATE authoritative DB
+
+compute union of every local semantic-history QLEK and every QLEK in H
+order exact ascending
+acquire each QLEK lock non-blocking in exact order
+
+if any BUSY:
+    release acquired QLEK locks
+    ROLLBACK
+    release domain gate
+    return busy(qlek)
+
+recheck source not already reconciled
+recheck local current epoch unchanged
+newEpoch = currentEpoch + 1
+require safe integer
+
+append clearances, unresolved hazards and audit-only unarmed trajectories
+merge admissions and pending protocol-valid completions under T4 rules
+derive and append every canonical conflict pair
+append external-history reconciliation record
+append semantic_coordination_epochs(
+    newEpoch,
+    reason = external-reconciliation,
+    source_domain_id,
+    source_history_sha256
+)
+
+COMMIT
+release all QLEK locks
+release domain gate
+return reconciled(affectedQleks canonical sorted)
+```
+
+Change no GateARun `StateRevision`. Never copy an imported unarmed trajectory
+into local executions or `semantic_execution_bindings`; it is audit provenance
+only and never locally armable. After T5, future local work may create one fresh
+local trajectory only when no admission, conflict, hazard, or pending completion
+blocks K.
+
+Store an exact clearance even if it arrives before an older hazard export. An
+external hazard blocks iff its row exists and no matching clearance row exists;
+out-of-order source exports cannot resurrect a positively cleared hazard.
+
+## 25. Crash and capacity behavior
+
+```text
+T1 crash before grant commit
+→ no durable grant; OS releases lock
+
+T1 crash after grant commit
+→ grant remains; later T1 issues newer generation
+
+export/T5 crash before authoritative commit
+→ no epoch change; orphan CAS export bytes allowed
+
+export/T5 crash after authoritative commit
+→ epoch and all export/merge facts remain atomic
+→ every authority ref from the prior epoch is ineffective
+```
+
+No lock or counter wraps. Persist no live-lock state.
+
+## 26. C9-B construction classifications
+
+Record exactly these implementation-construction choices. None changes TURNLOCK
+or hostile-review semantics.
+
+### 26.1 Coherent domain
+
+```text
+statement:
+one configured stateRoot and its single authoritative campaign-state.sqlite form
+one coherent M2 Authoritative History domain for all GateARuns using that root;
+a random immutable SemanticAuthorityDomainId identifies the physical domain for
+cross-domain provenance but never enters QLEK
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+### 26.2 QLEK coordination
+
+```text
+statement:
+M2 realizes live QLEK exclusion through one short-lived domain coordination
+SQLite lock and one separately addressed per-QLEK SQLite lock while retaining all
+semantic truth exclusively in the existing authoritative campaign-state.sqlite
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+### 26.3 Separate global semantic projection
+
+```text
+statement:
+GateARunSnapshot remains run-local while M2 exposes SemanticQuestionStateV1 as a
+separate derived global QLEK projection; T1/T4/T5 global semantic transitions do
+not manufacture a GateARun StateRevision
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+### 26.4 Imported unarmed trajectory
+
+```text
+statement:
+during T5, foreign unarmed semantic trajectories are retained as audit history
+but none is imported as a locally armable Execution; later local work may create
+one fresh local trajectory only after the reconciled semantic state permits it
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+### 26.5 Epoch closure on export/reconciliation
+
+```text
+statement:
+semantic-history export and T5 each advance one domain-global coordination epoch
+while holding the domain/authoritative/QLEK coordination barrier so every
+pre-transition AdmissionAuthorityRef becomes ineffective without changing QLEK
+identity
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+## 27. Protocol activation and dependency boundary
+
+All protocol-v8 semantic operations remain inactive while
+`formal/verification.yaml` selects P6. P6 remains current, P7 remains
+permanently inactive, and P8 remains inactive. Administrative export/T5
+interfaces do not make P8 current.
+
+Do not select a SQLite package. GREEN remains blocked on
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE`, extended by section 12 and all schema-v2,
+coordination-database, dynamic per-QLEK connection, crash-release, WAL
+coexistence, deterministic multi-lock, non-blocking BUSY, and no-lease behavior
+specified here.
