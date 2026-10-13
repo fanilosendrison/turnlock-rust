@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-13"
 step_id: 2
 id: NIB-M-GATE-A-CONTRACTS
-version: "1.0.0"
+version: "1.1.0"
 scope: gate-a-campaign-runner/contracts
 status: active
 consumers: [architect, coding-agent]
@@ -18,6 +18,13 @@ superseded_by: []
 ## 1. Status, authority, and purpose
 
 Implement the first active Module Brief for undecomposed M0 `contracts`.
+
+Version `1.1.0` closes the two M5-A construction obligations omitted from
+version `1.0.0`: expose the exact `CampaignArtifactStore` TypeScript contract
+without implementing its effectful behavior, and provide exact structural
+runtime validation for execution-receipt schema v3 before M5-A sealing. This
+minor revision adds backward-compatible M0 contract surface and changes no
+identity, canonicalization, dependency, protocol, semantic, or authority rule.
 
 Consume exactly:
 
@@ -63,6 +70,9 @@ mechanically
 ProtocolV8CognitiveExecutionRole representation
 protocol-v8 semantic reference representations that are exact TypeScript
 mirrors of the published immutable schemas
+the exact CampaignArtifactStore TypeScript interface contract implemented by M2
+runtime structural validation of the exact execution-receipt schema-v3
+runner-side representation required by M5-A before sealing
 ```
 
 M0 may validate representation. M0 must not decide meaning.
@@ -129,6 +139,8 @@ deriveId
 deriveReviewCampaignId
 exact structural equality helpers selected by owning contracts
 root-preflight definition constants
+the exact CampaignArtifactStore TypeScript interface contract
+validateExecutionReceiptV3
 ```
 
 Perform no I/O while producing any output.
@@ -331,6 +343,7 @@ validateWorkItemRef
 validateExecutionRef
 validateWriteAuthorityRef
 validateAuthoritativeMutationRef
+validateExecutionReceiptV3
 ```
 
 Also expose runtime validators for every module-internal serialized schema whose
@@ -1131,6 +1144,8 @@ runtime validation of runner-owned serialized internal structures
 runtime validation of runner-owned CLI structures
 runtime structural/lexical validation of M0's exact runner-side mirrors of
 published P8 identity/reference forms
+runtime structural validation of M0's exact runner-side mirror of published
+execution-receipt schema v3
 ```
 
 Do not make Zod authority for:
@@ -1184,6 +1199,174 @@ Schema/Python validation as authority.
 Do not translate published protocol schemas into Zod and then treat the Zod
 result as equivalent protocol authority.
 
+### 29.1 Execution-receipt schema-v3 structural runtime contract
+
+Expose these strict runner-side structural TypeScript mirrors and exact
+validator:
+
+```ts
+interface ExecutionReceiptV3ArtifactReference {
+  readonly path: string;
+  readonly sha256: Sha256;
+}
+
+type ExecutionReceiptV3Role =
+  | "initial-reviewer"
+  | "materiality-assessor"
+  | "refutation-builder"
+  | "challenge"
+  | "discovery-classifier"
+  | "derivation-builder"
+  | "decision-necessity-challenger"
+  | "repair-synthesizer"
+  | "decision-projection";
+
+type ExecutionReceiptV3AttemptOutcome =
+  | "technical-failure"
+  | "protocol-invalid"
+  | "qualified";
+
+interface ExecutionReceiptV3Attempt {
+  readonly attempt_id: string;
+  readonly call_id: string;
+  readonly outcome: ExecutionReceiptV3AttemptOutcome;
+  readonly started_at: string;
+  readonly ended_at: string;
+  readonly provider_model: string | null;
+  readonly provider_response_id: string | null;
+  readonly termination: string | null;
+  readonly transport_attempt_count: number;
+  readonly raw_output:
+    ExecutionReceiptV3ArtifactReference | null;
+  readonly protocol_errors: readonly string[];
+}
+
+interface ExecutionReceiptV3ResolvedIdentity {
+  readonly provider: string;
+  readonly model: string;
+  readonly model_version: string;
+  readonly resolution_kind:
+    | "provider-reported"
+    | "pinned-request-model";
+  readonly evidence_attempt_id: string;
+}
+
+interface ExecutionReceiptV3 {
+  readonly receipt_schema_version: "3.0";
+  readonly execution_id: string;
+  readonly role: ExecutionReceiptV3Role;
+  readonly reviewer_profile_id: string;
+  readonly protocol_bundle_sha256: Sha256;
+  readonly input: {
+    readonly prompt: ExecutionReceiptV3ArtifactReference;
+    readonly packet: ExecutionReceiptV3ArtifactReference;
+  };
+  readonly isolated_context: true;
+  readonly cross_reviewer_visibility_before_seal: false;
+  readonly tools_enabled: false;
+  readonly runtime: {
+    readonly name: string;
+    readonly version: string;
+  };
+  readonly request: {
+    readonly provider: string;
+    readonly model: string;
+  };
+  readonly attempts: readonly ExecutionReceiptV3Attempt[];
+  readonly qualifying_attempt_id: string;
+  readonly resolved_identity: ExecutionReceiptV3ResolvedIdentity;
+}
+
+function validateExecutionReceiptV3(
+  value: unknown
+): ContractValidationResult<ExecutionReceiptV3>;
+```
+
+Bind the mirror and validator to exactly this published immutable schema:
+
+```text
+path:
+formal/reviews/schemas/execution-receipt-v3.schema.json
+
+SHA-256:
+7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72
+
+$id:
+urn:fanilosendrison:turnlock-rust:hostile-review-execution-receipt:3
+
+receipt_schema_version:
+3.0
+```
+
+Mirror every required field, closed-object boundary, primitive/container type,
+constant, enum, pattern, minimum, `minItems`, and conditional relation in that
+exact schema. In particular, enforce structurally:
+
+```text
+receipt, input, runtime, request, resolved_identity, attempt and artifact
+reference objects reject unknown properties
+
+attempts contains at least one attempt
+transport_attempt_count is an integer >= 1
+artifact-reference path is non-empty
+artifact-reference sha256 is exactly 64 lowercase hexadecimal characters
+
+outcome == technical-failure
+→ protocol_errors is empty
+→ raw_output is null
+
+outcome == protocol-invalid
+→ protocol_errors contains at least one non-empty string
+→ raw_output is an exact artifact reference
+
+outcome == qualified
+→ protocol_errors is empty
+→ raw_output is an exact artifact reference
+
+for each exact role restricted by the schema-v3 top-level conditional:
+    materiality-assessor
+    refutation-builder
+    discovery-classifier
+    derivation-builder
+    decision-necessity-challenger
+    repair-synthesizer
+    decision-projection
+→ attempt outcome is technical-failure or qualified
+```
+
+Preserve the exact schema-v3 role set, including historical
+`decision-projection`; do not substitute `ProtocolV8CognitiveExecutionRole` for
+the schema-v3 role contract.
+
+Implement this validator as a statically constructed strict Zod mirror. Perform
+no runtime file read, schema loading, Python invocation, repository access, or
+protocol-bundle lookup. A change to the bound schema path or SHA requires a
+later explicit M0 synchronization; do not dynamically accept another receipt
+schema version.
+
+Require M5-A to call `validateExecutionReceiptV3` after constructing the exact
+schema-v3 receipt and before canonical serialization or sealing. On an invalid
+result, fail closed through the owning M5-A implementation/integrity failure
+boundary. Produce no sealed receipt, receipt `ArtifactRef`, or receipt
+`EvidenceRef` from the invalid value.
+
+This validator establishes structural runtime validity only. It does not:
+
+```text
+establish hostile-review protocol validity
+classify an attempt as protocol-invalid or qualified
+prove attempt completeness, currentness, or admissibility
+establish model identity
+establish review evidence
+replace M5-A's exact receipt-construction bindings
+replace M6 classification
+replace the content-addressed JSON Schema or Python validator
+```
+
+Keep the published content-addressed JSON Schema, existing Python validation,
+and M6 mechanical/protocol classification authoritative. Zod success is only a
+pre-sealing fail-closed construction guard for the runner-owned in-memory value.
+
 ## 30. Protocol-v8 cognitive role
 
 Expose exactly:
@@ -1229,6 +1412,45 @@ null or non-empty string
 
 Do not verify bytes or read paths. Leave artifact existence and integrity to the
 owning module, `CampaignArtifactStore`, and M6.
+
+### 31.1 CampaignArtifactStore TypeScript contract
+
+Expose or re-export exactly this TypeScript interface under the exact accepted
+name:
+
+```ts
+interface CampaignArtifactStore {
+  sealRunnerArtifact(input: {
+    readonly bytes: Uint8Array;
+    readonly mediaType: string;
+  }): Promise<ArtifactRef>;
+
+  ingestReferencedArtifact(input: {
+    readonly ref: ArtifactRef;
+    readonly bytes: Uint8Array;
+  }): Promise<void>;
+
+  readVerified(ref: ArtifactRef): Promise<Uint8Array>;
+
+  verify(ref: ArtifactRef): Promise<void>;
+}
+```
+
+Treat
+`NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP` section 6 as the exact
+shape and behavior owner. Do not add, remove, rename, widen, narrow, default, or
+reinterpret a method, parameter, return value, or effect.
+
+M0 owns only the shared TypeScript declaration surface. Do not give this service
+interface a serialized runtime validator. M2 owns and provides the effectful
+implementation, immutable artifact durability, byte verification, CAS behavior,
+and every implementation/dependency failure. Inject the M2-provided
+implementation into M5-A and other consuming modules through this exact M0
+contract.
+
+Do not instantiate, wrap, call, implement, persist through, or perform I/O
+through `CampaignArtifactStore` in M0. Exporting the interface grants no
+artifact authority and no authoritative-state write access.
 
 ## 32. Revision and generation validation
 
@@ -1594,6 +1816,16 @@ Zod validation establishes representation validity only and never promotes a
 runner-side value into protocol, semantic, qualification or currentness
 authority.
 
+M0-23
+M0 exposes the exact CampaignArtifactStore TypeScript interface contract but
+performs none of its I/O; M2 remains the sole owner and provider of its effectful
+implementation.
+
+M0-24
+validateExecutionReceiptV3 fail-closes malformed in-memory receipt structures
+before M5-A sealing, but Zod validation never replaces the published
+content-addressed schema, Python validation or M6 protocol authority.
+
 M0-25
 Runner-produced ReviewCampaignId uses only the exact NIB-S
 (runId, S, P) logical slot and renders through REVIEW- plus the exact
@@ -1636,6 +1868,8 @@ perform Semantic Arm
 write M2 state
 perform M4 execution
 perform M5 qualification
+instantiate, implement or invoke CampaignArtifactStore
+classify execution-receipt protocol validity or evidence authority
 perform M6 repository validation
 perform M7 materialization
 perform M8 recovery
@@ -1717,6 +1951,14 @@ what the root-preflight definition bytes are
 how P8 semantic reference forms are represented
 which P8 identity lexical forms are valid
 why structural validation does not establish semantic authority
+that M0 exposes the exact CampaignArtifactStore TypeScript contract
+that M2 alone owns and provides CampaignArtifactStore's effectful implementation
+that M0 performs no CampaignArtifactStore I/O
+which exact immutable execution-receipt v3 schema the runtime validator mirrors
+how validateExecutionReceiptV3 fail-closes before M5-A serialization and sealing
+which exact schema-v3 structural and conditional constraints it enforces
+why receipt-v3 Zod success creates no hostile-review or evidence authority
+why schema/Python/M6 authority remains unchanged
 ```
 
-Implement no behavior beyond this contract during C9-A.
+Implement no behavior beyond this contract during C9-A.1.
