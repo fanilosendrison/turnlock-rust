@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "10.0.0"
+version: "11.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -24,7 +24,7 @@ It is implementation-construction authority only. It does not define TURNLOCK pr
 Its controlling technical inputs are:
 
 - `docs/specification/turnlock-spec.md`;
-- accepted ADR-041 through ADR-049, ADR-053, and ADR-054;
+- accepted ADR-041 through ADR-049 and ADR-053 through ADR-056;
 - `formal/verification.yaml`;
 - the content-addressed hostile-review protocol and evidence contracts under `formal/reviews/`;
 - the repository authority and validation rules in `AGENTS.md`.
@@ -788,6 +788,47 @@ none
 
 No product ADR is created.
 
+Version `11.0.0` is the C8 protocol-v8 System Brief synchronization.
+
+It consumes accepted ADR-055 and ADR-056 and the exact immutable inactive
+protocol-v8 construction produced by C1-C7.
+
+It does not activate protocol v8.
+
+P6 remains current.
+P7 remains permanently inactive.
+P8 remains inactive until the separate C15 activation transition.
+
+The M0-M8 module topology is unchanged.
+
+The revision assigns every protocol-v8 semantic/execution responsibility to
+the existing modules and removes same-root receipt ownership as the semantic
+dependency universe for P8.
+
+No persistence engine, SQL layout, physical QLEK lock, runtime public API,
+module-internal algorithm, Dependency Contract change, NIB-M algorithm,
+formal model, or production implementation is selected by this revision.
+
+The construction discovery classification recorded by this revision is:
+
+```text
+statement:
+accepted ADR-056 and closed protocol-v8 C1-C7 semantics require the existing
+Gate A runner architecture to distinguish global semantic-question/admission
+authority from GateARun-local progression authority and to permit semantic
+dependency reuse across run/root provenance without transferring predecessor
+receipt ownership
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
 ## 2. System objective
 
 Build one isolated TypeScript/Node assurance-tooling application that mechanically executes the accepted Gate A hostile-review protocol over exact candidate repository states, persists and recovers execution without fabricating external outcomes, applies only exact protocol-authorized repairs, starts a full new review campaign whenever a repair changes the semantic subject `S`, and publishes only an exact mechanically qualified candidate.
@@ -935,6 +976,70 @@ That new ReviewCampaign must execute every protocol-required current-`P` campaig
 
 Historical evidence remains immutable. No result produced under stale `P` satisfies a current-`P` campaign requirement except through an explicit stale-protocol re-adjudication path authorized by the accepted protocol.
 
+### 5.4 Protocol-v8 semantic identity and admission domain
+
+QLEK is global logical semantic-question identity under one coherent
+Authoritative History domain.
+
+QLEK is not:
+
+```text
+RunnerSessionId
+GateARunId
+ReviewCampaignId
+WorkItemId
+ExecutionId
+receipt identity
+root identity
+provider/model identity
+packet identity
+prompt identity
+```
+
+SemanticAdmission is the durable single-assignment semantic commitment:
+
+```text
+Admission : QLEK ⇀ SemanticCandidate
+```
+
+For one exact QLEK, zero or exactly one non-conflicting semantic candidate may
+be consumable.
+
+```text
+Same K + same V:
+one semantic admission, additional lawful provenance witnesses only.
+
+Same K + different V:
+semantic-admission integrity conflict; no winner selection.
+```
+
+SemanticFact is deterministic semantic closure reconstructed from exact
+Authoritative History.
+
+SemanticFact does not require a primitive persisted Fact object.
+
+CandidateRevision currentness is progression authorization, not semantic
+history.
+
+Candidate-independent Admissions/Facts remain reusable after candidate advance
+when their exact semantic identities still match.
+
+Candidate-bound Admissions remain immutable historical semantic truth after
+candidate advance but do not satisfy a new candidate-bound target merely because
+the underlying repository bytes are equal.
+
+The system authority dimensions are distinct:
+
+```text
+GateARun write authority
+!=
+QLEK semantic-execution/admission authority
+```
+
+Both remain implemented inside the existing M2 `campaign-state` module at the
+system architecture level. They are separate authority dimensions. No new module
+is created, and GateARun/root identity is not part of QLEK.
+
 ## 6. Candidate model
 
 Candidate identity belongs to the `GateARun`, not to a fixed semantic subject.
@@ -1029,6 +1134,36 @@ If the M6-derived successor subject changes, campaigns for the old subject
 become historical. If exact `(S, P)` is unchanged, candidate identity or
 construction provenance alone does not make a campaign stale.
 
+For protocol-v8 candidate-bound semantic work, system ownership is exact:
+
+```text
+M5 owns candidate-bound semantic-question derivation.
+
+M7 supplies exact CandidateView/materialization facts.
+
+M6 validates CandidateView and candidate bindings.
+
+M3 supplies exact current S/P/currentness authority.
+
+M1 performs required fresh pre-dispatch currentness revalidation.
+
+M2 atomically linearizes the final admissibility check with Semantic Arm.
+```
+
+The required reuse and binding behavior is:
+
+```text
+candidate-independent K
+→ may be reused after candidate advance when identity remains exact
+
+candidate-bound K(C17)
+→ Admission remains historical after C18
+→ cannot satisfy K(C18)
+
+C17 and C18 remain distinct CandidateRevision authorities even when their bytes
+are identical
+```
+
 ## 7. Authoritative state model
 
 Authoritative runner state is not a single lifecycle enum.
@@ -1051,6 +1186,44 @@ publication records
 operator-resolution records
 terminal/supersession facts
 ```
+
+Authoritative History also carries the exact global protocol-v8 semantic
+commitments needed to reconstruct:
+
+```text
+AdmissionAuthority grants/generations per QLEK
+SemanticExecutionBinding(Execution, QLEK)
+SemanticArmBinding(Execution, QLEK, generation)
+SemanticAdmission
+lawful SemanticAdmission origin witnesses
+SemanticAdmissionConflict
+semantic hazard / hazard-clearance authority derived from accepted M2/M4/M8
+history
+```
+
+These commitments may relate Executions/Admissions whose provenance belongs to
+different GateARuns or evidence roots.
+
+Global semantic identity is not partitioned by GateARun.
+
+GateARun-local progression remains reconstructible independently.
+
+Currentness and immutable semantic history retain separate owners:
+
+```text
+M3 owns current S/P/campaign currentness.
+
+M2 owns immutable semantic history.
+
+M5 owns protocol-defined applicability/consumption of exact semantic identities.
+```
+
+Candidate or campaign staleness never deletes SemanticAdmission.
+
+A lawful protocol-valid completion for a historically lawful old candidate MUST
+still reconcile into its exact historical Admission.
+
+Historical admission does not automatically satisfy a new current target.
 
 The following are derived projections only:
 
@@ -1147,6 +1320,30 @@ Independent parallelism is expressed as independent WorkItems.
 A hostile challenge is a different cognitive WorkItem and therefore has a
 different logical execution-receipt identity from the execution it challenges.
 
+For every native protocol-v8 semantic WorkItem/Execution:
+
+```text
+exact SemanticQuestionContract
++
+exact logical semantic inputs
+→ exact LogicalQuestionDescriptor
+→ exact QLEK
+```
+
+Every runner Execution used for that one logical semantic execution binds the
+same exact QLEK.
+
+Every protocol attempt / receipt attempt for that logical semantic execution
+binds that same QLEK.
+
+Receipt identity and execution provenance do not enter QLEK.
+
+Receipt ownership is provenance/audit ownership, not semantic predecessor
+availability.
+
+This protocol-v8 binding does not reinterpret the historical/current P1-P6
+receipt-attempt hierarchy above.
+
 ### 8.5 WorkItem satisfaction
 
 A terminal or transport-successful Execution does not by itself satisfy its WorkItem.
@@ -1183,6 +1380,29 @@ The runner must not treat any of the following as implicit authority:
 * a result merely because the Pi M4 adapter returned successfully.
 
 A cognitive execution cannot be the sole authority that both proposes a semantic claim and certifies that claim as sufficient for progression.
+
+For P8 the exact cognitive authority chain is:
+
+```text
+cognitive execution
+→ sealed exact completion
+→ deterministic protocol validation
+→ protocol-valid SemanticCandidate V
+→ mandatory completion/admission reconciliation
+→ SemanticAdmission(K,V)
+→ deterministic SemanticFact / qualification derivation where applicable
+→ downstream semantic consumption
+```
+
+The following distinctions are mandatory:
+
+```text
+protocol-valid != semantically qualified
+receipt existence != SemanticAdmission
+supplement existence != SemanticAdmission
+supplement existence != SemanticFact
+repository locator/root ownership != semantic identity
+```
 
 ## 10. Pipeline architecture
 
@@ -1304,6 +1524,49 @@ post-publication repository validation
 GATE-A-READY
 ```
 
+### Protocol-v8 semantic execution lane — inactive until explicit activation
+
+This system ordering applies when and only when exact current `P` is the
+published P8 bundle:
+
+```text
+M5 derives required semantic question from accepted protocol authority
+→
+M5 binds exact semantic inputs and derives LogicalQuestionDescriptor/QLEK
+→
+M6 independently validates descriptor/QLEK identity
+→
+M2 resolves coherent Authoritative History for exact K
+→
+if exact consumable Admission/Fact already exists:
+    reuse it
+    no provider dispatch
+else:
+    M2 establishes/returns exact live AdmissionAuthority generation for K
+    M1 prepares exact authorized WorkItem/Execution
+    M1 performs required fresh candidate/currentness checks
+    M2 atomically Arms normal Execution + exact SemanticArmBinding(E,K,g)
+    M4 may cross provider effect boundary only after successful Arm
+    M4 captures exact completion/provenance
+    M6 deterministically validates exact completion
+    if protocol-valid V:
+        M2 MUST reconcile V to Admission(K,V) or exact conflict
+        even if the originating candidate/run progression later became stale
+    M5 consumes only exact consumable Admission/Fact closure
+```
+
+No new semantic execution for K may be dispatched merely because the prior
+Execution belongs to another GateARun/root.
+
+No fresh sample may replace an unreconciled protocol-valid completion.
+
+No fresh sample may replace an unresolved possibly-dispatched semantic execution
+while semantic hazard remains.
+
+P6 remains the currently active pipeline. This inactive lane neither replaces
+nor reinterprets that pipeline and cannot become active except through the
+separate authorized C15 transition.
+
 The orchestrator may schedule independent enabled WorkItems concurrently where their contracts permit it.
 
 Concurrency must not change the authoritative order of admitted facts or allow more than one authoritative writer.
@@ -1323,6 +1586,26 @@ Owns:
 * opaque identity/ref types;
 * normal external result schemas.
 
+For P8, M0 owns cross-module representation and runtime validation of:
+
+```text
+SemanticQuestionContractRevision identity
+LogicalQuestionDescriptorV1
+QLEK
+SemanticValueRefV1
+SemanticAdmissionRefV1
+SemanticFactRefV1
+ExactAuthorityRefV1
+QualificationKeyRefV1
+QLEK-bound execution/admission-authority/fencing references
+candidate-view semantic bindings
+```
+
+These representations MUST remain isomorphic to the exact published P8
+representation contracts where such published schemas exist.
+
+M0 does not decide semantic equality or qualification truth.
+
 It performs no I/O and makes no progression decisions.
 
 ### M1 — `orchestrator`
@@ -1338,13 +1621,33 @@ Owns:
 
 It may choose scheduling order among already-authorized WorkItems according to later NIB-M policy.
 
+M1 sequences the P8 reuse-first semantic work path.
+
+M1 never chooses semantic equivalence.
+
+Before any new semantic provider dispatch M1 must orchestrate:
+
+```text
+required-work derivation
+→ existing exact Admission/Fact lookup/reuse
+→ exact AdmissionAuthority acquisition
+→ fresh required currentness checks
+→ exact M2 Semantic Arm
+→ M4 dispatch
+```
+
+M1 must route completion/admission reconciliation before authorizing a
+replacement semantic execution for the same K.
+
+M1 does not commit SemanticAdmission or SemanticFact truth itself.
+
 It may not invent WorkItems or semantic transitions.
 
 ### M2 — `campaign-state`
 
 Owns:
 
-* durable `GateARun` authoritative history;
+* GateARun-local Authoritative History;
 * atomic new-run creation plus initial fenced write-ownership acquisition;
 * immutable artifact references;
 * authoritative state revision;
@@ -1352,7 +1655,27 @@ Owns:
 * atomic authoritative transitions;
 * stable logical identity registration;
 * snapshot/projection reconstruction;
-* integrity verification of retained provenance.
+* integrity verification of retained provenance;
+* the coherent global protocol-v8 SemanticAdmission namespace;
+* single-assignment `Admission(K)=V`;
+* AdmissionAuthority generations/fencing state per K;
+* SemanticExecutionBinding;
+* atomic SemanticArmBinding with the existing normal Execution Arm transition;
+* origin-witness admission;
+* SemanticAdmissionConflict admission;
+* completion-to-admission reconciliation;
+* cross-domain semantic-history reconciliation;
+* crash-safe reconstruction of all preceding authority.
+
+M2 is the sole authoritative state writer.
+
+Normal `M2 Arm(E)` and `SemanticArmBinding(E,K,g)` are one atomic authoritative
+transition for a native P8 semantic Execution. No partial state is lawful.
+
+M2 does not require a primitive persisted SemanticFact object.
+
+Fact closure may be derived/disposable so long as it is exactly reconstructible
+from Authoritative History.
 
 Only M2 commits authoritative runner-state mutations.
 
@@ -1388,7 +1711,16 @@ M3 does not own:
 
 * `ResolutionContextV1` construction;
 * resolution-subject interpretation;
-* candidate-bound repair realization selection.
+* candidate-bound repair realization selection;
+* QLEK equality;
+* SemanticAdmission;
+* SemanticFact derivation;
+* qualification reduction;
+* cross-run semantic reuse decisions;
+* candidate-bound semantic-question identity;
+* resolution semantics.
+
+M3 supplies exact authority/currentness inputs downstream only.
 
 M3 must NOT retarget a `ReviewCampaign`.
 
@@ -1404,6 +1736,28 @@ Owns:
 * exact attempt artifacts and runtime metadata needed to preserve pre-receipt
   history and later assemble execution receipts;
 * secret injection into the LLM dependency boundary.
+
+For P8 every native semantic execution crossing the M4 provider boundary must
+already be bound to:
+
+```text
+exact QLEK
+exact Execution identity
+exact admission-authority/fencing generation
+exact prompt realization
+exact packet realization
+```
+
+M4 does not decide semantic equality.
+
+M4 does not create SemanticAdmission.
+
+M4 does not create SemanticFact.
+
+M4 does not discard an exact protocol-valid completion because candidate/run
+progression later became stale.
+
+M4 preserves existing MAYBE-SENT / terminal / recovery truth semantics.
 
 It does not adjudicate semantic correctness.
 
@@ -1432,6 +1786,35 @@ Owns:
 * exact assurance repository projection selection from immutable M5 evidence;
 * explicit finding, evidence, adjudication, re-adjudication, obligation-disposition, RepairIntent, assurance-projection, and Decision Request products for M2 admission;
 * determination that a candidate and its complete current/contributing campaign sets are ready to be submitted to mechanical Gate A validation.
+
+M5 is the primary owner of protocol-derived semantic work and qualification.
+
+Its P8 system responsibilities are exactly:
+
+```text
+required semantic-question derivation
+exact SemanticQuestionContract/input binding
+LogicalQuestionDescriptor/QLEK derivation
+semantic predecessor requirements
+exact consumable SemanticAdmission consumption
+exact SemanticFact requirement/consumption
+cross-run reuse
+cross-root reuse
+qualification closure
+challenge requirements
+bounded revision progression
+candidate-bound semantic-question progression
+candidate-bound resolution progression
+currentness/applicability interpretation using exact current authority inputs
+mechanical Decision Request projection from qualified decision necessity
+```
+
+M5 consumes exact Admissions/Facts rather than predecessor receipt ownership as
+semantic authority.
+
+M5 never transfers predecessor receipt ownership into the consuming run/root.
+
+M5 does not use receipt/root/campaign provenance to manufacture another QLEK.
 
 It does not perform LLM calls.
 
@@ -1465,6 +1848,27 @@ Owns:
 * admission-ready mechanical result artifacts;
 * final mechanical Gate A qualification request for one exact sealed candidate;
 * post-publication repository validation request.
+
+For P8, M6 additionally owns mechanical validation of:
+
+```text
+LogicalQuestionDescriptor structural/canonical validation
+QLEK recomputation
+SemanticAdmission origin-evidence binding validation
+completion-to-admission evidence consistency
+FactId reconstruction
+QualificationKey reconstruction
+qualification reducer input validation
+SemanticFact reconstructibility/soundness
+CandidateView integrity
+candidate-bound identity bindings
+P8 packet/output schemas
+P8 repository projections
+P8 bundle/evidence validation
+```
+
+M6 does not invent semantic equivalence, semantic candidates, qualification
+meaning, or currentness.
 
 M6 establishes mechanically validated facts.
 
@@ -1564,6 +1968,17 @@ M7 → repository-control publication WorkItem bound to one exact
      PublicationIntent
 ```
 
+M7 remains repository-fact/materialization authority.
+
+For P8 candidate-bound semantic questions requiring CandidateView, M7 constructs
+the exact view from the exact sealed CandidateRevision materialization under the
+explicit coverage specification supplied by the semantic contract.
+
+M7 does not decide whether two CandidateRevisions are semantically equivalent.
+
+Distinct nominal CandidateRevision identities remain distinct even if repository
+bytes are equal.
+
 It does not synthesize repairs.
 
 It does not modify accepted patches.
@@ -1581,6 +1996,30 @@ Owns:
 * operator-resolution ingestion;
 * operational supersession of unresolved executions when explicitly authorized;
 * durable Decision Request and Operator Action Request presentation artifacts.
+
+M8 retains execution uncertainty/recovery classification.
+
+For an Armed P8 QLEK-bound semantic Execution:
+
+```text
+ordinary uncertainty
+UNRESOLVABLE
+operator acknowledgement
+progression supersession
+candidate staleness
+run termination
+absence of Admission
+```
+
+do NOT by themselves clear semantic sampling hazard.
+
+`PROVEN-NOT-EXECUTED` or another exact P8-authorized hazard-clearance fact is
+required before the corresponding replacement path may be considered.
+
+Generic `authorize-uncertain-execution-replacement` MUST NOT authorize another
+semantic sample for the same P8 QLEK while semantic hazard remains.
+
+M8 does not create semantic truth.
 
 It does not answer a Decision Request.
 
@@ -1631,6 +2070,16 @@ type CognitiveExecutionRole =
   | "decision-necessity-challenger"
   | "repair-synthesizer"
   | "decision-projection";
+
+type ProtocolV8CognitiveExecutionRole =
+  | "initial-reviewer"
+  | "materiality-assessor"
+  | "refutation-builder"
+  | "challenge"
+  | "discovery-classifier"
+  | "derivation-builder"
+  | "decision-necessity-challenger"
+  | "repair-synthesizer";
 
 interface ObligationRef {
   readonly obligationId: ObligationId;
@@ -3346,6 +3795,26 @@ challenge:
 ```
 
 No other role/context combination is valid.
+
+The existing broad `CognitiveExecutionRole` inventory remains historical and
+P6-compatible.
+
+For exact P8:
+
+```text
+decision-projection is NOT a protocol-v8 cognitive role.
+
+Historical/current protocol versions that lawfully name decision-projection
+remain interpretable under their exact protocol.
+
+Under P8, Decision Request projection is mechanical after qualified decision
+necessity and creates no decision-projection cognitive WorkItem.
+```
+
+The accepted immutable `ReviewContext` versus current-candidate
+`ResolutionContextV1` separation remains unchanged. For exact P8,
+`decision-projection` is forbidden and Decision Request projection is mechanical;
+the broad role inventory above remains historical/P6-compatible.
 
 ```ts
 interface RepositoryReviewObservationV1 {
@@ -6588,7 +7057,19 @@ Mutable Execution Workspace
 
 ### Authoritative History
 
-Contains the facts and references required to reconstruct authoritative `GateARun` state.
+Authoritative History contains both:
+
+```text
+run-scoped authoritative progression required to reconstruct GateARuns
+
+and
+
+the coherent protocol-v8 semantic authority needed to reconstruct global
+QLEK/Admission/fencing/conflict closure across runs/roots
+```
+
+GateARun-local progression remains independently reconstructible without
+partitioning global semantic identity by GateARun.
 
 ### Immutable Durable Artifacts
 
@@ -6602,7 +7083,13 @@ Contains immutable material such as:
 * decision/operator request artifacts;
 * provenance material.
 
-Durability does not itself grant authority.
+Immutable Durable Artifacts may contain receipts, raw completions, witnesses and
+repository projections.
+
+Persistence alone grants no semantic authority.
+
+Repository projection location and receipt ownership do not partition the
+semantic namespace.
 
 ### Mutable Execution Workspace
 
@@ -6900,6 +7387,24 @@ Stale-protocol findings over the same `S` retain the current re-adjudication req
 The runner must preserve exact one-to-one raw finding normalization.
 
 It may not semantically merge or deduplicate raw findings when the current evidence contract forbids that transformation.
+
+P8 ReviewCampaign owns initial-review production provenance.
+
+P8 ReviewCampaign does not own post-review semantic execution closure.
+
+P8 FindingAdjudicationSupplementV2 is an immutable repository projection of an
+already-established effective semantic adjudication.
+
+It is not semantic truth authority.
+
+Semantic predecessor availability is derived from exact consumable
+Admission/Fact closure in Authoritative History, not from same-root receipt
+ownership.
+
+A consuming run/root does not acquire predecessor receipt ownership.
+
+Additional lawful provenance witnesses for an existing exact Admission do not
+change the semantic result or a correct supplement projection.
 
 ## 24. Repair boundary
 
@@ -9474,6 +9979,71 @@ RepairIntent or approved patch for the successor candidate.
 GI-105
 At most one candidate-bound automatic repair realization is enabled for
 materialization at a time; scheduler timing cannot determine repair order.
+
+GI-106 QLEK identity is independent of GateARun, evidence root, receipt,
+       provider/model, packet locator, prompt locator and execution provenance.
+
+GI-107 M2 preserves at most one consumable semantic candidate per exact QLEK in
+       one coherent Authoritative History domain; same K/different V is an
+       integrity conflict with no winner selection.
+
+GI-108 GateARun write authority and AdmissionAuthority are distinct authority
+       dimensions even though M2 owns both at system level.
+
+GI-109 Every native P8 semantic Execution is bound to exactly one QLEK before
+       provider dispatch.
+
+GI-110 Normal M2 Arm and SemanticArmBinding(E,K,g) are atomic; no partial
+       semantic/non-semantic Arm state is lawful.
+
+GI-111 An admitted QLEK cannot dispatch another semantic execution.
+
+GI-112 A protocol-valid completion for K must reconcile to Admission(K,V), the
+       same already-existing Admission(K,V), or exact SemanticAdmissionConflict;
+       it cannot be discarded in favor of resampling.
+
+GI-113 Candidate/run/progression staleness does not erase the reconciliation
+       obligation for an already-lawful protocol-valid completion.
+
+GI-114 Semantic consumers use only exact consumable Admissions/Facts.
+
+GI-115 SemanticFact identity and soundness are reconstructible from exact
+       Authoritative History and do not require same-root receipt ownership or a
+       primitive persisted Fact object.
+
+GI-116 Cross-run and cross-root semantic reuse is mandatory when exact semantic
+       identity matches and the referenced Admission/Fact is consumable.
+
+GI-117 Reusing semantic truth never transfers predecessor receipt ownership to
+       the consuming run/root.
+
+GI-118 Candidate-independent semantic identity may survive candidate advance;
+       candidate-bound semantic identity never silently rebinds to another
+       CandidateRevision.
+
+GI-119 Distinct nominal CandidateRevision identities remain distinct semantic
+       authorities even when their materialized repository bytes are equal.
+
+GI-120 An Armed P8 semantic Execution retains semantic sampling hazard until
+       exact accepted hazard-clearance authority exists; UNRESOLVABLE,
+       acknowledgement, staleness or progression supersession alone do not
+       authorize resampling.
+
+GI-121 M3 owns S/P/currentness but not QLEK equality, SemanticAdmission,
+       SemanticFact or qualification semantics.
+
+GI-122 M5 derives/consumes protocol semantic work; M6 validates exact mechanical
+       identity/soundness; neither may replace M2 as authoritative semantic-state
+       writer.
+
+GI-123 P8 FindingAdjudicationSupplementV2 is a repository projection of semantic
+       truth and never its source.
+
+GI-124 decision-projection is not a P8 cognitive role; a P8 Decision Request is
+       mechanically projected only from qualified decision necessity.
+
+GI-125 P8 cannot become current implicitly. Until explicit C15 activation, P6
+       remains current and P8 behavior remains inactive construction authority.
 ```
 
 ## 40. Cross-cutting policies
@@ -9626,6 +10196,44 @@ A resolution execution against a later current candidate uses a fresh
 Candidate-bound `RepairIntent`/patch material may never be carried across a
 candidate boundary by rebasing or retargeting.
 
+### CP-17 — Reuse semantic truth before dispatch
+
+For exact P8 semantic work, exact consumable Admission/Fact reuse is attempted
+before any new semantic provider dispatch.
+
+A root/run mismatch is not a reason to resample.
+
+### CP-18 — QLEK fencing is global semantic coordination
+
+Per-GateARun write ownership does not serialize QLEK globally.
+
+M2 owns separate AdmissionAuthority generation/fencing for exact K.
+
+### CP-19 — Completion reconciliation is mandatory
+
+An exact protocol-valid completion is not optional evidence.
+
+It must reconcile to exact Admission or conflict even when progression no longer
+wants the result.
+
+### CP-20 — Receipt ownership is provenance only
+
+Receipt/root ownership never defines semantic predecessor availability and is
+never transferred merely because another run/root consumes the same exact
+semantic truth.
+
+### CP-21 — Candidate binding is nominal
+
+Candidate-bound semantic identity uses exact CandidateRevision authority, not
+repository-content equality.
+
+### CP-22 — Inactive P8 cannot self-activate
+
+Published/validated P8 artifacts and synchronized construction briefs do not make
+P8 current.
+
+Only the separate authorized activation transition may change current P.
+
 ## 41. NIB-M decomposition required by this System Brief
 
 Issue #30 must produce active NIB-M coverage for exactly these implementation modules:
@@ -9715,6 +10323,20 @@ when Operator Action is required
 what mechanically qualifies a candidate
 which explicit M5 ledger products cross the module boundary
 how exact cognitive retry authorization crosses from M5 to M2 and is consumed once
+where QLEK identity is constructed, represented and validated
+where global SemanticAdmission authority lives
+how AdmissionAuthority differs from GateARun write ownership
+how a semantic Execution is bound/fenced before dispatch
+how cross-run/root semantic reuse works without receipt ownership transfer
+how SemanticFact is reconstructed and consumed
+how candidate-independent versus candidate-bound reuse differs
+how CandidateView reaches candidate-bound semantic derivation
+how stale historical completions are reconciled
+how SemanticAdmissionConflict is represented as authority rather than winner
+selection
+how M8 recovery interacts with semantic sampling hazard
+why decision-projection is not a P8 cognitive role
+why P8 remains inactive despite complete artifacts and synchronized NIB-S
 how M4 distinguishes no-response technical failure from uncertainty
 how M4 and M7 positively establish safe re-observability for pending and executor-domain recovery indeterminacy for unknown
 how executor-domain recovery exhaustion differs from M8 automatic-policy exhaustion and no-capability direct UNRESOLVABLE
