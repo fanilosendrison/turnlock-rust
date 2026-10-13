@@ -1,0 +1,1722 @@
+---
+okf_version: "1.0"
+kind: "RuntimeArtifact"
+format: "nib-module"
+workspace: "turnlock-rust"
+date: "2026-10-13"
+step_id: 2
+id: NIB-M-GATE-A-CONTRACTS
+version: "1.0.0"
+scope: gate-a-campaign-runner/contracts
+status: active
+consumers: [architect, coding-agent]
+superseded_by: []
+---
+
+# NIB-M — Gate A Contracts
+
+## 1. Status, authority, and purpose
+
+Implement the first active Module Brief for undecomposed M0 `contracts`.
+
+Consume exactly:
+
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+accepted ADR-041 through ADR-049
+accepted ADR-053 through ADR-056
+closed protocol-v8 C1-C7 construction
+```
+
+Implement construction contracts only. Create no:
+
+```text
+TURNLOCK product semantics
+canonical formal semantics
+hostile-review protocol semantics
+formal-assurance claims
+review evidence
+verification evidence
+product ADR
+```
+
+Keep P6 current, P7 permanently inactive, and P8 inactive. Do not activate P8.
+
+Do not decompose M0. Create no M0-A or M0-B sub-brief or implementation
+responsibility.
+
+## 2. Module responsibility
+
+Make M0 own exactly:
+
+```text
+cross-module TypeScript contract declarations
+runtime structural validation for runner-owned serialized contract forms
+runtime lexical validation for opaque runner IDs and protocol-v8 semantic
+identity/reference strings
+canonical runner-owned JSON serialization
+pure deterministic runner orchestration ID derivation
+the exact immutable root-preflight obligation-definition value and canonical
+bytes
+pure equality/helpers required to compare already-valid contract values
+mechanically
+ProtocolV8CognitiveExecutionRole representation
+protocol-v8 semantic reference representations that are exact TypeScript
+mirrors of the published immutable schemas
+```
+
+M0 may validate representation. M0 must not decide meaning.
+
+## 3. Prohibited module responsibilities
+
+Perform no:
+
+```text
+I/O
+state mutation
+repository access
+Git access
+Python invocation
+provider/model invocation
+currentness decision
+semantic-question derivation
+semantic equality decision
+qualification reduction
+SemanticAdmission mutation
+SemanticFact derivation
+CandidateView construction
+recovery classification
+scheduling
+orchestration
+```
+
+Keep all effectful operations and authoritative decisions in their NIB-S-owned
+modules.
+
+## 4. System-level cross-module contract ownership
+
+Treat NIB-S 11.0.0 sections 12 through 16 as the canonical system-level
+cross-module shape authority.
+
+Implement those exact declarations. Do not add, remove, rename, widen, narrow,
+default, reinterpret, or silently normalize a field defined by NIB-S.
+
+Make the source implementation contain or re-export exact structural TypeScript
+counterparts for every cross-module data type in NIB-S sections 12 through 16.
+Export those types under their exact accepted names. Do not duplicate those
+thousands of lines in this brief.
+
+Where a later active NIB-M owns a more specific internal serialized type,
+provide its runtime validator only from that exact accepted type definition.
+Do not make M0 the semantic owner of that type.
+
+Treat service and module interfaces as TypeScript contracts. Do not give an
+interface a serialized runtime validator merely because it is an interface.
+
+## 5. Inputs and outputs
+
+Consume only in-memory unknown values or already-valid immutable values supplied
+by callers.
+
+Export:
+
+```text
+exact NIB-S section 12-16 TypeScript declarations
+Zod-backed runtime validators for runner-owned serialized forms
+normalized ContractValidationResult values
+CanonicalRunnerJsonBytesV1
+deriveId
+deriveReviewCampaignId
+exact structural equality helpers selected by owning contracts
+root-preflight definition constants
+```
+
+Perform no I/O while producing any output.
+
+## 6. Runtime validation result
+
+Expose exactly:
+
+```ts
+interface ContractValidationIssueV1 {
+  readonly path: string;
+  readonly code:
+    | "TYPE"
+    | "REQUIRED"
+    | "UNEXPECTED-PROPERTY"
+    | "FORMAT"
+    | "ENUM"
+    | "RANGE"
+    | "DUPLICATE"
+    | "ORDER"
+    | "CROSS-FIELD"
+    | "UNSUPPORTED-VERSION";
+}
+
+type ContractValidationResult<T> =
+  | {
+      readonly kind: "valid";
+      readonly value: T;
+    }
+  | {
+      readonly kind: "invalid";
+      readonly issues: readonly ContractValidationIssueV1[];
+    };
+```
+
+Represent `path` as an RFC 6901 JSON Pointer. Represent the root path as the
+empty string:
+
+```text
+""
+```
+
+Escape `~` as `~0` and `/` as `~1` in a pointer token. Render an array index as
+its canonical non-negative decimal index.
+
+Never expose a Zod-native error, issue, schema, or parser result through the M0
+public module boundary.
+
+## 7. Validation issue normalization
+
+Map validation failures exactly:
+
+```text
+missing required property
+→ REQUIRED
+
+wrong primitive/container type
+→ TYPE
+
+unknown property in closed object
+→ UNEXPECTED-PROPERTY
+
+regex/lexical/representation failure
+→ FORMAT
+
+invalid closed enum/literal choice
+→ ENUM
+
+invalid supported-version discriminator
+→ UNSUPPORTED-VERSION
+
+numeric bound failure
+→ RANGE
+
+duplicate member where uniqueness is required
+→ DUPLICATE
+
+canonical ordering violation
+→ ORDER
+
+exact multi-field consistency violation
+→ CROSS-FIELD
+```
+
+For an unknown property, report the pointer to that property, not only the
+pointer to its containing object.
+
+Sort normalized issues by:
+
+```text
+RFC 6901 path, compared by UTF-8 unsigned bytes ascending
+then issue code, compared by ASCII bytes ascending
+```
+
+Suppress duplicate identical `(path, code)` pairs. Return at least one issue for
+every invalid result.
+
+## 8. Runtime validation behavior
+
+Use safe parsing for every untrusted runtime input. Never use exception-based
+malformed-input control flow.
+
+Make every runtime validator:
+
+```text
+deterministic
+non-throwing merely because untrusted input is malformed
+non-mutating
+closed to unexpected object properties
+non-coercing
+non-defaulting
+non-transforming
+non-normalizing
+non-repairing
+```
+
+Never:
+
+```text
+insert a default
+delete or strip an unknown field
+pass an unknown field through
+coerce string ↔ number ↔ boolean
+normalize Unicode
+reorder a semantic array
+repair an invalid structure
+supply a catch/fallback value
+```
+
+For a closed M0 contract object:
+
+```text
+unexpected key
+→ validation failure
+```
+
+Never implement:
+
+```text
+unexpected key
+→ silently discarded
+```
+
+## 9. Zod usage discipline
+
+Use Zod schemas as the runtime validator engine. Forbid behavior equivalent to:
+
+```text
+z.coerce.*
+.default(...)
+.catch(...)
+.transform(...)
+object passthrough
+object strip semantics for closed contract objects
+```
+
+Use strict closed object validation. Use refinements or custom checks only to
+implement exact representation constraints already fixed by NIB-S or an active
+NIB-M. Do not invent a semantic rule in a refinement or custom check.
+
+Apply the pipeline in this order whenever a pure canonical or ID helper requires
+validated input:
+
+```text
+Zod-backed M0 runtime validation
+→ validated exact runner-owned representation
+→ pure M0 canonical/ID helper
+```
+
+Do not replace canonicalization or ID algorithms with Zod behavior.
+
+## 10. Validator export naming
+
+For each cross-module serialized data type `T` defined by NIB-S sections 12
+through 16, export:
+
+```text
+validate<T>
+```
+
+with conceptual signature:
+
+```ts
+function validateT(
+  value: unknown
+): ContractValidationResult<T>;
+```
+
+Include at least:
+
+```text
+validateArtifactRef
+validateRepositoryAuthorityRef
+validateSemanticSubjectRef
+validateProtocolBundleRef
+validateCandidateRevisionRef
+validateReviewCampaignRef
+validateObligationRef
+validateWorkItemRef
+validateExecutionRef
+validateWriteAuthorityRef
+validateAuthoritativeMutationRef
+```
+
+Also expose runtime validators for every module-internal serialized schema whose
+active NIB-M explicitly assigns runtime validation to final M0 closure. Derive
+each validator from its owning active NIB-M definition. Do not transfer shape or
+semantic ownership to M0.
+
+## 11. Opaque runner-ID validation
+
+Validate every runner opaque ID as a string satisfying:
+
+```text
+non-empty
+contains no NUL
+contains no CR
+contains no LF
+```
+
+Apply every stronger exact lexical contract fixed by accepted construction.
+Do not require every runner-internal opaque ID to be SHA-derived.
+
+Validate `GateARunId` exactly with:
+
+```text
+^RUN-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+```
+
+Validate `Sha256` exactly with:
+
+```text
+^[0-9a-f]{64}$
+```
+
+## 12. Canonical runner JSON value domain
+
+Define `CanonicalRunnerJsonBytesV1(value)` over exactly:
+
+```text
+null
+boolean
+string
+finite safe integer
+array
+plain JSON object
+```
+
+Accept a plain object only when its prototype is `Object.prototype` or `null`
+and every own property is an enumerable string-keyed data property. Reject
+symbol keys, non-enumerable own properties, accessors, and inherited data.
+
+Reject:
+
+```text
+undefined
+bigint
+NaN
+Infinity
+-Infinity
+non-integer number
+negative zero
+function
+symbol
+Date
+Map
+Set
+typed array
+class instance
+other non-plain prototype object
+cyclic graph
+string containing an unpaired UTF-16 surrogate
+```
+
+Never invoke an accessor while inspecting an invalid value. Read only own data
+properties. Reject sparse arrays because a missing element is not an accepted
+value.
+
+## 13. Canonical runner JSON serialization
+
+Serialize recursively and purely.
+
+Order object keys by exact UTF-8 unsigned-byte lexicographic order. Preserve
+array order exactly. Never generic-sort an array.
+
+Do not normalize Unicode. Emit every non-ASCII Unicode scalar directly as
+UTF-8. Escape strings exactly as follows:
+
+```text
+quotation mark → \"
+reverse solidus → \\
+U+0008 → \b
+U+0009 → \t
+U+000A → \n
+U+000C → \f
+U+000D → \r
+other U+0000 through U+001F → \u00xx with lowercase hexadecimal digits
+```
+
+Do not escape solidus. Reject unpaired UTF-16 surrogates before encoding.
+
+Require every number to satisfy:
+
+```text
+Number.isSafeInteger(value) == true
+Object.is(value, -0) == false
+```
+
+Render numbers in canonical base-10 JSON integer spelling with no leading plus,
+no leading zero except `0`, no decimal point, and no exponent.
+
+Emit no insignificant whitespace and no trailing newline. Return the exact
+UTF-8 bytes. The same accepted value must produce byte-identical bytes.
+
+## 14. Runner JSON is not semantic canonical JSON
+
+Enforce:
+
+```text
+CanonicalRunnerJsonBytesV1
+!=
+protocol-v8 CanonicalJsonValueBytesV1 semantic identity authority
+```
+
+Use the runner serializer only for runner-owned construction artifacts and the
+runner ID frame fixed by this brief.
+
+Do not redefine the semantic canonicalization, `IdentityHashV1`, QLEK, FactId,
+SemanticAdmissionId, or QualificationKey semantics closed by C2-C4 and
+mechanically validated by M6. M0 may structurally and lexically validate their
+representations only.
+
+## 15. Runner ID hash frame
+
+Define:
+
+```text
+RunnerIdHashV1(domain, components)
+```
+
+Require:
+
+```text
+domain = a non-empty ASCII string selected only from the closed registry
+components = an ordered array of already-canonical strings
+components.length >= 1
+```
+
+Compute exactly:
+
+```text
+lowercaseHex(
+  SHA256(
+    CanonicalRunnerJsonBytesV1(
+      {
+        "components": components,
+        "domain": domain,
+        "frame": "turnlock.runner-id-frame.v1"
+      }
+    )
+  )
+)
+```
+
+Use the exact frame:
+
+```text
+turnlock.runner-id-frame.v1
+```
+
+Forbid concatenation framing. Treat component array order as significant. Do
+not let a caller supply an output prefix or dynamically invent a domain.
+
+Render every registered deterministic runner ID as:
+
+```text
+registered prefix + uppercaseHex(RunnerIdHashV1 digest)
+```
+
+Require the rendered digest portion to contain exactly 64 hexadecimal
+characters.
+
+## 16. Complete runner ID domain registry
+
+Use exactly these 19 current domains and prefixes:
+
+```text
+candidate-revision.v2
+→ CANDIDATE-
+
+assurance-repository-projection.v1
+→ ASSURANCE-PROJECTION-
+
+campaign-authority-current-review-authority-obligation.v1
+→ OBLIGATION-
+
+campaign-authority-reviewer-prerequisites-obligation.v1
+→ OBLIGATION-
+
+gate-a-operational-blocker-occurrence.v1
+→ BLOCKER-
+
+gate-a-recovery-operational-blocker.v1
+→ BLOCKER-
+
+gate-a-root-preflight-obligation.v1
+→ OBLIGATION-
+
+execution.v1
+→ ATTEMPT-
+
+publication-intent.v1
+→ PUBLICATION-INTENT-
+
+publication-obligation.v1
+→ OBLIGATION-
+
+publication-work-item.v1
+→ WORK-
+
+m4-cognitive-call.v1
+→ CALL-
+
+m4-provider-attempt.v1
+→ PROVIDER-ATTEMPT-
+
+assurance-ledger-reviewer-acquisition-target-obligation.v1
+→ OBLIGATION-
+
+assurance-ledger-selected-initial-reviewer-obligation.v1
+→ OBLIGATION-
+
+assurance-ledger-selected-initial-reviewer-work-item.v1
+→ EXEC-
+
+assurance-ledger-execution-receipt-evidence.v1
+→ EVIDENCE-
+
+assurance-ledger-execution-retry-authorization.v1
+→ RETRY-AUTH-
+
+review-campaign.v1
+→ REVIEW-
+```
+
+Do not add a twentieth domain during C9-A. Extend the registry only through a
+later accepted M0 synchronization that introduces another deterministic
+runner-owned ID.
+
+## 17. Domain types and generic deriveId API
+
+Expose exactly:
+
+```ts
+type RunnerIdHashDomainV1 =
+  | "candidate-revision.v2"
+  | "assurance-repository-projection.v1"
+  | "campaign-authority-current-review-authority-obligation.v1"
+  | "campaign-authority-reviewer-prerequisites-obligation.v1"
+  | "gate-a-operational-blocker-occurrence.v1"
+  | "gate-a-recovery-operational-blocker.v1"
+  | "gate-a-root-preflight-obligation.v1"
+  | "execution.v1"
+  | "publication-intent.v1"
+  | "publication-obligation.v1"
+  | "publication-work-item.v1"
+  | "m4-cognitive-call.v1"
+  | "m4-provider-attempt.v1"
+  | "assurance-ledger-reviewer-acquisition-target-obligation.v1"
+  | "assurance-ledger-selected-initial-reviewer-obligation.v1"
+  | "assurance-ledger-selected-initial-reviewer-work-item.v1"
+  | "assurance-ledger-execution-receipt-evidence.v1"
+  | "assurance-ledger-execution-retry-authorization.v1"
+  | "review-campaign.v1";
+
+type GenericRunnerDerivedIdDomainV1 =
+  Exclude<
+    RunnerIdHashDomainV1,
+    "review-campaign.v1"
+  >;
+
+function deriveId(
+  domain: GenericRunnerDerivedIdDomainV1,
+  ...components: readonly string[]
+): string;
+```
+
+Reject `review-campaign.v1` at the generic TypeScript/API boundary. Validate the
+runtime domain even when TypeScript has already checked the caller.
+
+Require every component to be an exact canonical string selected by its owning
+contract. Perform no implicit `String(value)` conversion, trimming, or Unicode
+normalization.
+
+Guarantee:
+
+```text
+same domain + same ordered components
+→ same exact ID
+
+different domain
+→ different hash preimage
+
+different ordered component vector
+→ different hash preimage
+```
+
+## 18. Dedicated runner-produced ReviewCampaign identity
+
+Expose exactly:
+
+```ts
+function deriveReviewCampaignId(
+  domain: "review-campaign.v1",
+  runId: GateARunId,
+  semanticSubjectSelector: string,
+  semanticSubjectSha256: Sha256,
+  protocolId: string,
+  protocolBundleSha256: Sha256
+): ReviewCampaignId;
+```
+
+Use exactly this ordered component vector:
+
+```text
+[
+  runId,
+  semanticSubjectSelector,
+  semanticSubjectSha256,
+  protocolId,
+  protocolBundleSha256
+]
+```
+
+Compute exactly:
+
+```text
+digest =
+RunnerIdHashV1(
+  "review-campaign.v1",
+  [
+    runId,
+    semanticSubjectSelector,
+    semanticSubjectSha256,
+    protocolId,
+    protocolBundleSha256
+  ]
+)
+
+ReviewCampaignId =
+"REVIEW-" + uppercaseHex(digest)
+```
+
+Exclude all of the following from runner-created ReviewCampaign identity:
+
+```text
+candidateId
+repositoryAuthority
+repository commit
+repository tree
+StateRevision
+timestamp
+session identity
+receipt identity
+```
+
+Treat `ReviewCampaignId` as the same logical identity as hostile-review
+schema-5 `review_id`. Validate every `ReviewCampaignId`, whether runner-produced
+or imported, with:
+
+```text
+^REVIEW-[A-Z0-9][A-Z0-9-]*$
+```
+
+Require `deriveReviewCampaignId(...)` to satisfy that lexical contract
+mechanically.
+
+For an imported campaign, validate the exact repository review record's
+accepted `review_id`; never derive or replace it. Do not derive an imported
+ReviewCampaignId from record SHA, record path, candidate, run, repository
+commit, or repository tree.
+
+## 19. M4 provider-attempt identity
+
+Support exactly:
+
+```text
+providerAttemptId =
+deriveId(
+  "m4-provider-attempt.v1",
+  callId,
+  "1"
+)
+```
+
+For the currently selected Pi M4 dependency realization, use exactly:
+
+```text
+[
+  callId,
+  "1"
+]
+```
+
+Render exactly:
+
+```text
+"PROVIDER-ATTEMPT-" + uppercaseHex(
+  RunnerIdHashV1(
+    "m4-provider-attempt.v1",
+    [
+      callId,
+      "1"
+    ]
+  )
+)
+```
+
+Do not let M0 decide the provider-attempt ordinal. Treat the active Pi M4
+Dependency Contract as authority for the selected-v1 rule that the only provider
+attempt ordinal is exactly `1`. Provide only the deterministic domain-separated
+renderer.
+
+Keep `providerAttemptId` as operational/provider evidence. It is not:
+
+```text
+ExecutionId
+WorkItemId
+receipt execution_id
+receipt attempt_id
+SemanticAdmission identity
+QLEK
+```
+
+Its existence or lexical validity does not establish that a provider request
+occurred, a provider completed, a provider returned a response, a provider or
+model identity was established, or a semantic completion exists. Leave those
+facts to the Pi M4 execution/evidence contract.
+
+## 20. M5-A hostile-review lexical compatibility
+
+Require:
+
+```text
+deriveId(
+  "assurance-ledger-selected-initial-reviewer-work-item.v1",
+  exact obligationId
+)
+```
+
+to render as:
+
+```text
+EXEC- + 64 uppercase hexadecimal characters
+```
+
+This rendering satisfies:
+
+```text
+^EXEC-[A-Z0-9][A-Z0-9-]*$
+```
+
+Therefore preserve its validity as the hostile-review logical execution and
+`receipt.execution_id`. Do not modify M5-A identity inputs to obtain the lexical
+shape.
+
+## 21. GateARun occurrence identity
+
+Enforce:
+
+```text
+GateARunId is NOT deriveId-derived.
+```
+
+Leave GateARunId generation to M2 exactly as:
+
+```text
+RUN-<lowercase UUIDv4>
+```
+
+Validate only its lexical form. Never generate a GateARunId in M0.
+
+## 22. Runner deterministic ID collision behavior
+
+When authoritative retained history exposes a deterministic runner-ID preimage,
+require:
+
+```text
+same rendered deterministic runner ID
++
+different domain/components preimage
+→ RUNNER-ID-HASH-COLLISION
+→ integrity failure
+```
+
+For ReviewCampaign identity, also require:
+
+```text
+same derived ReviewCampaignId
++
+different exact runner-production identity preimage
+→ RUNNER-ID-HASH-COLLISION
+→ integrity failure
+```
+
+Preserve the stronger accepted domain rule:
+
+```text
+same ReviewCampaignId
++
+incompatible immutable ReviewCampaign binding
+→ integrity failure
+```
+
+Never select first or last, merge, duplicate the campaign, retry the hash, or
+create a random replacement ID. Define the pure preimage comparison rule in M0.
+Leave retained authoritative-history writing and collision establishment to M2.
+Do not conflate `RUNNER-ID-HASH-COLLISION` with P8 semantic
+`IDENTITY-HASH-COLLISION`.
+
+## 23. Root-preflight obligation definition
+
+Expose exactly:
+
+```ts
+interface GateARootPreflightObligationDefinitionV1 {
+  readonly schema:
+    "gate-a-root-preflight-obligation-definition.v1";
+
+  readonly kind:
+    "root-preflight";
+}
+```
+
+Use the exact value:
+
+```json
+{
+  "schema": "gate-a-root-preflight-obligation-definition.v1",
+  "kind": "root-preflight"
+}
+```
+
+Use these exact canonical runner JSON bytes as UTF-8 text:
+
+```text
+{"kind":"root-preflight","schema":"gate-a-root-preflight-obligation-definition.v1"}
+```
+
+Require:
+
+```text
+byte length = 83
+SHA-256 = 595cd152405f868a67fc9dce8b00767700c2273777873c944a7596f1d382be3b
+```
+
+Use exactly this meaning:
+
+```text
+establish the initial exact repository/preflight authority required before
+ordinary Gate A campaign progression for one GateARun
+```
+
+Include none of the following in definition identity:
+
+```text
+runId
+candidateId
+ReviewCampaignId
+StateRevision
+session identity
+timestamp
+repository path
+S
+P
+mutable repository observation
+```
+
+Treat those as occurrence or binding facts.
+
+## 24. Root-preflight exports and integration
+
+Export pure constants:
+
+```ts
+const ROOT_PREFLIGHT_OBLIGATION_DEFINITION_V1:
+  GateARootPreflightObligationDefinitionV1;
+
+const ROOT_PREFLIGHT_OBLIGATION_DEFINITION_BYTES_V1:
+  Uint8Array;
+
+const ROOT_PREFLIGHT_OBLIGATION_DEFINITION_SHA256_V1:
+  "595cd152405f868a67fc9dce8b00767700c2273777873c944a7596f1d382be3b";
+```
+
+Keep their values immutable by contract. Do not expose any internal buffer that
+M0 later mutates.
+
+Perform no artifact-store I/O. Require a later M1/composition synchronization to
+seal these exact bytes mechanically through the existing
+`CampaignArtifactStore` and supply the resulting exact `ArtifactRef` to M2
+bootstrap.
+
+Do not return or fabricate an `ArtifactRef` in M0.
+
+## 25. Protocol-v8 semantic identity structural mirror
+
+Declare exact structural TypeScript mirrors of
+`formal/reviews/schemas/semantic-identity-v1.schema.json`:
+
+```ts
+type SemanticQuestionContractRevisionId = string;
+type SemanticValueTypeRevisionId = string;
+type SemanticValueId = string;
+type QLEK = string;
+type SemanticAdmissionId = string;
+type PredicateRevisionId = string;
+type FactId = string;
+type QualificationContractRevisionId = string;
+type QualificationKey = string;
+
+type CanonicalSemanticJsonValueV1 =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly CanonicalSemanticJsonValueV1[]
+  | {
+      readonly [key: string]:
+        CanonicalSemanticJsonValueV1;
+    };
+
+interface SemanticValueRefV1 {
+  readonly kind: "semantic-value";
+  readonly valueType: SemanticValueTypeRevisionId;
+  readonly valueId: SemanticValueId;
+}
+
+interface SemanticAdmissionRefV1 {
+  readonly kind: "semantic-admission";
+  readonly admissionId: SemanticAdmissionId;
+}
+
+interface SemanticFactRefV1 {
+  readonly kind: "semantic-fact";
+  readonly predicateRevision: PredicateRevisionId;
+  readonly factId: FactId;
+}
+
+interface ExactAuthorityRefV1 {
+  readonly kind: "exact-authority";
+  readonly authorityType: string;
+  readonly authorityId: string;
+}
+
+interface QualificationKeyRefV1 {
+  readonly kind: "qualification-key";
+  readonly qualificationContract:
+    QualificationContractRevisionId;
+  readonly qualificationKey: QualificationKey;
+}
+
+interface LogicalQuestionDescriptorV1 {
+  readonly schema:
+    "turnlock.logical-question-descriptor.v1";
+  readonly semanticQuestionContract:
+    SemanticQuestionContractRevisionId;
+  readonly exactLogicalInput:
+    Readonly<Record<string, CanonicalSemanticJsonValueV1>>;
+}
+```
+
+Add no fields. Validate every object above as a strict closed object with every
+published required field present. Require non-empty `authorityType` and
+`authorityId` in `ExactAuthorityRefV1`; require `exactLogicalInput` to be an
+object whose values are valid `CanonicalSemanticJsonValueV1` values. Apply no
+semantic interpretation while checking these constraints.
+
+## 26. Protocol-v8 semantic lexical validation
+
+Validate exact published patterns:
+
+```text
+SemanticQuestionContractRevisionId
+^turnlock\.sqc:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$
+
+SemanticValueTypeRevisionId
+^turnlock\.semantic-value:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$
+
+SemanticValueId
+^semantic-value-sha256:[0-9a-f]{64}$
+
+QLEK
+^qlek-sha256:[0-9a-f]{64}$
+
+SemanticAdmissionId
+^semantic-admission-sha256:[0-9a-f]{64}$
+
+PredicateRevisionId
+^turnlock\.predicate:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$
+
+FactId
+^semantic-fact-sha256:[0-9a-f]{64}$
+
+QualificationContractRevisionId
+^turnlock\.qualification:[A-Za-z][A-Za-z0-9]*@[1-9][0-9]*$
+
+QualificationKey
+^qualification-key-sha256:[0-9a-f]{64}$
+```
+
+Validate syntax only. Do not establish that a referenced semantic object exists,
+is reconstructible, is current, is consumable, or is semantically valid. Leave
+those responsibilities to M2, M5, and M6 according to NIB-S 11.0.0.
+
+## 27. Canonical semantic JSON and binding mirrors
+
+For values used in published P8 semantic identity representation, validate the
+schema-level `canonicalJsonValue` domain exactly:
+
+```text
+null
+boolean
+integer
+string
+array recursively containing valid values
+object recursively containing valid values
+```
+
+Reject fractional numbers, `NaN`, infinity, `undefined`, bigint as a JSON
+runtime value, functions, symbols, and cyclic data. Do not silently normalize
+arrays, object values, Unicode, or numeric meaning. Do not compute semantic
+identity.
+
+Declare exactly:
+
+```ts
+interface SemanticQuestionBindingSemanticValueV1 {
+  readonly ref: SemanticValueRefV1;
+  readonly value: CanonicalSemanticJsonValueV1;
+}
+
+interface SemanticQuestionBindingV1 {
+  readonly semantic_question_binding_schema_version:
+    "1.0";
+
+  readonly logical_question_descriptor:
+    LogicalQuestionDescriptorV1;
+
+  readonly qlek:
+    QLEK;
+
+  readonly semantic_values:
+    readonly SemanticQuestionBindingSemanticValueV1[];
+}
+```
+
+Mirror `semantic-question-binding-v1.schema.json` structurally only. Leave to M6:
+
+```text
+descriptor ↔ QLEK recomputation
+semantic ref ↔ exact resolved value
+complete transitive semantic binding
+```
+
+## 28. Selected M0 support dependency
+
+Consume exactly:
+
+```text
+Node.js standard runtime
++
+zod@4.6.7
+```
+
+Pin the future package manifest exactly as:
+
+```json
+"zod": "4.6.7"
+```
+
+Forbid:
+
+```text
+^4.6.7
+~4.6.7
+>=4.6.7
+4.x
+latest
+*
+```
+
+The selected M0 external support dependency count is exactly one. Select no
+other non-trivial external runtime dependency in C9-A.
+
+Use `zod@4.6.7` only for:
+
+```text
+runtime validation of runner-owned serialized internal structures
+runtime validation of runner-owned CLI structures
+runtime structural/lexical validation of M0's exact runner-side mirrors of
+published P8 identity/reference forms
+```
+
+Do not make Zod authority for:
+
+```text
+hostile-review protocol validity
+protocol bundle validity
+review evidence validity
+SemanticAdmission existence
+SemanticAdmission consumability
+SemanticFact truth
+FactId semantic reconstruction
+QLEK semantic reconstruction
+qualification truth
+CandidateView truth
+current S
+current P
+```
+
+Leave those responsibilities with their existing accepted
+schema/Python/M2/M5/M6 authorities.
+
+Require a later Dependency Contract named exactly:
+
+```text
+DC-ZOD-GATE-A-CONTRACTS
+```
+
+before GREEN closes the exact consumed Zod interface and error behavior. This
+later contract is required because M0 consumes behavior from an external
+validation library even though M0 exposes only its own stable result boundary.
+Do not create that Dependency Contract in C9-A. This later contract does not
+promote Zod into semantic or protocol authority and does not expose Zod-native
+values through M0.
+
+## 29. Zod authority exclusion
+
+Enforce:
+
+```text
+Zod success proves only that a runner-owned value satisfies the exact M0
+representation contract being checked.
+
+Zod success does NOT prove protocol semantic validity, currentness,
+reconstructibility, qualification or semantic authority.
+```
+
+For published protocol-owned artifacts, retain existing content-addressed JSON
+Schema/Python validation as authority.
+
+Do not translate published protocol schemas into Zod and then treat the Zod
+result as equivalent protocol authority.
+
+## 30. Protocol-v8 cognitive role
+
+Expose exactly:
+
+```ts
+type ProtocolV8CognitiveExecutionRole =
+  | "initial-reviewer"
+  | "materiality-assessor"
+  | "refutation-builder"
+  | "challenge"
+  | "discovery-classifier"
+  | "derivation-builder"
+  | "decision-necessity-challenger"
+  | "repair-synthesizer";
+```
+
+Reject `decision-projection` in the P8-role validator.
+
+Preserve the broader historical/current `CognitiveExecutionRole` contract from
+NIB-S for protocol versions that lawfully contain `decision-projection`. Do not
+collapse the two types.
+
+## 31. ArtifactRef validation
+
+Validate the exact NIB-S `ArtifactRef` structure and at least:
+
+```text
+artifactId:
+non-empty string
+
+sha256:
+64 lowercase hexadecimal characters
+
+byteLength:
+safe integer >= 0
+
+mediaType:
+non-empty string
+
+repositoryPath:
+null or non-empty string
+```
+
+Do not verify bytes or read paths. Leave artifact existence and integrity to the
+owning module, `CampaignArtifactStore`, and M6.
+
+## 32. Revision and generation validation
+
+Validate `StateRevision` as a canonical non-negative decimal string:
+
+```text
+allowed:
+"0"
+"1"
+"2"
+...
+
+forbidden:
+"00"
+"01"
+"+1"
+"-0"
+"-1"
+whitespace
+decimal point
+exponent
+```
+
+Validate `OwnershipGeneration` with:
+
+```text
+Number.isSafeInteger(value)
+value >= 1
+```
+
+Do not decide whether a supplied revision or generation is current.
+
+## 33. Pure exact equality
+
+Expose exact structural equality helpers only where an owning contract requires
+comparison of already-valid runner-owned values.
+
+Define equality as:
+
+```text
+same accepted fields
+same primitive values
+same array length/order/content
+same nested object values
+```
+
+Perform no:
+
+```text
+Unicode normalization
+set conversion unless the owning contract first defines set canonicalization
+path normalization
+case folding
+semantic alias resolution
+repository-byte equivalence
+```
+
+Do not use these helpers to establish protocol semantic equality.
+
+## 34. Error taxonomy
+
+Use exactly these M0-local failure classes:
+
+```text
+CONTRACT-VALIDATION-FAILURE
+CANONICAL-RUNNER-JSON-FAILURE
+UNKNOWN-RUNNER-ID-DOMAIN
+INVALID-RUNNER-ID-COMPONENT
+```
+
+Treat hash primitive failure as an implementation/process failure.
+
+Use `RUNNER-ID-HASH-COLLISION` only for the retained-preimage collision
+condition in section 22.
+
+Do not convert an M0 failure into an `OperationalBlocker`, Decision Request,
+`SemanticBlocker`, retry authorization, or alternate protocol meaning. Require
+owning callers to map M0 failures under their accepted NIB-M contracts.
+
+## 35. Algorithms
+
+Implement validator entry points as:
+
+```text
+validateT(value):
+    result = exact strict Zod schema for T.safeParse(value)
+
+    if result succeeds:
+        return {
+            kind: "valid",
+            value: exact validated representation
+        }
+
+    normalized = map every applicable failure to exact public issue form
+    expand unknown-key failures to one issue per exact unknown-property pointer
+    suppress duplicate (path, code)
+    sort by pointer UTF-8 unsigned bytes, then code ASCII bytes
+
+    require normalized is non-empty
+
+    return {
+        kind: "invalid",
+        issues: normalized
+    }
+```
+
+Implement canonical runner JSON as:
+
+```text
+CanonicalRunnerJsonBytesV1(value):
+    validate accepted graph, prototypes, data properties, scalar domain,
+        paired surrogates, safe integers, no negative zero and no cycles
+
+    recursively emit one canonical JSON token stream:
+        null/boolean → exact JSON literal
+        safe integer → canonical decimal spelling
+        string → exact escaping from section 13
+        array → supplied order with comma separators
+        object → UTF-8 unsigned-byte sorted own keys with comma separators
+
+    UTF-8 encode exact emitted scalar stream
+    return bytes without trailing newline
+```
+
+Implement ID rendering as:
+
+```text
+RunnerIdHashV1(domain, components):
+    require exact registered domain
+    require non-empty ordered component vector
+    require every component is a string already canonical under its owner
+
+    bytes = CanonicalRunnerJsonBytesV1({
+        components,
+        domain,
+        frame: "turnlock.runner-id-frame.v1"
+    })
+
+    return lowercaseHex(SHA256(bytes))
+
+renderRegisteredId(domain, components):
+    return exactPrefix(domain) + uppercaseHex(
+        RunnerIdHashV1(domain, components)
+    )
+```
+
+Keep `renderRegisteredId` private if no caller needs it. Expose only `deriveId`
+and `deriveReviewCampaignId` as public ID helpers.
+
+## 36. Concrete examples and test vectors
+
+### 36.1 Root-preflight canonicalization
+
+Given:
+
+```json
+{
+  "schema": "gate-a-root-preflight-obligation-definition.v1",
+  "kind": "root-preflight"
+}
+```
+
+Sort keys as `kind`, then `schema`, and emit:
+
+```text
+{"kind":"root-preflight","schema":"gate-a-root-preflight-obligation-definition.v1"}
+```
+
+Require exactly 83 UTF-8 bytes and SHA-256:
+
+```text
+595cd152405f868a67fc9dce8b00767700c2273777873c944a7596f1d382be3b
+```
+
+### 36.2 Closed-object validation
+
+Given an otherwise valid `ArtifactRef` with an additional `size` property,
+return `kind = "invalid"` and include exactly:
+
+```text
+path = "/size"
+code = "UNEXPECTED-PROPERTY"
+```
+
+Do not return a valid value with `size` stripped.
+
+### 36.3 Provider-attempt framing
+
+Given a valid `callId`, frame the preimage exactly as:
+
+```json
+{
+  "components": ["<exact-call-id>", "1"],
+  "domain": "m4-provider-attempt.v1",
+  "frame": "turnlock.runner-id-frame.v1"
+}
+```
+
+Canonicalize object keys as `components`, `domain`, `frame`, hash the exact
+canonical bytes, uppercase the 64-character digest, and prepend exactly:
+
+```text
+PROVIDER-ATTEMPT-
+```
+
+Do not infer from the rendered ID that a provider request occurred.
+
+### 36.4 ReviewCampaign framing
+
+Given exact validated `(runId, S, P)`, pass only:
+
+```text
+runId
+S.selector
+S.sha256
+P.protocolId
+P.sha256
+```
+
+in that order to `RunnerIdHashV1("review-campaign.v1", ...)`, then prepend
+`REVIEW-`. Do not add candidate, repository, revision, time, session, or receipt
+inputs.
+
+## 37. Construction classifications
+
+Record the deterministic runner-ID construction choice as:
+
+```text
+statement:
+the accepted NIB-S, active NIB-M set and active Pi M4 Dependency Contract
+require one exact collision-safe domain-separated runner identity framing for
+all currently selected deterministic runner-owned IDs, including the dedicated
+runner-produced ReviewCampaign identity and M4 provider-attempt identity; C9-A
+closes one canonical-runner-JSON framed SHA-256 construction with an exact
+19-domain registry and dedicated deriveReviewCampaignId rendering compatible
+with the hostile-review review_id lexical contract
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Record the root-preflight construction choice as:
+
+```text
+statement:
+M2 bootstrap requires one exact immutable root-preflight obligation definition
+and prior construction explicitly assigns that constant to M0 final closure;
+C9-A fixes its two-field runner-owned representation and canonical bytes
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Record the selected validation dependency as:
+
+```text
+statement:
+NIB-S 11.0.0 fixes zod as the M0 runtime-validation support dependency and
+delegates its exact package pin to M0 NIB-M/package construction; C9-A pins the
+selected dependency to zod@4.6.7 and keeps all consumed validation behavior
+behind the exact M0 ContractValidationResult boundary
+
+semantic disposition:
+no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Treat none of these choices as a modification to TURNLOCK or hostile-review
+semantics.
+
+## 38. M0 invariants
+
+```text
+M0-01
+M0 performs no I/O.
+
+M0-02
+M0 performs no authoritative state mutation.
+
+M0-03
+M0 never decides protocol or semantic meaning.
+
+M0-04
+Runtime validation is deterministic, non-mutating and non-coercing.
+
+M0-05
+CanonicalRunnerJsonBytesV1 is deterministic and has one byte representation for
+one accepted runner-owned JSON value.
+
+M0-06
+Canonical runner JSON never Unicode-normalizes strings.
+
+M0-07
+Canonical runner JSON never reorders arrays.
+
+M0-08
+deriveId uses exactly turnlock.runner-id-frame.v1 and the closed domain registry.
+
+M0-09
+Caller-controlled prefix/domain invention is forbidden.
+
+M0-10
+GateARunId is UUIDv4 occurrence identity and is not deriveId-derived.
+
+M0-11
+The selected M5-A initial-reviewer WorkItem domain renders ^EXEC-[A-Z0-9-]+$
+and preserves hostile-review receipt execution-id compatibility.
+
+M0-12
+M0 P8 semantic identity representations are structural mirrors of published
+immutable schemas and do not create semantic authority.
+
+M0-13
+decision-projection is rejected as ProtocolV8CognitiveExecutionRole.
+
+M0-14
+Historical broad CognitiveExecutionRole compatibility is preserved.
+
+M0-15
+Root preflight definition canonical bytes and SHA are immutable constants.
+
+M0-16
+M0 never fabricates ArtifactRef authority for its root-preflight bytes.
+
+M0-17
+Unknown fields in closed serialized contract shapes fail validation rather than
+being ignored.
+
+M0-18
+Runtime validators never repair malformed input.
+
+M0-19
+Runner deterministic ID collisions fail closed.
+
+M0-20
+M0 consumes exactly zod@4.6.7 as its construction-selected TypeScript runtime
+validation support dependency, selects no other non-trivial external runtime
+dependency, and requires the later DC-ZOD-GATE-A-CONTRACTS before GREEN.
+
+M0-21
+No Zod-native error, schema object, parser result, transform, default or
+coercion crosses the M0 public contract boundary.
+
+M0-22
+Zod validation establishes representation validity only and never promotes a
+runner-side value into protocol, semantic, qualification or currentness
+authority.
+
+M0-25
+Runner-produced ReviewCampaignId uses only the exact NIB-S
+(runId, S, P) logical slot and renders through REVIEW- plus the exact
+review-campaign.v1 RunnerIdHashV1 digest.
+
+M0-26
+Every ReviewCampaignId accepted by M0 satisfies the hostile-review
+^REVIEW-[A-Z0-9][A-Z0-9-]*$ lexical contract; imported review IDs are validated
+but never rederived.
+
+M0-27
+m4-provider-attempt.v1 is a registered generic deriveId domain and renders as
+PROVIDER-ATTEMPT- plus its exact RunnerIdHashV1 digest.
+
+M0-28
+M0 provider-attempt identity rendering creates no execution, transport,
+provider, model or semantic truth.
+```
+
+## 39. Forbidden behavior
+
+Do not let M0:
+
+```text
+read current P
+read current S
+load protocol files
+read repository state
+invoke the Python checker
+resolve SemanticAdmissionRef
+resolve SemanticFactRef
+recompute QLEK as semantic authority
+derive FactId semantic truth
+run qualification reducers
+construct CandidateView
+construct WorkItems
+construct Executions
+acquire AdmissionAuthority
+perform Semantic Arm
+write M2 state
+perform M4 execution
+perform M5 qualification
+perform M6 repository validation
+perform M7 materialization
+perform M8 recovery
+normalize repository paths for semantic identity
+use receipt ownership as semantic identity
+add decision-projection to P8
+activate P8
+```
+
+Also forbid Zod from validating protocol authority, coercing runtime contract
+values, inserting defaults, transforming values, passing through unknown
+fields, or stripping unknown fields.
+
+## 40. Explicit C9-A exclusions
+
+Do not synchronize existing NIB-M dependency versions to NIB-S 11.0.0 during
+C9-A. Leave that work to later C9 sub-stages.
+
+Create no:
+
+```text
+package.json
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+Dependency Contract
+M1 brief
+M2 changes
+M3 changes
+M4 changes
+M5-B/C/D
+M6 brief
+M7-B brief
+M8 changes
+NIB-T
+formal model
+production implementation
+```
+
+Do not modify the Pi M4 Dependency Contract, NIB-S, another active NIB-M, formal
+artifacts, scripts, tests, or repository governance.
+
+## 41. Construction completion contract
+
+Treat M0 construction as decision-complete only when a later implementation
+agent can determine without discretion:
+
+```text
+what M0 owns
+what M0 cannot own
+which cross-module shapes it implements
+how runtime validation behaves
+how validation errors are represented
+that Zod is mandatory
+that the exact Zod version is 4.6.7
+which M0 values Zod validates
+which values remain under protocol/Python authority
+that malformed runtime input uses safe validation
+that coercion/default/transform/passthrough behavior is forbidden
+how Zod errors become ContractValidationIssueV1
+why Zod creates no semantic authority
+why DC-ZOD-GATE-A-CONTRACTS is required later but is not created by C9-A
+how runner canonical JSON is serialized
+how deterministic ID bytes are framed
+which 19 current deterministic ID domains exist
+how every current domain renders
+how runner-produced ReviewCampaignId is framed
+why ReviewCampaign identity uses a dedicated API
+which exact five ReviewCampaign components participate
+how REVIEW- rendering works
+how every ReviewCampaignId is lexically validated
+why imported ReviewCampaignIds are never rederived
+how m4-provider-attempt.v1 is framed
+how PROVIDER-ATTEMPT- rendering works
+why provider-attempt identity creates no provider/execution truth
+how M5-A WorkItem IDs remain hostile-review compatible
+how GateARunId is validated
+what the root-preflight definition bytes are
+how P8 semantic reference forms are represented
+which P8 identity lexical forms are valid
+why structural validation does not establish semantic authority
+```
+
+Implement no behavior beyond this contract during C9-A.
