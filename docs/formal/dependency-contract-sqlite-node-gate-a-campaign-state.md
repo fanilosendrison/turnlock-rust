@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-13"
 step_id: 2
 id: DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE
-version: "1.0.0"
+version: "1.0.1"
 dependency_version: "13.0.3"
 scope: gate-a-campaign-runner/campaign-state/sqlite-node
 status: active
@@ -19,9 +19,27 @@ superseded_by: []
 
 Contract ID: `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE`
 
-Version: `1.0.0`
+Version: `1.0.1`
 
 Status: `active`
+
+Version `1.0.1` is a dependency-only construction correction. It corrects only
+the exact JavaScript `bigint` representation used to verify integer-valued
+PRAGMAs after `Database#defaultSafeIntegers(true)`. It makes exactly:
+
+```text
+no package change
+no SQLite version change
+no Node floor change
+no transaction change
+no persistence algorithm change
+no schema-version change
+no product semantic change
+no protocol semantic change
+no QLEK/Admission/recovery change
+```
+
+The SQLite authoritative schema remains exactly `2`.
 
 ## 0. Identity, authority, and purpose
 
@@ -31,7 +49,7 @@ for the M2 `campaign-state` persistence/ownership implementation only.
 It is consumed by:
 
 ```text
-NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.2
+NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.3
 ```
 
 Other modules consume M2 APIs. They must not import `better-sqlite3` directly.
@@ -228,6 +246,17 @@ worker-thread database transfer
 custom native binding
 ```
 
+`Database#pragma(source, options)` creates an internal `Statement` after the
+call begins. A `Statement` created while database default safe-integer mode is
+enabled inherits that safe-integer mode. Therefore, after:
+
+```text
+db.defaultSafeIntegers(true)
+```
+
+SQLite INTEGER values returned by later `Database#pragma(...)` reads are
+JavaScript `bigint` values. This is dependency behavior, not TURNLOCK semantics.
+
 ## 5. Manual transaction interface
 
 Use manually managed SQL for every M2 authoritative and lock transaction:
@@ -254,6 +283,16 @@ ownership.
 ## 6. Connection profiles
 
 Define exactly three profiles.
+
+For every scalar PRAGMA verification, use exactly:
+
+```ts
+db.pragma("<pragma-name>", { simple: true })
+```
+
+Do not validate the effective setting by parsing SQL text, SQLite messages, or
+verbose logs. Do not temporarily disable safe integers to make PRAGMA values
+JavaScript numbers.
 
 ### 6.1 Authoritative database
 
@@ -282,16 +321,32 @@ PRAGMA synchronous = FULL
 PRAGMA busy_timeout = 5000
 ```
 
-Verify exact effective values:
+Verify exact effective values and exact JavaScript types:
 
-```text
-foreign_keys == 1
-journal_mode == "wal"
-synchronous == 2
-busy_timeout == 5000
+```ts
+db.pragma("foreign_keys", { simple: true })
+=== 1n
+
+db.pragma("journal_mode", { simple: true })
+=== "wal"
+
+db.pragma("synchronous", { simple: true })
+=== 2n
+
+db.pragma("busy_timeout", { simple: true })
+=== 5000n
 ```
 
-Reject the connection and fail closed when these exact values cannot be
+These number-valued representations are invalid even though numerically
+equivalent:
+
+```text
+1
+2
+5000
+```
+
+Reject the connection and fail closed when these exact values or types cannot be
 established.
 
 ### 6.2 GateARun ownership lock
@@ -320,12 +375,17 @@ PRAGMA synchronous = FULL
 PRAGMA busy_timeout = 0
 ```
 
-Verify exact effective values:
+Verify exact effective values and exact JavaScript types:
 
-```text
-journal_mode == "delete"
-synchronous == 2
-busy_timeout == 0
+```ts
+db.pragma("journal_mode", { simple: true })
+=== "delete"
+
+db.pragma("synchronous", { simple: true })
+=== 2n
+
+db.pragma("busy_timeout", { simple: true })
+=== 0n
 ```
 
 ### 6.3 Semantic authority locks
@@ -352,8 +412,47 @@ busy_timeout = 0
 defaultSafeIntegers(true)
 ```
 
+Verify exactly:
+
+```ts
+db.pragma("journal_mode", { simple: true })
+=== "delete"
+
+db.pragma("synchronous", { simple: true })
+=== 2n
+
+db.pragma("busy_timeout", { simple: true })
+=== 0n
+```
+
 Authoritative state alone uses WAL. Every lock database uses DELETE journal
 mode.
+
+### 6.4 Number-literal anti-cheat
+
+Explicitly reject this implementation:
+
+```ts
+db.defaultSafeIntegers(true);
+
+if (
+  db.pragma("foreign_keys", { simple: true }) !== 1 ||
+  db.pragma("synchronous", { simple: true }) !== 2 ||
+  db.pragma("busy_timeout", { simple: true }) !== 5000
+) {
+  throw new Error("invalid sqlite configuration");
+}
+```
+
+It mixes the accepted `bigint` dependency boundary with JavaScript number
+literals. Conforming comparisons use exactly:
+
+```text
+1n
+2n
+5000n
+```
+
 
 ## 7. Directory creation and database opening
 
@@ -621,7 +720,7 @@ PRAGMA synchronous = FULL
 ```
 
 Do not rely on package compile/default WAL synchronous settings. Verify the
-effective value is exactly `2`; otherwise fail closed.
+effective JavaScript value is exactly `2n`; otherwise fail closed.
 
 ## 15. Foreign keys and integrity probes
 
@@ -630,8 +729,8 @@ Every authoritative connection explicitly executes and verifies:
 ```text
 PRAGMA foreign_keys = ON
 
-effective value:
-1
+effective JavaScript value:
+1n
 ```
 
 Do not rely solely on bundled SQLite compile defaults. Lock databases contain no
@@ -706,6 +805,17 @@ db.defaultSafeIntegers(true)
 
 SQLite INTEGER reads are therefore JavaScript `bigint` values at the dependency
 boundary. Never globally disable this behavior.
+
+PRAGMA integer verification follows the same accepted dependency boundary as
+ordinary SQLite INTEGER reads:
+
+```text
+SQLite INTEGER
+→ JavaScript bigint
+```
+
+Do not special-case PRAGMA INTEGER values through `number`. Textual PRAGMAs such
+as `journal_mode` remain JavaScript strings. This preserves `DC-SQLITE-12`.
 
 ### 17.1 StateRevision
 
@@ -1034,10 +1144,10 @@ tests. Do not implement them as part of this contract-authoring task.
 Open the authoritative DB and verify:
 
 ```text
-foreign_keys == 1
-journal_mode == wal
-synchronous == 2
-busy_timeout == 5000
+foreign_keys === 1n
+journal_mode === "wal"
+synchronous === 2n
+busy_timeout === 5000n
 ```
 
 ### DC-SQLITE-02 — lock profile
@@ -1045,9 +1155,9 @@ busy_timeout == 5000
 Open a lock DB and verify:
 
 ```text
-journal_mode == delete
-synchronous == 2
-busy_timeout == 0
+journal_mode === "delete"
+synchronous === 2n
+busy_timeout === 0n
 ```
 
 ### DC-SQLITE-03 — non-blocking exclusion
@@ -1157,6 +1267,17 @@ SQLite signed 64-bit-safe fixture
 Require dependency values to be `bigint`, safe-number conversion to reject
 values above `MAX_SAFE_INTEGER`, and exact StateRevision decimal-string
 conversion.
+
+Also require after `defaultSafeIntegers(true)`:
+
+```text
+integer-valued PRAGMA scalar reads used by this DC
+return bigint
+
+and
+
+journal_mode remains string
+```
 
 ### DC-SQLITE-11 — foreign-key enforcement
 
@@ -1342,6 +1463,25 @@ declaration surface as runtime authority
 
 semantic disposition:
 no-normative-impact
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+### 30.5 PRAGMA safe-integer representation
+
+```text
+statement:
+because better-sqlite3 Statements created after
+Database#defaultSafeIntegers(true) inherit database safe-integer mode, integer
+PRAGMA verification values are compared as bigint while textual PRAGMA values
+such as journal_mode remain strings
+
+semantic disposition:
+derived-from-existing-authority
 
 affected layer:
 architecture-or-implementation
