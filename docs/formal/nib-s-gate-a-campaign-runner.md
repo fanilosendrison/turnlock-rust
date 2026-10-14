@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "11.0.0"
+version: "11.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -828,6 +828,74 @@ architecture-or-implementation
 normative impact:
 none
 ```
+
+Version `11.0.1` corrects the protocol-v8 post-review execution-context
+partition. Protocol-v8 initial-reviewer campaign-production work continues to
+use immutable `ReviewContext`; protocol-v8 materiality, refutation and every
+protocol-v8 challenge, together with all other post-review semantic cognitive
+work, use `ResolutionContextV1`.
+
+This construction-contract coherence correction:
+
+```text
+does not change any cross-module type shape
+does not change P6 behavior
+does not change P8 semantics
+does not activate P8
+does not change M0-M8 topology
+does not change provider/model behavior
+does not change retry or recovery semantics
+does not change campaign currentness
+does not change semantic identity
+does not change CandidateRevision identity
+does not change ReviewCampaign identity
+does not change execution-receipt-v3 or execution-receipt-v4
+does not change semantic-question-binding or origin-witness contracts
+does not change receipt attempt mapping or receipt ownership
+```
+
+This correction creates no:
+
+```text
+TURNLOCK product semantic
+Gate A protocol semantic
+SemanticQuestionContract
+QLEK rule
+SemanticAdmission rule
+SemanticFact rule
+qualification meaning
+review-currentness rule
+provider/model rule
+retry rule
+recovery rule
+new cross-module type
+protocol activation
+```
+
+P6 remains current.
+P7 remains permanently inactive.
+P8 remains inactive until C15.
+
+The construction discovery classification recorded by this correction is:
+
+```text
+statement:
+protocol-v8 post-review cognitive work uses ResolutionContextV1, including
+materiality, refutation and every protocol-v8 challenge; ReviewContext remains
+the immutable campaign-production context used by protocol-v8 initial-reviewer
+work
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is created.
 
 ## 2. System objective
 
@@ -1778,7 +1846,8 @@ Owns:
 * materiality/refutation/challenge qualification;
 * stale-protocol finding re-adjudication state;
 * derivation, decision-necessity, repair, and decision-request qualification state;
-* construction of exact `ResolutionContextV1` for M5-C resolution WorkItems;
+* construction of exact `ResolutionContextV1` for protocol-v8 post-review
+  semantic WorkItems owned by M5-B and M5-C;
 * binding of `ResolutionContextV1` to current `CandidateRevision` and immutable
   resolution-subject provenance;
 * candidate-late-bound `RepairIntent` qualification;
@@ -1786,6 +1855,21 @@ Owns:
 * exact assurance repository projection selection from immutable M5 evidence;
 * explicit finding, evidence, adjudication, re-adjudication, obligation-disposition, RepairIntent, assurance-projection, and Decision Request products for M2 admission;
 * determination that a candidate and its complete current/contributing campaign sets are ready to be submitted to mechanical Gate A validation.
+
+For exact P8, preserve this context ownership partition:
+
+```text
+M5-A initial-reviewer campaign work continues to use immutable ReviewContext.
+
+M5-B protocol-v8 materiality/refutation/challenge work uses
+ResolutionContextV1.
+
+M5-C protocol-v8 discovery/derivation/decision-necessity/
+realization-scope/repair/challenge work uses ResolutionContextV1.
+```
+
+This section assigns context ownership only. The M5-B and M5-C algorithms remain
+for C9-E.
 
 M5 is the primary owner of protocol-derived semantic work and qualification.
 
@@ -3739,6 +3823,11 @@ the runner-produced `ReviewCampaign` provenance.
 Currentness of that campaign for a later candidate with unchanged `(S, P)` never
 changes or reconstructs `ReviewContext`.
 
+Never construct `ReviewContext` for a repository-imported `ReviewCampaign`.
+For exact P8, use `ReviewContext` only for initial-reviewer cognitive work. This
+does not remove or reinterpret any lawful historical or current non-P8 use of
+`ReviewContext`.
+
 For `ResolutionContextV1 R`:
 
 ```text
@@ -3772,7 +3861,47 @@ It is not an implicit model-visible cognitive input.
 Every semantic byte visible to the cognitive execution must still be contained
 in the exact prompt/packet input artifacts.
 
-The role/context compatibility partition is exactly:
+Role/context compatibility is protocol-qualified.
+
+For exact P8, the partition is exactly:
+
+```text
+ReviewContext-only:
+- initial-reviewer
+
+ResolutionContextV1-only:
+- materiality-assessor
+- refutation-builder
+- challenge
+- discovery-classifier
+- derivation-builder
+- decision-necessity-challenger
+- repair-synthesizer
+
+forbidden cognitive role:
+- decision-projection
+```
+
+There is no P8 challenge exception that permits `ReviewContext`. Every P8
+challenge is post-review semantic work and uses `ResolutionContextV1`, including
+challenges for:
+
+```text
+materiality
+refutation
+no-normative-impact
+unique correction
+realization scope
+repair realization
+decision necessity
+```
+
+M5 selects the exact challenge contract/kind and constructs the exact immutable
+resolution subject. M4 does not infer challenge kind from arbitrary text or
+output.
+
+For every protocol other than exact P8, preserve the accepted pre-11.0.1
+compatibility partition unchanged:
 
 ```text
 Review-context-only roles:
@@ -3794,10 +3923,42 @@ challenge:
 - exact upstream M5 contracts own challenge-kind/context compatibility.
 ```
 
-No other role/context combination is valid.
+P6 current behavior is byte-for-byte semantically unchanged. Do not
+retroactively reinterpret non-P8 historical evidence or operations.
 
+No other role/context combination is valid for the applicable exact protocol.
 The existing broad `CognitiveExecutionRole` inventory remains historical and
 P6-compatible.
+
+For exact P8, an imported current adjudicating campaign participates in
+post-review work through `ResolutionContextV1`. Do not fabricate a
+`ReviewContext`, create or copy a synthetic runner-produced campaign, retarget a
+campaign-production candidate, require runner-produced provenance, drop the
+imported campaign, or choose another current campaign merely because it is
+runner-produced.
+
+The corrected P8 sequence is conceptually:
+
+```text
+exact current S/P authority
++
+exact current candidate
++
+exact adjudicating current campaign
++
+exact immutable post-review resolution subject
+        ↓
+M5-B or M5-C constructs ResolutionContextV1
+        ↓
+P8 post-review cognitive WorkItem
+        ↓
+M4 validates the exact P8 role/context pair
+        ↓
+provider execution
+```
+
+This context partition adds no input to QLEK, SemanticValueId,
+SemanticAdmissionId, FactId, or QualificationKey.
 
 For exact P8:
 
@@ -9968,9 +10129,12 @@ current S, one exact current P, one exact adjudicating campaign over that
 (S, P), and one intact immutable resolution-subject artifact.
 
 GI-103
-Review-context-only cognitive roles never execute through ResolutionContextV1;
-resolution-context-only cognitive roles never execute through ReviewContext;
-challenge may use either only under its exact upstream challenge-kind contract.
+Role/context compatibility is protocol-qualified. For exact P8,
+initial-reviewer executes only through ReviewContext; every post-review semantic
+cognitive role executes only through ResolutionContextV1; challenge therefore
+executes only through ResolutionContextV1; and decision-projection is forbidden.
+For non-P8 protocol history and current P6, the accepted pre-11.0.1
+compatibility rules remain unchanged.
 
 GI-104
 A candidate change never rebinds, rebases, retargets, or reuses an existing
@@ -10192,6 +10356,13 @@ Campaign currentness across an unchanged exact `(S, P)` never rewrites
 
 A resolution execution against a later current candidate uses a fresh
 `ResolutionContextV1`.
+
+For exact P8, initial-reviewer is campaign-production work and every subsequent
+semantic cognitive operation is resolution work.
+
+A repository-imported adjudicating campaign therefore participates in P8
+post-review work through `ResolutionContextV1` without manufacturing a
+`ReviewContext` or a synthetic `ReviewCampaign`.
 
 Candidate-bound `RepairIntent`/patch material may never be carried across a
 candidate boundary by rebasing or retargeting.

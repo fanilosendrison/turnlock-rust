@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "2.1.0"
+version: "2.1.1"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,13 +15,33 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `11.0.0` and
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `11.0.1` and
 `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.4`.
 
 It consumes M2 semantic authority construction context from
 `NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION` version `7.0.0` and
 `NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY` version `6.0.1`. It does not
 import M2 persistence internals.
+
+Version `2.1.1` is a construction-only protocol-v8 context-partition
+correction. It makes exact P8 initial-reviewer work use immutable
+`ReviewContext` and every exact P8 post-review cognitive role, including every
+challenge, use `ResolutionContextV1`.
+
+It introduces exactly:
+
+```text
+no public type change
+no M4 journal change
+no provider call change
+no dependency adapter change
+no Pi payload change
+no retry change
+no recovery change
+no P6 behavior change
+no P8 semantic change
+no activation change
+```
 
 Version `2.1.0` is an additive protocol-v8 construction synchronization. It
 introduces exactly:
@@ -40,7 +60,7 @@ no QLEK identity change
 no SemanticAdmission identity change
 ```
 
-P6 remains current. P7 remains permanently inactive. P8 remains inactive.
+P6 remains current. P7 remains permanently inactive. P8 remains inactive until C15.
 
 Version `2.0.0` is a breaking construction-contract revision only because the
 operation/request context changes from universal `ReviewContext` to
@@ -309,7 +329,16 @@ if operation.context.kind == "resolution":
         operation.context.resolutionContext.protocolBundle
 ```
 
-Do not reread P.
+Do not:
+
+```text
+reread current P
+consult mutable repository state
+use a caller-provided isP8 boolean
+use role alone to infer protocol
+use prompt/packet content to infer protocol
+invent a generic latest-protocol branch
+```
 
 M4 owns sealing and validation of this operation. Its artifact must have:
 
@@ -400,7 +429,45 @@ X.adjudicatingCampaign.provenance.candidateId == W.candidateId
 
 Do not retarget or mutate the campaign.
 
-Validate role/context compatibility exactly:
+After deriving exact `protocolBundle`, validate role/context compatibility by
+exact protocol identity.
+
+If:
+
+```text
+protocolBundle.protocolId == "gate-a-campaign-protocol-v8"
+```
+
+apply exactly:
+
+```text
+decision-projection
+→ reject
+
+context.kind == "review"
+→ require role == "initial-reviewer"
+
+context.kind == "resolution"
+→ require role in:
+  - materiality-assessor
+  - refutation-builder
+  - challenge
+  - discovery-classifier
+  - derivation-builder
+  - decision-necessity-challenger
+  - repair-synthesizer
+```
+
+Accept no other exact P8 role/context pair. In particular, P8 has no challenge
+exception permitting `ReviewContext`.
+
+If:
+
+```text
+protocolBundle.protocolId != "gate-a-campaign-protocol-v8"
+```
+
+apply the exact accepted pre-2.1.1 compatibility logic unchanged:
 
 ```text
 Review-context-only roles:
@@ -422,8 +489,50 @@ challenge:
 - exact upstream M5 contracts own challenge-kind/context compatibility.
 ```
 
-No other role/context combination is valid. M4 does not interpret semantic
-challenge type from output or arbitrary text.
+M4 never interprets challenge kind from output or arbitrary text. M5 owns the
+exact challenge contract/kind and construction of the resolution subject.
+
+For exact P8, preserve initial-reviewer production exactly:
+
+```text
+M3 retained runner-produced ReviewCampaign prerequisite basis
+→ exact ReviewContext
+→ M5-A initial-reviewer WorkItem
+→ M4
+```
+
+For exact P8 post-review work, preserve conceptually:
+
+```text
+exact current S/P authority
++
+exact current candidate
++
+exact adjudicating current campaign
++
+exact immutable post-review resolution subject
+        ↓
+M5-B or M5-C constructs ResolutionContextV1
+        ↓
+P8 post-review cognitive WorkItem
+        ↓
+M4 validates exact P8 role/context pair
+        ↓
+provider execution
+```
+
+A P8 `materiality-assessor`, `refutation-builder`, or `challenge` operation may
+therefore use a repository-imported adjudicating campaign through a valid
+`ResolutionContextV1`. Do not require `ReviewContext`, runner-produced
+provenance, or equality between the adjudicating campaign's production candidate
+and the WorkItem candidate.
+
+Reject a fabricated `ReviewContext` for a repository-imported campaign, a
+`ReviewContext` retargeted to a current candidate, and exact P8 post-review work
+placed in `ReviewContext` merely because an older protocol used that role there.
+
+The context branch is execution/provenance construction only. It adds no input
+to QLEK, SemanticValueId, SemanticAdmissionId, FactId, or QualificationKey.
 
 For either context branch, require exactly:
 
@@ -2291,8 +2400,12 @@ Every cognitive operation carries exactly one validated
 CognitiveExecutionContextV1 branch.
 
 M4A-36
-Review-context-only and resolution-context-only roles obey the exact NIB-S role
-partition; challenge is the only role admitted under either context kind.
+Role/context compatibility is protocol-qualified. Exact P8 admits only
+initial-reviewer through ReviewContext; materiality-assessor,
+refutation-builder, challenge, discovery-classifier, derivation-builder,
+decision-necessity-challenger and repair-synthesizer through
+ResolutionContextV1. Exact P8 forbids decision-projection. Non-P8 behavior
+preserves the accepted pre-2.1.1 compatibility partition.
 
 M4A-37
 Review-context WorkItems retain exact runner-produced campaign production
@@ -2398,9 +2511,23 @@ heartbeat-driven recovery
 missing heartbeat as failure
 same-Execution replay
 unvalidated CognitiveExecutionContextV1 branch
-review-context-only role through ResolutionContextV1
-resolution-context-only role through ReviewContext
+non-P8 review-context-only role through ResolutionContextV1 under the exact
+pre-2.1.1 partition
+non-P8 resolution-context-only role through ReviewContext under the exact
+pre-2.1.1 partition
 challenge context chosen by interpreting arbitrary text or output
+P8 materiality-assessor through ReviewContext
+P8 refutation-builder through ReviewContext
+P8 challenge through ReviewContext
+P8 discovery-classifier through ReviewContext
+P8 derivation-builder through ReviewContext
+P8 decision-necessity-challenger through ReviewContext
+P8 repair-synthesizer through ReviewContext
+P8 initial-reviewer through ResolutionContextV1
+P8 decision-projection through either context
+fabricating ReviewContext for a repository-imported campaign
+retargeting ReviewContext to the current CandidateRevision
+requiring a P8 adjudicating campaign to be runner-produced
 review campaign retargeting
 resolutionSubject injection into provider/model input
 secret persistence
@@ -2855,4 +2982,78 @@ normative impact:
 none
 ```
 
+```text
+statement:
+protocol-v8 post-review cognitive work uses ResolutionContextV1, including
+materiality, refutation and every protocol-v8 challenge; ReviewContext remains
+the immutable campaign-production context used by protocol-v8 initial-reviewer
+work
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
 No ADR is required.
+
+## 28. Required future NIB-T expectations
+
+Create no NIB-T in this task. Require future behavioral coverage for at least:
+
+```text
+P8 initial-reviewer + ReviewContext
+→ accepted
+
+P8 initial-reviewer + ResolutionContextV1
+→ rejected
+
+P8 materiality-assessor + ResolutionContextV1
+→ accepted
+
+P8 materiality-assessor + ReviewContext
+→ rejected
+
+P8 refutation-builder + ResolutionContextV1
+→ accepted
+
+P8 refutation-builder + ReviewContext
+→ rejected
+
+P8 challenge + ResolutionContextV1
+→ accepted
+
+P8 challenge + ReviewContext
+→ rejected
+
+P8 discovery-classifier + ResolutionContextV1
+→ accepted
+
+P8 derivation-builder + ResolutionContextV1
+→ accepted
+
+P8 decision-necessity-challenger + ResolutionContextV1
+→ accepted
+
+P8 repair-synthesizer + ResolutionContextV1
+→ accepted
+
+P8 decision-projection
+→ rejected under either context
+
+P8 materiality against repository-imported adjudicating campaign
+→ accepted through valid ResolutionContextV1
+
+P8 refutation against repository-imported adjudicating campaign
+→ accepted through valid ResolutionContextV1
+
+repository-imported campaign fabricated as ReviewContext
+→ rejected
+
+P6 role/context behavior
+→ unchanged regression
+```
