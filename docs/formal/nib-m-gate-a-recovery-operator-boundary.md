@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY
-version: "2.0.12"
+version: "2.1.0"
 scope: gate-a-campaign-runner/recovery-operator/operator-boundary
 status: active
 consumers: [architect, coding-agent]
@@ -15,7 +15,42 @@ superseded_by: []
 
 # NIB-M — Gate A Recovery Operator — Operator Boundary
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+It consumes exactly:
+
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+
+NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.1.0
+
+NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.3
+
+M2 current-admissibility authority from:
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 7.0.0
+
+M2 semantic-state reconstruction authority from:
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 6.0.1
+```
+
+No direct M2 state import is introduced.
+
+Version `2.1.0` is an additive protocol-v8 construction synchronization. It
+introduces exactly:
+
+```text
+no TURNLOCK product semantic change
+no Gate A protocol semantic change
+no P6 behavior change
+no Pi adapter change
+no provider/model change
+no new retry policy
+no new recovery classification
+no new operator-resolution kind
+no cross-module type change
+no QLEK identity change
+no SemanticAdmission identity change
+```
+
+P6 remains current. P7 remains permanently inactive. P8 remains inactive.
 
 Version `2.0.12` is a dependency-only synchronization with NIB-S `10.0.0`. It
 changes no M8-B algorithm, type, ownership, blocker, operator-action,
@@ -76,6 +111,27 @@ OperatorResolutionEnvelope construction
 OperatorResolutionStateEffect derivation
 operator-request projection
 ```
+
+The protocol-v8 construction boundary remains exactly:
+
+```text
+M2
+→ owns QLEK binding
+→ owns SemanticArmBinding
+→ owns semantic hazard reconstruction
+→ owns hazard-clearance authority after exact execution/recovery facts are admitted
+→ owns final replacement/current-state admissibility
+
+M4
+→ owns cognitive external-effect truth only
+
+M8
+→ owns recovery classification and operator artifact meaning only
+```
+
+M4 and M8 create no sixth semantic state machine. Their existing
+execution/recovery transitions refine exact Execution truth between T3
+`ArmSemanticExecution` and T4 `ReconcileSemanticCompletion`.
 
 M8-B does NOT own:
 
@@ -140,7 +196,9 @@ M8-B does not duplicate M8-A observation, validation, re-observation, waiting,
 evidence-projection, trace, or failure algorithms.
 
 M8-B consumes `CampaignArtifactStore` for immutable artifact sealing and
-verification.
+verification. The M2 briefs listed above are construction authority context;
+M8-B imports no M2 state API. M2 maps `priorExecutionId` back to exact semantic
+state.
 
 ## 3. Canonical runner JSON
 
@@ -718,6 +776,28 @@ successor attemptOrdinal
 
 M2 owns those values.
 
+Prominently preserve:
+
+```text
+presence of authorize-uncertain-execution-replacement in an OAR
+!=
+lawful semantic replacement authority
+```
+
+M8-B validates only operator artifact meaning, target blocker binding, OAR
+contract membership, and the required accepted-risk literal. It may derive only
+the existing generic proposal:
+
+```ts
+{
+  kind: "resolve-blocker-and-replace-execution",
+  priorExecutionId,
+}
+```
+
+It must not claim that a successor is authorized. M1 later submits the exact
+proposal to M2.
+
 ## 14. M2 admissibility boundary
 
 ```text
@@ -747,13 +827,41 @@ Gate A not ready
 historical Execution count < 5
 ```
 
+If the prior Execution carries `SemanticExecutionBindingRefV1`, M2 `7.0.0`
+rejects generic operator-replacement successor creation as `INVALID_MUTATION`
+while semantic replacement is not independently lawful.
+
 If M2 rejects an otherwise valid operator proposal as `INVALID_MUTATION`:
 
 ```text
-no state changes
+no blocker disposition commits
+no progression supersession commits
+no successor Execution exists
+no QLEK changes
+semantic hazard remains
 existing authoritative history remains trustworthy
 M8-B must not reinterpret the rejection
 ```
+
+For an Armed P8 semantic Execution, none of an accepted-risk literal, validated
+operator-resolution artifact, OAR uncertain-replacement syntax, generic
+replacement proposal, or desired progression supersession clears semantic
+hazard.
+
+`ExecutionProgressionSupersessionRef` affects progression authority only. It
+never proves PNE, no completed response, no semantic candidate, or semantic
+hazard clearance. An Armed semantic Execution may remain hazardous after
+ordinary progression supersession.
+
+For `pending-policy-exhausted`, the existing `resume-reconciliation` mechanical
+continuation remains lawful for semantic Executions because it observes the same
+exact Execution, creates no new Execution, does not resample, and crosses no new
+provider effect boundary.
+
+For semantic E, `no-recovery-capability` or `executor-domain-indeterminacy` may
+produce `UNRESOLVABLE`, and the ordinary OAR may still expose generic uncertain
+replacement. Operator acceptance of duplicate-effect risk is not semantic
+resampling permission; M2 remains final authority.
 
 ## 15. Failure taxonomy
 
@@ -832,6 +940,16 @@ was sealed when its blocker was materialized.
 For semantic Decision Requests, M8-B projects exact existing
 `DecisionRequestRef.request` artifacts. M8-B does not author, answer, mutate, or
 reinterpret semantic Decision Requests.
+
+M8-B must not inspect QLEK semantic inputs, model output, semantic candidate,
+`SemanticFact`, qualification, candidate bytes, or model identity preference to
+decide whether replacement is desirable. It chooses no replacement provider or
+model.
+
+Do not add QLEK or semantic authority generation to `OperationalBlocker`,
+`GateAOperatorActionRequestV1`, `GateAOperatorResolutionArtifactV1`, or
+`OperatorResolutionEnvelope`. Operator-facing bytes remain about operational
+action/risk, not semantic identity internals.
 
 ## 17. Required invariants
 
@@ -978,6 +1096,43 @@ M8-B never invents a resolution merely to make every OAR actionable in-run.
 M8B-44
 No operator-resolution artifact can be accepted for an OAR whose exact
 resolutionContracts set is empty.
+
+M8B-45
+OAR contract membership is not current semantic replacement admissibility.
+
+M8B-46
+A validated authorize-uncertain-execution-replacement artifact creates only the
+existing generic M2 proposal.
+
+M8B-47
+For a P8 semantic prior Execution, M2 may reject that proposal without any
+authoritative state change.
+
+M8B-48
+Operator acknowledgement never clears semantic sampling hazard.
+
+M8B-49
+Progression supersession never implies semantic hazard clearance.
+
+M8B-50
+M8-B never creates PNE, protocol-invalid truth, Admission, or SemanticFact.
+
+M8B-51
+No QLEK or semantic authority generation enters an OAR or operator-resolution
+artifact.
+
+M8B-52
+resume-reconciliation is lawful because it observes the same Execution and does
+not resample.
+
+M8B-53
+UNRESOLVABLE does not become semantic replacement authority.
+
+M8B-54
+M8-B never chooses provider/model for a replacement.
+
+M8B-55
+P6 operator behavior remains unchanged while P8 remains inactive.
 ```
 
 ## 18. Explicitly forbidden behaviors
@@ -1002,6 +1157,33 @@ reading operator input path twice
 canonical rewriting of operator-authored resolution bytes
 disposing all blockers with same executionId
 disposing all blockers with same obligationId
+QLEK or semantic generation in operator artifacts
+semantic-specific M8 classifier
+QLEK-specific retry engine
+operator semantic retry path
+post-UNRESOLVABLE provider lookup
+new semantic-recovery mutation kind
 ```
 
 M8-B has no authority to weaken, broaden, or reinterpret these prohibitions.
+
+## 19. Construction classification
+
+```text
+statement:
+the existing generic OAR retains authorize-uncertain-execution-replacement as
+an operator request form, but its resulting generic replacement effect remains
+only a proposal to M2; M2 rejects semantic prior Executions while accepted P8
+semantic replacement conditions are not met
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
