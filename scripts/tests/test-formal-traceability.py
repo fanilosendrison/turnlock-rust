@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import copy
 import importlib.util
+import io
 import json
 from pathlib import Path
 import re
@@ -427,6 +429,36 @@ def load_renderer(root: Path):
     renderer = importlib.util.module_from_spec(renderer_spec)
     renderer_spec.loader.exec_module(renderer)
     return renderer
+
+
+def ensure_renderer_test_checker_warm() -> None:
+    errors, _summary = checker.collect_errors(
+        ROOT,
+        check_generated=False,
+    )
+    if errors:
+        raise AssertionError(
+            "renderer-test checker warm-up failed: "
+            + "; ".join(errors)
+        )
+
+
+def renderer_test_projection_cache_hit_available(root: Path) -> bool:
+    implementation_identity = checker._protocol_v8_projection_oracles()
+    implementation_cache = (
+        checker._PROTOCOL_V8_PROJECTION_ORACLE_CACHE.get(
+            implementation_identity,
+            {},
+        )
+    )
+    for dependencies, cached_results in implementation_cache.items():
+        fingerprint = checker._validation_dependency_fingerprint(
+            root,
+            dependencies,
+        )
+        if fingerprint is not None and fingerprint in cached_results:
+            return True
+    return False
 
 
 def _load_cached_yaml_text(path: Path) -> object:
@@ -5238,15 +5270,39 @@ class FormalTraceabilityTests(unittest.TestCase):
             )
             mapping_path = fixture_root / MAPPING_RELATIVE
             before = mapping_path.read_bytes()
-            result = subprocess.run(
-                [sys.executable, "scripts/render-formal-mapping.py", "--stdout"],
-                cwd=fixture_root,
-                capture_output=True,
-                check=False,
+
+            ensure_renderer_test_checker_warm()
+            fixture_checker_path = (
+                fixture_root / "scripts" / "check-formal-traceability.py"
             )
-            self.assertNotEqual(0, result.returncode)
-            self.assertIn(b"cannot parse review evidence", result.stderr)
+            self.assertEqual(
+                SCRIPT.read_bytes(),
+                fixture_checker_path.read_bytes(),
+            )
+            self.assertTrue(
+                renderer_test_projection_cache_hit_available(fixture_root)
+            )
+            renderer = load_renderer(fixture_root)
+            stderr = io.StringIO()
+            with mock.patch.object(
+                renderer,
+                "_load_checker",
+                return_value=checker,
+            ) as load_checker, mock.patch.object(
+                checker,
+                "collect_errors",
+                wraps=checker.collect_errors,
+            ) as collect_errors, contextlib.redirect_stderr(stderr):
+                return_code = renderer.main(["--stdout"])
+
+            self.assertNotEqual(0, return_code)
+            self.assertIn("cannot parse review evidence", stderr.getvalue())
             self.assertEqual(before, mapping_path.read_bytes())
+            load_checker.assert_called_once_with()
+            collect_errors.assert_called_once_with(
+                fixture_root.resolve(),
+                check_generated=False,
+            )
 
     def test_adding_formal_realizations_does_not_change_gate_a_subject(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -8480,26 +8536,54 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
                 )["ready"],
             )
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(fixture_root / "scripts" / "render-formal-mapping.py"),
-                    "--stdout",
-                ],
-                cwd=fixture_root,
-                capture_output=True,
-                text=True,
+            ensure_renderer_test_checker_warm()
+            fixture_checker_path = (
+                fixture_root / "scripts" / "check-formal-traceability.py"
             )
-            self.assertNotEqual(0, result.returncode)
+            self.assertEqual(
+                SCRIPT.read_bytes(),
+                fixture_checker_path.read_bytes(),
+            )
+            self.assertTrue(
+                renderer_test_projection_cache_hit_available(fixture_root)
+            )
+            renderer = load_renderer(fixture_root)
+            stdout_buffer = io.BytesIO()
+            stdout = io.TextIOWrapper(stdout_buffer, encoding="utf-8")
+            stderr = io.StringIO()
+            with mock.patch.object(
+                renderer,
+                "_load_checker",
+                return_value=checker,
+            ) as load_checker, mock.patch.object(
+                checker,
+                "collect_errors",
+                wraps=checker.collect_errors,
+            ) as collect_errors, contextlib.redirect_stdout(
+                stdout
+            ), contextlib.redirect_stderr(stderr):
+                return_code = renderer.main(["--stdout"])
+            stdout.flush()
+            stdout_text = stdout_buffer.getvalue().decode("utf-8")
+
+            load_checker.assert_called_once_with()
+            collect_errors.assert_called_once_with(
+                fixture_root.resolve(),
+                check_generated=False,
+            )
+            self.assertNotEqual(0, return_code)
             self.assertIn(
-                "formal traceability validation failed", result.stderr
+                "formal traceability validation failed", stderr.getvalue()
             )
             self.assertIn(
                 "receipt packet input must equal the record protocol packet",
-                result.stderr,
+                stderr.getvalue(),
             )
             self.assertNotIn(
-                "Formal-Architecture-Ready: READY", result.stdout
+                "Formal-Architecture-Ready: READY", stderr.getvalue()
+            )
+            self.assertNotIn(
+                "Formal-Architecture-Ready: READY", stdout_text
             )
 
 
