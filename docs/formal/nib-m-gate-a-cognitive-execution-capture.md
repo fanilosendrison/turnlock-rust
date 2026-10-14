@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-02"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE
-version: "2.0.0"
+version: "2.1.0"
 scope: gate-a-campaign-runner/cognitive-execution/execution-capture
 status: active
 consumers: [architect, coding-agent]
@@ -15,8 +15,32 @@ superseded_by: []
 
 # NIB-M — Gate A Cognitive Execution — Execution and Capture
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0` and
+It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `11.0.0` and
 `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.4`.
+
+It consumes M2 semantic authority construction context from
+`NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION` version `7.0.0` and
+`NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY` version `6.0.1`. It does not
+import M2 persistence internals.
+
+Version `2.1.0` is an additive protocol-v8 construction synchronization. It
+introduces exactly:
+
+```text
+no TURNLOCK product semantic change
+no Gate A protocol semantic change
+no P6 behavior change
+no Pi adapter change
+no provider/model change
+no new retry policy
+no new recovery classification
+no new operator-resolution kind
+no cross-module type change
+no QLEK identity change
+no SemanticAdmission identity change
+```
+
+P6 remains current. P7 remains permanently inactive. P8 remains inactive.
 
 Version `2.0.0` is a breaking construction-contract revision only because the
 operation/request context changes from universal `ReviewContext` to
@@ -119,6 +143,27 @@ M4 cognitive-execution
 
 This brief closes M4-A only.
 
+The protocol-v8 construction boundary is exactly:
+
+```text
+M2
+→ owns QLEK binding
+→ owns SemanticArmBinding
+→ owns semantic hazard reconstruction
+→ owns hazard-clearance authority after exact execution/recovery facts are admitted
+→ owns final replacement/current-state admissibility
+
+M4
+→ owns cognitive external-effect truth only
+
+M8
+→ owns recovery classification and operator artifact meaning only
+```
+
+M4 and M8 do not create a sixth semantic state machine. Their existing
+execution/recovery transitions refine exact Execution truth between M2 T3
+`ArmSemanticExecution` and T4 `ReconcileSemanticCompletion`.
+
 M4-A owns:
 
 ```text
@@ -157,15 +202,17 @@ Pi API facts beyond requirements placed on Dependency Contract #31
 
 ## 2. Construction dependencies and runtime configuration
 
-M4-A consumes exactly:
+M4-A runtime dependencies remain exactly:
 
 ```text
 CampaignArtifactStore
-Pi M4 Dependency Contract owned by Issue #31
+DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4
 Node.js standard filesystem/crypto/timer primitives
 ```
 
-No other non-trivial dependency may be selected by this brief.
+The M2 briefs named above are construction authority context only. M4-A imports
+no M2 persistence internals and calls no M2 API. No other non-trivial dependency
+may be selected by this brief.
 
 ```ts
 interface CognitiveExecutionRuntimeConfig {
@@ -686,6 +733,16 @@ Provider, model, and request identity do not enter callId derivation.
 
 ## 8. Pre-Arm preparation algorithm
 
+`prepare(E,W)` remains strictly before Arm. It may validate immutable
+operation/input material, construct the dependency execution plan, check
+credential availability, seal the preparation and reconciliation-operation
+artifacts, publish `PREPARED`, and return `PreparedCognitiveExecutionV1`.
+
+It must not call the provider, publish `MAYBE-SENT`, create semantic hazard,
+create `SemanticArmBinding`, or create `AdmissionAuthority`. Preparation failure
+or operational blockage means no Arm, no provider effect, and no semantic
+hazard.
+
 `prepare()` executes exactly this order:
 
 ```text
@@ -1048,6 +1105,18 @@ provider received the request, executed it, produced tokens, or completed.
 
 Journal markers are write-once, never updated, never deleted by M4 during normal
 execution, canonical JSON, and bound to the exact Execution, WorkItem, and call.
+Journal identity remains exactly execution-local through:
+
+```text
+Execution
+WorkItem
+CognitiveCallId
+```
+
+Do not add QLEK or semantic authority generation to journal markers. M2
+Authoritative History independently reconstructs `Execution → QLEK → Semantic
+Arm generation`. The M4 journal proves cognitive-call truth, not semantic
+identity.
 
 For each final marker publication use exactly:
 
@@ -1136,6 +1205,54 @@ Genuine storage failures other than the classified target-exists condition are
 `JOURNAL-IO-FAILURE`.
 
 ## 11. Armed execution algorithm
+
+For native P8 semantic execution, accepted ordering is exactly:
+
+```text
+T2 Execution + SemanticExecutionBinding
+→ M4-A prepare(E,W)
+→ durable PREPARED
+→ M1 fresh pre-Arm revalidation
+→ M2 T3 atomically commits normal Arm + SemanticArmBinding(E,K,g)
+→ M4-A execute(...)
+→ durable MAYBE-SENT
+→ provider may become reachable
+→ terminal/raw execution truth
+```
+
+`PREPARED` precedes Semantic Arm, Semantic Arm precedes `MAYBE-SENT`, and
+`MAYBE-SENT` precedes provider reachability. Never accept or describe Semantic
+Arm followed by `PREPARED` as a valid path.
+
+The provider-effect fence remains exactly:
+
+```text
+no successful M2 Arm
+→ provider unreachable
+
+successful Arm
++
+PREPARED already durable
++
+no durable MAYBE-SENT
+→ provider still unreachable
+
+durable MAYBE-SENT
+→ provider may have become reachable
+```
+
+Normal M2 Arm and `SemanticArmBinding(E,K,g)` are one atomic T3 transition. M4-A
+creates no additional semantic Arm phase. Before provider invocation,
+`PREPARED` is valid, Semantic Arm is committed, the shared call lock is held,
+and `MAYBE-SENT` and `TERMINAL` are absent. Only the invocation that successfully
+publishes `MAYBE-SENT` through the existing create-if-absent transition may
+proceed toward the provider call.
+
+After T3, M4-A requires only the exact durable `ArmedExecutionDispatchRef`, the
+existing durable M2 semantic Arm history, and already-durable `PREPARED`
+material. It does not acquire or refresh `AdmissionAuthority`, compare authority
+generations, hold a QLEK lock, derive current QLEK state, or require continued
+live `AdmissionAuthority` ownership.
 
 `execute()` requires an already-valid `ArmedExecutionDispatchRef` and performs
 exactly:
@@ -1265,7 +1382,7 @@ positive nonexecution; it returns uncertainty and leaves recovery conservative.
 
 ## 12. Dependency-consumer requirements
 
-`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.0.1` provides the consumer
+`DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.4` provides the consumer
 contract satisfying exactly:
 
 ```text
@@ -1521,6 +1638,13 @@ construct CapturedExecutionResult
 return captured
 ```
 
+Once an exact completed provider-semantic textual response exists, later
+candidate staleness, run-progression staleness, caller cancellation, loss of
+live `AdmissionAuthority`, or loss of future progression authority must not
+cause M4-A to discard or relabel it. Preserve and seal the exact response under
+these existing rules. M4-A still does not determine protocol validity or a
+`SemanticCandidate`.
+
 Technical-failure terminal ordering applies only to a positive accepted
 Dependency Contract fact that the exact call terminated with no completed
 semantic response:
@@ -1688,6 +1812,18 @@ caller authority revocation observed after dependency invocation has begun
 Abort or revocation never proves nonexecution, provider cancellation, technical
 failure, or rollback.
 
+For a native P8 semantic Execution, durable Semantic Arm creates semantic hazard
+immediately, before `MAYBE-SENT`. `PREPARED` before Arm creates no hazard. Once
+Armed, abort or credential unavailability before `MAYBE-SENT` does not make K
+reusable; accepted M4-B recovery must positively establish PNE before M2 may
+derive hazard clearance.
+
+M4-A never invokes the provider again for the same Execution because the
+candidate changed, run ownership changed, Admission is absent, a caller wants
+another sample, an operator acknowledged risk, or previous recovery became
+`UNRESOLVABLE`. Existing one-call-per-Execution and `MAYBE-SENT` fencing remain
+unchanged.
+
 ## 16. Crash, interruption, and restart table
 
 ```text
@@ -1730,6 +1866,76 @@ process crash after terminal evidence but before terminal marker
 
 A CAS artifact existing without a valid journal reference does not by itself
 advance journal state.
+
+For native P8 semantic execution, preserve this exact crash matrix:
+
+```text
+after T2, before prepare
+→ no PREPARED
+→ no Arm
+→ no semantic hazard
+→ provider impossible
+→ later orchestration may resume same unarmed E
+
+during prepare, before durable PREPARED
+→ no Arm
+→ no semantic hazard
+→ provider impossible
+
+after durable PREPARED, before Semantic Arm
+→ preparation is recoverable/idempotent
+→ no semantic hazard
+→ provider impossible
+→ later valid authority may resume same E and attempt T3
+→ do not create sibling E
+
+after Semantic Arm, before MAYBE-SENT
+→ PREPARED is already durable
+→ SemanticArmBinding is already durable
+→ hazard exists
+→ provider still impossible
+→ no fresh K sample
+→ existing M4-B may positively prove PREPARED-only nonexecution
+
+after MAYBE-SENT, before TERMINAL
+→ PREPARED and MAYBE-SENT are durable
+→ provider may have become reachable
+→ never replay same E
+→ recovery only
+→ current backend may become UNRESOLVABLE
+→ hazard remains
+
+after TERMINAL technical-failure, before M2 terminal admission
+→ reconstruct exact technical-failure truth
+→ no provider replay
+→ after M2 admission hazard may clear
+
+after TERMINAL captured result, before M2 terminal admission
+→ reconstruct exact captured completion
+→ no provider replay
+→ completion must be preserved
+
+after M2 captured-result admission, before M6 validation
+→ rerun deterministic validation over exact retained completion
+→ no provider replay
+→ no fresh K sample
+
+after protocol-valid V before T4
+→ reconstruct exact V
+→ mandatory Admission reconciliation
+→ no provider replay
+→ no fresh K sample
+
+during T4
+→ Admission + first witness remain atomic under C9-B
+
+after Admission
+→ reuse Admission
+→ same K never dispatches again
+```
+
+Explicitly forbid the impossible inverted boundary `after Semantic Arm, before
+PREPARED`; accepted construction requires `PREPARED` before Arm.
 
 ## 17. Liveness telemetry
 
@@ -2115,6 +2321,47 @@ M4A-42
 A completed provider-semantic response remains captured when providerModel is
 null, empty, or "latest"; missing usable identity evidence never creates
 technical-failure or retry permission.
+
+M4A-43
+For a native P8 semantic Execution, PREPARED is established before M2 T3
+Semantic Arm.
+
+M4A-44
+For a native P8 semantic Execution, provider reachability occurs only after the
+existing M2 T3 Semantic Arm has committed.
+
+M4A-45
+M4-A acquires no AdmissionAuthority and owns no QLEK lock.
+
+M4A-46
+Loss of live AdmissionAuthority after T3 does not make the Armed Execution
+replayable.
+
+M4A-47
+Semantic hazard begins at M2 Semantic Arm, not at MAYBE-SENT.
+
+M4A-48
+PREPARED before Arm creates no semantic hazard.
+
+M4A-49
+PREPARED + Semantic Arm + no MAYBE-SENT is hazardous until accepted recovery
+truth clears it.
+
+M4A-50
+M4 journal identity contains no QLEK or semantic authority generation.
+
+M4A-51
+A completed provider-semantic response is preserved even if candidate/run
+progression later becomes stale.
+
+M4A-52
+M4-A never performs same-Execution provider replay after MAYBE-SENT.
+
+M4A-53
+M4-A never interprets operator acknowledgement as provider-call authority.
+
+M4A-54
+P6 execution behavior is unchanged while P8 remains inactive.
 ```
 
 ## 23. Forbidden behavior
@@ -2143,6 +2390,8 @@ fabricated provider model
 fabricated provider response ID
 provider response ID used as callId
 M4 authoritative M2 writes
+M4 QLEK ownership or semantic binding storage
+M4 AdmissionAuthority acquisition or retention
 M4 OperationalBlocker construction
 heartbeat-driven ownership
 heartbeat-driven recovery
@@ -2155,6 +2404,12 @@ challenge context chosen by interpreting arbitrary text or output
 review campaign retargeting
 resolutionSubject injection into provider/model input
 secret persistence
+semantic-specific M4 recovery port
+semantic-specific M8 classifier
+QLEK-specific retry engine
+operator semantic retry path
+post-UNRESOLVABLE provider lookup
+new semantic-recovery mutation kind
 ```
 
 ## 24. Integration boundaries
@@ -2170,7 +2425,35 @@ M1
 → commits M2 Arm
 → constructs CognitiveExecutionRequest only by exact projection of prepared
    requestTemplate + exact ArmedExecutionDispatchRef
+→ for a later-M5-identified native P8 semantic WorkItem, performs the exact
+   semantic execution integrity assertion below
 → calls M4-A execute
+
+After successful T3 and before `M4-A execute`, future M1 must call:
+
+```ts
+loadSemanticExecutionState({
+  runId,
+  executionId,
+})
+```
+
+and require exactly:
+
+```text
+result.kind == "semantic"
+result.state.binding.execution.runId == request.dispatch.execution.runId
+result.state.binding.execution.workItemId == request.dispatch.execution.workItemId
+result.state.binding.execution.executionId == request.dispatch.execution.executionId
+result.state.arm != null
+result.state.arm.execution == result.state.binding.execution
+result.state.arm.qlek == result.state.binding.qlek
+```
+
+This is an integrity assertion only. It is not another prepare, Arm, currentness
+decision, `AdmissionAuthority` acquisition, or provider permission. Failure
+means no execute, no `MAYBE-SENT`, no provider call, and an
+implementation/integrity failure. M4-A itself does not call M2.
 
 M2
 → owns Execution identity
@@ -2354,11 +2637,11 @@ Active dependency contract:
 
 ```text
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION
-version 1.1.3
+version 1.1.4
 docs/formal/dependency-contract-pi-m4-cognitive-execution.md
 ```
 
-The active DC 1.1.3 closes these requirements for the selected v1 Pi backend.
+The active DC 1.1.4 closes these requirements for the selected v1 Pi backend.
 
 It satisfies every requirement in Section 12 and additionally closes:
 
@@ -2405,7 +2688,7 @@ The Dependency Contract must always determine and declare the capability status
 of the exact selected realization. Declaring the status does not imply that the
 capability is established.
 
-For the active DC 1.1.3:
+For the active DC 1.1.4:
 
 ```text
 provider-owned providerModel capture
@@ -2505,6 +2788,17 @@ PiM4DependencyInvocationRequestV1
 PiM4DependencyInvocationResultV1
 ```
 
+Active DC `1.1.4` intentionally preserves the serialized compatibility literal:
+
+```text
+PiM4DependencyExecutionPlanV1.contractVersion == "1.1.3"
+```
+
+That exact `"1.1.3"` value remains the execution-plan and recovery-capability
+compatibility value; it is not the active Dependency Contract document version.
+The Pi adapter remains QLEK-blind and receives no semantic binding, semantic Arm,
+AdmissionAuthority, semantic hazard, or SemanticAdmission material.
+
 No `ReviewContext`, `ResolutionContextV1`,
 `CognitiveExecutionContextV1`, or `CognitiveExecutionOperationV2` field enters
 the Pi Dependency Contract invocation.
@@ -2519,7 +2813,7 @@ ADR-054 resolves the semantic meaning of provider-reported.
 M4-A owns no identifier-string classification. The selected Dependency Contract
 owns realization capability status.
 
-Current DC 1.1.3 status:
+Current active DC 1.1.4 status:
 
 ```text
 provider-owned-canonical-effective-model-identity-v1
@@ -2540,3 +2834,25 @@ completed semantic response nevertheless has `providerModel` null, empty, or
 `"latest"`, M4 preserves the captured completed response. M4 does not relabel
 it technical-failure and does not retry. M5 owns assurance progression
 handling.
+
+## 27. Construction classification
+
+```text
+statement:
+native P8 semantic execution reuses the existing M4 effect fence unchanged;
+M4 preparation and durable PREPARED happen before T3, while M2 T3 atomically
+establishes QLEK/fence authority before M4 execute may publish MAYBE-SENT;
+M4 neither duplicates semantic binding in its journal nor retains live
+AdmissionAuthority after Arm
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
