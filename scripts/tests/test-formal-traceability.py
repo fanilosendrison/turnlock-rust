@@ -298,15 +298,20 @@ def _gate_a_governance_fixture_state(root: Path):
     return tuple(result)
 
 
+def ensure_fixture_gate_a_requirements_warm() -> None:
+    """Load canonical governance before a test patches shared subprocess state."""
+    global _TEST_GATE_A_GOVERNANCE_STATE, _TEST_GATE_A_REQUIREMENTS
+    if _TEST_GATE_A_REQUIREMENTS is None:
+        _TEST_GATE_A_GOVERNANCE_STATE = _gate_a_governance_fixture_state(ROOT)
+        _TEST_GATE_A_REQUIREMENTS = checker._load_gate_a_requirements(ROOT)
+
+
 def _collect_errors_with_canonical_gate_a_requirements(root: Path, *args, **kwargs):
     """Avoid rebuilding unchanged generic governance in every formal fixture."""
     if Path(root).resolve() == ROOT.resolve():
         return _ORIGINAL_COLLECT_ERRORS(root, *args, **kwargs)
 
-    global _TEST_GATE_A_GOVERNANCE_STATE, _TEST_GATE_A_REQUIREMENTS
-    if _TEST_GATE_A_REQUIREMENTS is None:
-        _TEST_GATE_A_GOVERNANCE_STATE = _gate_a_governance_fixture_state(ROOT)
-        _TEST_GATE_A_REQUIREMENTS = checker._load_gate_a_requirements(ROOT)
+    ensure_fixture_gate_a_requirements_warm()
     if _gate_a_governance_fixture_state(root) != _TEST_GATE_A_GOVERNANCE_STATE:
         return _ORIGINAL_COLLECT_ERRORS(root, *args, **kwargs)
     with mock.patch.object(
@@ -3188,6 +3193,7 @@ class FormalTraceabilityTests(unittest.TestCase):
             )
 
     def test_e6c_error_blocks_validated_mapping_fast_path(self) -> None:
+        ensure_fixture_gate_a_requirements_warm()
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             mapping_path = fixture_root / MAPPING_RELATIVE
@@ -12549,6 +12555,434 @@ class ProtocolV8ProjectionOracleCacheTests(unittest.TestCase):
                 self.assertEqual(1, oracle.call_count)
             for oracle in second_oracles.values():
                 self.assertEqual(1, oracle.call_count)
+
+
+class ProtocolV8E6BReviewCampaignCacheTests(unittest.TestCase):
+    AUTHORITY_DEPENDENCIES = (
+        Path("docs/specification/turnlock-spec.md"),
+        Path(
+            "docs/adr/"
+            "adr-015-evolve-the-normative-and-formal-specifications-together.md"
+        ),
+        Path(
+            "docs/adr/"
+            "adr-040-preserve-future-abstraction-extractability-without-"
+            "prematurely-generalizing-turnlock.md"
+        ),
+        Path(
+            "docs/adr/"
+            "adr-041-establish-turnlock-formal-assurance-architecture.md"
+        ),
+    )
+    REPRESENTATIVE_NON_AUTHORITY_DEPENDENCY = Path(
+        "formal/reviews/protocols/gate-a-campaign-protocol-v8.json"
+    )
+
+    def setUp(self) -> None:
+        cache = getattr(
+            checker,
+            "_PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE",
+            None,
+        )
+        if cache is not None:
+            cache.clear()
+
+    def tearDown(self) -> None:
+        cache = getattr(
+            checker,
+            "_PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE",
+            None,
+        )
+        if cache is not None:
+            cache.clear()
+
+    def _cached_errors(self, root: Path) -> list[str]:
+        return checker._inactive_protocol_v8_e6b_review_campaign_projection_cached_errors(
+            root
+        )
+
+    def _observe_reads_and_recording(
+        self,
+        root: Path,
+    ) -> tuple[list[str], set[Path], set[Path]]:
+        actual: set[Path] = set()
+        original_read_bytes = Path.read_bytes
+        original_read_text = Path.read_text
+        resolved_root = root.resolve()
+
+        def observe(path: Path) -> None:
+            try:
+                actual.add(path.resolve(strict=False).relative_to(resolved_root))
+            except (OSError, RuntimeError, ValueError):
+                pass
+
+        def read_bytes(path: Path) -> bytes:
+            observe(path)
+            return original_read_bytes(path)
+
+        def read_text(path: Path, *args, **kwargs) -> str:
+            observe(path)
+            return original_read_text(path, *args, **kwargs)
+
+        with mock.patch.object(
+            checker,
+            "_record_validation_dependency",
+            wraps=checker._record_validation_dependency,
+        ) as recorder, mock.patch.object(
+            Path,
+            "read_bytes",
+            read_bytes,
+        ), mock.patch.object(
+            Path,
+            "read_text",
+            read_text,
+        ):
+            errors = self._cached_errors(root)
+
+        recorded = {Path(call.args[0]) for call in recorder.call_args_list}
+        return errors, actual, recorded
+
+    def _capture_outcome(self, invocation):
+        try:
+            return ("return", invocation())
+        except Exception as error:
+            return ("exception", type(error), str(error))
+
+    def test_first_miss_records_every_actual_repository_file_read(self) -> None:
+        errors, actual, recorded = self._observe_reads_and_recording(ROOT)
+
+        self.assertEqual([], errors)
+        self.assertEqual(actual, recorded)
+        self.assertEqual(51, len(actual))
+        self.assertTrue(set(self.AUTHORITY_DEPENDENCIES).issubset(recorded))
+
+    def test_failing_first_miss_records_every_actual_repository_file_read(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            manifest = load_manifest(root)
+            missing = Path("docs/specification/issue-63-missing-spec.md")
+            manifest["authority"]["normative_spec"] = missing.as_posix()
+            save_manifest(root, manifest)
+
+            errors, actual, recorded = self._observe_reads_and_recording(root)
+
+        self.assertTrue(errors)
+        self.assertIn(missing, actual)
+        self.assertIn(missing, recorded)
+        self.assertEqual(actual, recorded)
+
+    def test_subject_derivation_records_resolved_authority_paths(self) -> None:
+        manifest = load_manifest(ROOT)
+        observed: set[Path] = set()
+        token = checker._VALIDATION_DEPENDENCY_RECORDER.set(observed)
+        try:
+            payload, errors = checker.build_gate_a_subject_payload(ROOT, manifest)
+        finally:
+            checker._VALIDATION_DEPENDENCY_RECORDER.reset(token)
+
+        self.assertEqual([], errors)
+        self.assertIsNotNone(payload)
+        self.assertTrue(set(self.AUTHORITY_DEPENDENCIES).issubset(observed))
+
+    def test_review_packet_embedding_records_resolved_authority_paths(self) -> None:
+        manifest = load_manifest(ROOT)
+        with mock.patch.object(
+            checker,
+            "_record_validation_dependency",
+            wraps=checker._record_validation_dependency,
+        ) as recorder:
+            payload, errors = checker.build_gate_a_review_packet_payload(ROOT, manifest)
+
+        self.assertEqual([], errors)
+        self.assertIsNotNone(payload)
+        calls = [Path(call.args[0]) for call in recorder.call_args_list]
+        for dependency in self.AUTHORITY_DEPENDENCIES:
+            self.assertEqual(2, calls.count(dependency), dependency.as_posix())
+
+    def test_exact_content_hit_avoids_repeated_e6b_evaluation(self) -> None:
+        original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+        with mock.patch.object(
+            checker,
+            "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+            wraps=original,
+        ) as evaluation:
+            first = self._cached_errors(ROOT)
+            second = self._cached_errors(ROOT)
+
+        self.assertEqual([], first)
+        self.assertEqual(first, second)
+        self.assertEqual(1, evaluation.call_count)
+
+    def test_identical_content_reuses_e6b_result_across_distinct_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_a, tempfile.TemporaryDirectory() as temporary_b:
+            root_a = make_fixture(temporary_a)
+            root_b = make_fixture(temporary_b)
+            original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                wraps=original,
+            ) as evaluation:
+                first = self._cached_errors(root_a)
+                second = self._cached_errors(root_b)
+
+        self.assertEqual([], first)
+        self.assertEqual(first, second)
+        self.assertEqual(1, evaluation.call_count)
+
+    def test_each_authority_content_family_invalidates_e6b_reuse(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                wraps=original,
+            ) as evaluation:
+                self.assertEqual([], self._cached_errors(root))
+                for expected_count, relative in enumerate(
+                    self.AUTHORITY_DEPENDENCIES,
+                    start=2,
+                ):
+                    path = root / relative
+                    path.write_bytes(
+                        path.read_bytes()
+                        + f"\nissue-63-{expected_count}\n".encode("utf-8")
+                    )
+                    self._cached_errors(root)
+                    self.assertEqual(expected_count, evaluation.call_count)
+
+    def test_non_authority_dependency_content_invalidates_e6b_reuse(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                wraps=original,
+            ) as evaluation:
+                self.assertEqual([], self._cached_errors(root))
+                dependency = root / self.REPRESENTATIVE_NON_AUTHORITY_DEPENDENCY
+                document = json.loads(dependency.read_text(encoding="utf-8"))
+                document["$comment"] = "issue-63-non-authority-invalidation"
+                dependency.write_text(
+                    json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                self._cached_errors(root)
+
+        self.assertEqual(2, evaluation.call_count)
+
+    def test_real_top_level_implementation_identity_change_invalidates(self) -> None:
+        original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+        with mock.patch.object(
+            checker,
+            "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+            wraps=original,
+        ) as first_identity:
+            self._cached_errors(ROOT)
+            self._cached_errors(ROOT)
+        with mock.patch.object(
+            checker,
+            "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+            wraps=original,
+        ) as second_identity:
+            self._cached_errors(ROOT)
+
+        self.assertEqual(1, first_identity.call_count)
+        self.assertEqual(1, second_identity.call_count)
+
+    def test_cached_nonempty_diagnostics_match_uncached_content_and_order(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            dependency = root / self.REPRESENTATIVE_NON_AUTHORITY_DEPENDENCY
+            document = json.loads(dependency.read_text(encoding="utf-8"))
+            document["protocol_id"] = "issue-63-invalid-protocol"
+            dependency.write_text(
+                json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            first = self._cached_errors(root)
+            second = self._cached_errors(root)
+            uncached = (
+                checker._inactive_protocol_v8_e6b_review_campaign_projection_errors(
+                    root
+                )
+            )
+            first.append("local list mutation")
+            third = self._cached_errors(root)
+
+        self.assertTrue(uncached)
+        self.assertEqual(uncached, second)
+        self.assertEqual(second, third)
+        self.assertIsNot(first, second)
+        self.assertIsNot(second, third)
+
+    def test_cached_success_cannot_hide_new_e6b_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                wraps=original,
+            ) as evaluation:
+                self.assertEqual([], self._cached_errors(root))
+                dependency = root / self.REPRESENTATIVE_NON_AUTHORITY_DEPENDENCY
+                document = json.loads(dependency.read_text(encoding="utf-8"))
+                document["protocol_id"] = "issue-63-invalid-protocol"
+                dependency.write_text(
+                    json.dumps(document, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                observed = self._cached_errors(root)
+
+        self.assertTrue(observed)
+        self.assertEqual(2, evaluation.call_count)
+
+    def test_uncacheable_dependency_states_preserve_raw_fail_closed_behavior(self) -> None:
+        for state in ("missing", "unreadable", "symlink", "non-regular"):
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as temporary:
+                root = make_fixture(temporary)
+                dependency = root / self.REPRESENTATIVE_NON_AUTHORITY_DEPENDENCY
+                original_bytes = dependency.read_bytes()
+                original_mode = dependency.stat().st_mode
+                target = root / "issue-63-protocol-target.json"
+                if state == "missing":
+                    dependency.unlink()
+                elif state == "unreadable":
+                    dependency.chmod(0)
+                elif state == "symlink":
+                    target.write_bytes(original_bytes)
+                    dependency.unlink()
+                    dependency.symlink_to(target)
+                else:
+                    dependency.unlink()
+                    dependency.mkdir()
+
+                original = (
+                    checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+                )
+                try:
+                    with mock.patch.object(
+                        checker,
+                        "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                        wraps=original,
+                    ) as evaluation:
+                        first = self._capture_outcome(
+                            lambda: self._cached_errors(root)
+                        )
+                        second = self._capture_outcome(
+                            lambda: self._cached_errors(root)
+                        )
+                    raw = self._capture_outcome(lambda: original(root))
+                finally:
+                    if state == "unreadable":
+                        dependency.chmod(original_mode)
+
+                self.assertEqual(raw, first)
+                self.assertEqual(first, second)
+                self.assertEqual(2, evaluation.call_count)
+
+    def test_duplicate_matching_adr_membership_bypasses_stale_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = make_fixture(temporary)
+            original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+            with mock.patch.object(
+                checker,
+                "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                wraps=original,
+            ) as evaluation:
+                self.assertEqual([], self._cached_errors(root))
+                duplicate = root / "docs/adr/adr-015-issue-63-duplicate.md"
+                duplicate.write_bytes((root / self.AUTHORITY_DEPENDENCIES[1]).read_bytes())
+                first = self._cached_errors(root)
+                second = self._cached_errors(root)
+
+        self.assertTrue(any("ADR-015; found 2" in error for error in first))
+        self.assertEqual(first, second)
+        self.assertEqual(3, evaluation.call_count)
+
+    def test_missing_or_renamed_adr_membership_bypasses_stale_cache(self) -> None:
+        for state in ("missing", "renamed"):
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as temporary:
+                root = make_fixture(temporary)
+                original = (
+                    checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+                )
+                with mock.patch.object(
+                    checker,
+                    "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+                    wraps=original,
+                ) as evaluation:
+                    self.assertEqual([], self._cached_errors(root))
+                    authority = root / self.AUTHORITY_DEPENDENCIES[1]
+                    if state == "missing":
+                        authority.unlink()
+                    else:
+                        authority.rename(
+                            authority.with_name("issue-63-renamed-adr-015.md")
+                        )
+                    observed = self._cached_errors(root)
+
+                self.assertTrue(
+                    any("ADR-015; found 0" in error for error in observed)
+                )
+                self.assertEqual(2, evaluation.call_count)
+
+    def test_collect_errors_keeps_cached_e6b_before_uncached_e6c(self) -> None:
+        order: list[str] = []
+        projection = checker._inactive_protocol_v8_projection_oracle_errors
+        e6b = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+        e6c = (
+            checker._inactive_protocol_v8_e6c_finding_adjudication_supplement_projection_errors
+        )
+
+        def observe_projection(root: Path) -> list[str]:
+            order.append("E5/E6-A")
+            return projection(root)
+
+        def observe_e6b(root: Path) -> list[str]:
+            order.append("E6-B")
+            return e6b(root)
+
+        def observe_e6c(root: Path) -> list[str]:
+            order.append("E6-C")
+            return e6c(root)
+
+        with mock.patch.object(
+            checker,
+            "_inactive_protocol_v8_projection_oracle_errors",
+            side_effect=observe_projection,
+        ), mock.patch.object(
+            checker,
+            "_inactive_protocol_v8_e6b_review_campaign_projection_errors",
+            side_effect=observe_e6b,
+        ) as e6b_evaluation, mock.patch.object(
+            checker,
+            "_inactive_protocol_v8_e6c_finding_adjudication_supplement_projection_errors",
+            side_effect=observe_e6c,
+        ) as e6c_evaluation:
+            first, _ = _ORIGINAL_COLLECT_ERRORS(
+                ROOT,
+                check_generated=False,
+                load_governance=False,
+            )
+            second, _ = _ORIGINAL_COLLECT_ERRORS(
+                ROOT,
+                check_generated=False,
+                load_governance=False,
+            )
+
+        self.assertEqual([], first)
+        self.assertEqual(first, second)
+        self.assertEqual(
+            ["E5/E6-A", "E6-B", "E6-C", "E5/E6-A", "E6-C"],
+            order,
+        )
+        self.assertEqual(1, e6b_evaluation.call_count)
+        self.assertEqual(2, e6c_evaluation.call_count)
 
 
 if __name__ == "__main__":
