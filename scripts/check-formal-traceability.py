@@ -304,6 +304,10 @@ _PROTOCOL_V8_PROJECTION_ORACLE_CACHE: dict[
     tuple[object, ...],
     dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
 ] = {}
+_PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE: dict[
+    tuple[object, ...],
+    dict[tuple[Path, ...], dict[bytes, tuple[str, ...]]],
+] = {}
 _PROTOCOL_V8_SEMANTIC_ORACLE_CACHE_LIMIT = 32
 _PROTOCOL_V8_SEMANTIC_ORACLE_DEPENDENCY_SET_LIMIT = 8
 
@@ -24568,6 +24572,54 @@ def _inactive_protocol_v8_projection_oracle_errors(root: Path) -> list[str]:
     )
 
 
+def _e6b_cached_adr_membership_matches(
+    root: Path,
+    dependencies: tuple[Path, ...],
+) -> bool:
+    """Reject reuse if a recorded authority ADR no longer resolves uniquely."""
+    for relative in dependencies:
+        if relative.parent != ADR_DIRECTORY_RELATIVE:
+            continue
+        match = re.fullmatch(r"adr-([0-9]{3})-.+\.md", relative.name)
+        if match is None:
+            return False
+        try:
+            matches = sorted(
+                (root / ADR_DIRECTORY_RELATIVE).glob(
+                    f"adr-{match.group(1)}-*.md"
+                )
+            )
+        except OSError:
+            return False
+        if len(matches) != 1 or matches[0] != root / relative:
+            return False
+    return True
+
+
+def _inactive_protocol_v8_e6b_review_campaign_projection_cached_errors(
+    root: Path,
+) -> list[str]:
+    """Reuse E6-B only while exact file content and ADR membership are stable."""
+    implementation_identity = (
+        _inactive_protocol_v8_e6b_review_campaign_projection_errors,
+    )
+    implementation_cache = _PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE.get(
+        implementation_identity,
+        {},
+    )
+    if any(
+        not _e6b_cached_adr_membership_matches(root, dependencies)
+        for dependencies in implementation_cache
+    ):
+        return _inactive_protocol_v8_e6b_review_campaign_projection_errors(root)
+    return _content_addressed_validation_errors(
+        root,
+        implementation_identity,
+        lambda: _inactive_protocol_v8_e6b_review_campaign_projection_errors(root),
+        _PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE,
+    )
+
+
 def concise_subprocess_failure(stderr: bytes, returncode: int) -> str:
     """Return one bounded diagnostic line instead of a full subprocess traceback."""
     text = stderr.decode("utf-8", errors="replace")
@@ -29490,13 +29542,16 @@ def _authority_artifact_entries(
         number = adr_id.split("-")[1]
         matches = sorted((root / ADR_DIRECTORY_RELATIVE).glob(f"adr-{number}-*.md"))
         if len(matches) != 1:
+            _record_validation_dependency(ADR_DIRECTORY_RELATIVE)
             errors.append(
                 f"cannot derive Gate A subject: expected exactly one file for "
                 f"{adr_id}; found {len(matches)}"
             )
             continue
         path = matches[0]
-        relative = path.relative_to(root).as_posix()
+        relative_path = path.relative_to(root)
+        _record_validation_dependency(relative_path)
+        relative = relative_path.as_posix()
         try:
             data = path.read_bytes()
         except OSError as error:
@@ -29524,6 +29579,7 @@ def build_gate_a_subject_payload(
             "cannot derive Gate A subject: authority.normative_spec is not a path"
         )
     else:
+        _record_validation_dependency(Path(normative_spec_path))
         try:
             data = (root / normative_spec_path).read_bytes()
         except OSError as error:
@@ -29671,6 +29727,7 @@ def build_gate_a_review_packet_payload(
         if not isinstance(raw_path, str) or not raw_path:
             errors.append(f"cannot embed authority content: invalid path {raw_path!r}")
             continue
+        _record_validation_dependency(Path(raw_path))
         try:
             data = (root / raw_path).read_bytes()
         except OSError as error:
@@ -30400,7 +30457,7 @@ def collect_errors(
     errors.extend(_inactive_protocol_v8_semantic_oracle_errors(root))
     errors.extend(_inactive_protocol_v8_projection_oracle_errors(root))
     errors.extend(
-        _inactive_protocol_v8_e6b_review_campaign_projection_errors(root)
+        _inactive_protocol_v8_e6b_review_campaign_projection_cached_errors(root)
     )
     errors.extend(
         _inactive_protocol_v8_e6c_finding_adjudication_supplement_projection_errors(
