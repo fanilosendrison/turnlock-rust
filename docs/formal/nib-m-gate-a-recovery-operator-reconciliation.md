@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-21"
 step_id: 2
 id: NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION
-version: "2.0.12"
+version: "2.1.0"
 scope: gate-a-campaign-runner/recovery-operator/recovery-reconciliation
 status: active
 consumers: [architect, coding-agent]
@@ -21,7 +21,38 @@ This document is the active Module Brief for M8-A
 `recovery-operator/recovery-reconciliation` in the Gate A hostile-review
 campaign runner.
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+It consumes exactly:
+
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+
+NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.1.0
+
+NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.3
+
+M2 semantic authority contracts from:
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 7.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 6.0.1
+```
+
+Version `2.1.0` is an additive protocol-v8 construction synchronization. It
+introduces exactly:
+
+```text
+no TURNLOCK product semantic change
+no Gate A protocol semantic change
+no P6 behavior change
+no Pi adapter change
+no provider/model change
+no new retry policy
+no new recovery classification
+no new operator-resolution kind
+no cross-module type change
+no QLEK identity change
+no SemanticAdmission identity change
+```
+
+P6 remains current. P7 remains permanently inactive. P8 remains inactive.
 
 Version `2.0.12` is a dependency-only synchronization with NIB-S `10.0.0`. It
 changes no M8-A algorithm, type, ownership, observation, classification,
@@ -64,6 +95,27 @@ M8 recovery-operator
 ```
 
 This brief closes M8-A only.
+
+The protocol-v8 construction boundary remains exactly:
+
+```text
+M2
+→ owns QLEK binding
+→ owns SemanticArmBinding
+→ owns semantic hazard reconstruction
+→ owns hazard-clearance authority after exact execution/recovery facts are admitted
+→ owns final replacement/current-state admissibility
+
+M4
+→ owns cognitive external-effect truth only
+
+M8
+→ owns recovery classification and operator artifact meaning only
+```
+
+M4 and M8 create no sixth semantic state machine. Their existing
+execution/recovery transitions refine exact Execution truth between T3
+`ArmSemanticExecution` and T4 `ReconcileSemanticCompletion`.
 
 M8-A owns:
 
@@ -126,7 +178,12 @@ CampaignArtifactStore
 ```
 
 Using `CampaignArtifactStore` gives M8-A no M2 authoritative-state mutation
-authority.
+authority. It remains non-authoritative immutable artifact infrastructure.
+
+M8-A does not query `loadSemanticExecutionState` or
+`loadSemanticQuestionState`, and it does not need to know whether an Execution
+is semantic to classify exact execution truth. The M2 briefs listed above are
+construction authority context only; M2 owns the later semantic projection.
 
 M8-A invokes only the internal runner `ExecutionRecoveryPort` boundaries owned
 by M4 and M7.
@@ -1499,6 +1556,174 @@ classifications.
 
 The process simply fails to produce a legitimate completed episode.
 
+### 25.1 Protocol-v8 recovery-truth boundary
+
+Preserve exactly:
+
+```text
+Execution recovery classification
+!=
+semantic replacement authorization
+```
+
+For an Execution that M2 separately knows is a native P8 semantic Execution:
+
+```text
+PROVEN-NOT-EXECUTED
+→ positive execution truth
+→ eligible M2 semantic hazard clearance after admission
+→ no retry authority by itself
+
+PROVEN-COMPLETED + technical-failure
+→ positive no-completed-response truth
+→ eligible M2 semantic hazard clearance after admission
+→ no retry authority by itself
+
+PROVEN-COMPLETED + captured
+→ exact completion exists
+→ NOT semantic hazard clearance
+→ route exact completion to M6
+
+pending
+→ hazard remains
+
+UNRESOLVABLE
+→ ordinary execution recovery terminality
+→ hazard remains
+→ no fresh same-K dispatch
+```
+
+PNE means only that positive mechanically validated executor evidence establishes
+that the exact external cognitive effect boundary was not crossed. It does not
+mean retry with the same or a different model, retry-limit reset,
+operator-selected new sample, or semantic-answer absence. Replacement requires
+independent existing outer authority after M2 admits PNE.
+
+For `PROVEN-COMPLETED` with `RecoveredExecutionOutcome.kind = captured`, preserve
+the exact captured result. Never discard it because candidate or run state is
+stale, convert it to technical failure or PNE, declare hazard cleared, or
+request another provider sample. M2 admits exact captured execution truth, M6
+performs deterministic P8 completion validation, protocol-invalid permits M2
+clearance, and protocol-valid V requires M2 T4 Admission reconciliation.
+
+M8-A inspects no `SemanticQuestionContract`, QLEK, `SemanticAdmission`, semantic
+candidate value, candidate currentness, model quality, model disagreement, or
+operator preference. It chooses no replacement model/provider and contains no
+model-shopping logic.
+
+The four synchronized briefs preserve this exact M2-owned derived projection:
+
+```text
+never Armed
++
+definitively non-dispatchable
+→ no semantic hazard
+
+PREPARED
++
+not Armed
+→ no semantic hazard
+
+PREPARED
++
+Armed
++
+PNE admitted
+→ hazard cleared
+
+Armed
++
+exact admitted TechnicalExecutionFailure
+→ hazard cleared
+
+Armed
++
+captured completion
++
+protocol-invalid admitted
+→ hazard cleared
+
+Armed
++
+captured completion
++
+protocol-valid V
++
+Admission(K,V)
++
+lawful origin witness
+→ hazard cleared
+
+Armed
++
+captured completion
++
+not yet mechanically validated
+→ hazard remains
+
+Armed
++
+no MAYBE-SENT
++
+no accepted PNE yet
+→ hazard remains
+
+Armed
++
+MAYBE-SENT
++
+no terminal
+→ hazard remains
+
+Armed
++
+pending
+→ hazard remains
+
+Armed
++
+UNRESOLVABLE
+→ hazard remains
+
+Armed
++
+operator acknowledgement
+→ hazard remains
+
+Armed
++
+progression supersession
+→ hazard remains
+
+Armed
++
+candidate staleness
+→ hazard remains
+```
+
+M4 and M8 persist no mutable hazard boolean. M2 owns semantic hazard
+reconstruction and hazard-clearance authority after exact execution/recovery
+facts are admitted.
+
+`SemanticHazardCleared(E)` and `ReplacementAuthorized(E)` remain distinct:
+
+```text
+ReplacementAuthorized(E)
+→ SemanticHazardCleared(E)
+```
+
+but not the reverse. Replacement additionally requires accepted retry
+authorization where applicable, M2 attempt limits, WorkItem legality, source
+obligation legality, protocol retry rules, current progression legality, and
+Admission/conflict checks. PNE permits only the existing lawful replacement
+path, never unlimited retry, another-model retry, retry after hard-limit
+exhaustion, operator-selected model shopping, or automatic fresh sampling.
+
+Existing M4/M8 machinery is reused for execution truth. Do not introduce a
+semantic-specific M4 recovery port, semantic-specific M8 classifier,
+QLEK-specific retry engine, operator semantic retry path, post-UNRESOLVABLE
+provider lookup, or new semantic-recovery mutation kind.
+
 ## 26. Required invariants
 
 M8-A must satisfy all of these:
@@ -1587,6 +1812,39 @@ M8-A never redispatches the original external effect.
 
 M8A-26
 Recovery-plan concurrency is not selected; initial composition is sequential.
+
+M8A-27
+Execution recovery classification and semantic replacement authorization are
+distinct.
+
+M8A-28
+PROVEN-NOT-EXECUTED is positive nonexecution truth, not retry authority.
+
+M8A-29
+PROVEN-COMPLETED technical-failure preserves exact positive
+no-completed-response truth.
+
+M8A-30
+PROVEN-COMPLETED captured preserves exact completion and does not clear semantic
+hazard by itself.
+
+M8A-31
+pending never clears semantic hazard.
+
+M8A-32
+UNRESOLVABLE never clears semantic hazard.
+
+M8A-33
+M8-A inspects no QLEK, SemanticAdmission, or semantic candidate value.
+
+M8A-34
+M8-A never chooses a replacement model or provider.
+
+M8A-35
+A stale candidate/run does not erase a captured completion.
+
+M8A-36
+P6 recovery behavior is unchanged while P8 remains inactive.
 ```
 
 ## 27. Required edge-case behavior
@@ -1734,6 +1992,15 @@ create Operator Action Request
 dispose blocker IDs
 ingest operator resolution
 create a new external Dependency Contract
+query loadSemanticExecutionState
+query loadSemanticQuestionState
+inspect QLEK or SemanticAdmission
+choose a replacement provider/model
+create a semantic-specific M8 classifier
+create a QLEK-specific retry engine
+create an operator semantic retry path
+perform post-UNRESOLVABLE provider lookup
+create a new semantic-recovery mutation kind
 ```
 
 ## 29. Construction boundary
@@ -1757,3 +2024,23 @@ explicit operational supersession
 ```
 
 The coding agent must not infer those behaviors from this brief.
+
+## 30. Construction classification
+
+```text
+statement:
+M8 recovery classification remains execution-domain truth only; M2 derives
+semantic hazard clearance from admitted PNE, technical-failure,
+protocol-invalid, or Admission reconciliation facts
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
