@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-03"
 step_id: 2
 id: NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION
-version: "1.0.3"
+version: "1.1.0"
 scope: gate-a-campaign-runner/cognitive-execution/recovery-observation
 status: active
 consumers: [architect, coding-agent]
@@ -18,16 +18,42 @@ superseded_by: []
 This brief consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.0.0
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.1.0
 
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.0.12
+NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.1.0
 
-NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.12
+NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.1.0
+
+M2 semantic authority contracts from:
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 7.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 6.0.1
 ```
+
+These M2 briefs are construction authority context only. They introduce no new
+runtime dependency.
+
+Version `1.1.0` is an additive protocol-v8 construction synchronization. It
+introduces exactly:
+
+```text
+no TURNLOCK product semantic change
+no Gate A protocol semantic change
+no P6 behavior change
+no Pi adapter change
+no provider/model change
+no new retry policy
+no new recovery classification
+no new operator-resolution kind
+no cross-module type change
+no QLEK identity change
+no SemanticAdmission identity change
+```
+
+P6 remains current. P7 remains permanently inactive. P8 remains inactive.
 
 Version `1.0.3` is a dependency-only synchronization with NIB-S `10.0.0`,
 M4-A `2.0.0`, DC `1.1.4`, M8-A `2.0.12`, and M8-B `2.0.12`. It changes no
@@ -64,6 +90,27 @@ local terminal reconstruction
 construction/sealing of cognitive recovery indeterminacy
 ExecutionRecoveryPort.reconcile(...)
 ```
+
+The protocol-v8 construction boundary remains exactly:
+
+```text
+M2
+→ owns QLEK binding
+→ owns SemanticArmBinding
+→ owns semantic hazard reconstruction
+→ owns hazard-clearance authority after exact execution/recovery facts are admitted
+→ owns final replacement/current-state admissibility
+
+M4
+→ owns cognitive external-effect truth only
+
+M8
+→ owns recovery classification and operator artifact meaning only
+```
+
+M4 and M8 create no sixth semantic state machine. Existing M4/M8 recovery
+transitions refine exact Execution truth between T3 `ArmSemanticExecution` and
+T4 `ReconcileSemanticCompletion`.
 
 M4-B does NOT own:
 
@@ -130,6 +177,9 @@ SQLite
 M2 persistence internals
 ```
 
+It does not call `loadSemanticExecutionState` or `loadSemanticQuestionState`.
+M2 maps exact Execution identity to QLEK/Arm history independently.
+
 ## 3. Ownership-handoff and concurrency requirement
 
 Within one process:
@@ -165,7 +215,17 @@ This rule introduces no execution truth.
 
 It only ensures no prior same-session M4-A invocation may later create
 MAYBE-SENT after a new recovery observer has legitimately established a
-PREPARED-only state.
+PREPARED-only state. Therefore the construction makes impossible:
+
+```text
+M4-B establishes PREPARED-only nonexecution proof
+→ old same-Execution M4-A later publishes MAYBE-SENT
+```
+
+M4-B acquires no GateARun `WriteAuthority`, `AdmissionAuthority`, or QLEK lock to
+observe its own journal. Cross-session orchestration still requires M1 to enter
+the ordinary M2 recovery barrier before using a result authoritatively, while
+M4-B itself returns executor-domain observation only.
 
 ## 4. Public boundary
 
@@ -323,7 +383,17 @@ Any unsupported/mismatched DC version is:
 RECOVERY-CONTRACT-VIOLATION
 ```
 
-M4-B never dynamically guesses recovery behavior from another DC version.
+M4-B never dynamically guesses recovery behavior from another serialized-plan
+version. Active `DC-PI-M4-GATE-A-COGNITIVE-EXECUTION` version `1.1.4`
+intentionally preserves:
+
+```text
+PiM4DependencyExecutionPlanV1.contractVersion == "1.1.3"
+```
+
+and its recovery-capability compatibility contract unchanged. The literal
+`"1.1.3"` above identifies serialized plan/recovery compatibility, not the
+active Dependency Contract document.
 
 ## 8. Arm evidence prefix
 
@@ -919,13 +989,69 @@ MAYBE-SENT proves effect boundary may have become reachable
 
 no valid TERMINAL means no local durable terminal truth exists
 
-accepted DC 1.1.3 establishes no qualified read-only provider recovery mechanism
+active DC 1.1.4, through its preserved serialized 1.1.3 recovery compatibility,
+establishes no qualified read-only provider recovery mechanism
 
 replay is forbidden
 
 therefore M4's available recovery mechanism is exhausted for this exact
 Execution
 ```
+
+### 19.1 Protocol-v8 downstream interpretation
+
+M4-B creates no semantic hazard state. M2 separately maps exact ExecutionId to
+its immutable QLEK and Arm history.
+
+For `PREPARED` with no `MAYBE-SENT` and no `TERMINAL`, `PREPARED` was durably
+published before Arm. Once an Armed Execution enters recovery in this state,
+M4-B returns exact `kind = not-executed` with a positive
+`NonExecutionProofRef`; M8 may classify `PROVEN-NOT-EXECUTED`. Only after M2
+admits that exact PNE fact does M2 derive `SemanticHazardCleared(E)`. PNE does
+not itself authorize arbitrary retry or replacement.
+
+For `MAYBE-SENT` with no `TERMINAL`, M4-B returns exact selected-backend
+indeterminacy. The current backend has no qualified post-crash response lookup,
+no safe read-only pending observation, and no replay. M8 may therefore reach
+`UNRESOLVABLE`; for semantic E the hazard remains and no fresh same-K sample is
+lawful.
+
+For terminal technical failure, M4-B reconstructs exact terminal technical
+failure and M8 may classify `PROVEN-COMPLETED` with
+`recoveredOutcome.kind = technical-failure`. Only after exact M2 admission of
+the `TechnicalExecutionFailure` does semantic hazard clear, because positive
+authority establishes that no completed semantic response exists. This does not
+independently authorize replacement.
+
+For terminal captured response, M4-B reconstructs exact captured completion and
+M8 may classify exact `PROVEN-COMPLETED`. This does not clear semantic hazard.
+The exact completion flows through M2 admitted captured execution truth to M6
+deterministic P8 validation. Protocol-invalid permits M2 clearance;
+protocol-valid V requires mandatory T4 Admission reconciliation and clears
+hazard only with matching Admission plus lawful origin witness.
+
+The current-backend late-response rule remains exactly:
+
+```text
+MAYBE-SENT
++
+no TERMINAL
++
+no qualified post-crash provider-response observation
+→ executor-domain indeterminacy
+→ M8 UNRESOLVABLE
+→ semantic hazard remains
+```
+
+Do not invent later provider GET, provider-response recovery, provider replay,
+new provider call, or late semantic lookup after `UNRESOLVABLE`. K may remain
+blocked indefinitely as a lawful safety-over-liveness outcome.
+
+`SemanticHazardCleared(E)` remains distinct from `ReplacementAuthorized(E)`.
+Replacement implies clearance, but clearance does not imply replacement. Exact
+retry authorization, M2 attempt limits, WorkItem/source-obligation legality,
+protocol retry rules, current progression legality, and Admission/conflict
+checks remain independently required.
 
 ## 20. RecoveryIndeterminacyRef construction
 
@@ -995,7 +1121,8 @@ and MUST NEVER return:
 kind = "pending"
 ```
 
-because DC 1.1.3 establishes:
+because active DC 1.1.4 preserves serialized 1.1.3 recovery compatibility and
+establishes:
 
 ```text
 safe read-only provider pending observation = NOT-ESTABLISHED
@@ -1118,7 +1245,9 @@ unknown
 
 ## 26. M8 boundary
 
-M4-B returns executor-domain observations only.
+M4-B returns executor-domain observations only. M8 owns recovery classification,
+and M2 owns authoritative admission, semantic projection, hazard clearance, and
+replacement admissibility.
 
 It never emits:
 
@@ -1176,6 +1305,12 @@ negative lookup as nonexecution proof
 missing terminal artifact as terminal failure
 CAS artifact without journal reference as terminal truth
 journal marker creation/update/deletion
+semantic-specific M4 recovery port
+semantic-specific M8 classifier
+QLEK-specific retry engine
+operator semantic retry path
+post-UNRESOLVABLE provider lookup
+new semantic-recovery mutation kind
 ```
 
 ## 29. Required invariants
@@ -1210,11 +1345,11 @@ MAYBE-SENT without TERMINAL-DURABLE never proves execution, nonexecution, or
 technical failure.
 
 M4B-09
-Under DC 1.1.3, MAYBE-SENT without terminal produces exact executor-domain
-indeterminacy.
+Under active DC 1.1.4 and its preserved serialized 1.1.3 recovery contract,
+MAYBE-SENT without terminal produces exact executor-domain indeterminacy.
 
 M4B-10
-M4-B 1.0.2 never returns pending.
+M4-B 1.1.0 never returns pending.
 
 M4B-11
 Unreferenced CAS material and telemetry never advance recovery truth.
@@ -1230,4 +1365,58 @@ M4-B never reinterprets ADR-054 provider identity semantics.
 
 M4B-15
 Repeated reconciliation over unchanged durable state is logically idempotent.
+
+M4B-16
+M4-B never acquires AdmissionAuthority or a QLEK lock.
+
+M4B-17
+PREPARED-only nonexecution observation is executor-domain evidence only; M2
+owns semantic hazard clearance after admitted PNE.
+
+M4B-18
+MAYBE-SENT without TERMINAL never clears semantic hazard.
+
+M4B-19
+Current-backend UNRESOLVABLE permits no invented late provider lookup.
+
+M4B-20
+Recovered terminal technical failure can clear hazard only after exact M2
+admission.
+
+M4B-21
+Recovered captured completion does not itself clear semantic hazard.
+
+M4B-22
+Captured completion must be preserved for deterministic M6 validation and,
+when protocol-valid, mandatory Admission reconciliation.
+
+M4B-23
+The M4 call-lock/ownership-handoff construction prevents PNE followed by later
+same-Execution MAYBE-SENT publication.
+
+M4B-24
+No M4-B result independently authorizes replacement.
+
+M4B-25
+P6 recovery behavior is unchanged while P8 remains inactive.
 ```
+
+## 30. Construction classification
+
+```text
+statement:
+existing M4 PREPARED/MAYBE-SENT/TERMINAL recovery observations are sufficient
+to refine P8 semantic hazard because M2 maps exact ExecutionId to immutable
+QLEK/Arm history; M4 recovery artifacts remain QLEK-blind
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
