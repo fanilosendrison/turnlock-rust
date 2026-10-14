@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP
-version: "3.0.3"
+version: "3.0.4"
 scope: gate-a-campaign-runner/campaign-state/persistence-ownership
 status: active
 consumers: [architect, coding-agent]
@@ -23,9 +23,15 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
-NIB-M-GATE-A-CONTRACTS 1.2.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+NIB-M-GATE-A-CONTRACTS 1.3.0
 ```
+
+Version `3.0.4` is dependency/representation synchronization only. It retains
+the corrected NIB-S `FindingRef` as an admitted authoritative value through the
+existing assurance-ledger persistence mechanism. SQLite authoritative schema
+remains exactly `2`; add no table, no column solely for this correction, no
+migration mechanism, and no persistence semantic change.
 
 Version `3.0.3` is a dependency-only construction correction. Its only
 correction is the exact JavaScript `bigint` representation for integer-valued

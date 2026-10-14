@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-13"
 step_id: 2
 id: NIB-M-GATE-A-CONTRACTS
-version: "1.2.0"
+version: "1.3.0"
 scope: gate-a-campaign-runner/contracts
 status: active
 consumers: [architect, coding-agent]
@@ -18,6 +18,13 @@ superseded_by: []
 ## 1. Status, authority, and purpose
 
 Implement the first active Module Brief for undecomposed M0 `contracts`.
+
+Version `1.3.0` additively synchronizes M0 with complete C9-E M5 construction.
+It expands the closed runner-ID registry from 19 to exactly 29 domains, validates
+the corrected `FindingRef` provenance branches, and adds the structural
+execution-receipt-v4 validator while preserving the execution-receipt-v3
+validator unchanged. It consumes no new external dependency, retains exactly
+`zod@4.6.7`, and changes no semantic identity or protocol meaning.
 
 Version `1.2.0` additively synchronizes M0 representation and runtime
 validation with the protocol-v8 M2 semantic-authority boundary. It changes no
@@ -35,7 +42,7 @@ identity, canonicalization, dependency, protocol, semantic, or authority rule.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
 accepted ADR-041 through ADR-049
 accepted ADR-053 through ADR-056
 closed protocol-v8 C1-C7 construction
@@ -53,7 +60,7 @@ verification evidence
 product ADR
 ```
 
-Keep P6 current, P7 permanently inactive, and P8 inactive. Do not activate P8.
+Keep P6 current, P7 permanently inactive, and P8 inactive until C15. Do not activate P8.
 
 Do not decompose M0. Create no M0-A or M0-B sub-brief or implementation
 responsibility.
@@ -77,8 +84,8 @@ ProtocolV8CognitiveExecutionRole representation
 protocol-v8 semantic reference representations that are exact TypeScript
 mirrors of the published immutable schemas
 the exact CampaignArtifactStore TypeScript interface contract implemented by M2
-runtime structural validation of the exact execution-receipt schema-v3
-runner-side representation required by M5-A before sealing
+runtime structural validation of the exact execution-receipt schema-v3 and
+schema-v4 runner-side representations required by M5-A before sealing
 ```
 
 M0 may validate representation. M0 must not decide meaning.
@@ -111,7 +118,7 @@ modules.
 
 ## 4. System-level cross-module contract ownership
 
-Treat NIB-S 11.0.0 sections 12 through 16 as the canonical system-level
+Treat NIB-S 12.0.0 sections 12 through 16 as the canonical system-level
 cross-module shape authority.
 
 Implement those exact declarations. Do not add, remove, rename, widen, narrow,
@@ -147,6 +154,9 @@ exact structural equality helpers selected by owning contracts
 root-preflight definition constants
 the exact CampaignArtifactStore TypeScript interface contract
 validateExecutionReceiptV3
+validateExecutionReceiptV4
+validateHostileReviewExecutionId
+validateFindingRef
 ```
 
 Perform no I/O while producing any output.
@@ -532,7 +542,7 @@ characters.
 
 ## 16. Complete runner ID domain registry
 
-Use exactly these 19 current domains and prefixes:
+Use exactly these 29 current domains and prefixes:
 
 ```text
 candidate-revision.v2
@@ -589,13 +599,43 @@ assurance-ledger-execution-receipt-evidence.v1
 assurance-ledger-execution-retry-authorization.v1
 → RETRY-AUTH-
 
+assurance-ledger-finding-resolution-obligation.v1
+→ OBLIGATION-
+
+assurance-ledger-semantic-work-item.v1
+→ EXEC-
+
+assurance-ledger-imported-review-evidence.v1
+→ EVIDENCE-
+
+assurance-ledger-runner-finding.v1
+→ FINDING-
+
+assurance-ledger-adjudication.v1
+→ ADJUDICATION-
+
+assurance-ledger-readjudication.v1
+→ READJUDICATION-
+
+assurance-ledger-repair-intent.v1
+→ REPAIR-INTENT-
+
+assurance-ledger-decision-request.v1
+→ DECISION-REQUEST-
+
+assurance-ledger-review-readiness.v1
+→ REVIEW-READINESS-
+
+assurance-ledger-semantic-blocker.v1
+→ BLOCKER-
+
 review-campaign.v1
 → REVIEW-
 ```
 
-Do not add a twentieth domain during C9-A. Extend the registry only through a
-later accepted M0 synchronization that introduces another deterministic
-runner-owned ID.
+The registry count is exactly 29. Do not change any input or rendering of the
+original nineteen domains. Add no thirtieth domain without a later accepted M0
+synchronization.
 
 ## 17. Domain types and generic deriveId API
 
@@ -621,6 +661,16 @@ type RunnerIdHashDomainV1 =
   | "assurance-ledger-selected-initial-reviewer-work-item.v1"
   | "assurance-ledger-execution-receipt-evidence.v1"
   | "assurance-ledger-execution-retry-authorization.v1"
+  | "assurance-ledger-finding-resolution-obligation.v1"
+  | "assurance-ledger-semantic-work-item.v1"
+  | "assurance-ledger-imported-review-evidence.v1"
+  | "assurance-ledger-runner-finding.v1"
+  | "assurance-ledger-adjudication.v1"
+  | "assurance-ledger-readjudication.v1"
+  | "assurance-ledger-repair-intent.v1"
+  | "assurance-ledger-decision-request.v1"
+  | "assurance-ledger-review-readiness.v1"
+  | "assurance-ledger-semantic-blocker.v1"
   | "review-campaign.v1";
 
 type GenericRunnerDerivedIdDomainV1 =
@@ -641,6 +691,102 @@ runtime domain even when TypeScript has already checked the caller.
 Require every component to be an exact canonical string selected by its owning
 contract. Perform no implicit `String(value)` conversion, trimming, or Unicode
 normalization.
+
+Use these exact new formulas:
+
+```text
+finding-resolution obligation =
+deriveId(
+  "assurance-ledger-finding-resolution-obligation.v1",
+  runId,
+  sourceReviewCampaignId,
+  findingId,
+  currentProtocolBundle.protocolId,
+  currentProtocolBundle.sha256
+)
+
+P8 semantic WorkItem =
+deriveId(
+  "assurance-ledger-semantic-work-item.v1",
+  runId,
+  qlek
+)
+
+imported review evidence =
+deriveId(
+  "assurance-ledger-imported-review-evidence.v1",
+  runId,
+  reviewCampaignId,
+  sourceRecord.sha256
+)
+
+runner-produced FindingId =
+deriveId(
+  "assurance-ledger-runner-finding.v1",
+  reviewCampaignId,
+  sourceReviewExecutionId,
+  rawFindingId
+)
+
+AdjudicationId =
+deriveId(
+  "assurance-ledger-adjudication.v1",
+  runId,
+  findingId,
+  adjudicationKind,
+  semanticQuestionContractRevisionId,
+  semanticAdmissionId
+)
+
+ReAdjudicationId =
+deriveId(
+  "assurance-ledger-readjudication.v1",
+  runId,
+  sourceReviewCampaignId,
+  sourceFindingId,
+  currentProtocolBundle.protocolId,
+  currentProtocolBundle.sha256,
+  sourceFindingSha256
+)
+
+RepairIntentId =
+deriveId(
+  "assurance-ledger-repair-intent.v1",
+  runId,
+  candidateId,
+  findingId,
+  acceptedRepairRealizationFact.factId,
+  approvedPatch.sha256
+)
+
+DecisionRequestId =
+deriveId(
+  "assurance-ledger-decision-request.v1",
+  runId,
+  findingId,
+  semanticSubject.sha256,
+  protocolBundle.sha256,
+  qualifiedDecisionNecessityFact.factId
+)
+
+ReviewReadinessId =
+deriveId(
+  "assurance-ledger-review-readiness.v1",
+  candidateId,
+  readinessBasis.sha256
+)
+
+Semantic BlockerId =
+deriveId(
+  "assurance-ledger-semantic-blocker.v1",
+  runId,
+  decisionRequestId
+)
+```
+
+Use the runner-finding formula only for runner-produced findings. Never rederive
+an imported `finding_id`. Add no candidate, provider, model, packet, prompt,
+receipt, or campaign-root identity to QLEK or the semantic WorkItem formula.
 
 Guarantee:
 
@@ -1061,7 +1207,7 @@ QualificationKey
 
 Validate syntax only. Do not establish that a referenced semantic object exists,
 is reconstructible, is current, is consumable, or is semantically valid. Leave
-those responsibilities to M2, M5, and M6 according to NIB-S 11.0.0.
+those responsibilities to M2, M5, and M6 according to NIB-S 12.0.0.
 
 ## 27. Canonical semantic JSON and binding mirrors
 
@@ -1372,6 +1518,70 @@ replace the content-addressed JSON Schema or Python validator
 Keep the published content-addressed JSON Schema, existing Python validation,
 and M6 mechanical/protocol classification authoritative. Zod success is only a
 pre-sealing fail-closed construction guard for the runner-owned in-memory value.
+
+### 29.2 Finding provenance structural runtime contract
+
+Expose and validate exact NIB-S `HostileReviewExecutionId` and corrected
+`FindingRef`.
+
+Validate `HostileReviewExecutionId` exactly as:
+
+```text
+^EXEC-[A-Z0-9][A-Z0-9-]*$
+```
+
+Require the strict closed cross-field branch:
+
+```text
+runner-produced ReviewCampaign provenance
+→ candidateId == campaign provenance candidateId
+→ sourceRunnerExecutionId != null
+→ sourceReviewExecutionId is exact hostile-review logical execution identity
+
+repository-imported ReviewCampaign provenance
+→ candidateId == null
+→ sourceRunnerExecutionId == null
+→ sourceReviewExecutionId satisfies the EXEC-* contract
+→ findingId is preserved exact source identity
+```
+
+M0 validates representation only. M2 validates authoritative campaign,
+WorkItem, Execution, receipt and provenance bindings.
+
+### 29.3 Execution-receipt schema-v4 structural runtime contract
+
+Expose the exact strict runner-side representation and validator:
+
+```ts
+function validateExecutionReceiptV4(
+  value: unknown
+): ContractValidationResult<ExecutionReceiptV4>;
+```
+
+Bind it exactly to:
+
+```text
+path:
+formal/reviews/schemas/execution-receipt-v4.schema.json
+
+content SHA-256:
+9d5e0b50bf9b5464fadc9c57edfa265935bdf0ace9fcaf1c9770e5f7e7ab312c
+```
+
+Mirror every required field, closed object, primitive/container type, enum,
+pattern, minimum, array bound and conditional relation from that immutable
+schema. Construct the validator statically with Zod; perform no runtime file
+read, Python invocation, repository access or protocol lookup. Preserve
+`validateExecutionReceiptV3` and its bound schema unchanged.
+
+`validateExecutionReceiptV4` is structural only. It does not establish protocol
+validity, QLEK agreement, attempt semantic truth, origin-witness validity or
+SemanticAdmission. M6 remains mechanical authority.
+
+Require future tests for all 29 registered domains, original-nineteen byte
+compatibility, each ten-domain formula, both `FindingRef` provenance branches,
+invalid hostile-review execution IDs, receipt-v3 regression, strict receipt-v4
+shape and the exact receipt-v4 SHA binding.
 
 ## 30. Protocol-v8 cognitive role
 
@@ -1726,7 +1936,7 @@ Record the selected validation dependency as:
 
 ```text
 statement:
-NIB-S 11.0.0 fixes zod as the M0 runtime-validation support dependency and
+NIB-S 12.0.0 retains zod as the M0 runtime-validation support dependency and
 delegates its exact package pin to M0 NIB-M/package construction; C9-A pins the
 selected dependency to zod@4.6.7 and keeps all consumed validation behavior
 behind the exact M0 ContractValidationResult boundary
@@ -1940,7 +2150,7 @@ why Zod creates no semantic authority
 why DC-ZOD-GATE-A-CONTRACTS is required later but is not created by C9-A
 how runner canonical JSON is serialized
 how deterministic ID bytes are framed
-which 19 current deterministic ID domains exist
+which 29 current deterministic ID domains exist and why the original nineteen remain byte-compatible
 how every current domain renders
 how runner-produced ReviewCampaignId is framed
 why ReviewCampaign identity uses a dedicated API
@@ -2694,7 +2904,7 @@ Retain exactly:
 ```text
 zod@4.6.7
 future DC-ZOD-GATE-A-CONTRACTS required
-19 current deriveId domains
+29 current deriveId domains
 ```
 
 `SemanticAuthorityDomainId` is UUIDv4 occurrence identity generated by M2, not

@@ -300,22 +300,30 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `10.0.0`. The brief's own NIB metadata is the sole source for its
+version is `12.0.0`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
+
+M0 `contracts` is covered by
+[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.3.0`. It
+owns the exact 29-domain runner-ID registry, structural runtime validation,
+canonical runner JSON, `CampaignArtifactStore` contract, and structural receipt
+v3/v4 validators without becoming semantic authority.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
 
 - [`nib-m-gate-a-campaign-state-persistence-ownership.md`](nib-m-gate-a-campaign-state-persistence-ownership.md),
-  version `2.0.12` — SQLite-backed authoritative persistence, immutable
-  artifact storage, bootstrap, ownership, and fencing;
+  version `3.0.4` — SQLite schema-v2 authoritative persistence, immutable
+  artifact storage, bootstrap, ownership, semantic history and fencing;
 - [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md),
-  version `6.0.1` — authoritative mutation admission, generalized candidate
-  provenance, `AssuranceRepositoryProjectionRef` retention/consumption integrity,
+  version `8.0.0` — authoritative mutation admission, corrected FindingRef
+  provenance, generalized candidate provenance,
+  `AssuranceRepositoryProjectionRef` retention/consumption integrity,
   obligations/blockers, retries, dispatch, recovery admission, qualification,
   and publication state transitions;
 - [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md),
-  version `5.0.1` — deterministic snapshot reconstruction, unresolved-execution
-  projection, retained projection history/consumption integrity, generalized candidate
+  version `7.0.0` — deterministic snapshot reconstruction, corrected finding
+  provenance integrity, unresolved-execution projection, retained projection
+  history/consumption integrity, generalized candidate
   provenance integrity, and provenance-root materialization.
 
 M3 `campaign-authority` is covered by one active Module Brief:
@@ -331,13 +339,13 @@ reviewer execution inputs.
 
 M3 consumes NIB-S `10.0.0`.
 
-NIB-S 10.0.0 separates immutable per-campaign `ReviewContext` from
+NIB-S 12.0.0 separates immutable per-campaign `ReviewContext` from
 current-candidate `ResolutionContextV1`.
 
 `ReviewContext` remains production provenance and is never retargeted when a
 campaign remains current across a candidate-only change with unchanged `(S, P)`.
 
-M5-C resolution roles will use `ResolutionContextV1` so candidate-bound repair
+M5-B/M5-C post-review roles use `ResolutionContextV1` so candidate-bound repair
 realization can continue against the exact current candidate without rewriting
 review evidence or campaign provenance.
 
@@ -380,8 +388,8 @@ capture and M4-B recovery observation.
 
 The active M4-A Module Brief is
 [`nib-m-gate-a-cognitive-execution-capture.md`](nib-m-gate-a-cognitive-execution-capture.md),
-version `2.0.0`.
-It owns the immutable cognitive WorkItem operation, pre-Arm preparation,
+version `2.1.1`.
+It owns protocol-qualified context validation, the immutable cognitive WorkItem operation, pre-Arm preparation,
 cognitive-call identity, durable execution journal and effect fence, selected
 cognitive dependency invocation, exact raw completion and runtime-evidence
 capture, the technical-failure versus uncertainty distinction, abort handling,
@@ -389,9 +397,9 @@ and non-authoritative liveness telemetry.
 
 The active M4-B Module Brief is
 [`nib-m-gate-a-cognitive-execution-recovery-observation.md`](nib-m-gate-a-cognitive-execution-recovery-observation.md),
-version `1.0.3`.
+version `1.1.0`.
 
-It owns exact validation of the cognitive recovery capability, read-only M4
+It owns exact P8-aware recovery observation and validation of the cognitive recovery capability, read-only M4
 journal interpretation, positive PREPARED-only non-execution proof, exact local
 terminal reconstruction, and executor-domain indeterminacy for MAYBE-SENT
 without terminal truth.
@@ -414,7 +422,7 @@ exact four-field synchronous planning interface, unsealed three-result adapter
 boundary, and M4-owned strict UTF-8, evidence-sealing, raw-result, and terminal-
 journal ownership closures.
 
-ADR-054 resolves provider-reported semantics. M4-A is now version `2.0.0` and
+ADR-054 resolves provider-reported semantics. M4-A remains version `2.1.1` and
 delegates exact identity-channel capability qualification to the Pi M4
 Dependency Contract while preserving raw evidence. Pi M4 Dependency Contract
 version `1.1.4` retains provider-owned response/effective-model evidence
@@ -422,24 +430,25 @@ capture as `ESTABLISHED`, but records
 `provider-owned-canonical-effective-model-identity-v1` as `NOT-ESTABLISHED` for
 the current `openai-codex` / `gpt-6.1-sol` qualification evidence.
 
-M5-A must handle a completed semantically qualified response lacking required
-provider-reported identity through the assurance-ledger operational path without
-retry or profile substitution.
+M5 `assurance-ledger` is decomposed into exactly four active Module Briefs:
 
-M5 `assurance-ledger` construction is being decomposed into scoped Module
-Briefs.
+- [`nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md`](nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md),
+  M5-A version `3.0.0` — campaign work, common cognitive execution history,
+  P6 receipt-v3, P8 receipt-v4 and Stage-B evidence packaging;
+- [`nib-m-gate-a-assurance-ledger-finding-adjudication.md`](nib-m-gate-a-assurance-ledger-finding-adjudication.md),
+  M5-B version `1.0.0` — finding import/normalization, materiality/refutation
+  progression and P8 supplements;
+- [`nib-m-gate-a-assurance-ledger-resolution-qualification.md`](nib-m-gate-a-assurance-ledger-resolution-qualification.md),
+  M5-C version `1.0.0` — serialized surviving-material resolution,
+  DecisionRequest and exact-candidate RepairIntent qualification;
+- [`nib-m-gate-a-assurance-ledger-repository-projection-readiness.md`](nib-m-gate-a-assurance-ledger-repository-projection-readiness.md),
+  M5-D version `1.0.0` — deterministic repository projection, readiness and
+  mechanical A/B/C/D composition.
 
-The active M5-A Module Brief is
-[`nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md`](nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md),
-version `2.0.0`.
-
-It owns campaign reviewer work construction, deterministic reviewer acquisition,
-protocol/runner retry authorization, retry/pool/identity operational causes,
-initial-reviewer execution-receipt construction, and exact replay/idempotence
-for those products.
-
-It does not own finding adjudication, resolution qualification, assurance
-repository projection, or `CandidateReviewReadiness`.
+The active M6 Module Brief is
+[`nib-m-gate-a-mechanical-validation.md`](nib-m-gate-a-mechanical-validation.md),
+version `1.1.0`. It owns exact Python-backed mechanical validation and the
+additive C9-E helper surfaces while preserving C9-D Stage A/Stage B.
 
 ### Accepted M5 adjudication / resolution protocol evolution
 
@@ -514,24 +523,25 @@ Protocol v7 is an immutable validated predecessor and regression artifact. Under
 ADR-056 it is permanently inactive and MUST NOT subsequently be selected as
 current.
 
-Protocol v8 is the next activation candidate, but no protocol-v8 artifact is
-current merely because ADR-056 is accepted. Protocol v6 remains current until
-the complete protocol-v8 construction and synchronization required by ADR-056 is
-accepted and `formal/verification.yaml` explicitly selects the exact immutable
-protocol-v8 bundle.
+Protocol v8 artifact and construction authority now exists, but no protocol-v8
+artifact is current merely because construction is complete. Protocol v6
+remains current until C15 explicitly selects the exact immutable P8 bundle.
 
 Therefore:
 
 ```text
-gate-a-campaign-protocol-v6 remains current
-execution-receipt schema 3.0 remains current
-review-evidence schema 5.0 remains current
-NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0 remains active
-M5-B, M5-C and M5-D remain pending construction
-protocol v7 remains immutable, mechanically validated and permanently inactive
-protocol v8 remains unconstructed and is not current
-no protocol-v7 or protocol-v8 campaign, semantic-admission, supplement,
-resolution or readiness behavior becomes active merely because ADR-056 is accepted
+P6 remains current
+execution-receipt schema 3.0 remains current for P6
+review-evidence schema 5.0 remains current for P6
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0 is active
+M5-A/B/C/D construction is closed by the four active briefs
+P7 remains immutable, mechanically validated and permanently inactive
+P8 artifact/construction authority exists and remains inactive until C15
+C9-E is closed
+C9 overall remains incomplete
+later M1/M7 and remaining C9 synchronization is still required
+C10/NIB-T has not begun
+no protocol-v7 or protocol-v8 behavior becomes active through these briefs
 ```
 
 The inactive protocol-v7 candidate fixes the exact adjudication-packet namespace
@@ -541,8 +551,8 @@ as `formal/reviews/adjudication-packets/*.json`, keeps adjudication outputs unde
 candidate bundle and these closed namespace, identity, supporting-DAG, and
 effective-overlay contracts without selecting P7 as current.
 
-Future protocol-v8 construction and synchronization under ADR-056 must preserve
-immutable `ReviewContext` for initial-review production provenance and preserve
+Protocol-v8 construction authority under ADR-056 preserves immutable
+`ReviewContext` for initial-review production provenance and preserves
 the accepted separation of post-review adjudication/resolution provenance from
 initial-review production provenance.
 
@@ -579,12 +589,12 @@ M8 `recovery-operator` is architecturally decomposed into two active Module
 Briefs:
 
 - [`nib-m-gate-a-recovery-operator-reconciliation.md`](nib-m-gate-a-recovery-operator-reconciliation.md),
-  version `2.0.12` — M8-A exact unresolved-execution validation, executor-owned
+  version `2.1.0` — M8-A exact unresolved-execution validation, executor-owned
   recovery-port invocation, deterministic bounded re-observation, recovery evidence
   projection, immutable reconciliation traces, and restart-safe episode
   behavior;
 - [`nib-m-gate-a-recovery-operator-boundary.md`](nib-m-gate-a-recovery-operator-boundary.md),
-  version `2.0.12` — M8-B deterministic operational-blocker
+  version `2.1.0` — M8-B deterministic operational-blocker
   identity/materialization, immutable Operator Action Requests, recovery-blocker reuse/disposition, aggregate
   RecoveryPlan blocker behavior, operator-resolution ingestion, and explicit
   operator-authorized Execution supersession mapping.
@@ -593,9 +603,10 @@ Together these briefs close M8 construction responsibility while preserving the
 boundary that executor/domain modules establish domain facts, M8 normalizes the
 operator/recovery boundary, and M2 alone admits authoritative state changes.
 
-The persistence/ownership Module Brief selects SQLite and therefore requires a
-separate `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` Dependency Contract before
-GREEN. That Dependency Contract is not part of the current task.
+The persistence/ownership Module Brief consumes active
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. M0 still requires its
+separately scoped Zod Dependency Contract before GREEN. C9-E selects no new
+external dependency and the TURNLOCK runner is not GREEN.
 
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native

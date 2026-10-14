@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "11.0.1"
+version: "12.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -896,6 +896,149 @@ none
 ```
 
 No ADR is created.
+
+Version `12.0.0` closes C9-E complete M5 assurance-ledger construction. It is a
+breaking implementation-construction contract correction only because
+`FindingRef` now distinguishes hostile-review logical execution provenance from
+runner attempt provenance and can represent repository-imported findings
+truthfully.
+
+M5 is decomposed exactly as:
+
+```text
+M5-A campaign work / cognitive execution history / execution receipts
+M5-B review evidence / finding adjudication
+M5-C resolution qualification
+M5-D assurance repository projection / candidate review readiness / mechanical
+     composition of M5-A/B/C/D contributions
+```
+
+This revision introduces exactly:
+
+```text
+no TURNLOCK product semantic change
+no hostile-review protocol semantic change
+no QLEK semantic change
+no SemanticAdmission semantic change
+no SemanticFact semantic change
+no candidate-currentness semantic change
+no ReviewCampaign identity change
+no M0-M8 topology change
+no P6 protocol reinterpretation
+no P8 activation
+```
+
+P6 is current. P7 is immutable and permanently inactive. P8 is immutable,
+mechanically valid, and inactive. P8 becomes current only through C15.
+
+The C9-E construction classification is:
+
+```text
+statement:
+accepted NIB-S 11.0.1, ADR-055, ADR-056, closed protocol-v8 C1-C7 authority,
+and accepted M2/M4/M6 boundaries require complete M5-A/B/C/D construction,
+including exact global-semantic reuse, deterministic post-review progression,
+P8 receipt/witness packaging and deterministic repository projection
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Classify the deterministic M5 runner-ID domains, P8 projection paths,
+deterministic finding-processing order, M5 internal projection schemas, M6
+helper surfaces, and `FindingRef` provenance correction as
+`no-normative-impact` mechanisms in `architecture-or-implementation`.
+
+Record the required construction discoveries:
+
+```text
+statement:
+FindingRef.sourceExecutionId conflates hostile-review logical execution with
+runner attempt and cannot represent imported finding provenance
+
+semantic disposition:
+authority-conflict-or-uncertain at construction representation level
+
+affected layer:
+architecture-or-implementation
+
+next action:
+split sourceReviewExecutionId / sourceRunnerExecutionId as derived from existing
+authority with no normative impact
+```
+
+```text
+statement:
+M5 requires exact P8 packet before dispatch while C9-D forbids TypeScript packet
+semantic duplication
+
+semantic disposition:
+derived-from-existing-authority
+
+mechanism:
+M6 pre-dispatch packet projection through the same accepted Python authority
+
+mechanism disposition:
+no-normative-impact
+```
+
+```text
+statement:
+M5 requires SemanticValueId/FactId/QualificationKey but those identities are
+M6-owned
+
+semantic disposition:
+derived-from-existing-authority
+
+mechanism:
+descriptor/value proposal helper operations on M6
+
+mechanism disposition:
+no-normative-impact
+```
+
+```text
+statement:
+P8 binding/witness/supplement repository paths were intentionally left
+construction-owned by C6
+
+mechanism:
+path selection in M5-D
+
+semantic disposition:
+no-normative-impact
+```
+
+```text
+statement:
+multiple repairable findings require one deterministic implementation order
+
+source authority:
+ADR-055 construction-owned
+
+mechanism:
+ReviewCampaignId then FindingId unsigned ordering
+
+affected layer:
+architecture-or-implementation
+
+semantic disposition:
+no-normative-impact
+```
+
+No ADR is created.
+
+C9-F must synchronize M7-A with NIB-S `12.0.0` and the exact M5-D projection
+allowlist before GREEN. Future M1 synchronization must route reuse-first
+semantic orchestration, M6 mechanical requests, M2 AdmissionAuthority, Stage
+A/M5-A/Stage B, fresh currentness before Arm, CandidateView requests, and M5
+complete-delta composition. This revision modifies neither M1 nor M7.
 
 ## 2. System objective
 
@@ -1838,8 +1981,8 @@ Owns:
 * protocol-derived obligations and WorkItems;
 * consumption of exact M6 cognitive-attempt classifications;
 * checker-derived cognitive protocol-attempt admissibility and exact retry-authorization products;
-* assembly and sealing of one complete schema-v3 execution receipt only after
-  the first qualified attempt;
+* assembly and sealing of one complete P6 schema-v3 or P8 schema-v4 execution
+  receipt only after the first qualified attempt;
 * review-campaign artifact relationships;
 * exact one-to-one finding normalization;
 * finding/evidence provenance;
@@ -2464,7 +2607,20 @@ formal/reviews/executions/*.json
 formal/reviews/raw/*.json
 formal/reviews/adjudications/*.json
 formal/reviews/challenges/*.json
+formal/reviews/supplements/*.json
+formal/reviews/semantic-question-bindings/*.json
+formal/reviews/semantic-admission-origin-witnesses/*.json
 ```
+
+For exact P8, `formal/reviews/adjudication-packets/**` and
+`formal/reviews/challenge-packets/**` are not semantic execution packet
+namespaces. Exact P8 `cognitive-execution-packet-v1` bytes use
+`formal/reviews/packets/`. Historical/non-P8 challenge packets remain lawful
+only where their exact protocol requires them.
+
+Projection paths are repository provenance only and never enter QLEK,
+SemanticValueId, SemanticAdmissionId, FactId, or QualificationKey. M7 remains
+the mechanical projection-application owner.
 
 For a root runner-produced review record:
 
@@ -4981,16 +5137,58 @@ interface EvidenceRef {
   readonly artifact: ArtifactRef;
 }
 
+type HostileReviewExecutionId = string;
+
 interface FindingRef {
   readonly findingId: FindingId;
   readonly runId: GateARunId;
   readonly candidateId: CandidateRevisionId | null;
   readonly reviewCampaignId: ReviewCampaignId;
-  readonly sourceExecutionId: ExecutionId;
+  readonly sourceReviewExecutionId: HostileReviewExecutionId;
+  readonly sourceRunnerExecutionId: ExecutionId | null;
   readonly rawFindingId: string;
   readonly normalizedFinding: ArtifactRef;
   readonly evidenceIds: readonly EvidenceId[];
 }
+
+`HostileReviewExecutionId` is exact hostile-review record `execution_id`
+identity and validates exactly against:
+
+```text
+^EXEC-[A-Z0-9][A-Z0-9-]*$
+```
+
+It is conceptually distinct from runner `ExecutionId`.
+
+For runner-produced findings require:
+
+```text
+sourceReviewExecutionId ==
+    exact source cognitive WorkItemId rendered as hostile-review execution_id
+sourceRunnerExecutionId ==
+    exact qualifying runner ExecutionId for that WorkItem
+candidateId == source ReviewCampaign production candidate
+findingId == deriveId(
+    "assurance-ledger-runner-finding.v1",
+    reviewCampaignId,
+    sourceReviewExecutionId,
+    rawFindingId
+)
+```
+
+For repository-imported findings require:
+
+```text
+sourceReviewExecutionId ==
+    exact source review-record finding.sources[0].execution_id
+sourceRunnerExecutionId == null
+candidateId == null
+findingId == exact source record finding_id
+```
+
+Never fabricate a local Execution, cast external `EXEC-*` identity into runner
+`ExecutionId`, invent a synthetic WorkItem, retarget an imported finding to the
+current candidate, or rederive an imported finding ID.
 
 type AdjudicationKind =
   | "materiality"
@@ -5213,10 +5411,10 @@ authoritative writer, and normal external progression becomes
 `OPERATOR-ACTION-REQUIRED`. This case is neither `protocol-invalid`,
 `TechnicalExecutionFailure`, nor `DECISION-REQUIRED`.
 
-When M6 returns the first `qualified` classification for any other admissible
-logical cognitive execution, or when provider-reported `providerModel` is
-non-empty and not exact `latest`, M5 mechanically assembles and seals one
-complete schema-v3 receipt. For provider-reported identity M5 never inspects
+For current P6, when M6 returns the first `qualified` classification for any
+other admissible logical cognitive execution, or when provider-reported
+`providerModel` is non-empty and not exact `latest`, M5 mechanically assembles
+and seals one complete schema-v3 receipt. For provider-reported identity M5 never inspects
 identifier spelling and sets the exact request/provider binding, exact request
 model, exact `providerModel`, `resolution_kind = "provider-reported"`, and exact
 qualifying attempt as `evidence_attempt_id`. Effective counting remains
@@ -5249,7 +5447,31 @@ include preserved prior attempts.
 
 A partial or no-qualified receipt is never review evidence. Validator evidence
 for an individual attempt is likewise not a substitute for the complete
-schema-v3 receipt.
+protocol-specific receipt.
+
+For exact P8, M6 Stage A classifies raw completion. M5-A aggregates exact
+Execution history and assembles execution-receipt-v4, the unchanged M6 binding
+projection alias, raw/packet aliases, and exact-byte origin witness. M6 Stage B
+validates that package. M1 then submits the exact result to M2 and M2 T4
+reconciles SemanticAdmission. M5 creates no Admission and never transfers
+predecessor receipt ownership during semantic reuse.
+
+M5-D composes contributions against one exact `snapshot.stateRevision` in this
+order:
+
+```text
+M5-A
+M5-B
+M5-C
+M5-D
+```
+
+Array fields concatenate in that order while preserving each submodule's
+internal order. Duplicate logical identity across sibling ownership boundaries
+is `ASSURANCE-FINALIZATION-INTEGRITY-FAILURE`, even for byte-identical payloads.
+A product becomes a later semantic-phase input only after M2 admission and a
+fresh snapshot reload. Only M5-D may establish the assurance projection and
+candidate readiness scalars.
 
 ### M6
 

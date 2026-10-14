@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "6.0.1"
+version: "7.0.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -23,9 +23,13 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
-NIB-M-GATE-A-CONTRACTS 1.2.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+NIB-M-GATE-A-CONTRACTS 1.3.0
 ```
+
+Version `7.0.0` is a breaking read-side construction-contract revision only
+because the corrected `FindingRef` provenance shape changes. It preserves all
+snapshot semantics and adds no semantic currentness filtering.
 
 Version `6.0.1` is an additive construction-completeness correction. It closes
 integrity validation for the exact local positive-clearance projection,
@@ -116,7 +120,7 @@ GateARunSnapshot
 
 The separate global read APIs consume exact
 `LoadSemanticQuestionStateRequestV1` and
-`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.2.0 contracts
+`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.3.0 contracts
 closed in section 20.
 
 There is no normal union branch for unknown/corrupt state.
@@ -216,7 +220,10 @@ repair intent exists where named
 WorkItem obligations exist
 Execution WorkItem exists
 retry authorization prior Execution exists
-finding campaign/execution exists
+every finding campaign exists
+runner-produced finding source review WorkItem and source runner Execution exist
+and bind exactly
+repository-imported finding requires no fabricated local execution
 blocker obligation exists
 publication confirmation intent exists
 ```
@@ -2012,7 +2019,7 @@ Ownership acquisition uses this same reconstruction after generation insertion.
 Keep `GateARunSnapshot` unchanged and run-local. Do not add global P8 semantic
 fields to it. Expose global semantic authority through the separate
 `loadSemanticQuestionState` and `loadSemanticExecutionState` APIs declared by
-M0 1.2.0.
+M0 1.3.0.
 
 Keep exactly two independent authority dimensions:
 

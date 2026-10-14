@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-14"
 step_id: 2
 id: NIB-M-GATE-A-MECHANICAL-VALIDATION
-version: "1.0.0"
+version: "1.1.0"
 scope: gate-a-campaign-runner/mechanical-validation
 status: active
 consumers: [architect, coding-agent]
@@ -19,6 +19,10 @@ superseded_by: []
 
 Implement the first active Module Brief for undecomposed M6
 `mechanical-validation`.
+
+Version `1.1.0` additively synchronizes mechanical helper surfaces required by
+complete C9-E M5 construction. It changes no M6 ownership, no C9-D semantic
+rule, no Stage A/Stage B behavior, and no P6 behavior.
 
 This NIB-M is implementation-construction authority only. It creates no:
 
@@ -50,12 +54,12 @@ repository-publication authority.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
-NIB-M-GATE-A-CONTRACTS 1.2.0
-NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.3
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 7.0.0
-NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 6.0.1
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.1.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.4
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 8.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 7.0.0
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.1.1
 NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.1.0
 NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.0.7
 ```
@@ -2206,3 +2210,248 @@ why P8 remains inactive
 Stop future GREEN rather than making an unrecorded semantic, architectural,
 protocol, identity, qualification, CandidateView, receipt-ownership,
 subprocess-protocol, dependency, or module-ownership decision.
+
+## 34. C9-E helper boundary
+
+M5 owns semantic progression but must not invoke Python, duplicate C1/C2/C4
+algorithms, compute semantic IDs, project P8 packet semantics, recompute the
+hostile-finding subject, or parse arbitrary semantic JSON through JavaScript
+number semantics. M6 already owns those mechanical operations.
+
+Add only the six helper surfaces below. M6 selects no finding, currentness,
+reviewer profile, WorkItem, semantic progression branch, Admission, receipt or
+repository mutation.
+
+Define the shared helper value result:
+
+```ts
+interface ValidatedProtocolV8SemanticValueV1 {
+  readonly ref: SemanticValueRefV1;
+  readonly canonicalValue: ArtifactRef;
+  readonly validationEvidence:
+    readonly [ArtifactRef, ...ArtifactRef[]];
+}
+```
+
+## 35. FindingAdjudicationBasis projection helper
+
+Expose conceptually:
+
+```ts
+project_protocol_v8_finding_adjudication_basis(
+  request
+): Promise<ProjectProtocolV8FindingAdjudicationBasisResultV1>
+```
+
+Bind input exactly to the authoritative `FindingRef` already selected by M5,
+its exact source `ReviewCampaignRef`, exact normalized-finding artifact, exact
+current `SemanticSubjectRef`, exact current `ProtocolBundleRef`, exact
+`GateACampaignAuthorityEvaluationV1`, and the exact authoritative
+`GateARunSnapshot` required only for binding verification.
+
+Mechanically:
+
+```text
+verify source campaign/finding exactness
+recompute exact historical hostile-finding-subject-v1 substantive SHA
+construct exact C2 FindingAdjudicationBasisV1
+canonicalize through accepted Python authority
+compute exact SemanticValueId
+seal exact canonical value
+return exact SemanticValueRefV1
+return substantiveFindingSha256
+return non-empty validation evidence
+```
+
+Return:
+
+```ts
+interface ProjectProtocolV8FindingAdjudicationBasisResultV1 {
+  readonly findingAdjudicationBasis:
+    ValidatedProtocolV8SemanticValueV1;
+  readonly substantiveFindingSha256: Sha256;
+  readonly validationEvidence:
+    readonly [ArtifactRef, ...ArtifactRef[]];
+}
+```
+
+Make no currentness or progression decision.
+
+## 36. Semantic-value proposal helper
+
+Expose:
+
+```ts
+validate_protocol_v8_semantic_value_proposal(...)
+```
+
+Consume exact `valueType`, exact canonical-value `ArtifactRef`, and exact
+mechanical closure where required. Read exact bytes, validate exact C2/C5 form,
+recompute `SemanticValueId`, preserve exact canonical bytes, and return
+`ValidatedProtocolV8SemanticValueV1`.
+
+Use this boundary for at least `SurvivingMaterialBasisV1`, `CandidateViewV1`, and
+future exact P8 values requiring the same validation. A caller never supplies an
+authoritative claimed `valueId`.
+
+## 37. Fact-descriptor proposal helper
+
+Expose:
+
+```ts
+validate_protocol_v8_semantic_fact_descriptor(...)
+```
+
+Consume exact `SemanticFactDescriptorV1` artifact, exact
+`ProtocolV8MechanicalClosureInputV1`, and
+`requireCurrentConsumability: boolean`. Recompute `FactId`, construct exact
+`SemanticFactRefV1`, apply the existing C9-D soundness/reconstructibility
+validation, and return `ValidatedProtocolV8SemanticFactV1`. Persist no Fact
+state.
+
+## 38. Qualification-descriptor reducer helper
+
+Expose:
+
+```ts
+reduce_protocol_v8_qualification_descriptor(...)
+```
+
+Consume exact `QualificationKeyDescriptorV1` artifact and exact
+`ProtocolV8MechanicalClosureInputV1`. Recompute `QualificationKey`, construct
+exact `QualificationKeyRefV1`, run the existing C4 reducer, and return the
+qualification ref, descriptor, and either the exact established positive Fact
+or normal `not-established`. Reducer absence never establishes an opposite
+proposition.
+
+## 39. Safe semantic progression view
+
+Expose:
+
+```ts
+project_protocol_v8_semantic_progression_view(...)
+```
+
+Consume one exact consumable `SemanticAdmissionRecordV1` and its exact
+semantic-question binding/closure. Return exactly one strict closed value:
+
+```ts
+interface ProtocolV8SemanticProgressionViewV1 {
+  readonly schema:
+    "gate-a-protocol-v8-semantic-progression-view.v1";
+  readonly qlek: QLEK;
+  readonly admissionId: SemanticAdmissionId;
+  readonly semanticQuestionContract:
+    SemanticQuestionContractRevisionId;
+  readonly result:
+    | {
+        readonly kind: "materiality";
+        readonly anyAxisTrue: boolean;
+        readonly allAxesFalse: boolean;
+      }
+    | {
+        readonly kind: "refutation";
+        readonly state: "positive" | "not-established";
+      }
+    | {
+        readonly kind: "discovery";
+        readonly state:
+          | "initial"
+          | "revised-positive"
+          | "not-established";
+        readonly targetedStatementFact:
+          ValidatedProtocolV8SemanticFactV1 | null;
+        readonly semanticDisposition:
+          | "derived-from-existing-authority"
+          | "decision-required"
+          | "no-normative-impact"
+          | "authority-conflict-or-uncertain"
+          | null;
+      }
+    | {
+        readonly kind: "unique-correction";
+        readonly state: "positive" | "not-established";
+      }
+    | {
+        readonly kind: "realization-scope";
+        readonly state: "positive" | "not-established";
+      }
+    | {
+        readonly kind: "repair-realization";
+        readonly state: "positive" | "not-established";
+        readonly operationsEmpty: boolean;
+      }
+    | {
+        readonly kind: "challenge";
+        readonly objections: "zero" | "nonzero";
+      };
+  readonly validationEvidence:
+    readonly [ArtifactRef, ...ArtifactRef[]];
+}
+```
+
+For `DiscoveryClassificationInitial@1`, mechanically derive
+`targetedStatementFact` from exactly the
+`classification_statement_ordinal` named by `earliest_unresolved_cause`. Make no
+routing decision. For a positive targeted Discovery revision, return the exact
+revised targeted-statement Fact. For `NotEstablished`, return both
+`targetedStatementFact = null` and `semanticDisposition = null`.
+
+This view prevents M5 from parsing arbitrary semantic numbers or Unicode.
+
+## 40. Pre-dispatch P8 execution-input projection
+
+Expose:
+
+```ts
+project_protocol_v8_semantic_execution_inputs(...)
+```
+
+Consume exact `ValidatedSemanticQuestionRefV1`, exact current P8
+`ProtocolBundleRef`, and exact `ProtocolV8MechanicalClosureInputV1`. Reuse the
+same accepted Python authority that Stage A later uses to reconstruct expected
+packet bytes.
+
+Return:
+
+```ts
+interface ProtocolV8SemanticExecutionInputsV1 {
+  readonly schema:
+    "gate-a-protocol-v8-semantic-execution-inputs.v1";
+  readonly qlek: QLEK;
+  readonly role: ProtocolV8CognitiveExecutionRole;
+  readonly prompt: ArtifactRef;
+  readonly packet: ArtifactRef;
+  readonly validationEvidence:
+    readonly [ArtifactRef, ...ArtifactRef[]];
+}
+```
+
+Require the prompt to be the exact immutable prompt selected by the unique P8
+`question_realization`. Seal exact canonical `cognitive-execution-packet-v1`
+bytes with `repositoryPath == null`; those bytes must equal what Stage A later
+reconstructs. Choose no reviewer profile and create no WorkItem, Admission or
+receipt.
+
+## 41. Regression and future tests
+
+Keep these operations unchanged:
+
+```text
+derive_candidate_subject
+project_candidate_review_authority
+validate_cognitive_attempt
+validate_repository_integrity
+validate_gate_a_qualification
+validate_post_publication_integrity
+```
+
+Keep every C9-D Stage A/Stage B rule unchanged. P6 remains current and
+unchanged; P8 remains inactive until C15.
+
+Require future tests for exact FA source-finding hash binding, semantic-value
+exact-byte validation, FactId and QualificationKey recomputation, all progression
+view variants, earliest Discovery target selection, `NotEstablished` null
+projection, packet equality between pre-dispatch and Stage A, no reviewer
+selection, no JS large-integer or Unicode rewrite, and complete C9-D Stage
+A/Stage B regression.

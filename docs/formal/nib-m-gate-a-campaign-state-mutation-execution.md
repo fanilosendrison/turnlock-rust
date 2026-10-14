@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "7.0.0"
+version: "8.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -23,9 +23,13 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 11.0.0
-NIB-M-GATE-A-CONTRACTS 1.2.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+NIB-M-GATE-A-CONTRACTS 1.3.0
 ```
+
+Version `8.0.0` is a breaking construction-contract revision only because the
+`FindingRef` provenance shape changes. It adds no finding semantic
+interpretation and preserves M2 as structural/authority admission owner only.
 
 Version `7.0.0` is a breaking construction-contract revision. It adds the exact
 protocol-v8 semantic Execution authorization, atomic semantic Arm, authoritative
@@ -1005,6 +1009,38 @@ CandidateReviewReadiness designation
 ```
 
 M5 remains producer of its ledger semantics.
+
+For every newly admitted runner-produced `FindingRef`, require:
+
+```text
+reviewCampaign exists
+reviewCampaign.provenance.kind == runner-produced
+candidateId == reviewCampaign.provenance.candidateId
+sourceReviewExecutionId resolves by exact string equality to a local cognitive
+WorkItem.workItemId
+that WorkItem belongs to the same ReviewCampaign
+sourceRunnerExecutionId != null
+sourceRunnerExecutionId resolves to one Execution of that WorkItem
+that exact Execution is the qualifying source occurrence established by the
+accepted receipt/evidence basis
+```
+
+For every newly admitted repository-imported `FindingRef`, require:
+
+```text
+reviewCampaign exists
+reviewCampaign.provenance.kind == repository-imported
+candidateId == null
+sourceRunnerExecutionId == null
+sourceReviewExecutionId satisfies the hostile-review EXEC-* lexical contract
+no local WorkItem or Execution existence requirement
+findingId equals the exact source record finding_id
+```
+
+M2 does not interpret finding semantics. An exact duplicate `FindingRef` is
+idempotent. The same `findingId` with incompatible source, provenance or content
+is `INVALID_MUTATION`. Never fabricate local WorkItem/Execution provenance for
+an imported finding.
 
 The validated `authorityEvaluation` preserves every exact
 `RepositoryReviewObservationV1`, including each `sourceRecord` and complete
@@ -2841,7 +2877,7 @@ a live process owner do not retire it.
 
 Preserve `AuthorizeExecutionV1` unchanged for historical/current
 non-P8-semantic execution, including P8 initial-reviewer execution. Once the
-future M5 operation contract identifies a WorkItem as a native P8 semantic
+active M5 operation contract identifies a WorkItem as a native P8 semantic
 question:
 
 ```text

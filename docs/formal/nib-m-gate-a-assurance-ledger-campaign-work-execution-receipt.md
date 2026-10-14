@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-04"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-CAMPAIGN-WORK-EXECUTION-RECEIPT
-version: "2.0.0"
+version: "3.0.0"
 scope: gate-a-campaign-runner/assurance-ledger/campaign-work-execution-receipt
 status: active
 consumers: [architect, coding-agent]
@@ -23,33 +23,33 @@ to this active Module Brief.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 10.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+
+NIB-M-GATE-A-CONTRACTS 1.3.0
+
+NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.4
+
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 8.0.0
+
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 7.0.0
 
 NIB-M-GATE-A-CAMPAIGN-AUTHORITY 4.0.1
 
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 6.0.1
+NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.1.1
 
-NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 5.0.1
+NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.1.0
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.0.0
+NIB-M-GATE-A-MECHANICAL-VALIDATION 1.1.0
 
-NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.0.3
-
-NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.0.12
+NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.1.0
 
 DC-PI-M4-GATE-A-COGNITIVE-EXECUTION 1.1.4
 
-ADR-045
-ADR-046
-ADR-047
-ADR-048
-ADR-049
-ADR-053
-ADR-054
+gate-a-campaign-protocol-v6 exact immutable bundle
 
-gate-a-campaign-protocol-v6
+gate-a-campaign-protocol-v8 exact immutable inactive bundle
 
-execution-receipt schema 3.0
+execution-receipt schema 3.0 and schema 4.0
 ```
 
 Treat this brief as implementation-construction authority only. It creates no:
@@ -65,6 +65,12 @@ new cross-module product category
 
 Do not implement production code from this brief until the repository's GREEN
 boundary authorizes implementation.
+
+Version `3.0.0` synchronizes M5-A with complete C9-E. M5-A retains
+initial-reviewer acquisition and gains common execution-history, retry and
+protocol-specific receipt packaging for M5-owned P8 supporting WorkItems. It
+does not gain semantic progression ownership. P6 uses receipt v3; exact P8 uses
+receipt v4; P7 has no executable branch.
 
 Version `2.0.0` changes the M4 operation shape to the NIB-S `10.0.0`
 review/resolution context union while M5-A continues to construct only the
@@ -90,8 +96,10 @@ ExecutionRetryAuthorizationRef construction
 retry-exhaustion assurance-domain cause construction
 eligible reviewer-pool exhaustion cause construction
 provider-reported-identity-unavailable cause construction
-initial-reviewer schema-v3 receipt attempt selection
-initial-reviewer schema-v3 receipt assembly
+protocol-specific cognitive receipt attempt selection
+P6 initial-reviewer schema-v3 receipt assembly
+P8 initial-reviewer/supporting WorkItem schema-v4 receipt assembly
+P8 Stage-A-to-Stage-B evidence packaging
 receipt sealing
 receipt EvidenceRef construction
 selected-reviewer obligation satisfaction
@@ -102,6 +110,7 @@ restart/idempotence for all M5-A products
 M5-A does not own:
 
 ```text
+semantic progression selection
 ResolutionContextV1 construction
 resolution-role cognitive WorkItem construction
 first-round candidate selection
@@ -163,7 +172,7 @@ one WorkItem
 =
 one logical hostile-review execution
 =
-one schema-v3 receipt.execution_id
+one protocol-specific receipt.execution_id
 
 runner Executions
 =
@@ -246,15 +255,17 @@ prepare_campaign_work_contribution(
 ): Promise<M5ACampaignWorkPreparationV1>
 ```
 
-Do not define how M5-A, M5-B, M5-C, and M5-D contributions are merged into the
-ultimate `AssuranceLedgerPreparation`. Keep the NIB-S public authority:
+M5-D composes M5-A, M5-B, M5-C and M5-D contributions in that exact order into
+the ultimate `AssuranceLedgerPreparation`, preserving each contribution's
+internal order. Keep the NIB-S public authority:
 
 ```text
 prepare_complete_delta
 finalize_complete_delta
 ```
 
-Close complete composition only after all four M5 Module Briefs exist.
+M5-A returns neither `assuranceRepositoryProjectionToEstablish` nor
+`candidateReviewReadiness`.
 
 ## 5. Obligation-definition artifacts
 
@@ -267,11 +278,12 @@ interface GateAAssuranceLedgerObligationDefinitionV1 {
 
   readonly kind:
     | "reviewer-acquisition-target"
-    | "selected-initial-reviewer";
+    | "selected-initial-reviewer"
+    | "finding-resolution";
 }
 ```
 
-The two constant values are exactly:
+The three constant values are exactly:
 
 ```json
 {
@@ -288,6 +300,18 @@ and:
   "kind": "selected-initial-reviewer"
 }
 ```
+
+and:
+
+```json
+{
+  "schema": "gate-a-assurance-ledger-obligation-definition.v1",
+  "kind": "finding-resolution"
+}
+```
+
+M5-B owns use of `finding-resolution`. M5-A owns common schema validation,
+constant construction and sealing for all three values.
 
 Seal each definition exactly:
 
@@ -1251,6 +1275,9 @@ eligible-reviewer-pool-exhausted
 provider-reported-identity-unavailable
 cognitive-retry-unavailable
 work-item-execution-limit-exhausted
+supporting-role-unavailable
+p6-post-review-automation-unavailable
+semantic-progression-no-automatic-continuation
 ```
 
 Define:
@@ -1260,7 +1287,10 @@ type GateAAssuranceLedgerOperationalCauseV1 =
   | EligibleReviewerPoolExhaustedCauseV1
   | ProviderReportedIdentityUnavailableCauseV1
   | CognitiveRetryUnavailableCauseV1
-  | WorkItemExecutionLimitExhaustedCauseV1;
+  | WorkItemExecutionLimitExhaustedCauseV1
+  | SupportingRoleUnavailableCauseV1
+  | P6PostReviewAutomationUnavailableCauseV1
+  | SemanticProgressionNoAutomaticContinuationCauseV1;
 ```
 
 ## 32. EligibleReviewerPoolExhaustedCauseV1
@@ -1568,11 +1598,17 @@ M8-B.
 
 ## 39. Receipt scope in M5-A
 
-Fully close receipt construction for the cognitive WorkItems M5-A constructs:
+Fully close receipt/history construction for:
 
 ```text
-role == initial-reviewer
+P6 initial-reviewer WorkItems owned by M5-A
+P8 initial-reviewer WorkItems owned by M5-A
+P8 supporting cognitive WorkItems required by M5-B/M5-C
 ```
+
+M5-B/M5-C decide which supporting semantic WorkItem is required. M5-A only
+interprets exact M4/M6/M2 execution-history classification and constructs the
+protocol-specific receipt/package.
 
 Fix the cross-layer identity mapping for every future cognitive receipt:
 
@@ -1587,15 +1623,18 @@ M4 CognitiveCallId
 → receipt.call_id
 ```
 
-Do not invent prompt, packet, or output repository bindings for future M5-B/M5-C
-cognitive roles. Require those future briefs to preserve the same identity
-hierarchy.
+Use only the exact P8 prompt, packet and output repository bindings fixed in
+this version for M5-B/M5-C cognitive roles. Preserve the same identity hierarchy.
 
 Before complete receipt construction, retained runner Executions, M4 outcomes,
 M4 terminal evidence, sealed completed output, and M6 classification remain
 GateARun operational history. Pre-receipt history is not hostile-review evidence.
 
 ## 40. Receipt-admissible initial-reviewer attempts
+
+Sections 40 through 58 define the exact preserved P6 schema-v3 branch. Exact P8
+uses the additive schema-v4 branch in Sections 73 through 79 while reusing the
+same runner identity hierarchy and attempt-ordering rules.
 
 For initial-reviewer `W`, traverse its Executions by ascending `attemptOrdinal`.
 An Execution `E` becomes a receipt attempt only under one exact branch:
@@ -1679,8 +1718,8 @@ raw output retain distinct paths. Content integrity remains bound by
 timing.
 
 Require the raw-result CAS `ArtifactRef.repositoryPath == null`. Do not modify
-its bytes. M5-D must later materialize the exact bytes at the exact receipt-bound
-path. M5-A mutates no repository.
+its bytes. M5-D materializes the exact bytes at the exact receipt-bound path. M5-A mutates
+no repository.
 
 ## 43. Technical-failure receipt attempt
 
@@ -2123,13 +2162,10 @@ receipt.attempts[*].attempt_id
 
 ## 58. Receipt repository-path ownership
 
-Do not select the eventual repository path of the receipt artifact in M5-A.
-M5-D owns exact assurance-repository projection and must project this exact
-immutable receipt under:
-
-```text
-formal/reviews/executions/*.json
-```
+For P6, retain the existing M5-D-owned receipt path selection under
+`formal/reviews/executions/*.json`. For exact P8, M5-A proposes the exact audit
+alias `formal/reviews/executions/<WorkItemId>.json`, and M5-D selects/projects
+that exact immutable alias mechanically.
 
 The receipt-embedded `raw_output.path` is already closed by Section 42. Require
 M5-D to preserve it exactly during materialization.
@@ -2192,13 +2228,11 @@ newlyKnownTechnicalFailures
 newlyValidatedCognitiveAttempts
 ```
 
-may eventually contain values for M5-B/M5-C cognitive WorkItems. Consume only
-exact values whose WorkItem is one of the selected initial-reviewer WorkItems
-reconstructed by M5-A.
-
-Do not reject another-role value merely because it belongs to a future sibling
-submodule. Do not interpret it. Require future composite M5 to distribute the
-exact request to each owner.
+may contain values for M5-B/M5-C cognitive WorkItems. Consume initial-reviewer
+values through the existing campaign-work branch and consume P8 supporting-role
+values only through the common execution-history/receipt branch fixed below.
+Do not interpret their semantic progression. The complete M5 composer exposes
+the same exact request to each sibling owner.
 
 ## 62. Artifact verification
 
@@ -2386,7 +2420,7 @@ sealed-ref verification mismatch
 ```
 
 ```text
-future M5 composite receives M8 materialization inconsistent with exact
+complete M5 composer receives M8 materialization inconsistent with exact
 M5-A operational request
 → ASSURANCE-FINALIZATION-INTEGRITY-FAILURE
 ```
@@ -2513,7 +2547,9 @@ M5A-28
 Provider-reported identity unavailable produces no receipt and no retry.
 
 M5A-29
-One WorkItem identifies one logical schema-v3 execution receipt.
+One P6 initial-reviewer WorkItem identifies one logical schema-v3 execution
+receipt; one exact P8 cognitive WorkItem identifies one logical schema-v4
+execution receipt.
 
 M5A-30
 One receipt attempt corresponds to one receipt-admissible runner Execution.
@@ -2543,7 +2579,8 @@ M5A-38
 Provider/model request bindings never change across retries.
 
 M5A-39
-All receipt-admissible attempts represented by one schema-v3 receipt use one identical runtime identity.
+All receipt-admissible attempts represented by one protocol-specific receipt use
+one identical runtime identity.
 
 M5A-40
 Provider-reported resolved identity uses only the exact qualifying providerModel.
@@ -2633,6 +2670,7 @@ execution identity
 canonical runner JSON
 CampaignArtifactStore
 execution-receipt schema-v3 runtime validation
+execution-receipt schema-v4 runtime validation
 ```
 
 M5-A requires no new external Dependency Contract. It consumes M4's active Pi
@@ -2657,3 +2695,283 @@ receipt EvidenceRef identity
 restart behavior
 failure classes
 ```
+
+## 73. Protocol-specific receipt selection
+
+Select by exact bound protocol only:
+
+```text
+P6 initial-reviewer
+→ execution-receipt schema 3.0
+
+P8 initial-reviewer
+→ execution-receipt schema 4.0
+
+P8 semantic supporting WorkItem
+→ execution-receipt schema 4.0
+```
+
+P7 is never executable. Create no receipt v5. Preserve every P6 algorithm above
+exactly as its schema-v3 branch.
+
+For one exact P8 WorkItem:
+
+```text
+receipt.execution_id == WorkItemId
+attempt.attempt_id == runner ExecutionId
+attempt.call_id == exact M4 CognitiveCallId
+attempt order == Execution.attemptOrdinal ascending
+```
+
+Map attempts exactly:
+
+```text
+TechnicalExecutionFailure → technical-failure
+M6 Stage A protocol-invalid → protocol-invalid
+M6 Stage A protocol-valid-candidate → qualified
+```
+
+Require exactly one qualified final attempt and one exact QLEK across every
+attempt. Exclude PNE, unresolved unknown, progression-superseded unknown and any
+invented failure.
+
+## 74. P8 retry and history
+
+Use exact P8 policy:
+
+```text
+technical retry allowed
+protocol-invalid retry allowed
+semantic-result retry forbidden
+first protocol-valid completion terminal
+all completed attempts sealed
+```
+
+Retain the existing caps:
+
+```text
+technical-failure replacements: maximum 2
+protocol-invalid replacements: maximum 1
+absolute historical Execution count: maximum 5
+```
+
+Use existing `ExecutionRetryAuthorizationRef`. Add no retry category. Perform no
+profile substitution after WorkItem selection. Never retry a protocol-valid
+candidate, treat candidate staleness as resampling authority, or replace while
+an unresolved semantic hazard exists. M8 hazard authority remains unchanged.
+
+## 75. Provider identity failure after valid P8 completion
+
+If Stage A produced a protocol-valid candidate but required effective provider
+identity cannot be established, preserve the candidate, raw completion, M4
+evidence and M6 evidence. Produce no final receipt, Stage B result, retry
+authorization, profile substitution or fresh semantic sample.
+
+Use existing cause kind `provider-reported-identity-unavailable`, generalized to
+any applicable M5 cognitive WorkItem without changing its meaning. The semantic
+completion remains reconciliation-required evidence.
+
+## 76. P8 Stage A to Stage B package
+
+For `protocol-valid-candidate`, construct exactly:
+
+```text
+execution-receipt-v4
+semantic-question-binding repository audit alias
+receipt repository audit alias
+packet repository audit alias
+raw-output repository audit aliases
+semantic-admission-origin-witness-v1
+the exact projection artifact set supplied to Stage B
+```
+
+Do not alter binding bytes returned by M6.
+
+Use exactly these proposed immutable locations:
+
+```text
+packet:
+formal/reviews/packets/<packet.sha256>.json
+
+receipt:
+formal/reviews/executions/<WorkItemId>.json
+
+raw completed attempt:
+formal/reviews/raw/<WorkItemId>-ATTEMPT-<attemptOrdinal>.json
+
+semantic question binding:
+formal/reviews/semantic-question-bindings/<binding.sha256>.json
+```
+
+The prompt retains its exact immutable P8 repository path. A proposed path does
+not prove materialization.
+
+For a runner CAS artifact with `repositoryPath == null`, construct an alias by
+copying `artifactId`, `sha256`, `byteLength` and `mediaType` exactly and setting
+only `repositoryPath` to the selected path. CAS physical identity remains
+SHA-only; the alias creates no semantic authority.
+
+Supply Stage B every projected artifact needed to resolve receipt/witness paths:
+exact prompt, packet, each raw output, binding and receipt. M6 validates the
+origin witness separately.
+
+## 77. Exact-byte origin witness
+
+Verify the Stage A candidate artifact and bytes first. Construct canonical
+witness bytes with a byte-level emitter: emit every surrounding field in exact
+canonical object-key order, encode strings and Arm generations with validated
+runner-safe primitives, and splice the exact M6 canonical candidate JSON bytes
+verbatim as `semantic_admission.semantic_candidate`.
+
+Never perform:
+
+```text
+JSON.parse(candidate bytes)
+→ JavaScript number
+→ JSON.stringify
+```
+
+Do not normalize or rewrite semantic bytes. Seal as `application/json` with
+`repositoryPath == null`. Introduce no standalone JavaScript semantic
+canonicalizer. M6 Stage B remains final witness authority.
+
+After Stage B:
+
+```text
+M1 → M2 AdmitProtocolV8SemanticValidationV1 → M2 T4 reconciliation
+```
+
+M5 never creates SemanticAdmission.
+
+## 78. P8 EvidenceRef and semantic reuse
+
+Only after final protocol-valid validation is authoritative and T4 reconciles
+the completion may M5-A create the ordinary receipt `EvidenceRef` using the
+existing `assurance-ledger-execution-receipt-evidence.v1` domain.
+
+For locally executed P8 work:
+
+```text
+sourceExecutionIds = receipt attempt ExecutionIds in receipt order
+```
+
+For reused cross-run/root semantic truth, fabricate no local receipt
+`EvidenceRef` and transfer no receipt ownership.
+
+## 79. P8 crash and replay
+
+```text
+Stage A before package
+→ rebuild package from exact retained completion
+
+package before Stage B
+→ rebuild byte-identical package
+
+Stage B before M2 validation admission
+→ rerun Stage B
+
+M2 validation before T4
+→ mandatory T4 reconciliation
+
+after Admission
+→ reuse
+
+artifact not yet projected
+→ never resample
+```
+
+## 80. Expanded assurance operational causes
+
+Extend the common cause schema with exactly:
+
+```text
+supporting-role-unavailable
+p6-post-review-automation-unavailable
+semantic-progression-no-automatic-continuation
+```
+
+Use this closed reason union for
+`semantic-progression-no-automatic-continuation`:
+
+```text
+materiality-closure-unresolved
+no-normative-impact-closure-unresolved
+decision-necessity-closure-unresolved
+unique-correction-exhausted-without-decision-path
+realization-scope-closure-unresolved
+repair-realization-closure-unresolved
+surviving-material-already-realized
+authority-conflict-or-uncertain-unresolved
+```
+
+Every new cause has `resolutionContracts = []`. It means only that accepted
+automatic machinery has no lawful continuation. It establishes no opposite
+proposition, Decision Required, finding truth/falsity or resampling authority.
+M8-B alone materializes the blocker/OAR.
+
+## 81. Additional invariants
+
+```text
+M5A-53 P6 initial-reviewer receipts remain schema v3.
+M5A-54 Every exact P8 M5 cognitive receipt is schema v4.
+M5A-55 M5-A interprets execution history but never selects semantic progression.
+M5A-56 Every P8 receipt attempt binds one exact QLEK.
+M5A-57 Stage A protocol-valid candidate is final and never retried.
+M5A-58 M5-A owns P8 receipt/witness packaging but creates no Admission.
+M5A-59 Origin-witness candidate bytes are never parsed through JavaScript number semantics.
+M5A-60 A reused Admission transfers no predecessor receipt ownership.
+M5A-61 Missing provider identity after valid completion authorizes no resampling.
+M5A-62 Same immutable package inputs reproduce byte-identical Stage B inputs.
+M5A-63 M5-A mutates neither M2 nor repository state.
+M5A-64 P6 remains current, P7 permanently inactive and P8 inactive until C15.
+```
+
+## 82. C9-E tests and prohibitions
+
+Require future tests for imported findings without local Execution, exact
+logical-execution/qualifying-attempt split, deterministic runner FindingId,
+cross-run Admission reuse without receipt copy, Stage A invalid followed by
+later qualified receipt, one final qualified attempt, same-QLEK attempts,
+exact-byte candidate witness insertion, receipt-v3 regression, receipt-v4
+validation, provider-identity stop, crash replay and P6/P7/P8 lifecycle.
+
+In addition to Section 71, explicitly forbid:
+
+```text
+LLM calls directly from M5
+Python invocation directly from M5
+QLEK computation in TypeScript
+SemanticValueId computation in M5
+FactId computation in M5
+QualificationKey computation in M5
+packet semantics duplicated in TypeScript
+semantic result retry
+model shopping
+profile substitution after WorkItem selection
+receipt/root ownership as semantic predecessor authority
+copying reused predecessor receipts into consuming root
+candidate equality by bytes replacing CandidateRevision identity
+candidate-bound scope rebasing
+RepairIntent rebasing
+patch widening
+empty RepairIntent
+DecisionRequest from mere failure to derive
+operator action as semantic truth
+P8 decision-projection cognitive work
+M5-created OperationalBlocker
+M5 direct M2 mutation
+M5 direct repository mutation
+readiness from partial work
+P8 activation
+P7 activation
+```
+
+For arbitrary semantic values, forbid
+`JSON.parse → JavaScript number → JSON.stringify`, Unicode normalization, float
+conversion, integer rounding and semantic-payload key reordering. Transport exact
+artifacts/bytes opaquely, use M6 views, and splice semantic bytes only for the
+origin witness as explicitly authorized.
+
+No new Dependency Contract is selected. Consume only the existing Node runtime,
+M0 Zod boundary, `CampaignArtifactStore`, Pi M4 Dependency Contract, M6 Python
+authority and future M7 repository boundary.
