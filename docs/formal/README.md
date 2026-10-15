@@ -300,12 +300,12 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `12.0.1`. The brief's own NIB metadata is the sole source for its
+version is `13.0.0`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M0 `contracts` is covered by
-[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.3.0`. It
-owns the exact 29-domain runner-ID registry, structural runtime validation,
+[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.4.0`. It
+owns the exact 31-domain runner-ID registry, structural runtime validation,
 canonical runner JSON, `CampaignArtifactStore` contract, and structural receipt
 v3/v4 validators without becoming semantic authority.
 
@@ -315,16 +315,18 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   version `3.0.4` — SQLite schema-v2 authoritative persistence, immutable
   artifact storage, bootstrap, ownership, semantic history and fencing;
 - [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md),
-  version `8.0.1` — authoritative mutation admission, corrected FindingRef
+  version `9.0.0` — authoritative mutation admission, corrected FindingRef
   provenance, generalized candidate provenance, path-qualified assurance-
-  projection media/integrity admission,
+  projection media/integrity admission, publication-preparation obligation
+  lifecycle, M7-B publication binding validation,
   `AssuranceRepositoryProjectionRef` retention/consumption integrity,
   obligations/blockers, retries, dispatch, recovery admission, qualification,
   and publication state transitions;
 - [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md),
-  version `7.0.0` — deterministic snapshot reconstruction, corrected finding
-  provenance integrity, unresolved-execution projection, retained projection
-  history/consumption integrity, generalized candidate
+  version `8.0.0` — deterministic snapshot reconstruction, corrected finding
+  provenance integrity, publication-preparation lifecycle and confirmation-
+  identity integrity, M7-B binding validation, unresolved-execution projection,
+  retained projection history/consumption integrity, generalized candidate
   provenance integrity, and provenance-root materialization.
 
 M3 `campaign-authority` is covered by one active Module Brief:
@@ -340,7 +342,7 @@ reviewer execution inputs.
 
 M3 consumes NIB-S `10.0.0`.
 
-NIB-S 12.0.1 preserves the separation of immutable per-campaign `ReviewContext` from
+NIB-S 13.0.0 preserves the separation of immutable per-campaign `ReviewContext` from
 current-candidate `ResolutionContextV1`.
 
 `ReviewContext` remains production provenance and is never retargeted when a
@@ -534,14 +536,17 @@ Therefore:
 P6 remains current
 execution-receipt schema 3.0 remains current for P6
 review-evidence schema 5.0 remains current for P6
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1 is active
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0 is active
 M5-A/B/C/D construction is closed by the four active briefs
 P7 remains immutable, mechanically validated and permanently inactive
 P8 artifact/construction authority exists and remains inactive until C15
 C9-E is closed
 C9-F is closed
+C9-G is closed
 C9 overall remains incomplete
-later M1 and remaining C9 synchronization is required
+M7 now has complete A/B Module Brief coverage
+M1 Module Brief is still missing
+next construction stage is C9-H M1
 C10/NIB-T has not begun
 no protocol-v7 or protocol-v8 behavior becomes active through these briefs
 ```
@@ -576,7 +581,7 @@ candidate construction and M7-B publication / remote observation / recovery.
 
 The active M7-A Module Brief is
 [`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md),
-version `2.1.0`. It owns repository inspection, exact baseline Git basis,
+version `2.1.1`. It owns repository inspection, exact baseline Git basis,
 publication-target identity resolution, canonical C0 materialization, exact
 RepairIntent patch application, exact assurance repository projection
 application, combined repair plus assurance successor construction, Git tree
@@ -604,7 +609,19 @@ It selects `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` as a required separate
 Dependency Contract before GREEN. The contract remains absent, so M7-A is not
 GREEN.
 
-Publication/remote/recovery behavior remains outside the M7-A brief.
+The active M7-B Module Brief is
+[`nib-m-gate-a-repository-control-publication-remote-recovery.md`](nib-m-gate-a-repository-control-publication-remote-recovery.md),
+version `1.0.0`. It owns exact target-predecessor observation, positive
+fast-forward proof, publication preparation and realization selection,
+publication intent/obligation/WorkItem construction, pre-Arm target
+revalidation, conditional predecessor-enforced mutation, direct outcome
+capture, confirmation/non-application qualification, published-view
+construction, and read-only repository-control recovery.
+
+Together M7-A and M7-B provide complete M7 Module Brief coverage while
+preserving `M7-A = T` and `M7-B = P / P <= T / remote execution and recovery`.
+M7-B consumes M0 canonical JSON and leaves recovery classification and blocker
+materialization to unchanged M8-A/M8-B.
 
 M8 `recovery-operator` is architecturally decomposed into two active Module
 Briefs:
@@ -626,9 +643,10 @@ operator/recovery boundary, and M2 alone admits authoritative state changes.
 
 The persistence/ownership Module Brief consumes active
 `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. M0 still requires its
-separately scoped Zod Dependency Contract before GREEN. C9-F selects no new
-external dependency, `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remains required and
-absent, M7-A is not GREEN, and the TURNLOCK runner is not GREEN.
+separately scoped Zod Dependency Contract before GREEN. C9-G selects no new
+external dependency. `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remains required and
+absent; M7-A is not GREEN, M7-B is not GREEN, and the TURNLOCK runner is not
+GREEN.
 
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native

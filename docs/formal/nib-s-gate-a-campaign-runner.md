@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "12.0.1"
+version: "13.0.0"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -1112,6 +1112,67 @@ No ADR is created. Future M1 synchronization must route reuse-first semantic
 orchestration, M6 mechanical requests, M2 AdmissionAuthority, Stage A/M5-A/
 Stage B, fresh currentness before Arm, CandidateView requests, and M5 complete-
 delta composition. This revision modifies neither M1 nor any production code.
+
+Version `13.0.0` closes C9-G M7-B publication, remote-observation, and recovery
+construction. It is a breaking implementation-construction revision only
+because `PublicationPreparationResult.blocked` gains the required
+`blockingObligation` cross-module field.
+
+This revision changes exactly none of the following:
+
+```text
+TURNLOCK product semantics
+hostile-review protocol semantics
+formal semantics
+QLEK
+SemanticAdmission
+candidate semantics
+Gate A qualification meaning
+publication safety
+M0-M8 topology
+P6 interpretation
+P8 semantics
+P8 activation
+```
+
+The construction discovery is recorded exactly as:
+
+```text
+statement:
+PublicationPreparationResult may be operationally blocked before a
+PublicationIntent exists, but every OperationalBlocker must reference one exact
+admitted or co-admitted ObligationRef; therefore the existing blocked result
+contains insufficient construction authority for M1/M8-B/M2 to materialize the
+blocker mechanically
+
+semantic disposition:
+authority-conflict-or-uncertain at construction representation level
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Resolve the seam through the already accepted M3 producer pattern:
+
+```text
+blocked producer resolution = blockingObligation + producer-owned cause
+
+publication preparation blocked
+→ exact publication-preparation ObligationRef
+→ exact repository-control cause
+→ M8-B materializes OperationalBlocker
+→ M2 co-admits obligation + blocker atomically
+
+publication later becomes preparable
+→ exact outstanding preparation obligation
+→ atomically superseded by exact publication obligation
+```
+
+The resolution is derived from existing authority, creates no semantic change,
+and requires no ADR. C9-G closes M7 NIB-M coverage; C9-H must still close M1.
 
 ## 2. System objective
 
@@ -2891,7 +2952,7 @@ PreparedPublication.publicationObligation.obligationId.
 The publication WorkItem operation must bind the exact `PublicationIntent`.
 
 Its exact runner-owned operation schema and pure binding extractor belong to
-the future M7 NIB-M and must be closed before GREEN.
+M7-B `1.0.0`.
 
 M1 may coordinate this bundle but may not invent or reinterpret its WorkItem,
 obligation, transition, or repository-domain meaning.
@@ -2934,6 +2995,19 @@ interface PublicationNonApplicationRef {
 }
 ```
 
+`PublicationConfirmationId` is exactly:
+
+```text
+deriveId(
+  "publication-confirmation.v1",
+  publicationIntentId
+)
+```
+
+One exact `PublicationIntentRef` has at most one logical confirmation. Distinct
+observation occurrences confirming the same intent do not create another
+confirmation identity.
+
 `RepositoryPublicationTargetRef` is the exact durable remote mutation target. `repositoryIdentity` identifies the repository independently of a local checkout, `remoteEndpoint` is the normalized credential-free publication endpoint, and `refName` is the fully qualified Git ref name. Credentials and credential-bearing URLs are invalid target identities.
 
 A publication successor is an exact repository-authority identity, not merely a Git tree identity.
@@ -2953,7 +3027,7 @@ Its `authority` must equal that confirmation's exact transition successor by bot
 Its `repositoryPath` is an operational location only. The path never substitutes for the bound target, authority, candidate, confirmation, or materialization evidence.
 
 `PublicationAlreadyCurrentObservationRef.evidence` is duplicate-free and every
-referenced artifact is intact. The future M7 NIB-M defines the exact read-only
+referenced artifact is intact. M7-B `1.0.0` defines the exact read-only
 observation artifact schema and Git dependency interpretation.
 
 `PublicationNonApplicationRef.basisArtifacts` is duplicate-free, its `proof` is
@@ -6363,9 +6437,13 @@ type PublicationPreparationResult =
     }
   | {
       readonly kind: "blocked";
-      readonly cause: NonRecoveryOperationalCauseRefV1 & {
-        readonly producer: "repository-control";
-      };
+      readonly blockingObligation:
+        ObligationRef;
+
+      readonly cause:
+        NonRecoveryOperationalCauseRefV1 & {
+          readonly producer: "repository-control";
+        };
     };
 
 interface PublicationExecutionRequest {
@@ -6415,6 +6493,36 @@ type PublicationObservationQualificationResult =
       };
     };
 ```
+
+A publication-preparation obligation means exactly:
+
+```text
+establish a mechanically valid publication preparation for this exact
+run + candidate + qualification + publication target
+```
+
+It is operational/construction authority only. It is not product semantics,
+publication confirmation, permission to mutate the remote, a
+`PublicationIntent`, a `WorkItem`, or an `Execution`.
+
+Its identity is exactly:
+
+```text
+deriveId(
+  "publication-preparation-obligation.v1",
+  runId,
+  candidateId,
+  qualificationId,
+  target.repositoryIdentity,
+  target.remoteEndpoint,
+  target.refName,
+  definition.sha256
+)
+```
+
+StateRevision, ownership generation, timestamp, remote observation,
+predecessor, successor, process identity, temporary repository path, and
+credentials are excluded.
 
 Publication-preparation bindings:
 
@@ -6522,7 +6630,7 @@ supplies the publication predecessor.
 Publication preparation performs no remote mutation but may perform exact
 read-only target observation and acquire immutable Git objects/evidence needed
 to establish the predecessor and fast-forward relation. Remote observation is
-not the publication side effect. The future M7 NIB-M and Git Dependency
+not the publication side effect. M7-B `1.0.0` and the future Git Dependency
 Contract define the exact observation and Git-dependency representations.
 
 It constructs the exact immutable successor repository object without mutating
@@ -8280,7 +8388,7 @@ conditional publication operation.
 
 The exact M7 proof artifact schema, conditional-operation identity, repository
 evidence interpretation, and dependency mechanism sufficient to prove
-non-application belong to the M7 NIB-M and the Repository Dependency Contract.
+non-application belong to M7-B `1.0.0` and the future Git Dependency Contract.
 
 A publication pending observation must not perform, reissue, or replay the
 publication mutation. Its `ReconciliationContinuabilityRef` authorizes only the
@@ -9699,15 +9807,46 @@ run(command):
                 target: exact snapshot.run.publicationTarget
             })
 
-            if preparation is blocked:
+            if preparation.kind == "blocked":
+                require preparation.blockingObligation.runId == run.runId
+                require preparation.blockingObligation.candidateId ==
+                    exact candidate.candidateId
+                require preparation.blockingObligation.reviewCampaignId == null
+
                 require preparation.cause.producer == "repository-control"
-                bind only exact already-determined authoritative occurrence
-                    anchors for preparation.cause
-                materialized = recovery_operator.materialize_operational_blocker(
-                    exact preparation.cause + exact anchors + current StateRevision
-                )
-                commit only materialized.blocker through M2
-                continue
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId,
+                        baseStateRevision: snapshot.stateRevision,
+                        producer: "repository-control",
+                        obligationId:
+                            preparation.blockingObligation.obligationId,
+                        workItemId: null,
+                        executionId: null,
+                        causeDescriptor:
+                            preparation.cause.causeDescriptor,
+                        resolutionContracts:
+                            preparation.cause.resolutionContracts
+                    })
+
+                commit through M2 EstablishOperationalBlockersV1:
+                    obligationsToAdd:
+                        [preparation.blockingObligation]
+                        iff exact obligation not already authoritative
+                        otherwise []
+
+                    blockers:
+                        [materialized.blocker]
+
+                    basisArtifacts:
+                        orderedUnique([
+                            preparation.cause.causeDescriptor,
+                            ...preparation.cause.basisArtifacts
+                        ])
+
+                return OPERATOR-ACTION-REQUIRED
 
             require preparation.transition.relationship == "fast-forward"
             require valid mechanical evidence that:
@@ -9851,8 +9990,7 @@ run(command):
                     exact current OwnershipGeneration
                     exact fresh publication revalidation basis
                     exact dispatch evidence
-                    exact M7 RecoveryCapabilityRef if one is available,
-                    otherwise null
+                    exact non-null M7-B RecoveryCapabilityRef
 
                 commit ArmExecutionDispatch through M2
 

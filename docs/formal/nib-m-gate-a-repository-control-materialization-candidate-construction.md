@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "2.1.0"
+version: "2.1.1"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -18,12 +18,19 @@ superseded_by: []
 It consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS 1.0.1
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 CampaignArtifactStore
 DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
 ```
+
+Version `2.1.1` is dependency/boundary synchronization with NIB-S `13.0.0`,
+M0 `1.4.0`, and M7-B `1.0.0`. It changes no M7-A algorithm, public type,
+candidate construction, Git primitive use, materialization, successor
+projection, evidence, identity, recovery, or publication behavior. M7-A still
+owns `T`; M7-B consumes that exact `T` and owns remote publication concerns.
 
 Version `2.1.0` closes C9-F synchronization between the complete M5-D
 assurance projection and M7-A mechanical candidate materialization. It closes:
@@ -161,9 +168,10 @@ successor identity depend on current remote state.
 M7-A consumes exactly these construction dependencies:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS 1.0.1
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 CampaignArtifactStore
 DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
 ```
@@ -171,8 +179,8 @@ DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
 The Git Dependency Contract is required before GREEN. Its separate artifact is
 not created by this Module Brief.
 
-The Git Dependency Contract must expose exactly these 19 Git dependency
-primitives:
+M7-A consumes exactly these 19 primitives from the shared Git Dependency
+Contract:
 
 ```text
 01 qualifyRuntime
@@ -204,8 +212,17 @@ flags, controlled environment, config semantics, byte/NUL parsing, refspec
 grammar, object-format mechanics, raw object mechanics, bundle mechanics,
 credential boundary, and Git error interpretation.
 
-No M7-B remote-observation or remote-mutation primitive is part of this M7-A
-contract version.
+M7-B `1.0.0` extends the same future shared Dependency Contract with exactly:
+
+```text
+20 observePublicationTarget
+21 acquirePublicationTargetHistory
+22 provePublicationAncestorOrEqual
+23 conditionalUpdatePublicationTarget
+```
+
+The total future shared surface is exactly 23 primitives. M7-A does not consume
+these four M7-B-only primitives.
 
 ## 3. Git runtime qualification
 
@@ -1024,7 +1041,7 @@ P.entries duplicate-free by exact repositoryPath bytes
 
 every entry.content exact and intact
 every entry.content.repositoryPath == null
-every entry path/mediaType obeys NIB-S 12.0.1
+every entry path/mediaType obeys NIB-S 13.0.0
 ```
 
 M7-A never independently decides whether `A.protocolBundle` is current. After
@@ -2156,7 +2173,7 @@ M7A-22 Assurance repository placement never changes exact projection source
 M7A-23 Projection entry repositoryPath is placement authority; entry.content
         repositoryPath is always null.
 
-M7A-24 Projection media type is path-qualified exactly by NIB-S 12.0.1.
+M7A-24 Projection media type is path-qualified exactly by NIB-S 13.0.0.
 
 M7A-25 Every assurance-projected Git blob is represented in candidate
         materialization through an exact application/octet-stream candidate-
@@ -2341,10 +2358,14 @@ architecture-or-implementation
 
 No ADR is required.
 
-C9-F closes M7-A construction synchronization with M5-D. GREEN for M7-A remains
-forbidden until `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` exists and realizes every
-required primitive with the exact contract consumed here. This Dependency
-Contract remains absent and is not created by C9-F.
+C9-F closes M7-A construction synchronization with M5-D. C9-G synchronizes the
+M7-A/M7-B boundary and closes M7-B separately without changing any M7-A
+algorithm. Complete M7 A/B Module Brief coverage now exists.
 
-This Module Brief does not close M7-B publication, remote observation,
-publication recovery, or executor-domain recovery behavior.
+GREEN for M7-A remains forbidden until
+`DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` exists and realizes every required
+primitive with the exact contract consumed here. This Dependency Contract
+remains absent and is not created by C9-G.
+
+M7-B `1.0.0` owns publication, remote observation, publication recovery, and
+repository-control executor-domain recovery behavior.

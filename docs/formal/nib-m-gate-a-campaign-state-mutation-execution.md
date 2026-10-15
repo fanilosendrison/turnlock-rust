@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "8.0.1"
+version: "9.0.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -23,9 +23,18 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-M-GATE-A-CONTRACTS 1.4.0
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 ```
+
+Version `9.0.0` is a breaking implementation-construction synchronization with
+NIB-S `13.0.0`, M0 `1.4.0`, and M7-B `1.0.0`. It adds exact publication-
+preparation obligation lifecycle plumbing, M7-B publication binding validation,
+deterministic confirmation identity validation, and mandatory publication
+recovery-capability validation. It changes no mutation-union shape, SQLite
+schema, persistence ownership, product semantic, protocol semantic, recovery
+classification, blocker ownership, or M2 state-writer authority.
 
 Version `8.0.1` is a representation/dependency synchronization with NIB-S
 `12.0.1` and the complete M5-D projection contract. It changes no mutation
@@ -501,6 +510,26 @@ No Execution is involved.
 
 No external-effect Arm is involved.
 
+During every successful non-C0 `AdmitCandidateV1`, for every outstanding
+publication-preparation obligation whose `candidateId` equals the prior current
+candidate `P.candidateId`, append exactly one disposition in the same revision:
+
+```ts
+{
+  kind: "superseded",
+  obligationId: exact old preparation obligation,
+  replacementObligationIds: [],
+  basisEvidenceIds: [],
+  basisArtifacts:
+    orderedUnique([
+      sealedCandidate.materialization,
+      ...sealedCandidate.materializationEvidence
+    ])
+}
+```
+
+This is lifecycle plumbing only. It does not establish publication truth.
+
 ### 5.3 Review campaign bundle
 
 ```ts
@@ -735,6 +764,21 @@ or:
 ```text
 a blocker references a not-yet-admitted obligation
 ```
+
+When a new obligation has the exact M7-B publication-preparation definition,
+M2 additionally requires:
+
+```text
+blocker source producer == repository-control
+M7-B validate_publication_operational_cause accepts the exact cause
+M7-B validate_publication_preparation_obligation accepts the obligation
+obligationId recomputes under publication-preparation-obligation.v1
+obligation and cause run/candidate/qualification/target bindings are exact
+```
+
+The publication-preparation obligation and blocker are co-admitted in one
+revision. When the exact obligation already exists, `obligationsToAdd == []` as
+usual.
 
 Every admitted `OperationalBlocker` must satisfy the accepted M8-B
 operational-boundary identity and Operator Action Request contract.
@@ -1076,7 +1120,7 @@ every decoded entry.content exists and is intact
 
 every decoded entry.content.repositoryPath == null
 
-every decoded entry.content.mediaType obeys the exact NIB-S 12.0.1
+every decoded entry.content.mediaType obeys the exact NIB-S 13.0.0
 repositoryPath/media-type mapping
 
 no decoded entry targets a forbidden namespace
@@ -1151,6 +1195,29 @@ interface AdmitGateAQualificationV1 {
 M2 must find an already-admitted passing exact Gate A mechanical validation
 observation whose candidate, campaign sets, and evidence match this
 qualification.
+
+During successful `AdmitGateAQualificationV1`, for every outstanding
+publication-preparation obligation satisfying:
+
+```text
+obligation.candidateId == qualification.candidateId
+AND obligation qualificationId != qualification.qualificationId
+```
+
+append exactly one supersession in the same revision:
+
+```ts
+{
+  kind: "superseded",
+  obligationId: exact old preparation obligation,
+  replacementObligationIds: [],
+  basisEvidenceIds: [],
+  basisArtifacts: exact qualification.validatorEvidence
+}
+```
+
+Replaying the exact same qualification never supersedes its matching
+preparation obligation.
 
 ### 5.13 Publication intent
 
@@ -1256,9 +1323,15 @@ publicationWorkItem.operation
 ```
 
 and the pure binding extractor proving the operation represents the exact
-`PublicationIntentRef` belong to the future M7 NIB-M.
+`PublicationIntentRef` belong to M7-B `1.0.0`. M2 requires:
 
-GREEN is blocked until that M7 contract exists.
+```text
+M7-B extract_publication_intent_from_operation(
+  publicationWorkItem.operation
+) == exact intent
+```
+
+GREEN remains blocked until the required Git Dependency Contract exists.
 
 M2 must not infer publication binding merely from:
 
@@ -1299,8 +1372,8 @@ publication obligation/work bindings pass section 5.13.2
 
 M2 does not reinterpret Git ancestry evidence.
 
-It validates the construction/reference bindings fixed by NIB-S and future M7
-contracts.
+It validates the construction/reference bindings fixed by NIB-S and M7-B
+`1.0.0`.
 
 ### 5.13.4 Initial versus replacement intent
 
@@ -1322,7 +1395,8 @@ publicationObligation
 publicationWorkItem
 ```
 
-No obligation supersession is created.
+No prior publication-obligation supersession is created. Any matching
+publication-preparation obligation is handled by section 5.13.5.
 
 **Case B — the exact same intent identity already exists and is currently projected**
 
@@ -1424,6 +1498,38 @@ It does not assert repository truth beyond the already validated new
 The prior intent, prior obligation, prior WorkItem, and prior Executions are
 never mutated or deleted.
 
+### 5.13.5 Publication-preparation obligation transition
+
+For every successful `EstablishPublicationIntentV1`, derive the exact matching
+publication-preparation obligation identity from:
+
+```text
+intent.runId
+intent.candidateId
+intent.qualificationId
+intent.transition.target
+exact preparation-obligation definition
+```
+
+If no such obligation exists, append no preparation disposition. If it exists
+and remains outstanding, atomically append exactly this disposition in the same
+StateRevision as the first effective publication-intent bundle:
+
+```ts
+{
+  kind: "superseded",
+  obligationId: preparationObligation.obligationId,
+  replacementObligationIds: [
+    publicationObligation.obligationId
+  ],
+  basisEvidenceIds: [],
+  basisArtifacts: intent.preparationEvidence
+}
+```
+
+There is no intermediate revision containing both an effective publication
+intent and an outstanding matching preparation obligation.
+
 ### 5.14 Publication observation qualification
 
 ```ts
@@ -1471,9 +1577,9 @@ O is exact publication obligation co-admitted with I
 O is currently outstanding
 ```
 
-The exact runtime-validated M7 publication operation/input representation and
-binding extractor belong to the future M7 NIB-M. The coding agent may not infer
-that binding from repository-control executor identity alone.
+The exact runtime-validated publication operation/input representation and
+binding extractor belong to M7-B `1.0.0`. The coding agent may not infer that
+binding from repository-control executor identity alone.
 
 #### Executed-publication branch
 
@@ -1588,7 +1694,8 @@ result
 
 proof/basis ArtifactRefs intact
 
-future M7 pure validator accepts the exact non-application binding
+M7-B validate_publication_non_application accepts the exact non-application
+binding
 ```
 
 If the direct-outcome provenance conditions fail, M2 rejects the proposed
@@ -1657,7 +1764,8 @@ request.observation.observedAuthority ==
 
 every observation evidence ArtifactRef intact
 
-future M7 pure validator accepts exact already-current observation
+M7-B validate_already_current_observation accepts the exact already-current
+observation
 ```
 
 `result.kind = "not-applied"` is invalid for this request kind. The
@@ -1666,9 +1774,21 @@ already-current request may produce `confirmed` but never `not-applied`.
 qualification; orchestration declines to submit the stale request and
 re-enters preparation instead.
 
-For a confirmed result in either legal branch, M2 requires the exact
-confirmation and published-view bindings above and atomically appends in the
-same `StateRevision`:
+For a confirmed result in either legal branch, M2 recomputes and requires:
+
+```text
+result.confirmation.publicationConfirmationId ==
+deriveId(
+  "publication-confirmation.v1",
+  result.confirmation.publicationIntentId
+)
+
+result.confirmation.publicationIntentId == I.publicationIntentId
+```
+
+M2 then requires M7-B `validate_publication_confirmation_bundle` to accept the
+exact intent, request, confirmation and published view, requires all exact
+bindings above, and atomically appends in the same `StateRevision`:
 
 ```text
 exact publication-observation qualification request/result basis
@@ -2168,16 +2288,26 @@ I.qualificationId ==
 
 the exact publication obligation co-admitted with I is outstanding
 
-W.operation passes the future M7 pure binding extractor for exact I
+M7-B extract_publication_intent_from_operation(W.operation) == exact I
 
-the Arm revalidation basis contains the exact future-M7-validated publication
-revalidation binding required for I
+recoveryCapability != null
+recoveryCapability.executor == repository-control
+M7-B validate_publication_recovery_operation accepts
+    recoveryCapability.reconciliationOperation against exact I
+
+the Arm revalidation basis equals exactly one
+GateAPublicationArmRevalidationV1 ArtifactRef accepted by
+M7-B validate_publication_arm_revalidation for I
 
 that binding names:
     exact I
+    exact W
+    exact snapshot.currentCandidate
+    exact snapshot.gateQualification
     exact I.transition.target
     exact I.transition.predecessor
     exact I.transition.successor
+    exact successor projection
 ```
 
 M2 does not independently interpret remote Git state.
@@ -2187,8 +2317,8 @@ M7 establishes repository-domain revalidation evidence.
 M2 validates that the exact accepted M7 binding is current, structurally bound
 to I, and supplied to the exact current-intent WorkItem/Execution.
 
-The future M7 NIB-M must close the exact revalidation artifact schema and pure
-binding-validation contract before GREEN.
+M7-B `1.0.0` owns the exact revalidation artifact schema and pure binding-
+validation contract.
 
 If `W` belongs to a historical PublicationIntent instead of the exact projected
 current one:

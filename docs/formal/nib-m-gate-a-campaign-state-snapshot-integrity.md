@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "7.0.0"
+version: "8.0.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -23,9 +23,19 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-M-GATE-A-CONTRACTS 1.4.0
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.0.0
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 ```
+
+Version `8.0.0` is a breaking read-side construction synchronization with
+NIB-S `13.0.0`, M0 `1.4.0`, M2 mutation `9.0.0`, and M7-B `1.0.0`. It adds
+publication-preparation obligation lifecycle integrity, deterministic
+publication-confirmation identity validation, and exact M7-B publication
+operation/revalidation/non-application validation. It changes no snapshot public
+shape, SQLite schema, product semantic, protocol semantic, recovery
+classification, or M2 ownership.
 
 Version `7.0.0` is a breaking read-side construction-contract revision only
 because the corrected `FindingRef` provenance shape changes. It preserves all
@@ -120,7 +130,7 @@ GateARunSnapshot
 
 The separate global read APIs consume exact
 `LoadSemanticQuestionStateRequestV1` and
-`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.3.0 contracts
+`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.4.0 contracts
 closed in section 20.
 
 There is no normal union branch for unknown/corrupt state.
@@ -1203,6 +1213,31 @@ This is structural applicability only.
 
 M2 does not assert that `(S,P)` remains externally current.
 
+### 10.1A Publication-preparation obligation integrity
+
+For every retained obligation whose definition validates under M7-B as exact
+`publication-preparation`, require:
+
+```text
+obligationId recomputes exactly under publication-preparation-obligation.v1
+definition validates through M7-B validate_publication_preparation_obligation
+reviewCampaignId == null
+candidate exists
+exact bound qualification exists
+qualification.candidateId == obligation.candidateId
+target equals immutable GateARun publicationTarget
+```
+
+An outstanding publication-preparation obligation may exist only when its
+candidate is current, its exact qualification is the currently projected
+qualification for that candidate, and no matching effective
+`PublicationIntent` has replaced it. Otherwise retained state is
+`INTEGRITY_FAILURE` unless the exact required supersession disposition exists.
+
+Every publication-preparation blocker must bind that exact obligation and pass
+M7-B `validate_publication_operational_cause` plus ordinary M8-B blocker/OAR
+integrity.
+
 ### 10.2 `publicationIntent`
 
 Return the exact latest intent satisfying:
@@ -1225,6 +1260,9 @@ StateRevision
 their deterministic IDs recompute correctly
 
 their run/candidate/reviewCampaign/executor/source-obligation bindings are exact
+
+M7-B extract_publication_intent_from_operation(publicationWorkItem.operation)
+    == exact intent
 ```
 
 For the projected latest intent:
@@ -1258,6 +1296,14 @@ O3 outstanding
 
 Historical intents, obligations, WorkItems, and Executions remain visible in
 their respective historical arrays.
+
+If a publication-preparation obligation existed before the first matching
+PublicationIntent admission, require the same revision to contain exactly one
+superseded disposition from that preparation obligation to exactly the new
+publication obligation. Candidate-advance and qualification-replacement
+supersessions have empty `replacementObligationIds`. No obligation has two
+terminal dispositions, and an effective PublicationIntent may not coexist with
+an outstanding matching publication-preparation obligation.
 
 ### 10.3 `publicationConfirmation`
 
@@ -1321,6 +1367,12 @@ failure if such a contradictory admission is retained.
 The confirmed result must satisfy:
 
 ```text
+confirmation.publicationConfirmationId ==
+deriveId(
+  "publication-confirmation.v1",
+  confirmation.publicationIntentId
+)
+
 confirmation.publicationIntentId == request.intent.publicationIntentId
 
 confirmation.candidateId == request.candidate.candidateId
@@ -1399,9 +1451,16 @@ publication obligation remains unsatisfied by the non-application fact
 ```
 
 The fact must bind the exact publication intent, candidate, WorkItem, Execution,
-dispatch intent, attempt result, direct proof, and basis artifacts. At most one
+dispatch intent, attempt result, direct proof, and basis artifacts. M7-B
+`validate_publication_non_application` must accept the exact fact. At most one
 `PublicationNonApplicationRef` exists per Execution. It must never alias
 `PROVEN-NOT-EXECUTED` or manufacture an Execution outcome.
+
+Every retained already-current observation must pass M7-B
+`validate_already_current_observation`. Every armed publication Execution must
+carry exactly one revalidation basis accepted by M7-B
+`validate_publication_arm_revalidation` and one non-null recovery operation
+accepted by M7-B `validate_publication_recovery_operation`.
 
 ### 10.5 `gateAReady`
 
@@ -1664,6 +1723,34 @@ I76  At most one unconsumed assurance projection exists per source candidate.
 
 I77  CandidateReviewReadiness is null while the current candidate has an
      unconsumed assurance projection.
+
+I78  Every publication-preparation ObligationId recomputes exactly.
+
+I79  Every publication-preparation blocker binds its exact preparation
+     obligation and passes M7-B cause validation.
+
+I80  An effective PublicationIntent and an outstanding matching publication-
+     preparation obligation never coexist.
+
+I81  A superseded preparation obligation replaced by publication names exactly
+     one publication obligation.
+
+I82  A preparation obligation made stale by candidate or qualification change
+     has empty replacementObligationIds.
+
+I83  Every PublicationConfirmationId recomputes from its exact
+     PublicationIntentId.
+
+I84  Every publication WorkItem operation is accepted by M7-B pure binding
+     validation and yields its exact PublicationIntentRef.
+
+I85  Every armed publication revalidation basis and non-null recovery operation
+     are accepted by M7-B against the exact current intent and WorkItem.
+
+I86  Every PublicationNonApplicationRef passes M7-B pure binding validation and
+     retains direct-outcome provenance.
+
+I87  Every already-current observation passes M7-B pure validation.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -1716,9 +1803,14 @@ reconstructSnapshot(runId):
     verify cognitive validation consistency
     verify retry limits/one-shot consumption
     verify blocker/disposition consistency
+    verify publication-preparation obligation identity and current applicability
+    verify publication-preparation blocker and supersession lifecycle
+    verify M7-B publication WorkItem operation bindings
+    verify M7-B publication Arm revalidation and recovery-operation bindings
     verify publication-observation qualification request/result consistency
+    verify deterministic publication confirmation identity
     verify publication confirmation obligation closure
-    verify publication non-application integrity
+    verify M7-B publication non-application and already-current observation integrity
     verify qualification/publication consistency
 
     derive:
@@ -2019,7 +2111,7 @@ Ownership acquisition uses this same reconstruction after generation insertion.
 Keep `GateARunSnapshot` unchanged and run-local. Do not add global P8 semantic
 fields to it. Expose global semantic authority through the separate
 `loadSemanticQuestionState` and `loadSemanticExecutionState` APIs declared by
-M0 1.3.0.
+M0 1.4.0.
 
 Keep exactly two independent authority dimensions:
 
