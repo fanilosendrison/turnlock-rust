@@ -300,7 +300,7 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `12.0.0`. The brief's own NIB metadata is the sole source for its
+version is `12.0.1`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M0 `contracts` is covered by
@@ -315,8 +315,9 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   version `3.0.4` — SQLite schema-v2 authoritative persistence, immutable
   artifact storage, bootstrap, ownership, semantic history and fencing;
 - [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md),
-  version `8.0.0` — authoritative mutation admission, corrected FindingRef
-  provenance, generalized candidate provenance,
+  version `8.0.1` — authoritative mutation admission, corrected FindingRef
+  provenance, generalized candidate provenance, path-qualified assurance-
+  projection media/integrity admission,
   `AssuranceRepositoryProjectionRef` retention/consumption integrity,
   obligations/blockers, retries, dispatch, recovery admission, qualification,
   and publication state transitions;
@@ -339,7 +340,7 @@ reviewer execution inputs.
 
 M3 consumes NIB-S `10.0.0`.
 
-NIB-S 12.0.0 separates immutable per-campaign `ReviewContext` from
+NIB-S 12.0.1 preserves the separation of immutable per-campaign `ReviewContext` from
 current-candidate `ResolutionContextV1`.
 
 `ReviewContext` remains production provenance and is never retargeted when a
@@ -442,8 +443,8 @@ M5 `assurance-ledger` is decomposed into exactly four active Module Briefs:
   M5-C version `1.0.0` — serialized surviving-material resolution,
   DecisionRequest and exact-candidate RepairIntent qualification;
 - [`nib-m-gate-a-assurance-ledger-repository-projection-readiness.md`](nib-m-gate-a-assurance-ledger-repository-projection-readiness.md),
-  M5-D version `1.0.0` — deterministic repository projection, readiness and
-  mechanical A/B/C/D composition.
+  M5-D version `1.0.1` — deterministic repository projection with exact source
+  bytes and path-qualified media, readiness and mechanical A/B/C/D composition.
 
 The active M6 Module Brief is
 [`nib-m-gate-a-mechanical-validation.md`](nib-m-gate-a-mechanical-validation.md),
@@ -533,13 +534,14 @@ Therefore:
 P6 remains current
 execution-receipt schema 3.0 remains current for P6
 review-evidence schema 5.0 remains current for P6
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0 is active
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1 is active
 M5-A/B/C/D construction is closed by the four active briefs
 P7 remains immutable, mechanically validated and permanently inactive
 P8 artifact/construction authority exists and remains inactive until C15
 C9-E is closed
+C9-F is closed
 C9 overall remains incomplete
-later M1/M7 and remaining C9 synchronization is still required
+later M1 and remaining C9 synchronization is required
 C10/NIB-T has not begun
 no protocol-v7 or protocol-v8 behavior becomes active through these briefs
 ```
@@ -574,14 +576,33 @@ candidate construction and M7-B publication / remote observation / recovery.
 
 The active M7-A Module Brief is
 [`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md),
-version `2.0.7`. It owns repository inspection, exact baseline Git basis,
-publication-target identity resolution, canonical C0 materialization, exact RepairIntent patch
-application, exact assurance repository projection application, combined repair
-plus assurance successor construction, Git tree projection, deterministic
-publication successor `T`, and the internal M7-A → M7-B successor boundary.
+version `2.1.0`. It owns repository inspection, exact baseline Git basis,
+publication-target identity resolution, canonical C0 materialization, exact
+RepairIntent patch application, exact assurance repository projection
+application, combined repair plus assurance successor construction, Git tree
+projection, deterministic publication successor `T`, and the internal M7-A →
+M7-B successor boundary.
+
+Version `2.1.0` closes:
+
+```text
+C9-F M5-D→M7 assurance-projection synchronization
+M0 canonical-JSON ownership synchronization
+exact P6/P8 projection namespace validation
+raw evidence media preservation
+exact projection-content→candidate-blob carrier conversion
+repair+projection raw-path prevalidation
+```
+
+M5 chooses assurance content and intended repository placement. M7-A applies
+that projection mechanically and interprets no hostile-review or semantic
+meaning. M2 remains the authoritative state writer, M6 remains the semantic-
+subject/mechanical-validation boundary, and future M1 remains choreography
+owner.
 
 It selects `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` as a required separate
-Dependency Contract before GREEN.
+Dependency Contract before GREEN. The contract remains absent, so M7-A is not
+GREEN.
 
 Publication/remote/recovery behavior remains outside the M7-A brief.
 
@@ -605,8 +626,9 @@ operator/recovery boundary, and M2 alone admits authoritative state changes.
 
 The persistence/ownership Module Brief consumes active
 `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. M0 still requires its
-separately scoped Zod Dependency Contract before GREEN. C9-E selects no new
-external dependency and the TURNLOCK runner is not GREEN.
+separately scoped Zod Dependency Contract before GREEN. C9-F selects no new
+external dependency, `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remains required and
+absent, M7-A is not GREEN, and the TURNLOCK runner is not GREEN.
 
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native

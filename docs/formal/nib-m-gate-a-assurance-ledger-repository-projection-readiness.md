@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-14"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS
-version: "1.0.0"
+version: "1.0.1"
 scope: gate-a-campaign-runner/assurance-ledger/repository-projection-readiness
 status: active
 consumers: [architect, coding-agent]
@@ -17,9 +17,13 @@ superseded_by: []
 
 ## 1. Status and authority
 
-Implement M5-D from NIB-S 12.0.0, M0 1.3.0, M2 3.0.4/8.0.0/7.0.0,
+Implement M5-D from NIB-S 12.0.1, M0 1.3.0, M2 3.0.4/8.0.1/7.0.0,
 M5-A 3.0.0, M5-B 1.0.0, M5-C 1.0.0, M6 1.1.0, accepted ADR-055/056 and
 closed P8 C1-C7 authority.
+
+Version `1.0.1` synchronizes the construction representation with NIB-S
+`12.0.1` and M7-A `2.1.0`. It changes no semantic progression, readiness,
+identity, evidence, path, or module-ownership rule.
 
 P6 remains current. P7 remains permanently inactive. P8 remains inactive until
 C15. This brief adds no semantics, activation, dependency or repository
@@ -47,41 +51,50 @@ Do not mutate repository, interpret Git, invoke Python, apply RepairIntent,
 choose semantic progression or declare Gate A ready. M7 applies projection
 mechanically; M6 qualifies mechanically.
 
-## 3. Exact P8 paths
+## 3. Exact P8 paths and source media
 
 Use exactly:
 
 ```text
-runner-produced ReviewCampaign:
-formal/reviews/<ReviewCampaignId>.json
+runner-produced ReviewCampaign
+→ formal/reviews/<ReviewCampaignId>.json
+→ application/json
 
-packet:
-formal/reviews/packets/<sha256>.json
+packet
+→ formal/reviews/packets/<sha256>.json
+→ application/json
 
-receipt:
-formal/reviews/executions/<WorkItemId>.json
+receipt
+→ formal/reviews/executions/<WorkItemId>.json
+→ application/json
 
-raw receipt attempt:
-formal/reviews/raw/<WorkItemId>-ATTEMPT-<attemptOrdinal>.json
+raw receipt attempt
+→ formal/reviews/raw/<WorkItemId>-ATTEMPT-<attemptOrdinal>.json
+→ text/plain; charset=utf-8
 
-qualified non-challenge semantic output:
-formal/reviews/adjudications/<rawOutput.sha256>.json
+qualified non-challenge semantic output
+→ formal/reviews/adjudications/<rawOutput.sha256>.json
+→ text/plain; charset=utf-8
 
-qualified challenge semantic output:
-formal/reviews/challenges/<rawOutput.sha256>.json
+qualified challenge semantic output
+→ formal/reviews/challenges/<rawOutput.sha256>.json
+→ text/plain; charset=utf-8
 
-semantic-question binding:
-formal/reviews/semantic-question-bindings/<binding.sha256>.json
+semantic-question binding
+→ formal/reviews/semantic-question-bindings/<binding.sha256>.json
+→ application/json
 
-origin witness:
-formal/reviews/semantic-admission-origin-witnesses/<witness.sha256>.json
+origin witness
+→ formal/reviews/semantic-admission-origin-witnesses/<witness.sha256>.json
+→ application/json
 
-finding-adjudication supplement:
-formal/reviews/supplements/<supplement.sha256>.json
+finding-adjudication supplement
+→ formal/reviews/supplements/<supplement.sha256>.json
+→ application/json
 ```
 
-No path enters QLEK or any semantic ID. P8 does not use
-`adjudication-packets/` or `challenge-packets/` as semantic execution packet
+No path changes from C9-E. No path enters QLEK or any semantic ID. P8 does not
+use `adjudication-packets/` or `challenge-packets/` as semantic execution packet
 namespaces.
 
 ## 4. P8 ReviewCampaign projection
@@ -104,20 +117,64 @@ initial-attempt end. Invent no timestamp.
 Project only provenance produced by the current run. For a reused Admission,
 project no predecessor receipt, witness, packet or root ownership.
 
-For locally produced P8 Admission project exact packet, receipt, raw attempts,
-binding, origin witness and qualifying output under `adjudications/` or
-`challenges/`. Preserve every receipt/witness binding exactly.
+Every `AssuranceRepositoryProjectionEntryV1.content` is the exact original
+immutable CAS-backed source `ArtifactRef`, always with `repositoryPath == null`.
+Never use an M5-A Stage-B repository-path alias as projection-entry content;
+those aliases remain validation/provenance locators only.
+
+For structured artifacts use the original sealed source with exactly:
+
+```text
+root ReviewCampaign record
+packet
+receipt
+supplement
+semantic-question binding
+origin witness
+historical P6 challenge packet when applicable
+
+mediaType == application/json
+repositoryPath == null
+```
+
+For exact raw cognitive textual artifacts use the original M4 captured source
+with exactly:
+
+```text
+raw attempt output
+qualified non-challenge semantic output
+qualified challenge semantic output
+
+mediaType == text/plain; charset=utf-8
+repositoryPath == null
+```
+
+Project locally produced P8 Admission artifacts under the exact Section 3 paths
+and preserve every receipt/witness binding exactly. Do not reseal raw output as
+`application/json`, change its media type, parse and rewrite it, create a JSON
+wrapper, or change its SHA-256 or byte length. The projection descriptor carries
+placement separately in `entry.repositoryPath`.
 
 Project each completed finding supplement under its exact SHA path. A supplement
 contains effective adjudication only and no receipt provenance.
 
 ## 6. Projection entry algorithm
 
-For each target:
+For each target, pair the exact Section 3 repository path with the exact original
+Section 5 source `ArtifactRef`. Require before candidate comparison:
+
+```text
+source content exists and is intact
+source content.repositoryPath == null
+source content.mediaType obeys the exact NIB-S 12.0.1 path/media-type mapping
+```
+
+Then apply exactly:
 
 ```text
 absent
-→ include exact regular-file projection entry
+→ include exact regular-file projection entry whose content is that unchanged
+  source ArtifactRef
 
 exact regular file with byte-identical content
 → omit as already materialized
@@ -129,13 +186,16 @@ symlink/directory/gitlink/non-regular
 → ASSURANCE-PROJECTION-INTEGRITY-FAILURE
 ```
 
-Never overwrite, rename, delete, merge or follow a symlink. Sort entries by
-repository-path unsigned UTF-8 order. Require at least one absent target; a
-complete no-op creates no projection.
+Never overwrite, rename, delete, merge, follow a symlink, or construct a
+repository-path alias as entry content. Sort entries by exact repository-path
+unsigned UTF-8 order without Unicode normalization. Require at least one absent
+target; a complete no-op creates no projection.
 
-Construct the exact NIB-S projection artifact/ref and ID. M5-D reads candidate
-materialization only through exact accepted immutable M7/M6 boundaries and does
-not mutate it.
+Construct the exact NIB-S projection artifact/ref and ID. The projection
+descriptor itself remains runner-owned canonical JSON with
+`mediaType == application/json` and `repositoryPath == null`. M5-D reads
+candidate materialization only through exact accepted immutable M7/M6
+boundaries and does not mutate it.
 
 ## 7. Repair and assurance coexistence
 
@@ -144,8 +204,10 @@ assurance projection, expose both. M7 later applies exact `repair + assurance`
 through existing combined construction. Require path sets disjoint under M7-A.
 A collision is integrity/construction failure; M5 never chooses preference.
 
-C9-F must synchronize M7-A with NIB-S 12.0.0 and this exact allowlist before
-GREEN. Do not modify M7 during C9-E.
+C9-F synchronizes M7-A 2.1.0 with NIB-S 12.0.1 and this exact projection
+contract. M5 chooses assurance content and intended repository placement; M7-A
+applies that projection mechanically, creates candidate-only byte carriers where
+required, and interprets no hostile-review or semantic meaning.
 
 ## 8. Readiness basis
 
@@ -321,16 +383,28 @@ M5D-17 M6 alone establishes mechanical Gate A qualification.
 M5D-18 Composition order is exactly A/B/C/D.
 M5D-19 Sibling duplicate identity fails even when bytes match.
 M5D-20 P8 remains inactive until C15.
+M5D-21 Projection entry content is always the original immutable CAS-backed
+       source ArtifactRef.
+M5D-22 Projection entry content has repositoryPath null; entry.repositoryPath
+       alone owns placement.
+M5D-23 Structured projection sources retain application/json.
+M5D-24 Raw cognitive projection sources retain text/plain; charset=utf-8.
+M5D-25 Repository projection never changes source bytes, SHA or byteLength.
+M5D-26 Stage-B repository-path aliases remain validation/provenance locators and
+       never become projection-entry content authority.
+M5D-27 M7 candidate-byte carriers never replace M5 projection content identity.
 ```
 
 ## 19. Future tests
 
-Create no NIB-T. Require tests for exact paths, path collision, byte-identical
-idempotence, symlink rejection, reused Admission projecting no predecessor
-receipt/witness, unconsumed projection blocking readiness, surviving-material
-finding blocking readiness, complete current campaign set, exact stale
-contributors, repair/projection disjointness, one-to-one blocker finalization,
-A/B/C/D order, P6 regression, P7 inactive and P8 inactive.
+Create no NIB-T. Require tests for exact paths, every path-qualified media type,
+raw malformed bytes preserved exactly, `content.repositoryPath != null`
+rejection, Stage-B alias rejection as projection authority, path collision,
+byte-identical idempotence, symlink rejection, reused Admission projecting no
+predecessor receipt/witness, unconsumed projection blocking readiness,
+surviving-material finding blocking readiness, complete current campaign set,
+exact stale contributors, repair/projection disjointness, one-to-one blocker
+finalization, A/B/C/D order, P6 regression, P7 inactive and P8 inactive.
 
 ## 20. Forbidden behavior
 
@@ -375,4 +449,27 @@ float conversion, integer rounding and semantic-payload key reordering.
 P8 binding/witness/supplement paths were intentionally construction-owned by C6;
 selecting them here is a `no-normative-impact`
 `architecture-or-implementation` mechanism. Composition/readiness follows
-accepted authority and adds no product meaning. No ADR is required.
+accepted authority and adds no product meaning.
+
+The C9-F representation discovery is recorded as:
+
+```text
+statement:
+exact raw cognitive completion artifacts are immutable text/plain CAS sources,
+while repository placement uses .json locators
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+mechanism:
+retain the exact source ArtifactRef and carry placement only in
+AssuranceRepositoryProjectionEntryV1.repositoryPath
+
+normative impact:
+none
+```
+
+No ADR is required.

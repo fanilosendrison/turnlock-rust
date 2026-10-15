@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "12.0.0"
+version: "12.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -1034,11 +1034,84 @@ no-normative-impact
 
 No ADR is created.
 
-C9-F must synchronize M7-A with NIB-S `12.0.0` and the exact M5-D projection
-allowlist before GREEN. Future M1 synchronization must route reuse-first
-semantic orchestration, M6 mechanical requests, M2 AdmissionAuthority, Stage
-A/M5-A/Stage B, fresh currentness before Arm, CandidateView requests, and M5
-complete-delta composition. This revision modifies neither M1 nor M7.
+Version `12.0.1` closes C9-F synchronization between the complete M5-D
+assurance repository projection and M7-A mechanical candidate materialization.
+It is an additive construction-representation correction only.
+
+This revision changes exactly none of the following:
+
+```text
+cross-module type shape
+TURNLOCK product semantics
+hostile-review protocol semantics
+QLEK
+SemanticAdmission
+SemanticFact
+qualification meaning
+ReviewCampaign identity or currentness
+candidate identity
+repository paths
+evidence bytes
+retry or recovery
+provider or model behavior
+M0-M8 topology
+P6 behavior
+P8 semantics
+P8 activation
+```
+
+The newly exposed construction inconsistency is recorded exactly as:
+
+```text
+statement:
+the complete C9-E projection contract includes exact raw cognitive completion
+bytes whose runtime ArtifactRef mediaType is text/plain; charset=utf-8, while
+NIB-S 12.0.0 blanket-requires application/json for every
+AssuranceRepositoryProjection entry content; preserving immutable raw evidence
+and the current blanket media-type rule simultaneously is impossible
+
+semantic disposition:
+authority-conflict-or-uncertain at construction representation level
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Resolve it from existing authority exactly as:
+
+```text
+structured repository projection artifacts retain application/json
+
+exact raw cognitive completion/output artifacts retain
+text/plain; charset=utf-8
+
+repository placement does not change source ArtifactRef bytes or source
+mediaType
+
+candidate Git-blob materialization uses a separate non-semantic
+application/octet-stream candidate-content carrier over the exact same bytes
+```
+
+The resolution is classified as:
+
+```text
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is created. Future M1 synchronization must route reuse-first semantic
+orchestration, M6 mechanical requests, M2 AdmissionAuthority, Stage A/M5-A/
+Stage B, fresh currentness before Arm, CandidateView requests, and M5 complete-
+delta composition. This revision modifies neither M1 nor any production code.
 
 ## 2. System objective
 
@@ -2593,9 +2666,51 @@ A stale-protocol campaign over the same `S` that has no finding or re-adjudicati
 `AssuranceRepositoryProjectionArtifactV1` is runner-owned canonical JSON under
 the existing canonical runner JSON convention. Its `entries` array is non-empty,
 strictly ordered by exact `repositoryPath` UTF-8 unsigned bytes, and
-duplicate-free by path. Every content `ArtifactRef` is intact, has media type
-`application/json`, and materializes one regular Git blob with mode `100644`.
-No directory, symlink, or gitlink is created by assurance projection.
+duplicate-free by exact path. The interface shapes above remain unchanged.
+
+For every projection entry require exactly:
+
+```text
+content exists and is intact
+content.repositoryPath == null
+entry.repositoryPath is the sole repository placement authority
+entry.repositoryPath does not become ArtifactRef identity
+entry.repositoryPath does not enter any semantic identity
+```
+
+Require `content.mediaType == application/json` for exactly these structured
+JSON projection families:
+
+```text
+formal/reviews/<ReviewCampaignId>.json
+formal/reviews/packets/*.json
+formal/reviews/challenge-packets/*.json
+formal/reviews/executions/*.json
+formal/reviews/supplements/*.json
+formal/reviews/semantic-question-bindings/*.json
+formal/reviews/semantic-admission-origin-witnesses/*.json
+```
+
+Require `content.mediaType == text/plain; charset=utf-8` for exactly these raw
+cognitive output families:
+
+```text
+formal/reviews/raw/*.json
+formal/reviews/adjudications/*.json
+formal/reviews/challenges/*.json
+```
+
+Those raw-output paths may intentionally contain exact captured textual bytes
+that are syntactically invalid JSON in protocol-invalid attempt evidence. A
+`.json` repository locator never authorizes JSON repair, parsing and
+reserialization, whitespace or newline change, Unicode normalization, or
+media-type relabeling of the runtime source `ArtifactRef`. Repository projection
+preserves exact source bytes. Candidate/Git materialization uses a separate
+`application/octet-stream` carrier over those same exact bytes and never
+replaces the projection entry's source `ArtifactRef`.
+
+Every target materializes one regular Git blob with mode `100644`. No directory,
+symlink, or gitlink is created by assurance projection.
 
 The exact allowed target set is:
 
@@ -6345,30 +6460,48 @@ its run/candidate bind the source, and M7 uses only its `approvedPatch`. When
 assurance projection is non-null, it is the exact authoritative projection and
 its run/source/S bindings equal the source candidate.
 
-Before applying either change, M7 derives exact repair and assurance path sets
-and requires an empty intersection. It then applies exactly:
+Before applying either change, M7 validates the complete request and immutable
+source candidate, validates every repair preimage against that source, validates
+the exact canonical assurance projection and every source-candidate projection
+path state, then compares decoded repair raw Git path bytes with exact UTF-8
+assurance repository-path bytes without normalization. Exact equality or any
+final leaf/prefix collision fails before mutation.
+
+It then applies exactly:
 
 ```text
-1. exact immutable source candidate
-2. exact RepairIntent patch if non-null
-3. exact AssuranceRepositoryProjection if non-null
-4. validate resulting candidate
-5. canonical materialization
-6. Git tree projection
-7. round-trip verification
-8. seal
+1. verify exact CandidateConstructionRequest bindings
+2. read and validate exact immutable source candidate
+3. if repair != null, validate the entire approvedPatch and every preimage
+4. if projection != null, validate its M0-canonical bytes, bindings,
+   protocol-qualified namespace, path/media mapping, content and source state
+5. prevalidate repair/projection exact-path and leaf/prefix disjointness
+6. perform no mutation if any prevalidation failed
+7. apply repair replacements in canonical repair order
+8. apply assurance targets in canonical repositoryPath order
+9. validate the complete candidate manifest
+10. construct canonical GateACandidateMaterializationV1 through M0 canonical JSON
+11. project the exact candidate through an isolated Git object database
+12. round-trip verify
+13. seal candidate materialization
+14. return CandidateSealResult
 ```
 
-No precedence rule, merge, or conflict resolution exists. M7 validates the
-projection `ArtifactRef`, canonical runner JSON, exact schema, source candidate,
-parent subject and protocol binding, ordered unique non-empty entries, allowed
-namespace, intact content refs, and exact source path state. It applies only the
-additive/idempotent rules above and never interprets hostile-review content.
+For an absent assurance target, M7 reads the exact projection source bytes and
+seals those same bytes as a candidate-only `application/octet-stream`
+`ArtifactRef`; SHA-256, byte length and bytes remain exact. The source
+projection `ArtifactRef` remains unchanged and authoritative for assurance
+provenance. For an existing exact `100644` blob with byte-identical content,
+M7 retains the existing `CandidateMaterializedEntryV1` unchanged and creates no
+carrier solely for that path. Different bytes, wrong mode/type, symlink,
+gitlink, directory or prefix collision fails closed.
 
-Successful candidate and sealed-candidate provenance contains the exact nullable
-repair/projection IDs from the request. Candidate construction has no normal
-blocked result. Invalid construction provenance, overlap, namespace, bytes,
-mode/type, or source binding is an implementation/process/integrity failure.
+No precedence rule, merge, rename-based conflict resolution, or assurance
+semantic interpretation exists. Successful candidate and sealed-candidate
+provenance contains the exact nullable repair/projection IDs from the request.
+Candidate construction has no normal blocked result. Invalid construction
+provenance, overlap, namespace, bytes, media type, mode/type, path state, or
+source binding is an implementation/process/integrity failure.
 
 Repository inspection is the only M7 operation in the initial-run path that may
 read mutable `repositoryPath` to establish the initial mechanical repository

@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "2.0.7"
+version: "2.1.0"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -15,10 +15,49 @@ superseded_by: []
 
 # NIB-M — Gate A Repository Control — Materialization and Candidate Construction
 
-It consumes `NIB-S-GATE-A-CAMPAIGN-RUNNER` version `10.0.0`.
+It consumes exactly:
 
-Version `2.0.7` is a dependency-only synchronization with NIB-S `10.0.0`. It
-changes no M7-A algorithm, type, ownership, repair, materialization, candidate,
+```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1
+NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS 1.0.1
+CampaignArtifactStore
+DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
+```
+
+Version `2.1.0` closes C9-F synchronization between the complete M5-D
+assurance projection and M7-A mechanical candidate materialization. It closes:
+
+```text
+M0 canonical-runner-JSON ownership synchronization
+exact P6/P8 assurance projection namespace validation
+exact projection path/media-type validation
+projection-content to canonical candidate-blob carrier conversion
+raw Git-path overlap validation for combined repair plus projection
+```
+
+It changes none of the following:
+
+```text
+public M7-A type shape
+CandidateConstructionRequest
+CandidateSealResult
+Git primitives
+RepairIntent semantics
+AssuranceRepositoryProjection semantics
+candidate lineage
+publication-successor algorithm
+M7-B
+M6
+TURNLOCK product semantics
+hostile-review protocol semantics
+P6 behavior reinterpretation
+P8 semantics
+P8 activation
+```
+
+Version `2.0.7` was a dependency-only synchronization with NIB-S `10.0.0`. It
+changed no M7-A algorithm, type, ownership, repair, materialization, candidate,
 Git, recovery, or repository semantic.
 
 Version `2.0.6` is a dependency-only / construction-only compatibility
@@ -122,6 +161,9 @@ successor identity depend on current remote state.
 M7-A consumes exactly these construction dependencies:
 
 ```text
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1
+NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS 1.0.1
 CampaignArtifactStore
 DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
 ```
@@ -190,25 +232,24 @@ Do not classify it as an operational blocker.
 
 ## 4. Canonical runner JSON
 
-Use exactly this canonical runner JSON contract:
+M7-A consumes M0 `CanonicalRunnerJsonBytesV1` exactly. It owns no competing
+object-key sorting algorithm, number policy, Unicode policy, escaping policy, or
+canonical JSON serializer.
+
+For every M7-A runner-owned JSON artifact execute exactly:
 
 ```text
-UTF-8 JSON
-object keys recursively lexicographically sorted
-array order preserves exact semantic order
-all required fields emitted
-undefined rejected
-bigint rejected
-NaN rejected
-+Infinity rejected
--Infinity rejected
-compact encoding
-no insignificant whitespace
-no trailing newline
-mediaType = application/json
+construct the exact validated value
+→ M0 CanonicalRunnerJsonBytesV1
+→ CampaignArtifactStore.sealRunnerArtifact with mediaType application/json
 ```
 
-Use this serializer for all M7-A runner-owned JSON artifacts.
+Keep all M7-A-specific media-type and path rules. If M0 rejects a runner-owned
+M7 value, classify that result as an implementation/process/integrity failure,
+never an operator blocker.
+
+Protocol-v8 semantic canonical JSON remains M6/Python authority and is not
+reimplemented here.
 
 ## 5. Baseline Git basis
 
@@ -956,59 +997,249 @@ arbitrary file bytes.
 
 ### 11.2 Assurance projection validation
 
-M7-A reads exact `A.projection` bytes from `CampaignArtifactStore` and validates
-mechanically:
+For request `R`, projection ref `A = R.assuranceProjection`, decoded projection
+`P`, and source candidate `C = R.sourceCandidate`, M7-A reads exact
+`A.projection` bytes from `CampaignArtifactStore` and validates mechanically,
+before any mutation:
 
 ```text
-projection ArtifactRef exact and intact
-canonical runner JSON
-schema == gate-a-assurance-repository-projection.v1
-sourceCandidateId == exact source candidate
-semanticSubject == exact parent subject
-protocolBundle == exact bound protocol
-entries non-empty, strictly path-ordered, and path-unique
-allowed path namespace only
-content ArtifactRefs intact and application/json
-exact source-candidate path state
+A.runId == R.runId
+A.sourceCandidateId == C.candidateId
+A.semanticSubject == C.semanticSubject
+
+A.projection exact and intact
+A.projection.mediaType == application/json
+A.projection.repositoryPath == null
+
+complete projection bytes ==
+    M0 CanonicalRunnerJsonBytesV1(decoded complete projection value)
+
+P.schema == gate-a-assurance-repository-projection.v1
+P.sourceCandidateId == A.sourceCandidateId
+P.semanticSubject == A.semanticSubject
+P.protocolBundle == A.protocolBundle
+P.entries non-empty
+P.entries strict exact UTF-8 repositoryPath byte order
+P.entries duplicate-free by exact repositoryPath bytes
+
+every entry.content exact and intact
+every entry.content.repositoryPath == null
+every entry path/mediaType obeys NIB-S 12.0.1
 ```
 
-For each entry M7-A adds an absent path as an exact `100644` blob, or retains an
-existing `100644` blob only when bytes are exactly equal. Different bytes,
-mode/type mismatch, directory, symlink, gitlink, forbidden namespace, or a
-completely no-op projection fails closed. M7-A does not inspect hostile-review
-semantic content, rewrite JSON, select another path, or overwrite evidence.
+M7-A never independently decides whether `A.protocolBundle` is current. After
+the exact cross-binding above, namespace selection uses only:
 
-### 11.3 Exact candidate-change construction
+```text
+A.protocolBundle.protocolId
+```
+
+It never uses generic latest protocol, a mutable `formal/verification.yaml`
+reread, a mutable protocol-file reread, role inference, or content inference.
+
+For exact protocol ID `gate-a-campaign-protocol-v6`, preserve the pre-C9-F P6
+projection namespace. Permit only direct `.json` targets in exactly:
+
+```text
+formal/reviews/<ReviewCampaignId>.json
+formal/reviews/packets/*.json
+formal/reviews/challenge-packets/*.json
+formal/reviews/executions/*.json
+formal/reviews/raw/*.json
+formal/reviews/adjudications/*.json
+formal/reviews/challenges/*.json
+```
+
+The root and each listed directory accept only direct-child `.json` paths under
+existing candidate-path safety rules. Do not add new historical P6 filename
+semantics. P6 does not newly project supplements, semantic-question bindings, or
+semantic-admission origin witnesses.
+
+For exact protocol ID `gate-a-campaign-protocol-v8`, accept only these exact
+patterns:
+
+```text
+^formal/reviews/REVIEW-[0-9A-F]{64}\.json$
+^formal/reviews/packets/[0-9a-f]{64}\.json$
+^formal/reviews/executions/EXEC-[0-9A-F]{64}\.json$
+^formal/reviews/raw/EXEC-[0-9A-F]{64}-ATTEMPT-[1-9][0-9]*\.json$
+^formal/reviews/adjudications/[0-9a-f]{64}\.json$
+^formal/reviews/challenges/[0-9a-f]{64}\.json$
+^formal/reviews/supplements/[0-9a-f]{64}\.json$
+^formal/reviews/semantic-question-bindings/[0-9a-f]{64}\.json$
+^formal/reviews/semantic-admission-origin-witnesses/[0-9a-f]{64}\.json$
+```
+
+Exact P8 rejects `formal/reviews/challenge-packets/**` and
+`formal/reviews/adjudication-packets/**`; P8 semantic execution packets use only
+`formal/reviews/packets/<sha256>.json`.
+
+Exact protocol ID `gate-a-campaign-protocol-v7` rejects every attempted new
+assurance projection because P7 is permanently inactive. M7-A has no P7
+materialization branch. Any other protocol identity is an
+implementation/process/integrity failure; no generic future-protocol branch
+exists. Existing historical candidate files are neither removed nor
+reinterpreted.
+
+For every validated `repositoryPath`, first require complete projection
+canonical-byte equality, then encode the path as exact UTF-8 bytes with no
+Unicode, case, or filesystem normalization. Reject any path failing existing
+candidate Git-path rules. Convert it exactly as:
+
+```text
+pathBytesBase64url =
+canonical unpadded RFC 4648 base64url(exact UTF-8 repositoryPath bytes)
+```
+
+Use those same raw bytes for candidate lookup, projection duplicate detection,
+repair/projection overlap detection, and leaf/prefix collision detection.
+
+M7-A validates only projection shape and cross-bindings, path namespace and
+grammar, path order and duplicates, `ArtifactRef` integrity, path-qualified
+media type, exact bytes, candidate path state, Git representability, and
+repair/projection collision. It never inspects ReviewCampaign finding meaning,
+materiality/refutation, supplement effective adjudication, SemanticAdmission,
+QLEK, Fact, qualification, origin-witness or receipt semantic truth, model
+output meaning, or candidate readiness meaning.
+
+### 11.3 Projection content to candidate content
+
+For one projection entry `E` whose target is absent from the source candidate,
+set `sourceRef = E.content` and require:
+
+```text
+sourceRef exact and intact
+sourceRef.repositoryPath == null
+sourceRef.mediaType obeys the NIB-S path/media mapping
+```
+
+Then execute exactly:
+
+```ts
+sourceBytes = await CampaignArtifactStore.readVerified(sourceRef);
+
+candidateContentRef =
+  await CampaignArtifactStore.sealRunnerArtifact({
+    bytes: sourceBytes,
+    mediaType: "application/octet-stream"
+  });
+```
+
+Require exactly:
+
+```text
+candidateContentRef.sha256 == sourceRef.sha256
+candidateContentRef.byteLength == sourceRef.byteLength
+candidateContentRef.mediaType == application/octet-stream
+candidateContentRef.repositoryPath == null
+bytes(candidateContentRef) == sourceBytes
+```
+
+Use `candidateContentRef` only in `GateACandidateMaterializationV1`. Never
+mutate or replace `E.content` inside the assurance projection. The carrier is
+candidate/Git byte transport only. It is not new hostile-review evidence,
+semantic evidence identity, receipt, raw output, adjudication, origin witness,
+or M5 product. The original exact M5/M4 `ArtifactRef` remains provenance
+authority. Physical CAS identity remains SHA-based under the existing
+`CampaignArtifactStore` contract.
+
+If the immutable source candidate already contains the exact target as mode
+`100644`, kind `blob`, read verified existing and projection bytes. If equal,
+retain the exact existing `CandidateMaterializedEntryV1` unchanged, do not
+replace its content `ArtifactRef`, and do not create a candidate carrier solely
+for that path. Different bytes, wrong mode or type fails. A projection whose
+every entry is already identical remains a complete no-op and fails candidate
+construction exactly as before.
+
+### 11.4 Source-candidate independence and combined prevalidation
+
+Every assurance entry must be valid independently against the immutable source
+candidate before either repair or assurance projection is applied. Permit only:
+
+```text
+source target absent and no source leaf/prefix collision
+OR
+source target is an exact 100644 blob with byte-identical content
+```
+
+Reject existing different bytes, mode other than `100644`, symlink, gitlink,
+directory/prefix collision, a target that prefixes another source leaf, or a
+source leaf that prefixes the target. Never depend on repair application to make
+an otherwise-invalid assurance path applicable.
+
+Before mutation, decode every repair operation `pathBytesBase64url` to exact raw
+Git bytes and encode every assurance `repositoryPath` to exact UTF-8 raw Git
+bytes. Require no exact equality. Prevalidate the complete final created or
+replaced leaf set so no repair after-state path and assurance target create a
+leaf/prefix collision. Never resolve a conflict by repair-wins,
+projection-wins, application order, merge, rename, or 3-way behavior.
+
+### 11.5 Exact candidate-change construction
 
 Consume exactly one `CandidateConstructionRequest` with nullable repair and
-projection authorities. Require the run/source binding and at least one non-null
-authority.
+projection authorities. Require the exact run/source bindings and at least one
+non-null authority. For repair, validate and use only exact
+`repairIntent.approvedPatch`. For projection, validate and use only exact
+`assuranceProjection.projection`.
 
-For repair, validate and use only exact `repairIntent.approvedPatch`. For
-projection, validate and use only exact `assuranceProjection.projection`.
-Collect both exact path sets before mutation and require empty intersection.
-
-Execute one deterministic algorithm:
+Execute one deterministic mutation engine in this exact order:
 
 ```text
-1. read exact source candidate
-2. validate/apply exact repair if non-null
-3. validate/apply exact assurance projection if non-null
-4. validate complete result
-5. construct canonical materialization
-6. project to Git tree
-7. round-trip verify
-8. seal
+1. verify exact CandidateConstructionRequest bindings
+2. read and validate exact immutable source candidate
+3. if repair != null:
+   validate entire RepairIntent approvedPatch
+   validate every repair preimage against source candidate
+4. if assurance projection != null:
+   verify/decode exact projection
+   validate canonical runner JSON through M0
+   validate all projection path/media/content bindings
+   validate all source-candidate path states
+5. prevalidate repair/projection exact-path and leaf/prefix disjointness
+6. perform NO mutation if any prevalidation failed
+7. apply exact repair replacements in canonical repair order
+8. apply exact assurance projection targets in canonical repositoryPath order
+9. validate complete candidate manifest
+10. construct canonical GateACandidateMaterializationV1 through M0 canonical JSON
+11. project exact candidate to Git tree through isolated Git object database
+12. round-trip verify
+13. seal candidate materialization
+14. return CandidateSealResult
 ```
 
-There is no second mutation engine, precedence rule, merge, or conflict
-resolver. Successful sealed-candidate provenance equals the exact nullable IDs
-from the request. M7-A does not derive the successor subject; M1 invokes the
-existing M6 mechanical subject-derivation boundary after sealing. Assurance-only
-M6 subject mismatch fails before M2 admission.
+No partial candidate survives a failure. There is no second mutation engine,
+precedence rule, merge, or conflict resolver.
 
-One repair and one projection each produce at most one admitted candidate; M2
-is the authoritative consumption enforcer.
+Repair-only behavior remains exactly the pre-2.1.0 behavior: patch preimages,
+operation representation, candidate content representation, tree projection,
+evidence and provenance are unchanged.
+
+For assurance-only construction require sealed provenance exactly:
+
+```text
+parentCandidateId = sourceCandidate.candidateId
+producedByRepairIntentId = null
+producedByAssuranceProjectionId = assuranceProjection.projectionId
+```
+
+M7-A does not derive the successor semantic subject. Future/current M1 invokes
+M6 on the sealed successor. If the M6-derived successor subject differs from the
+source subject, admit no `CandidateRevision`, do not consume the projection, and
+fail as implementation/process/integrity before M2 admission.
+
+For combined repair plus assurance construction require sealed provenance
+exactly:
+
+```text
+parentCandidateId = sourceCandidate.candidateId
+producedByRepairIntentId = repairIntent.repairIntentId
+producedByAssuranceProjectionId = assuranceProjection.projectionId
+```
+
+M7-A performs no semantic interpretation of whether `S` should change. M1, M6
+and M2 own later derivation and admission. One repair and one projection each
+produce at most one admitted candidate; M2 is the authoritative consumption
+enforcer.
 
 ## 12. Evidence ordering
 
@@ -1091,8 +1322,27 @@ sealedCandidate.materializationEvidence =
 ```
 
 Apply exact-`ArtifactRef` first-occurrence deduplication. Do not recursively
-include parent `materializationEvidence`, separately add `A.basisArtifacts`, or
-separately add repair after-content references.
+include parent `materializationEvidence`, separately add `A.basisArtifacts`,
+insert original projection-entry content merely because M7 generated octet-
+stream candidate carriers, insert M5 semantic provenance or M6 semantic
+evidence, or separately add repair after-content references.
+
+The identity distinction is exact:
+
+```text
+projection entry content ArtifactRef
+= assurance/runtime artifact identity
+
+candidate blob content ArtifactRef
+= canonical repository-byte carrier
+```
+
+They may have the same exact bytes, SHA-256 and byte length while differing in
+media type and, when the source was external, possibly `artifactId`. This creates
+no additional semantic evidence result. M7-A never substitutes the candidate
+carrier back into a receipt, origin witness, semantic-question binding,
+supplement, M5 `AdjudicationRef`, `EvidenceRef`, or
+`AssuranceRepositoryProjectionArtifactV1`.
 
 ## 13. Publication-successor projection
 
@@ -1737,7 +1987,42 @@ bundle has filter capability
 offline restore changes C/tree/closure
 C0 round-trip fails after input was accepted
 successor object hash mismatch
+noncanonical assurance projection JSON
+projection cross-binding mismatch
+unsupported projection protocol
+forbidden namespace
+P8 path grammar mismatch
+projection path/mediaType mismatch
+projection content repositoryPath != null
+projection ArtifactRef corruption
+projection target source-state mismatch
+projection target prefix collision
+repair/projection exact path overlap
+repair/projection leaf-prefix collision
+candidate carrier reseal changes SHA
+candidate carrier reseal changes byteLength
+candidate carrier returned non-octet-stream media type
+candidate carrier returned non-null repositoryPath
+complete assurance projection no-op
 ```
+
+None of these cases creates Operator Action Required or OperationalBlocker.
+
+Replay requires:
+
+```text
+same immutable source candidate
++ same RepairIntent/null
++ same AssuranceRepositoryProjection/null
+→ same exact GateACandidateMaterializationV1 bytes
+→ same exact Git root tree
+→ same exact sealed CandidateSealResult
+```
+
+A crash after projection read but before seal, after candidate-content carrier
+sealing but before candidate seal, or after candidate seal but before M2
+candidate admission replays the same result. Candidate carriers are CAS
+artifacts and do not establish authoritative candidate state.
 
 Transient local failures include:
 
@@ -1784,6 +2069,21 @@ create a filtered baseline bundle
 retain temporary paths as durable identity
 retain credentials in any artifact
 order evidence by hash, artifactId, or filesystem discovery
+implement canonical runner JSON locally in competition with M0
+change projection content bytes or source mediaType
+use projection-entry repositoryPath as ArtifactRef identity
+use an M5-A Stage-B alias as projection content authority
+insert application/json ArtifactRef directly as canonical candidate blob content
+without candidate-carrier conversion
+treat application/octet-stream carrier as new semantic evidence
+parse raw model output merely because its repository path ends in .json
+repair JSON
+normalize Unicode paths
+compare repair/projection paths as strings without raw-byte conversion
+depend on repair application to make an invalid assurance path valid
+materialize a P7 projection
+use a generic future/latest protocol projection branch
+interpret assurance semantics
 ```
 
 ## 18. Required invariants
@@ -1846,6 +2146,37 @@ M7A-19 no credential-bearing endpoint becomes durable target identity.
 
 M7A-20 Git dependency contradiction is integrity failure, never operator
         blocker.
+
+M7A-21 M7-A uses M0 CanonicalRunnerJsonBytesV1 and owns no competing canonical
+        runner JSON algorithm.
+
+M7A-22 Assurance repository placement never changes exact projection source
+        bytes.
+
+M7A-23 Projection entry repositoryPath is placement authority; entry.content
+        repositoryPath is always null.
+
+M7A-24 Projection media type is path-qualified exactly by NIB-S 12.0.1.
+
+M7A-25 Every assurance-projected Git blob is represented in candidate
+        materialization through an exact application/octet-stream candidate-
+        content carrier.
+
+M7A-26 Candidate-content carrier construction preserves exact source bytes, SHA
+        and byteLength.
+
+M7A-27 Candidate-content carrier is not semantic/review evidence authority.
+
+M7A-28 Repair and assurance projection are prevalidated against one immutable
+        source candidate before any mutation.
+
+M7A-29 Repair/projection conflict is determined over exact raw Git path bytes,
+        never string normalization or application order.
+
+M7A-30 Exact P8 projection namespaces are accepted only under exact P8 protocol
+        identity; P7 has no materialization branch.
+
+M7A-31 M7-A interprets no assurance semantic content.
 ```
 
 ## 19. Required edge cases
@@ -1908,6 +2239,42 @@ crash after M7 sealing before candidate admission
 already-consumed projection
 restart before candidate admission
 restart after successor projection artifact exists
+P6 projection legacy namespace regression
+P6 challenge-packet remains accepted
+P6 new P8-only namespace rejected
+P8 packet path accepted
+P8 challenge-packet path rejected
+P8 supplement path accepted
+P8 binding path accepted
+P8 origin-witness path accepted
+P8 wrong hash filename rejected
+P8 wrong EXEC filename rejected
+P8 raw attempt ordinal zero rejected
+structured path with text/plain content rejected
+raw path with application/json content rejected
+raw path with text/plain exact bytes accepted
+protocol-invalid malformed raw bytes preserved exactly
+entry.content repositoryPath non-null rejected
+projection path Unicode normalization is not performed
+repair raw path equals assurance UTF-8 path rejected
+repair-created prefix collision rejected
+projection source-prefix collision rejected
+source existing identical 100644 file retained unchanged
+source existing different bytes rejected
+source existing 100755 exact bytes rejected
+source symlink rejected
+source gitlink rejected
+absent structured JSON projection produces application/octet-stream candidate
+carrier with the same exact bytes and SHA
+absent text/plain raw projection produces application/octet-stream candidate
+carrier with the same exact bytes and SHA
+candidate carrier never replaces original projection content identity
+repair-only regression
+complete projection no-op rejected
+assurance-only derived-S mismatch remains rejected before M2 admission
+M0 canonical JSON exact-byte regression
+P7 projection rejected
+P8 remains inactive
 ```
 
 Exact identical projected evidence is retained idempotently. Conflicting bytes,
@@ -1919,14 +2286,65 @@ After sealing but before candidate admission, replay from the same immutable
 inputs reproduces the same successor. An already-consumed projection is rejected
 by M2, which remains the authoritative consumption enforcer.
 
-## 20. Construction boundary
+## 20. Construction classifications and boundary
 
-M7-A construction authority is closed by this Module Brief.
+Record exactly:
 
-GREEN for M7-A remains forbidden until
-`DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL`
-exists and realizes every required primitive with the exact contract consumed
-here.
+```text
+statement:
+M7-A 2.0.7 locally restates canonical runner JSON even though active M0 1.3.0
+owns the exact global runner canonicalization contract
+
+semantic disposition:
+derived-from-existing-authority
+
+mechanism:
+M7-A consumes M0 CanonicalRunnerJsonBytesV1 directly
+
+normative impact:
+none
+```
+
+```text
+statement:
+AssuranceRepositoryProjection placement paths are UTF-8 strings while repair
+paths are exact raw Git bytes, so combined candidate construction requires one
+exact comparison representation before conflict detection
+
+semantic disposition:
+no-normative-impact
+
+mechanism:
+encode validated projection repositoryPath to exact UTF-8 bytes and compare to
+decoded repair raw path bytes without normalization
+
+affected layer:
+architecture-or-implementation
+```
+
+```text
+statement:
+canonical candidate materialization requires application/octet-stream blob
+carriers while assurance projection content retains its exact runtime
+application/json or text/plain media type
+
+semantic disposition:
+no-normative-impact
+
+mechanism:
+M7-A seals an exact-byte application/octet-stream candidate carrier without
+changing or replacing the original projection content ArtifactRef
+
+affected layer:
+architecture-or-implementation
+```
+
+No ADR is required.
+
+C9-F closes M7-A construction synchronization with M5-D. GREEN for M7-A remains
+forbidden until `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` exists and realizes every
+required primitive with the exact contract consumed here. This Dependency
+Contract remains absent and is not created by C9-F.
 
 This Module Brief does not close M7-B publication, remote observation,
 publication recovery, or executor-domain recovery behavior.

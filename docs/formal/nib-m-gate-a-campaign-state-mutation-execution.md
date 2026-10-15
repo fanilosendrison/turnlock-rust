@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "8.0.0"
+version: "8.0.1"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -23,9 +23,15 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.1
 NIB-M-GATE-A-CONTRACTS 1.3.0
 ```
+
+Version `8.0.1` is a representation/dependency synchronization with NIB-S
+`12.0.1` and the complete M5-D projection contract. It changes no mutation
+kind, authoritative schema, SQLite schema or migration, and no M2 ownership.
+M2 remains the structural/integrity and authoritative-admission boundary; it
+acquires no review or model-output semantic interpretation.
 
 Version `8.0.0` is a breaking construction-contract revision only because the
 `FindingRef` provenance shape changes. It adds no finding semantic
@@ -1060,14 +1066,38 @@ projection.projection.mediaType == application/json
 basisArtifacts is duplicate-free and every item is intact
 projectionId recomputes under the exact NIB-S formula
 runner-owned projection structure is valid
+
+decoded AssuranceRepositoryProjectionArtifactV1.entries.length >= 1
+
+decoded entries are ordered by exact UTF-8 repositoryPath bytes ascending
+and are duplicate-free by exact repositoryPath
+
+every decoded entry.content exists and is intact
+
+every decoded entry.content.repositoryPath == null
+
+every decoded entry.content.mediaType obeys the exact NIB-S 12.0.1
+repositoryPath/media-type mapping
+
+no decoded entry targets a forbidden namespace
+
+decoded projection.sourceCandidateId == projection.sourceCandidateId
+
+decoded projection.semanticSubject == projection.semanticSubject
+
+decoded projection.protocolBundle == projection.protocolBundle
+
 no other unconsumed projection exists whose sourceCandidateId ==
     projection.sourceCandidateId
 ```
 
 M2 admits the projection append-only in the same atomic delta revision. An exact
 existing value is idempotent; incompatible same identity or a competing second
-unconsumed projection is `INVALID_MUTATION`. M2 interprets no hostile-review
-finding semantics.
+unconsumed projection is `INVALID_MUTATION`.
+
+M2 validates structure and integrity only. It does not inspect review semantic
+meaning, model-output meaning, whether raw textual bytes are valid JSON,
+finding semantics, or challenge semantics.
 
 If `delta.candidateReviewReadiness != null`, require no unconsumed assurance
 projection exists for its candidate. Readiness cannot precede exact evidence
