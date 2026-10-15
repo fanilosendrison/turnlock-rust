@@ -24600,6 +24600,8 @@ def _inactive_protocol_v8_e6b_review_campaign_projection_cached_errors(
     root: Path,
 ) -> list[str]:
     """Reuse E6-B only while exact file content and ADR membership are stable."""
+    if not _yaml_parse_cache_is_eligible():
+        return _inactive_protocol_v8_e6b_review_campaign_projection_errors(root)
     implementation_identity = (
         _inactive_protocol_v8_e6b_review_campaign_projection_errors,
     )

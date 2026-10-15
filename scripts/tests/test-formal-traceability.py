@@ -12642,11 +12642,236 @@ class ProtocolV8E6BReviewCampaignCacheTests(unittest.TestCase):
         recorded = {Path(call.args[0]) for call in recorder.call_args_list}
         return errors, actual, recorded
 
+    class _OuterCacheProbe(dict):
+        def __init__(self, initial) -> None:
+            dict.__init__(self, initial)
+            self.reads = 0
+            self.mutations = 0
+
+        def reset_observation(self) -> None:
+            self.reads = 0
+            self.mutations = 0
+
+        def plain_copy(self) -> dict:
+            return copy.deepcopy(dict.copy(self))
+
+        def get(self, key, default=None):
+            self.reads += 1
+            return dict.get(self, key, default)
+
+        def __getitem__(self, key):
+            self.reads += 1
+            return dict.__getitem__(self, key)
+
+        def __contains__(self, key):
+            self.reads += 1
+            return dict.__contains__(self, key)
+
+        def setdefault(self, key, default=None):
+            self.mutations += 1
+            return dict.setdefault(self, key, default)
+
+        def __setitem__(self, key, value) -> None:
+            self.mutations += 1
+            dict.__setitem__(self, key, value)
+
+        def __delitem__(self, key) -> None:
+            self.mutations += 1
+            dict.__delitem__(self, key)
+
+        def clear(self) -> None:
+            self.mutations += 1
+            dict.clear(self)
+
+        def pop(self, key, default=None):
+            self.mutations += 1
+            return dict.pop(self, key, default)
+
+        def popitem(self):
+            self.mutations += 1
+            return dict.popitem(self)
+
+        def update(self, *args, **kwargs) -> None:
+            self.mutations += 1
+            dict.update(self, *args, **kwargs)
+
+    EXPECTED_CHANGED_PARSER_ERRORS = [
+        "inactive protocol v8 E6-B: cannot derive Gate A subject: "
+        "authority.normative_spec is not a path",
+        "inactive protocol v8 E6-B: cannot derive Gate A subject: "
+        "authority.normative_spec is not a path",
+    ]
+
     def _capture_outcome(self, invocation):
         try:
             return ("return", invocation())
         except Exception as error:
             return ("exception", type(error), str(error))
+
+    @contextlib.contextmanager
+    def _observe_real_e6b_evaluations(self):
+        oracle = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+        oracle_code = oracle.__code__
+        calls = {"count": 0}
+        previous_profile = sys.getprofile()
+
+        def profile(frame, event, _argument):
+            if event == "call" and frame.f_code is oracle_code:
+                calls["count"] += 1
+
+        sys.setprofile(profile)
+        try:
+            yield calls
+        finally:
+            sys.setprofile(previous_profile)
+
+    def _assert_modified_parser_bypasses_outer_cache(
+        self,
+        parser_patch,
+    ) -> list[str]:
+        cache_name = "_PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE"
+        cache = getattr(checker, cache_name)
+        probe = self._OuterCacheProbe(copy.deepcopy(cache))
+        before = probe.plain_copy()
+        original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+        with mock.patch.object(checker, cache_name, probe), parser_patch:
+            self.assertFalse(checker._yaml_parse_cache_is_eligible())
+            probe.reset_observation()
+            with self._observe_real_e6b_evaluations() as evaluation:
+                observed = self._cached_errors(ROOT)
+            reads = probe.reads
+            mutations = probe.mutations
+            genuine = original(ROOT)
+            after = probe.plain_copy()
+
+        self.assertEqual(genuine, observed)
+        self.assertEqual(1, evaluation["count"])
+        self.assertEqual(0, reads)
+        self.assertEqual(0, mutations)
+        self.assertEqual(before, after)
+        self.assertTrue(checker._yaml_parse_cache_is_eligible())
+        return observed
+
+    def test_changed_safe_load_cannot_hide_cached_e6b_errors(self) -> None:
+        with self._observe_real_e6b_evaluations() as evaluation:
+            self.assertEqual([], self._cached_errors(ROOT))
+            self.assertEqual([], self._cached_errors(ROOT))
+        self.assertEqual(1, evaluation["count"])
+
+        def changed_safe_load(_text: str) -> object:
+            return {"schema_version": "ISSUE67-CHANGED-PARSER"}
+
+        observed = self._assert_modified_parser_bypasses_outer_cache(
+            mock.patch.object(checker.yaml, "safe_load", changed_safe_load)
+        )
+        self.assertEqual(self.EXPECTED_CHANGED_PARSER_ERRORS, observed)
+
+        with self._observe_real_e6b_evaluations() as restored_evaluation:
+            restored = self._cached_errors(ROOT)
+        self.assertEqual([], restored)
+        self.assertEqual(0, restored_evaluation["count"])
+
+    def test_changed_parser_failure_is_never_cached_across_restoration(self) -> None:
+        cache_name = "_PROTOCOL_V8_E6B_REVIEW_CAMPAIGN_ORACLE_CACHE"
+        probe = self._OuterCacheProbe({})
+        original = checker._inactive_protocol_v8_e6b_review_campaign_projection_errors
+
+        def changed_safe_load(_text: str) -> object:
+            return {"schema_version": "ISSUE67-CHANGED-PARSER-COLD"}
+
+        with mock.patch.object(checker, cache_name, probe):
+            before = probe.plain_copy()
+            with mock.patch.object(
+                checker.yaml,
+                "safe_load",
+                changed_safe_load,
+            ):
+                self.assertFalse(checker._yaml_parse_cache_is_eligible())
+                probe.reset_observation()
+                with self._observe_real_e6b_evaluations() as changed_evaluation:
+                    changed_first = self._cached_errors(ROOT)
+                    changed_second = self._cached_errors(ROOT)
+                modified_reads = probe.reads
+                modified_mutations = probe.mutations
+                genuine_changed = original(ROOT)
+                after_changed = probe.plain_copy()
+
+            self.assertTrue(checker._yaml_parse_cache_is_eligible())
+            with self._observe_real_e6b_evaluations() as restored_evaluation:
+                restored_first = self._cached_errors(ROOT)
+                restored_second = self._cached_errors(ROOT)
+
+        self.assertEqual(self.EXPECTED_CHANGED_PARSER_ERRORS, changed_first)
+        self.assertEqual(genuine_changed, changed_first)
+        self.assertEqual(changed_first, changed_second)
+        self.assertEqual(2, changed_evaluation["count"])
+        self.assertEqual(0, modified_reads)
+        self.assertEqual(0, modified_mutations)
+        self.assertEqual(before, after_changed)
+        self.assertEqual([], restored_first)
+        self.assertEqual(restored_first, restored_second)
+        self.assertEqual(1, restored_evaluation["count"])
+
+    def test_each_supported_parser_state_change_bypasses_e6b_outer_cache(self) -> None:
+        self.assertEqual([], self._cached_errors(ROOT))
+        original_load = checker.yaml.load
+        original_safe_loader = checker.yaml.SafeLoader
+        int_tag = "tag:yaml.org,2002:int"
+        constructors = checker.yaml.SafeLoader.yaml_constructors
+        original_int_constructor = constructors[int_tag]
+        implicit_resolvers = checker.yaml.SafeLoader.yaml_implicit_resolvers
+        resolver_key = next(iter(implicit_resolvers))
+        original_resolvers = list(implicit_resolvers[resolver_key])
+
+        def changed_load(_stream, _loader) -> object:
+            return {"schema_version": "ISSUE67-CHANGED-LOAD"}
+
+        def changed_int_constructor(_loader, _node) -> object:
+            return "ISSUE67-CHANGED-INT"
+
+        class ReplacementSafeLoader(original_safe_loader):
+            pass
+
+        @contextlib.contextmanager
+        def changed_resolver_state():
+            try:
+                implicit_resolvers[resolver_key].append(original_resolvers[0])
+                yield
+            finally:
+                implicit_resolvers[resolver_key][:] = original_resolvers
+
+        parser_changes = (
+            (
+                "yaml.load",
+                lambda: mock.patch.object(checker.yaml, "load", changed_load),
+            ),
+            (
+                "SafeLoader constructor",
+                lambda: mock.patch.dict(
+                    constructors,
+                    {int_tag: changed_int_constructor},
+                    clear=False,
+                ),
+            ),
+            (
+                "SafeLoader class binding",
+                lambda: mock.patch.object(
+                    checker.yaml,
+                    "SafeLoader",
+                    ReplacementSafeLoader,
+                ),
+            ),
+            ("SafeLoader resolver state", changed_resolver_state),
+        )
+        for label, change in parser_changes:
+            with self.subTest(change=label):
+                self._assert_modified_parser_bypasses_outer_cache(change())
+
+        self.assertIs(checker.yaml.load, original_load)
+        self.assertIs(checker.yaml.SafeLoader, original_safe_loader)
+        self.assertIs(constructors[int_tag], original_int_constructor)
+        self.assertEqual(original_resolvers, implicit_resolvers[resolver_key])
+        self.assertTrue(checker._yaml_parse_cache_is_eligible())
 
     def test_first_miss_records_every_actual_repository_file_read(self) -> None:
         errors, actual, recorded = self._observe_reads_and_recording(ROOT)
