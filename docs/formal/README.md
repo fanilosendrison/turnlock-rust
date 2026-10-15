@@ -304,11 +304,14 @@ version is `13.0.1`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M0 `contracts` is covered by
-[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.5.0`. It
-owns the exact 33-domain runner-ID registry, structural runtime validation,
-canonical runner JSON, `CampaignArtifactStore` contract, deterministic Gate A
-qualification and mechanical-validation obligation identities, and structural
-receipt v3/v4 validators without becoming semantic authority.
+[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.5.1`. It
+consumes active
+[`DC-ZOD-GATE-A-CONTRACTS`](dependency-contract-zod-gate-a-contracts.md)
+version `1.0.0`, owns the exact 33-domain runner-ID registry, structural runtime
+validation, canonical runner JSON, `CampaignArtifactStore` contract,
+deterministic Gate A qualification and mechanical-validation obligation
+identities, and structural receipt v3/v4 validators without becoming semantic
+authority.
 
 M1 `orchestrator` is covered by
 [`nib-m-gate-a-orchestrator.md`](nib-m-gate-a-orchestrator.md), version `1.0.0`.
@@ -564,9 +567,10 @@ C9-G is closed
 C9-H is closed
 all M0-M8 implementation modules now have active decisional-complete NIB-M coverage
 Issue #30 acceptance is satisfied by the C9-H repository revision
-C9 / G-C9 remains open because DC-ZOD-GATE-A-CONTRACTS is absent
+C9-I/A Zod dependency-contract closure is closed
+DC-ZOD-GATE-A-CONTRACTS 1.0.0 is active
 C9 / G-C9 remains open because DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL is absent
-next construction stage is C9-I dependency-contract closure
+C9-I dependency-contract closure continues only with the separate Git boundary
 C10/NIB-T has not begun
 no protocol-v7 or protocol-v8 behavior becomes active through these briefs
 ```
@@ -661,13 +665,14 @@ boundary that executor/domain modules establish domain facts, M8 normalizes the
 operator/recovery boundary, and M2 alone admits authoritative state changes.
 
 The persistence/ownership Module Brief consumes active
-`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. M0 still requires its
-separately scoped Zod Dependency Contract before GREEN. C9-H selects no new
-external dependency. `DC-ZOD-GATE-A-CONTRACTS` and
-`DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remain required and absent; M0, M7-A,
-M7-B, M1 and the TURNLOCK runner are not GREEN. Complete M0-M8 NIB-M coverage
-does not establish Formal-Architecture-Ready or alter formal assurance
-readiness.
+`DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. M0 consumes active
+[`DC-ZOD-GATE-A-CONTRACTS`](dependency-contract-zod-gate-a-contracts.md)
+version `1.0.0`; this closes M0's external validation dependency boundary
+without adding production implementation. C9-H selected no new external
+dependency. `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remains required and absent;
+M7-A, M7-B, M1 and the TURNLOCK runner are not GREEN. Complete M0-M8 NIB-M and
+M0 Dependency Contract coverage does not establish Formal-Architecture-Ready or
+alter formal assurance readiness.
 
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native

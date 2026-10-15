@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-13"
 step_id: 2
 id: NIB-M-GATE-A-CONTRACTS
-version: "1.5.0"
+version: "1.5.1"
 scope: gate-a-campaign-runner/contracts
 status: active
 consumers: [architect, coding-agent]
@@ -18,6 +18,13 @@ superseded_by: []
 ## 1. Status, authority, and purpose
 
 Implement the first active Module Brief for undecomposed M0 `contracts`.
+
+Version `1.5.1` closes the already-selected external validation dependency
+boundary through active `DC-ZOD-GATE-A-CONTRACTS` version `1.0.0`. It changes no
+M0 public type, validator behavior, representation constraint, issue mapping,
+normalization algorithm, canonicalization, identity, protocol meaning, semantic
+meaning, or authority boundary. The patch revision records dependency-contract
+closure only.
 
 Version `1.5.0` additively synchronizes M0 with NIB-S `13.0.1` and M1
 `1.0.0`. It expands the closed runner-ID registry from 31 to exactly 33 domains
@@ -1499,18 +1506,18 @@ current P
 Leave those responsibilities with their existing accepted
 schema/Python/M2/M5/M6 authorities.
 
-Require a later Dependency Contract named exactly:
+Consume the active Dependency Contract exactly:
 
 ```text
-DC-ZOD-GATE-A-CONTRACTS
+DC-ZOD-GATE-A-CONTRACTS 1.0.0
 ```
 
-before GREEN closes the exact consumed Zod interface and error behavior. This
-later contract is required because M0 consumes behavior from an external
-validation library even though M0 exposes only its own stable result boundary.
-Do not create that Dependency Contract in C9-A. This later contract does not
-promote Zod into semantic or protocol authority and does not expose Zod-native
-values through M0.
+The contract closes the exact consumed Zod interface, package provenance,
+strict-object behavior, raw issue behavior, M0-owned normalization boundary,
+and supported serialized-input domain. It is required because M0 consumes
+behavior from an external validation library even though M0 exposes only its
+own stable result boundary. The contract does not promote Zod into semantic or
+protocol authority and does not expose Zod-native values through M0.
 
 ## 29. Zod authority exclusion
 
@@ -2203,7 +2210,7 @@ Runner deterministic ID collisions fail closed.
 M0-20
 M0 consumes exactly zod@4.6.7 as its construction-selected TypeScript runtime
 validation support dependency, selects no other non-trivial external runtime
-dependency, and requires the later DC-ZOD-GATE-A-CONTRACTS before GREEN.
+dependency, and consumes active DC-ZOD-GATE-A-CONTRACTS 1.0.0.
 
 M0-21
 No Zod-native error, schema object, parser result, transform, default or
@@ -2329,7 +2336,8 @@ that malformed runtime input uses safe validation
 that coercion/default/transform/passthrough behavior is forbidden
 how Zod errors become ContractValidationIssueV1
 why Zod creates no semantic authority
-why DC-ZOD-GATE-A-CONTRACTS is required later but is not created by C9-A
+how active DC-ZOD-GATE-A-CONTRACTS 1.0.0 closes the external Zod boundary
+without changing M0 behavior
 how runner canonical JSON is serialized
 how deterministic ID bytes are framed
 which 33 current deterministic ID domains exist and why the original 31 remain byte-compatible
@@ -3085,7 +3093,7 @@ Retain exactly:
 
 ```text
 zod@4.6.7
-future DC-ZOD-GATE-A-CONTRACTS required
+active DC-ZOD-GATE-A-CONTRACTS 1.0.0
 33 current deriveId domains
 ```
 
