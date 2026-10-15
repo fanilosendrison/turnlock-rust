@@ -21,7 +21,7 @@ classification, and workflow policy.
 - Project title: `Turnlock-Rust Engineering`
 - Project number: `5`
 - Project URL: <https://github.com/users/fanilosendrison/projects/5>
-- Project type: private user-owned GitHub Project V2
+- Project type: public user-owned GitHub Project V2
 
 Resolve an unqualified `Issue #N` as
 `fanilosendrison/turnlock-rust#N`. Follow an explicit
