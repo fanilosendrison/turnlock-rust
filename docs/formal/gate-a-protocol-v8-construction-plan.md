@@ -955,6 +955,28 @@ Update Dependency Contracts only when the synchronized module design actually re
 
 In particular, do not change the Pi dependency contract merely because QLEK exists if QLEK remains runner-owned metadata outside the Pi adapter surface.
 
+### C9-H construction status
+
+```text
+C9-H:
+  M1 orchestration closed
+  complete M0-M8 NIB-M coverage closed
+  Issue #30 may close
+
+G-C9:
+  still open
+
+remaining exact blockers:
+  DC-ZOD-GATE-A-CONTRACTS
+  DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
+
+next:
+  C9-I dependency-contract closure
+```
+
+This status records construction sequencing only. It does not activate P8,
+begin C10/NIB-T, claim GREEN or weaken the completion formula below.
+
 Completion gate `G-C9`:
 
 ```text

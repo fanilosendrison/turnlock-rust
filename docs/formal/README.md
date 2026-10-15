@@ -300,14 +300,25 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `13.0.0`. The brief's own NIB metadata is the sole source for its
+version is `13.0.1`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M0 `contracts` is covered by
-[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.4.0`. It
-owns the exact 31-domain runner-ID registry, structural runtime validation,
-canonical runner JSON, `CampaignArtifactStore` contract, and structural receipt
-v3/v4 validators without becoming semantic authority.
+[`nib-m-gate-a-contracts.md`](nib-m-gate-a-contracts.md), version `1.5.0`. It
+owns the exact 33-domain runner-ID registry, structural runtime validation,
+canonical runner JSON, `CampaignArtifactStore` contract, deterministic Gate A
+qualification and mechanical-validation obligation identities, and structural
+receipt v3/v4 validators without becoming semantic authority.
+
+M1 `orchestrator` is covered by
+[`nib-m-gate-a-orchestrator.md`](nib-m-gate-a-orchestrator.md), version `1.0.0`.
+It owns runtime composition, start/resume and recovery choreography, the fresh-
+authority loop, deterministic single-step scheduling, P6 execution routing, the
+inactive P8 reuse-first lane, candidate/qualification/publication sequencing,
+execution-owned abort controllers and final authoritative `RunnerResult`
+projection. M1 chooses no campaign semantic, semantic answer, protocol branch,
+retry, repair, QLEK, Admission, blocker identity, publication authority or
+recovery classification.
 
 M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
 
@@ -315,7 +326,9 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   version `3.0.4` — SQLite schema-v2 authoritative persistence, immutable
   artifact storage, bootstrap, ownership, semantic history and fencing;
 - [`nib-m-gate-a-campaign-state-mutation-execution.md`](nib-m-gate-a-campaign-state-mutation-execution.md),
-  version `9.0.0` — authoritative mutation admission, corrected FindingRef
+  version `9.1.0` — authoritative mutation admission, deterministic Gate A
+  qualification-ID admission, mechanical-validation blocker producer checks,
+  corrected FindingRef
   provenance, generalized candidate provenance, path-qualified assurance-
   projection media/integrity admission, publication-preparation obligation
   lifecycle, M7-B publication binding validation,
@@ -323,9 +336,10 @@ M2 `campaign-state` is explicitly decomposed into three active Module Briefs:
   obligations/blockers, retries, dispatch, recovery admission, qualification,
   and publication state transitions;
 - [`nib-m-gate-a-campaign-state-snapshot-integrity.md`](nib-m-gate-a-campaign-state-snapshot-integrity.md),
-  version `8.0.0` — deterministic snapshot reconstruction, corrected finding
-  provenance integrity, publication-preparation lifecycle and confirmation-
-  identity integrity, M7-B binding validation, unresolved-execution projection,
+  version `8.1.0` — deterministic snapshot reconstruction, exact read-only
+  historical Execution/Arm/outcome-origin view, corrected finding provenance
+  integrity, publication-preparation lifecycle and confirmation-identity
+  integrity, M7-B binding validation, unresolved-execution projection,
   retained projection history/consumption integrity, generalized candidate
   provenance integrity, and provenance-root materialization.
 
@@ -342,7 +356,7 @@ reviewer execution inputs.
 
 M3 consumes NIB-S `10.0.0`.
 
-NIB-S 13.0.0 preserves the separation of immutable per-campaign `ReviewContext` from
+NIB-S 13.0.1 preserves the separation of immutable per-campaign `ReviewContext` from
 current-candidate `ResolutionContextV1`.
 
 `ReviewContext` remains production provenance and is never retargeted when a
@@ -436,22 +450,26 @@ the current `openai-codex` / `gpt-6.1-sol` qualification evidence.
 M5 `assurance-ledger` is decomposed into exactly four active Module Briefs:
 
 - [`nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md`](nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md),
-  M5-A version `3.0.0` — campaign work, common cognitive execution history,
-  P6 receipt-v3, P8 receipt-v4 and Stage-B evidence packaging;
+  M5-A version `3.1.0` — campaign work, common cognitive execution history,
+  P6 receipt-v3, P8 receipt-v4, Stage-B evidence packaging and explicit P8
+  completion/contribution facades;
 - [`nib-m-gate-a-assurance-ledger-finding-adjudication.md`](nib-m-gate-a-assurance-ledger-finding-adjudication.md),
-  M5-B version `1.0.0` — finding import/normalization, materiality/refutation
-  progression and P8 supplements;
+  M5-B version `1.1.0` — finding import/normalization, materiality/refutation
+  progression, exact M6-work exposure and P8 supplements;
 - [`nib-m-gate-a-assurance-ledger-resolution-qualification.md`](nib-m-gate-a-assurance-ledger-resolution-qualification.md),
-  M5-C version `1.0.0` — serialized surviving-material resolution,
-  DecisionRequest and exact-candidate RepairIntent qualification;
+  M5-C version `1.1.0` — serialized surviving-material resolution, exact
+  M6-work exposure, DecisionRequest and exact-candidate RepairIntent
+  qualification;
 - [`nib-m-gate-a-assurance-ledger-repository-projection-readiness.md`](nib-m-gate-a-assurance-ledger-repository-projection-readiness.md),
-  M5-D version `1.0.1` — deterministic repository projection with exact source
-  bytes and path-qualified media, readiness and mechanical A/B/C/D composition.
+  M5-D version `1.1.0` — deterministic repository projection with exact source
+  bytes and path-qualified media, readiness, mechanical A/B/C/D composition and
+  the pure replayable M5↔M6 progression broker.
 
 The active M6 Module Brief is
 [`nib-m-gate-a-mechanical-validation.md`](nib-m-gate-a-mechanical-validation.md),
-version `1.1.0`. It owns exact Python-backed mechanical validation and the
-additive C9-E helper surfaces while preserving C9-D Stage A/Stage B.
+version `1.2.0`. It owns exact Python-backed mechanical validation, the additive
+C9-E helper surfaces and exact mechanical-validation failure
+obligation/cause derivation while preserving C9-D Stage A/Stage B.
 
 ### Accepted M5 adjudication / resolution protocol evolution
 
@@ -536,17 +554,19 @@ Therefore:
 P6 remains current
 execution-receipt schema 3.0 remains current for P6
 review-evidence schema 5.0 remains current for P6
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0 is active
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1 is active
 M5-A/B/C/D construction is closed by the four active briefs
 P7 remains immutable, mechanically validated and permanently inactive
 P8 artifact/construction authority exists and remains inactive until C15
 C9-E is closed
 C9-F is closed
 C9-G is closed
-C9 overall remains incomplete
-M7 now has complete A/B Module Brief coverage
-M1 Module Brief is still missing
-next construction stage is C9-H M1
+C9-H is closed
+all M0-M8 implementation modules now have active decisional-complete NIB-M coverage
+Issue #30 acceptance is satisfied by the C9-H repository revision
+C9 / G-C9 remains open because DC-ZOD-GATE-A-CONTRACTS is absent
+C9 / G-C9 remains open because DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL is absent
+next construction stage is C9-I dependency-contract closure
 C10/NIB-T has not begun
 no protocol-v7 or protocol-v8 behavior becomes active through these briefs
 ```
@@ -602,8 +622,7 @@ repair+projection raw-path prevalidation
 M5 chooses assurance content and intended repository placement. M7-A applies
 that projection mechanically and interprets no hostile-review or semantic
 meaning. M2 remains the authoritative state writer, M6 remains the semantic-
-subject/mechanical-validation boundary, and future M1 remains choreography
-owner.
+subject/mechanical-validation boundary, and M1 remains choreography owner.
 
 It selects `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` as a required separate
 Dependency Contract before GREEN. The contract remains absent, so M7-A is not
@@ -643,10 +662,12 @@ operator/recovery boundary, and M2 alone admits authoritative state changes.
 
 The persistence/ownership Module Brief consumes active
 `DC-SQLITE-NODE-GATE-A-CAMPAIGN-STATE` version `1.0.1`. M0 still requires its
-separately scoped Zod Dependency Contract before GREEN. C9-G selects no new
-external dependency. `DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remains required and
-absent; M7-A is not GREEN, M7-B is not GREEN, and the TURNLOCK runner is not
-GREEN.
+separately scoped Zod Dependency Contract before GREEN. C9-H selects no new
+external dependency. `DC-ZOD-GATE-A-CONTRACTS` and
+`DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL` remain required and absent; M0, M7-A,
+M7-B, M1 and the TURNLOCK runner are not GREEN. Complete M0-M8 NIB-M coverage
+does not establish Formal-Architecture-Ready or alter formal assurance
+readiness.
 
 That document is a stable construction map, not a live work tracker, product
 authority, hostile-review protocol, or evidence record. GitHub Issues, native
