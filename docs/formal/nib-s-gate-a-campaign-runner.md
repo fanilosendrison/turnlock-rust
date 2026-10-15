@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "13.0.0"
+version: "13.0.1"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -1173,6 +1173,56 @@ publication later becomes preparable
 
 The resolution is derived from existing authority, creates no semantic change,
 and requires no ADR. C9-G closes M7 NIB-M coverage; C9-H must still close M1.
+
+Version `13.0.1` is a patch-level construction correction for the two M1
+mechanical-validation failure branches. It changes no TURNLOCK product semantic,
+hostile-review semantic, P6 behavior, P8 semantic, QLEK meaning, Admission
+meaning, recovery classification, publication meaning, external `RunnerResult`
+schema, module boundary or protocol activation. P6 remains current, P7 remains
+permanently inactive and P8 remains inactive until C15.
+
+The pre-publication discovery is recorded exactly as:
+
+```text
+statement:
+CandidateReviewReadinessRef is sufficient to submit the exact candidate and
+basis to M6, but M5 does not duplicate Python Gate A acceptance; therefore a
+gate-a-qualification result with passed == false cannot authorize M1 to invent
+assurance progression
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+The post-publication discovery is recorded exactly as:
+
+```text
+statement:
+a post-publication-integrity result with passed == false already requires
+OPERATOR-ACTION-REQUIRED, but the prior pseudocode did not provide the exact
+producer-owned obligation and cause needed for M8-B/M2 materialization
+
+semantic disposition:
+derived-from-existing-authority
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+Both seams resolve through one exact M6-owned mechanical-validation obligation
+and cause, M8-B blocker/OAR materialization, and atomic M2 obligation/blocker
+admission. Neither path creates a Decision Request, same-run operator resolution
+contract, automatic validation retry, semantic inference, M5-fabricated repair,
+republication or candidate rewrite.
 
 ## 2. System objective
 
@@ -9773,9 +9823,54 @@ run(command):
 
             commit validation evidence through M2
 
-            if validation does not establish Gate A readiness:
-                derive complete resulting AssuranceLedgerDelta
-                continue
+            if validation.passed is false:
+                failure_requirement =
+                    mechanical_validation.
+                        derive_gate_a_qualification_failure_requirement({
+                            runId: run.runId,
+                            candidate: exact candidate,
+                            reviewReadiness:
+                                exact CandidateReviewReadiness,
+                            validation: exact validation
+                        })
+
+                require failure_requirement.blockingObligation:
+                    reviewCampaignId == null
+                    candidateId == exact candidate.candidateId
+                    definition kind == "gate-a-qualification"
+
+                require failure_requirement.cause:
+                    producer == "mechanical-validation"
+                    resolutionContracts == []
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId: run.runId,
+                        baseStateRevision: snapshot.stateRevision,
+                        producer: "mechanical-validation",
+                        obligationId:
+                            failure_requirement.blockingObligation.obligationId,
+                        workItemId: null,
+                        executionId: null,
+                        causeDescriptor:
+                            failure_requirement.cause.causeDescriptor,
+                        resolutionContracts: []
+                    })
+
+                commit through M2 EstablishOperationalBlockersV1:
+                    obligationsToAdd:
+                        [failure_requirement.blockingObligation]
+                        iff exact obligation not already authoritative
+                        otherwise []
+                    blockers: [materialized.blocker]
+                    basisArtifacts:
+                        orderedUnique([
+                            failure_requirement.cause.causeDescriptor,
+                            ...failure_requirement.cause.basisArtifacts
+                        ])
+
+                return OPERATOR-ACTION-REQUIRED projection
 
             qualification = admit GateAQualification(
                 validation,
@@ -10141,7 +10236,52 @@ run(command):
                 by both commit SHA and tree SHA
 
             if post_validation.passed is false:
-                commit exact operational/integrity blocker through M2
+                failure_requirement =
+                    mechanical_validation.
+                        derive_post_publication_integrity_failure_requirement({
+                            runId: run.runId,
+                            candidate: exact candidate,
+                            publishedView:
+                                exact publication_qualification.publishedView,
+                            validation: exact post_validation
+                        })
+
+                require failure_requirement.blockingObligation:
+                    reviewCampaignId == null
+                    candidateId == exact candidate.candidateId
+                    definition kind == "post-publication-integrity"
+
+                require failure_requirement.cause:
+                    producer == "mechanical-validation"
+                    resolutionContracts == []
+
+                materialized =
+                    recovery_operator.materialize_operational_blocker({
+                        kind: "producer-occurrence",
+                        runId: run.runId,
+                        baseStateRevision: snapshot.stateRevision,
+                        producer: "mechanical-validation",
+                        obligationId:
+                            failure_requirement.blockingObligation.obligationId,
+                        workItemId: null,
+                        executionId: null,
+                        causeDescriptor:
+                            failure_requirement.cause.causeDescriptor,
+                        resolutionContracts: []
+                    })
+
+                commit through M2 EstablishOperationalBlockersV1:
+                    obligationsToAdd:
+                        [failure_requirement.blockingObligation]
+                        iff exact obligation not already authoritative
+                        otherwise []
+                    blockers: [materialized.blocker]
+                    basisArtifacts:
+                        orderedUnique([
+                            failure_requirement.cause.causeDescriptor,
+                            ...failure_requirement.cause.basisArtifacts
+                        ])
+
                 return OPERATOR-ACTION-REQUIRED projection
 
             commit terminal Gate A ready fact through M2

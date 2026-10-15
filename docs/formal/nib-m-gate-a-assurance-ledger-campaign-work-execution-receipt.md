@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-04"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-CAMPAIGN-WORK-EXECUTION-RECEIPT
-version: "3.0.0"
+version: "3.1.0"
 scope: gate-a-campaign-runner/assurance-ledger/campaign-work-execution-receipt
 status: active
 consumers: [architect, coding-agent]
@@ -23,15 +23,15 @@ to this active Module Brief.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1
 
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-M-GATE-A-CONTRACTS 1.5.0
 
 NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.4
 
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 8.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.1.0
 
-NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 7.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 8.1.0
 
 NIB-M-GATE-A-CAMPAIGN-AUTHORITY 4.0.1
 
@@ -39,7 +39,7 @@ NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.1.1
 
 NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.1.0
 
-NIB-M-GATE-A-MECHANICAL-VALIDATION 1.1.0
+NIB-M-GATE-A-MECHANICAL-VALIDATION 1.2.0
 
 NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.1.0
 
@@ -65,6 +65,12 @@ new cross-module product category
 
 Do not implement production code from this brief until the repository's GREEN
 boundary authorizes implementation.
+
+Version `3.1.0` additively exposes explicit M1-callable P8 completion-package
+and authoritative-attempt-contribution facades over the already closed M5-A
+rules. It changes no P6 algorithm, P8 receipt/retry/byte-safe witness rule,
+Stage A/Stage B behavior, semantic progression, receipt ownership or protocol
+activation.
 
 Version `3.0.0` synchronizes M5-A with complete C9-E. M5-A retains
 initial-reviewer acquisition and gains common execution-history, retry and
@@ -2879,6 +2885,91 @@ after Admission
 artifact not yet projected
 → never resample
 ```
+
+### 79.1 Protocol-v8 valid-candidate packaging facade
+
+Expose conceptually exactly:
+
+```text
+prepare_protocol_v8_completion_package(...)
+```
+
+Consume exactly the authoritative/current data already required by sections 73
+through 79:
+
+```text
+GateAEvaluationContext
+exact current authoritative GateARunSnapshot
+exact WorkItem
+exact GateAExecutionHistoryViewV1
+exact ordered Stage-A classifications for the WorkItem
+exact protocol-valid-candidate classification
+exact SemanticQuestionStateV1
+exact ProtocolV8MechanicalClosureInputV1
+```
+
+Require every Execution, WorkItem, Arm, QLEK, candidate, campaign, protocol,
+closure and attempt binding to agree with those exact inputs. Return exactly:
+
+```text
+classification
+semanticQuestionBindingProjection
+executionReceipt
+originWitness
+projectionArtifacts
+attemptClassifications
+```
+
+Use every existing byte-safe witness, receipt-v4, exact-attempt ordering,
+provider-identity, artifact alias and Stage-B packaging rule unchanged. Perform
+no M6 call, no M2 mutation and no Admission creation.
+
+### 79.2 Authoritative P8 attempt-contribution facade
+
+Expose conceptually exactly:
+
+```text
+prepare_protocol_v8_attempt_contribution(...)
+```
+
+Consume exact authoritative M2 state after one P8 validation has been admitted.
+Derive only consequences already owned by M5-A:
+
+```text
+protocol-invalid
+→ exact protocol-invalid retry authorization when lawful
+→ otherwise existing retry/stop behavior
+
+protocol-valid + exact consumable T4 Admission
+→ exact ordinary receipt EvidenceRef / local provenance products already owned
+  by M5-A
+```
+
+Do not resample, create a retry category, transfer receipt ownership from
+another run/root, substitute profiles or create semantic truth.
+
+Crash and replay are exactly:
+
+```text
+Stage A before package
+→ rebuild package
+
+package before Stage B
+→ rebuild byte-identically
+
+Stage B before M2 admission
+→ rerun Stage B
+
+M2 validation before T4
+→ mandatory T4
+
+after T4
+→ consume Admission/reuse path
+```
+
+Both operations are deterministic internal construction surfaces. They expose
+M5-A-owned products to M1 without transferring receipt, retry or semantic
+progression authority.
 
 ## 80. Expanded assurance operational causes
 

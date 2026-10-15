@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-14"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-RESOLUTION-QUALIFICATION
-version: "1.0.0"
+version: "1.1.0"
 scope: gate-a-campaign-runner/assurance-ledger/resolution-qualification
 status: active
 consumers: [architect, coding-agent]
@@ -17,9 +17,14 @@ superseded_by: []
 
 ## 1. Status and authority
 
-Implement M5-C `resolution qualification` from NIB-S 12.0.0, M0 1.3.0, M2
-3.0.4/8.0.0/7.0.0, M5-A 3.0.0, M5-B 1.0.0, M6 1.1.0, ADR-055, ADR-056 and
+Implement M5-C `resolution qualification` from NIB-S 13.0.1, M0 1.5.0, M2
+3.0.4/9.1.0/8.1.0, M5-A 3.1.0, M5-B 1.1.0, M6 1.2.0, ADR-055, ADR-056 and
 closed P8 C1-C7 authority.
+
+Version `1.1.0` additively makes the existing M5-C-to-M6 choreography boundary
+mechanically callable. It changes no semantic progression, canonical finding
+selection, DecisionRequest justification, repair qualification, retry,
+provider/model rule or protocol activation.
 
 P6 is current. P7 is permanently inactive. P8 remains inactive until C15. This
 brief creates construction authority only and no product/protocol meaning,
@@ -457,9 +462,41 @@ authority-conflict-or-uncertain-unresolved
 All have `resolutionContracts = []`. They establish no semantic truth,
 Decision Required or resampling permission. M8-B creates OperationalBlocker/OAR.
 
-## 20. M1 choreography dependency
+## 20. Exact M6 choreography exposure
 
-Future M1 must sequence:
+For every M5-C semantic step, mechanically expose all of:
+
+```text
+exact M6 operation to execute
+exact M6 request
+exact predecessor closure
+exact expected M6 result type
+```
+
+M5-C remains the sole owner of which semantic question is next, which
+Fact/value/qualification is required, which finding and Discovery statement are
+targeted, which challenge/revision is required, whether progression is
+exhausted and whether a DecisionRequest is justified. M1 owns none of those
+decisions.
+
+When a question becomes fully derivable, expose all of:
+
+```text
+exact LogicalQuestionDescriptor artifact
+exact ProtocolV8MechanicalClosureInputV1
+exact ResolutionContextV1
+exact source finding-resolution ObligationRef
+exact adjudicating campaign
+exact supporting reviewer candidate selected by M5 rules
+```
+
+M1 must never reconstruct, normalize, substitute or infer those values. M5-C
+validates every supplied M6 result against the exact operation/request it
+emitted and the exact predecessor closure. An unexpected operation, request,
+result type, result binding or transcript position is
+`ASSURANCE-SEMANTIC-CLOSURE-INTEGRITY-FAILURE`.
+
+M1 must sequence only the resulting exact choreography:
 
 ```text
 M5 derives exact next proposal
@@ -477,7 +514,7 @@ M5 derives exact next proposal
 → continue M5 progression
 ```
 
-M1 makes no semantic branch choice. Do not modify M1 in C9-E.
+M1 makes no semantic branch choice.
 
 ## 21. Replay and failures
 

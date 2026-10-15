@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY
-version: "8.0.0"
+version: "8.1.0"
 scope: gate-a-campaign-runner/campaign-state/snapshot-integrity
 status: active
 consumers: [architect, coding-agent]
@@ -23,11 +23,39 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
-NIB-M-GATE-A-CONTRACTS 1.4.0
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1
+NIB-M-GATE-A-CONTRACTS 1.5.0
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.1.0
 NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 ```
+
+Version `8.1.0` additively closes the exact read-only historical Execution view
+required by crash-safe M1 continuation. It leaves `GateARunSnapshot` unchanged,
+changes no SQLite schema or authority, and grants M2 no M4/M7/M8 domain-truth
+ownership.
+
+The construction discovery is recorded exactly as:
+
+```text
+statement:
+crash-safe M1 validation/publication continuation requires exact retained Armed
+dispatch and terminal-outcome provenance after the Execution is no longer in
+unresolvedExecutions
+
+semantic disposition:
+derived-from-existing-authority
+
+resolution:
+read-only M2 GateAExecutionHistoryViewV1
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
 
 Version `8.0.0` is a breaking read-side construction synchronization with
 NIB-S `13.0.0`, M0 `1.4.0`, M2 mutation `9.0.0`, and M7-B `1.0.0`. It adds
@@ -130,8 +158,43 @@ GateARunSnapshot
 
 The separate global read APIs consume exact
 `LoadSemanticQuestionStateRequestV1` and
-`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.4.0 contracts
+`LoadSemanticExecutionStateRequestV1` and return the exact M0 1.5.0 contracts
 closed in section 20.
+
+Expose the additional exact read-only run-local API:
+
+```ts
+interface LoadExecutionHistoryViewRequestV1 {
+  readonly runId: GateARunId;
+  readonly executionId: ExecutionId;
+}
+
+interface GateAExecutionHistoryViewV1 {
+  readonly execution: ExecutionRef;
+  readonly workItem: WorkItemRef;
+
+  readonly armedDispatch:
+    ArmedExecutionDispatchRef | null;
+
+  readonly capturedResult:
+    CapturedExecutionResult | null;
+
+  readonly technicalFailure:
+    TechnicalExecutionFailure | null;
+
+  readonly outcomeOrigin:
+    | "direct-execution"
+    | "recovered-execution"
+    | null;
+}
+
+function loadExecutionHistoryView(
+  request: LoadExecutionHistoryViewRequestV1
+): Promise<GateAExecutionHistoryViewV1>;
+```
+
+This API is read-only and reconstructs only from Authoritative History. It does
+not modify `GateARunSnapshot`.
 
 There is no normal union branch for unknown/corrupt state.
 
@@ -1751,6 +1814,18 @@ I86  Every PublicationNonApplicationRef passes M7-B pure binding validation and
      retains direct-outcome provenance.
 
 I87  Every already-current observation passes M7-B pure validation.
+
+I88  Every historical Execution view names one exact unique Execution and its
+     exact unique WorkItem.
+
+I89  Historical armedDispatch is null iff no Arm exists; otherwise it is the
+     exact ArmedExecutionDispatchRef reconstructed from retained Arm history.
+
+I90  Direct-versus-recovered outcome origin is derived from the exact admitting
+     authoritative transition and never from payload byte equality.
+
+I91  capturedResult and technicalFailure are mutually exclusive; origin is null
+     exactly when no terminal outcome exists.
 ```
 
 ## 12. Snapshot reconstruction algorithm
@@ -2106,12 +2181,65 @@ const snapshot = await campaignState.loadGateARunSnapshot({ runId });
 
 Ownership acquisition uses this same reconstruction after generation insertion.
 
+## 19A. Historical Execution read view
+
+`loadExecutionHistoryView(request)` runs in one exact SQLite read snapshot and
+requires one exact unique run-local `ExecutionRef` and its exact unique
+`WorkItemRef`.
+
+Reconstruct exactly:
+
+```text
+no Arm
+→ armedDispatch = null
+
+Arm exists
+→ reconstruct exact ArmedExecutionDispatchRef from retained Arm history
+
+direct AdmitExecutionOutcomeV1 captured result
+→ capturedResult = exact result
+→ technicalFailure = null
+→ outcomeOrigin = direct-execution
+
+direct AdmitExecutionOutcomeV1 technical failure
+→ capturedResult = null
+→ technicalFailure = exact failure
+→ outcomeOrigin = direct-execution
+
+AdmitExecutionRecoveryV1 PROVEN-COMPLETED captured
+→ capturedResult = exact recovered result
+→ technicalFailure = null
+→ outcomeOrigin = recovered-execution
+
+AdmitExecutionRecoveryV1 PROVEN-COMPLETED technical failure
+→ capturedResult = null
+→ technicalFailure = exact recovered failure
+→ outcomeOrigin = recovered-execution
+
+no terminal outcome
+→ capturedResult = null
+→ technicalFailure = null
+→ outcomeOrigin = null
+```
+
+Never infer origin from byte equality.
+Never reconstruct from the M4 journal directly.
+M4, M7 and M8 retain ownership of their domain truth; M2 exposes only
+its admitted Authoritative History.
+
+The API exists specifically so M1 can reconstruct the exact M6 cognitive-
+validation request after restart and supply M7-B the authoritative
+`direct-execution` versus `recovered-execution` provenance. Unknown Execution,
+ambiguous history, contradictory terminal transitions, missing WorkItem, invalid
+Arm closure or artifact-integrity failure is an invocation integrity failure,
+not a fabricated view.
+
 ## 20. Protocol-v8 global semantic read boundary
 
 Keep `GateARunSnapshot` unchanged and run-local. Do not add global P8 semantic
 fields to it. Expose global semantic authority through the separate
 `loadSemanticQuestionState` and `loadSemanticExecutionState` APIs declared by
-M0 1.4.0.
+M0 1.5.0.
 
 Keep exactly two independent authority dimensions:
 

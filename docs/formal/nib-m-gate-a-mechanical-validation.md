@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-14"
 step_id: 2
 id: NIB-M-GATE-A-MECHANICAL-VALIDATION
-version: "1.1.0"
+version: "1.2.0"
 scope: gate-a-campaign-runner/mechanical-validation
 status: active
 consumers: [architect, coding-agent]
@@ -19,6 +19,12 @@ superseded_by: []
 
 Implement the first active Module Brief for undecomposed M6
 `mechanical-validation`.
+
+Version `1.2.0` additively closes the exact mechanical-validation failure
+requirement representation needed by M1, M8-B and M2. It preserves all version
+`1.1.0` behavior, Stage A, Stage B, current P6 cognitive validation, every
+semantic helper and P8 inactivity. M6 gains no BlockerId/OAR, mutation,
+retry, semantic inference or orchestration authority.
 
 Version `1.1.0` additively synchronizes mechanical helper surfaces required by
 complete C9-E M5 construction. It changes no M6 ownership, no C9-D semantic
@@ -54,14 +60,15 @@ repository-publication authority.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1
+NIB-M-GATE-A-CONTRACTS 1.5.0
 NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.4
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 8.0.0
-NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 7.0.0
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.1.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 8.1.0
 NIB-M-GATE-A-COGNITIVE-EXECUTION-CAPTURE 2.1.1
 NIB-M-GATE-A-COGNITIVE-EXECUTION-RECOVERY-OBSERVATION 1.1.0
-NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.0.7
+NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.1.1
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 ```
 
 Consume the exact closed protocol-v8 C1-C6 construction authority:
@@ -88,9 +95,9 @@ formal/reviews/protocols/gate-a-campaign-protocol-v8.json
 Do not manually duplicate those authorities. In particular, do not maintain a
 TypeScript table containing the 20 SemanticQuestionContract revisions.
 
-Treat the M7-A materialization contract at version `2.0.7` as the current
-accepted input. C9-F may later dependency-synchronize M7-A. That synchronization
-must not change the M6 validation meaning selected here.
+Treat the M7-A materialization contract at version `2.1.1` and the M7-B
+publication contract at version `1.0.0` as the current accepted inputs. Their
+synchronization changes no M6 validation meaning selected here.
 
 ## 3. Protocol lifecycle boundary
 
@@ -2453,5 +2460,213 @@ Require future tests for exact FA source-finding hash binding, semantic-value
 exact-byte validation, FactId and QualificationKey recomputation, all progression
 view variants, earliest Discovery target selection, `NotEstablished` null
 projection, packet equality between pre-dispatch and Stage A, no reviewer
-selection, no JS large-integer or Unicode rewrite, and complete C9-D Stage
-A/Stage B regression.
+selection, no JS large-integer or Unicode rewrite, complete C9-D Stage A/Stage B
+regression, both exact mechanical-validation failure requirements, each exact
+cause/result mismatch rejection, exact basis ordering, empty resolution
+contracts, generic M0 obligation-ID recomputation, and proof that M6 constructs
+neither BlockerId nor OAR.
+
+## 42. Mechanical-validation failure requirement boundary
+
+Define exactly:
+
+```ts
+interface GateAMechanicalValidationObligationDefinitionV1 {
+  readonly schema:
+    "gate-a-mechanical-validation-obligation-definition.v1";
+
+  readonly kind:
+    | "gate-a-qualification"
+    | "post-publication-integrity";
+}
+```
+
+Seal the exact definition through M0 canonical runner JSON. Construct its
+`ObligationRef` only through M0 `mechanical-validation-obligation.v1` using:
+
+```text
+runId
+obligationKind = definition.kind
+candidateId
+basisId
+exact sealed definition.sha256
+```
+
+Every such obligation has:
+
+```text
+reviewCampaignId == null
+candidateId == exact affected candidate
+```
+
+Use `basisId` exactly as fixed by M0:
+
+```text
+gate-a-qualification
+→ CandidateReviewReadinessRef.reviewReadinessId
+
+post-publication-integrity
+→ PublicationConfirmationRef.publicationConfirmationId
+```
+
+Define the cause descriptor schema exactly as:
+
+```text
+gate-a-mechanical-validation-operational-cause.v1
+```
+
+Its closed cause-kind set is exactly:
+
+```text
+gate-a-qualification-not-established
+post-publication-integrity-not-established
+```
+
+No third cause kind exists.
+
+### 42.1 Gate A qualification failure
+
+Seal this exact semantic payload through M0 canonical runner JSON:
+
+```ts
+{
+  schema:
+    "gate-a-mechanical-validation-operational-cause.v1",
+
+  kind:
+    "gate-a-qualification-not-established",
+
+  candidateId:
+    exact candidate ID,
+
+  reviewReadinessId:
+    exact CandidateReviewReadinessRef.reviewReadinessId
+}
+```
+
+Require the exact M6 result:
+
+```text
+requestKind == gate-a-qualification
+passed == false
+candidateId == exact candidate
+campaign sets == exact readiness campaign sets
+```
+
+The cause uses:
+
+```text
+producer = mechanical-validation
+basisArtifacts = exact validation.evidence in exact result order
+resolutionContracts = []
+```
+
+### 42.2 Post-publication integrity failure
+
+Seal this exact semantic payload through M0 canonical runner JSON:
+
+```ts
+{
+  schema:
+    "gate-a-mechanical-validation-operational-cause.v1",
+
+  kind:
+    "post-publication-integrity-not-established",
+
+  candidateId:
+    exact candidate ID,
+
+  publicationConfirmationId:
+    exact confirmation ID,
+
+  target:
+    exact PublishedRepositoryViewRef.target,
+
+  validatedAuthority:
+    exact PublishedRepositoryViewRef.authority
+}
+```
+
+Require the exact M6 result:
+
+```text
+requestKind == post-publication-integrity
+passed == false
+candidateId == publishedView.candidateId
+publicationConfirmationId == publishedView.publicationConfirmationId
+target == publishedView.target
+validatedAuthority == publishedView.authority
+```
+
+The cause uses:
+
+```text
+producer = mechanical-validation
+basisArtifacts = orderedUnique(
+  validation.evidence
+  followed by
+  publishedView.materializationEvidence
+)
+resolutionContracts = []
+```
+
+`orderedUnique` uses exact `ArtifactRef` equality and preserves first
+occurrence.
+
+Empty resolution contracts mean exactly:
+
+```text
+the same immutable validation basis cannot be transformed into a passing
+mechanical fact by acknowledging, retrying, resampling, or answering a semantic
+question inside the same GateARun
+```
+
+### 42.3 Helper operations
+
+Expose exactly:
+
+```text
+derive_gate_a_qualification_failure_requirement
+derive_post_publication_integrity_failure_requirement
+validate_mechanical_validation_obligation
+validate_mechanical_validation_operational_cause
+```
+
+Each derivation operation returns exactly:
+
+```text
+blockingObligation
+cause
+```
+
+The validators require the exact definition/cause shape, intact artifacts,
+identity formula, kind/basis/candidate binding, cause/result binding and empty
+resolution-contract set fixed above. They establish representation and exact
+mechanical binding only.
+
+The derivation and validation operations create no `BlockerId`, create no
+Operator Action Request and mutate no M2 state. M8-B remains the sole
+blocker/OAR owner.
+
+### 42.4 Construction classification
+
+```text
+statement:
+M6 can legitimately return passed=false for Gate A or post-publication
+mechanical validation, but M1 cannot invent blocker cause/obligation identity
+
+semantic disposition:
+derived-from-existing-authority
+
+resolution:
+M6-owned dedicated mechanical-validation obligation/cause + M8-B
+materialization + M2 admission
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.

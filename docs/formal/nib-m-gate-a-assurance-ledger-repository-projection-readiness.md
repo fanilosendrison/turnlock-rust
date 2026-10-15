@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-14"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS
-version: "1.0.1"
+version: "1.1.0"
 scope: gate-a-campaign-runner/assurance-ledger/repository-projection-readiness
 status: active
 consumers: [architect, coding-agent]
@@ -17,9 +17,14 @@ superseded_by: []
 
 ## 1. Status and authority
 
-Implement M5-D from NIB-S 12.0.1, M0 1.3.0, M2 3.0.4/8.0.1/7.0.0,
-M5-A 3.0.0, M5-B 1.0.0, M5-C 1.0.0, M6 1.1.0, accepted ADR-055/056 and
+Implement M5-D from NIB-S 13.0.1, M0 1.5.0, M2 3.0.4/9.1.0/8.1.0,
+M5-A 3.1.0, M5-B 1.1.0, M5-C 1.1.0, M6 1.2.0, accepted ADR-055/056 and
 closed P8 C1-C7 authority.
+
+Version `1.1.0` additively exposes one deterministic, pure, replayable M1-facing
+broker over M5-B/C and exact M6 semantic helper operations. It transfers no
+semantic branch, provider execution, state authority, retry, receipt ownership
+or protocol activation to M1.
 
 Version `1.0.1` synchronizes the construction representation with NIB-S
 `12.0.1` and M7-A `2.1.0`. It changes no semantic progression, readiness,
@@ -339,12 +344,179 @@ blockersToAdd = [
 Preserve request order. Require one-to-one exact request/materialization
 binding; mismatch is `ASSURANCE-FINALIZATION-INTEGRITY-FAILURE`.
 
-## 16. M1 integration dependency
+## 16. Deterministic M5-to-M6 broker facade
 
-Future M1 must route reuse-first semantics, M6 mechanical requests, M2
-AdmissionAuthority, Stage A/M5-A/Stage B, fresh currentness before Arm,
-CandidateView requests, and complete-delta composition. M1 chooses no semantic
-branch. Do not modify M1 in C9-E.
+M5-D exposes one pure replayable planning transcript over M5-B/C. The transcript
+is ephemeral orchestration material, never authoritative state and never
+persisted in M2.
+
+The closed mechanical operation set is exactly:
+
+```text
+project_protocol_v8_finding_adjudication_basis
+validate_protocol_v8_semantic_value_proposal
+validate_protocol_v8_semantic_fact_descriptor
+reduce_protocol_v8_qualification_descriptor
+project_protocol_v8_semantic_progression_view
+validate_protocol_v8_candidate_view
+validate_protocol_v8_semantic_question
+```
+
+Add no semantic operation and no provider execution to this broker.
+
+Define `ProtocolV8ProgressionMechanicalExchangeV1` as a strict closed
+discriminated union with exactly one branch per operation above. Every branch
+contains:
+
+```text
+operation = exact literal operation kind
+request = exact operation-specific M6 request
+result = exact operation-specific M6 result
+```
+
+No branch permits an unknown operation, alternate request type, alternate result
+type or extra field. An ordered ephemeral transcript is a readonly array of
+those exact exchanges.
+
+Expose exactly:
+
+```text
+plan_protocol_v8_progression(...)
+```
+
+Inputs are exactly:
+
+```text
+exact AssuranceDerivationRequest
+exact ordered ephemeral transcript of prior request/result exchanges for this
+same fresh authoritative snapshot
+```
+
+On every call, replay progression from the exact request snapshot. Validate that
+the supplied transcript is exactly a prefix of the deterministic M5-selected
+mechanical exchange sequence, including operation, request, predecessor closure,
+result type and exact result binding. Any mismatch is
+`ASSURANCE-SEMANTIC-CLOSURE-INTEGRITY-FAILURE`.
+
+Return exactly one closed branch:
+
+```text
+mechanical-request
+resolve-semantic-question
+complete-preparation
+```
+
+For `mechanical-request`, return only:
+
+```text
+exact closed M6 operation kind
+exact M6 request
+```
+
+M1 performs that exact call and appends the exact request/result exchange to its
+ephemeral transcript.
+
+Return `resolve-semantic-question` only after exact M6 semantic-question
+validation is already present in the validated transcript. Return exactly:
+
+```text
+exact ValidatedSemanticQuestionRefV1
+exact ProtocolV8MechanicalClosureInputV1
+exact ResolutionContextV1
+exact source finding-resolution ObligationRef
+exact adjudicating campaign
+exact supporting reviewer candidate
+```
+
+M1 invokes M2 T1 for that exact QLEK and neither inspects nor reconstructs the
+semantic value.
+
+For `complete-preparation`, return the exact complete
+`AssuranceLedgerPreparation`. M1 performs only:
+
+```text
+M8-B operational blocker materialization
+→ M5 finalize_complete_delta
+→ M2 AdmitAssuranceLedgerDeltaV1
+```
+
+No M5 semantic state is stored between calls. Crash/restart restarts planning
+from a fresh authoritative snapshot and an empty ephemeral transcript and must
+reproduce the same requests.
+
+### 16.1 Reused Admission path
+
+When M2 T1 returns `reuse`:
+
+```text
+M1 supplies exact Admission back to M5 broker
+M5 requests exact M6 progression-view projection
+M1 calls M6
+M5 consumes only the exact M6 projection
+M5 continues semantic planning
+```
+
+M1 never inspects semantic value content.
+
+### 16.2 Semantic execution path
+
+When M2 T1 returns `acquired` and no existing resumable unarmed trajectory
+exists, M1 calls `project_protocol_v8_semantic_execution_inputs` with the exact
+validated question, exact P8 P and exact M5 closure.
+
+Expose exactly:
+
+```text
+construct_protocol_v8_semantic_work(...)
+```
+
+It constructs only the M5-owned P8 WorkItem already specified by M5-C:
+
+```text
+workItemId =
+deriveId(
+  "assurance-ledger-semantic-work-item.v1",
+  runId,
+  qlek
+)
+
+source obligation = exact finding-resolution obligation
+executor = cognitive-execution
+context = exact M5 ResolutionContextV1
+profile = exact M5-selected supporting profile
+role/prompt/packet = exact M6-projected semantic execution inputs
+```
+
+It returns an M5 preparation that adds that exact WorkItem. M1 must admit the
+WorkItem through the normal M5 delta, reload a fresh authoritative snapshot, and
+only then perform M2 T2. Creating WorkItem and Execution through one shortcut is
+forbidden.
+
+If M5 delta admission fails, M1 releases the exact live
+`AdmissionAuthority` before abandoning that T1 attempt.
+
+### 16.3 Construction classification
+
+```text
+statement:
+M5-B/C own the next semantic question but existing briefs only narratively said
+to expose required M6 work, leaving future M1 without an exact mechanical
+broker surface
+
+semantic disposition:
+authority-conflict-or-uncertain at construction representation level
+
+resolution:
+replayable M5-D planning transcript with exact closed M6 operation transport
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
 
 ## 17. Failures and replay
 

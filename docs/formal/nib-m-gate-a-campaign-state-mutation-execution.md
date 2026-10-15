@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 2
 id: NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION
-version: "9.0.0"
+version: "9.1.0"
 scope: gate-a-campaign-runner/campaign-state/mutation-execution
 status: active
 consumers: [architect, coding-agent]
@@ -23,10 +23,18 @@ This document is one of three active Module Briefs that together close M2
 It consumes:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
-NIB-M-GATE-A-CONTRACTS 1.4.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1
+NIB-M-GATE-A-CONTRACTS 1.5.0
+NIB-M-GATE-A-MECHANICAL-VALIDATION 1.2.0
 NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
 ```
+
+Version `9.1.0` additively synchronizes M2 with NIB-S `13.0.1`, M0 `1.5.0`
+and M6 `1.2.0`. It adds deterministic GateAQualificationId admission and exact
+mechanical-validation blocker producer validation. It adds no mutation kind,
+changes no closed mutation-union shape, SQLite schema, persistence ownership,
+product/protocol semantic, recovery classification, blocker ownership or M2
+state-writer authority.
 
 Version `9.0.0` is a breaking implementation-construction synchronization with
 NIB-S `13.0.0`, M0 `1.4.0`, and M7-B `1.0.0`. It adds exact publication-
@@ -780,6 +788,49 @@ The publication-preparation obligation and blocker are co-admitted in one
 revision. When the exact obligation already exists, `obligationsToAdd == []` as
 usual.
 
+When `blocker.source.producer == "mechanical-validation"`, permit only the two
+M6 `1.2.0` cause kinds:
+
+```text
+gate-a-qualification-not-established
+post-publication-integrity-not-established
+```
+
+Require exactly:
+
+```text
+M6 validate_mechanical_validation_operational_cause accepts exact cause
+M6 validate_mechanical_validation_obligation accepts exact obligation
+
+obligationId recomputes through
+mechanical-validation-obligation.v1
+
+candidate binding is exact
+basis binding is exact
+cause and obligation kind agree
+workItemId == null
+executionId == null
+resolutionContracts == []
+```
+
+M2 validates the exact M6 producer representation and bindings; it does not
+invent, normalize or reinterpret producer cause meaning.
+
+When the exact obligation is not already admitted:
+
+```text
+obligationsToAdd == [exact blocking obligation]
+```
+
+The obligation and blocker are co-admitted atomically. When the exact obligation
+already exists:
+
+```text
+obligationsToAdd == []
+```
+
+An incompatible same-ID obligation is `INVALID_MUTATION` under the common rule.
+
 Every admitted `OperationalBlocker` must satisfy the accepted M8-B
 operational-boundary identity and Operator Action Request contract.
 
@@ -1195,6 +1246,42 @@ interface AdmitGateAQualificationV1 {
 M2 must find an already-admitted passing exact Gate A mechanical validation
 observation whose candidate, campaign sets, and evidence match this
 qualification.
+
+Let that exact observation be request `Q` and result `R`. Require:
+
+```text
+Q.kind == gate-a-qualification
+R.requestKind == gate-a-qualification
+R.passed == true
+Q.runId == exact GateARun
+Q.candidate.candidateId == qualification.candidateId
+Q.reviewReadiness.candidateId == qualification.candidateId
+R.candidateId == qualification.candidateId
+R.currentReviewCampaignIds == qualification.currentReviewCampaignIds
+R.contributingReviewCampaignIds ==
+    qualification.contributingReviewCampaignIds
+R.evidence == qualification.validatorEvidence in exact result order
+```
+
+Recompute exactly:
+
+```text
+qualification.qualificationId ==
+deriveId(
+  "gate-a-qualification.v1",
+  Q.runId,
+  qualification.candidateId,
+  Q.reviewReadiness.reviewReadinessId,
+  decimal R.evidence.length,
+  R.evidence[0].sha256,
+  R.evidence[1].sha256,
+  ...
+)
+```
+
+The SHA input strings remain canonical lowercase; generic `deriveId` renders
+the final digest uppercase. Any mismatch is `INVALID_MUTATION`. M2 does not
+invent or normalize the ID.
 
 During successful `AdmitGateAQualificationV1`, for every outstanding
 publication-preparation obligation satisfying:

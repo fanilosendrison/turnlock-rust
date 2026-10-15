@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-14"
 step_id: 2
 id: NIB-M-GATE-A-ASSURANCE-LEDGER-FINDING-ADJUDICATION
-version: "1.0.0"
+version: "1.1.0"
 scope: gate-a-campaign-runner/assurance-ledger/finding-adjudication
 status: active
 consumers: [architect, coding-agent]
@@ -23,18 +23,23 @@ authority only.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 12.0.0
-NIB-M-GATE-A-CONTRACTS 1.3.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1
+NIB-M-GATE-A-CONTRACTS 1.5.0
 NIB-M-GATE-A-CAMPAIGN-STATE-PERSISTENCE-OWNERSHIP 3.0.4
-NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 8.0.0
-NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 7.0.0
-NIB-M-GATE-A-ASSURANCE-LEDGER-CAMPAIGN-WORK-EXECUTION-RECEIPT 3.0.0
-NIB-M-GATE-A-MECHANICAL-VALIDATION 1.1.0
+NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.1.0
+NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 8.1.0
+NIB-M-GATE-A-ASSURANCE-LEDGER-CAMPAIGN-WORK-EXECUTION-RECEIPT 3.1.0
+NIB-M-GATE-A-MECHANICAL-VALIDATION 1.2.0
 ADR-055
 ADR-056
 exact closed protocol-v8 C1-C7 authority
 exact immutable P6 and inactive P8 bundles
 ```
+
+Version `1.1.0` additively makes the existing M5-B-to-M6 choreography boundary
+mechanically callable. It changes no semantic progression rule, finding
+selection, qualification meaning, retry, provider/model rule or protocol
+activation.
 
 P6 is current. P7 is immutable and permanently inactive. P8 is immutable,
 mechanically valid and inactive until C15. Create no product or protocol
@@ -453,6 +458,38 @@ resolutionContracts = []
 ```
 
 Do not invent structured P8 semantics. This changes no P6 semantics.
+
+### 17.1 Exact M6 choreography exposure
+
+For every M5-B semantic step, mechanically expose all of:
+
+```text
+exact M6 operation to execute
+exact M6 request
+exact predecessor closure
+exact expected M6 result type
+```
+
+M5-B remains the sole owner of which finding, semantic question, Fact/value,
+qualification, challenge or bounded revision is required and whether its
+progression is exhausted. M1 chooses none of them.
+
+When a question becomes fully derivable, expose all of:
+
+```text
+exact LogicalQuestionDescriptor artifact
+exact ProtocolV8MechanicalClosureInputV1
+exact ResolutionContextV1
+exact source finding-resolution ObligationRef
+exact adjudicating campaign
+exact supporting reviewer candidate selected by M5 rules
+```
+
+M1 must never reconstruct, normalize, substitute or infer those values. M5-B
+validates every supplied M6 result against the exact operation/request it
+emitted and the exact predecessor closure. An unexpected operation, request,
+result type, result binding or transcript position is
+`ASSURANCE-SEMANTIC-CLOSURE-INTEGRITY-FAILURE`.
 
 ## 18. Replay, failures and edge cases
 

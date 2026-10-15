@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-13"
 step_id: 2
 id: NIB-M-GATE-A-CONTRACTS
-version: "1.4.0"
+version: "1.5.0"
 scope: gate-a-campaign-runner/contracts
 status: active
 consumers: [architect, coding-agent]
@@ -18,6 +18,37 @@ superseded_by: []
 ## 1. Status, authority, and purpose
 
 Implement the first active Module Brief for undecomposed M0 `contracts`.
+
+Version `1.5.0` additively synchronizes M0 with NIB-S `13.0.1` and M1
+`1.0.0`. It expands the closed runner-ID registry from 31 to exactly 33 domains
+by adding only `gate-a-qualification.v1` and
+`mechanical-validation-obligation.v1`. All original 31 domains, hash framing,
+component treatment and generic uppercase rendering remain byte-compatible. It
+adds exact structural `GateAQualificationRef` validation without granting M0
+qualification authority.
+
+The construction discovery is recorded exactly as:
+
+```text
+statement:
+GateAQualificationRef carried an opaque GateAQualificationId but no final
+deterministic construction formula existed, leaving M1/implementation to invent
+identity
+
+semantic disposition:
+authority-conflict-or-uncertain at construction representation level
+
+resolution:
+M0 gate-a-qualification.v1 deterministic domain
+
+affected layer:
+architecture-or-implementation
+
+normative impact:
+none
+```
+
+No ADR is required.
 
 Version `1.4.0` additively synchronizes M0 with NIB-S `13.0.0` and M7-B
 `1.0.0`. It expands the closed runner-ID registry from 29 to exactly 31 domains
@@ -49,7 +80,7 @@ identity, canonicalization, dependency, protocol, semantic, or authority rule.
 Consume exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1
 accepted ADR-041 through ADR-049
 accepted ADR-053 through ADR-056
 closed protocol-v8 C1-C7 construction
@@ -125,7 +156,7 @@ modules.
 
 ## 4. System-level cross-module contract ownership
 
-Treat NIB-S 12.0.0 sections 12 through 16 as the canonical system-level
+Treat NIB-S 13.0.1 sections 12 through 16 as the canonical system-level
 cross-module shape authority.
 
 Implement those exact declarations. Do not add, remove, rename, widen, narrow,
@@ -549,7 +580,7 @@ characters.
 
 ## 16. Complete runner ID domain registry
 
-Use exactly these 31 current domains and prefixes:
+Use exactly these 33 current domains and prefixes:
 
 ```text
 candidate-revision.v2
@@ -590,6 +621,12 @@ publication-preparation-obligation.v1
 
 publication-confirmation.v1
 → PUBLICATION-CONFIRMATION-
+
+gate-a-qualification.v1
+→ GATE-A-QUALIFICATION-
+
+mechanical-validation-obligation.v1
+→ OBLIGATION-
 
 m4-cognitive-call.v1
 → CALL-
@@ -646,9 +683,10 @@ review-campaign.v1
 → REVIEW-
 ```
 
-The registry count is exactly 31. Do not change any input or rendering of the
-original 29 domains. Exactly the two C9-G domains above are added; no thirty-
-second domain exists.
+The registry count is exactly 33. Do not change any input or rendering of the
+original 31 domains. Exactly the two C9-H domains above are added; no thirty-
+fourth domain exists. All 33 domains use the universal registered-ID renderer
+from section 15 without an exception.
 
 ## 17. Domain types and generic deriveId API
 
@@ -669,6 +707,8 @@ type RunnerIdHashDomainV1 =
   | "publication-work-item.v1"
   | "publication-preparation-obligation.v1"
   | "publication-confirmation.v1"
+  | "gate-a-qualification.v1"
+  | "mechanical-validation-obligation.v1"
   | "m4-cognitive-call.v1"
   | "m4-provider-attempt.v1"
   | "assurance-ledger-reviewer-acquisition-target-obligation.v1"
@@ -710,6 +750,28 @@ normalization.
 Use these exact new formulas:
 
 ```text
+GateAQualificationId =
+deriveId(
+  "gate-a-qualification.v1",
+  runId,
+  candidateId,
+  reviewReadinessId,
+  decimal validatorEvidence.length,
+  validatorEvidence[0].sha256,
+  validatorEvidence[1].sha256,
+  ...
+)
+
+mechanical-validation obligation =
+deriveId(
+  "mechanical-validation-obligation.v1",
+  runId,
+  obligationKind,
+  candidateId,
+  basisId,
+  definition.sha256
+)
+
 publication-preparation obligation =
 deriveId(
   "publication-preparation-obligation.v1",
@@ -817,6 +879,29 @@ deriveId(
 )
 ```
 
+Use `obligationKind` exactly as one of:
+
+```text
+gate-a-qualification
+post-publication-integrity
+```
+
+Use `basisId` exactly as:
+
+```text
+gate-a-qualification
+→ CandidateReviewReadinessRef.reviewReadinessId
+
+post-publication-integrity
+→ PublicationConfirmationRef.publicationConfirmationId
+```
+
+The `GateAQualificationId` evidence count is canonical non-negative decimal and
+its evidence SHA components preserve exact `validatorEvidence` result order.
+Each SHA component retains its existing canonical lowercase representation as an
+input string. Do not uppercase, normalize or otherwise rewrite an input SHA
+before hashing.
+
 Use the runner-finding formula only for runner-produced findings. Never rederive
 an imported `finding_id`. Add no candidate, provider, model, packet, prompt,
 receipt, or campaign-root identity to QLEK or the semantic WorkItem formula.
@@ -833,6 +918,67 @@ different domain
 different ordered component vector
 → different hash preimage
 ```
+
+### 17.1 Gate A qualification representation closure
+
+The generic renderer produces exactly:
+
+```text
+GateAQualificationId =
+"GATE-A-QUALIFICATION-"
++
+uppercaseHex(
+  RunnerIdHashV1(
+    "gate-a-qualification.v1",
+    exact ordered components from section 17
+  )
+)
+```
+
+Validate `GateAQualificationId` exactly with:
+
+```text
+^GATE-A-QUALIFICATION-[0-9A-F]{64}$
+```
+
+Reject lowercase and mixed-case hexadecimal. In particular:
+
+```text
+GATE-A-QUALIFICATION-abcdef... rejected
+GATE-A-QUALIFICATION-ABCDEF... accepted when exactly 64 digest characters
+```
+
+Expose:
+
+```ts
+function validateGateAQualificationId(
+  value: unknown
+): ContractValidationResult<GateAQualificationId>;
+
+function validateGateAQualificationRef(
+  value: unknown
+): ContractValidationResult<GateAQualificationRef>;
+```
+
+`validateGateAQualificationRef` accepts only the exact closed NIB-S object:
+
+```text
+qualificationId
+candidateId
+currentReviewCampaignIds
+contributingReviewCampaignIds
+validatorEvidence
+```
+
+It validates every nested representation, duplicate-free canonical campaign
+ordering, the current-campaign prefix relation and every `ArtifactRef` while
+preserving exact validator-evidence order. It does not decide that validation
+passed, establish campaign currentness, interpret evidence or create
+qualification authority.
+
+The `mechanical-validation-obligation.v1` domain uses the same universal
+renderer and produces `OBLIGATION-` followed by exactly 64 uppercase hexadecimal
+characters. Neither new domain has a specialized renderer.
 
 ## 18. Dedicated runner-produced ReviewCampaign identity
 
@@ -1240,7 +1386,7 @@ QualificationKey
 
 Validate syntax only. Do not establish that a referenced semantic object exists,
 is reconstructible, is current, is consumable, or is semantically valid. Leave
-those responsibilities to M2, M5, and M6 according to NIB-S 12.0.0.
+those responsibilities to M2, M5, and M6 according to NIB-S 13.0.1.
 
 ## 27. Canonical semantic JSON and binding mirrors
 
@@ -1611,8 +1757,10 @@ read, Python invocation, repository access or protocol lookup. Preserve
 validity, QLEK agreement, attempt semantic truth, origin-witness validity or
 SemanticAdmission. M6 remains mechanical authority.
 
-Require future tests for all 31 registered domains, original-29 byte
-compatibility, both exact C9-G formulas, every retained earlier formula, both
+Require future tests for all 33 registered domains, original-31 byte
+compatibility, both exact C9-H formulas, both exact C9-G formulas, every retained
+earlier formula, uppercase qualification rendering, lowercase and mixed-case
+qualification rejection, structural `GateAQualificationRef` validation, both
 `FindingRef` provenance branches,
 invalid hostile-review execution IDs, receipt-v3 regression, strict receipt-v4
 shape and the exact receipt-v4 SHA binding.
@@ -1970,7 +2118,7 @@ Record the selected validation dependency as:
 
 ```text
 statement:
-NIB-S 12.0.0 retains zod as the M0 runtime-validation support dependency and
+NIB-S 13.0.1 retains zod as the M0 runtime-validation support dependency and
 delegates its exact package pin to M0 NIB-M/package construction; C9-A pins the
 selected dependency to zod@4.6.7 and keeps all consumed validation behavior
 behind the exact M0 ContractValidationResult boundary
@@ -2184,7 +2332,7 @@ why Zod creates no semantic authority
 why DC-ZOD-GATE-A-CONTRACTS is required later but is not created by C9-A
 how runner canonical JSON is serialized
 how deterministic ID bytes are framed
-which 31 current deterministic ID domains exist and why the original 29 remain byte-compatible
+which 33 current deterministic ID domains exist and why the original 31 remain byte-compatible
 how every current domain renders
 how runner-produced ReviewCampaignId is framed
 why ReviewCampaign identity uses a dedicated API
@@ -2938,7 +3086,7 @@ Retain exactly:
 ```text
 zod@4.6.7
 future DC-ZOD-GATE-A-CONTRACTS required
-31 current deriveId domains
+33 current deriveId domains
 ```
 
 `SemanticAuthorityDomainId` is UUIDv4 occurrence identity generated by M2, not
