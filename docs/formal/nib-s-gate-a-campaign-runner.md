@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "13.0.1"
+version: "13.0.2"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -1224,6 +1224,32 @@ admission. Neither path creates a Decision Request, same-run operator resolution
 contract, automatic validation retry, semantic inference, M5-fabricated repair,
 republication or candidate rewrite.
 
+Version `13.0.2` records the Issue #78 construction responsibility placement.
+It changes no TURNLOCK product semantics, formal Gate A requirements, S/P, accepted
+hostile-review protocol/evidence, candidate progression, M0–M8 topology,
+PublicationIntent meaning, recovery, or externally observable runner outcome.
+
+Turnlock-Rust already consumes the immutably bound proto-ring generic
+repository-governance provider under ADR-051 and ADR-052. The campaign runner
+does not own a second Canonical RepositoryState, RepositoryGovernanceState,
+Repository Integrity, Projection Integrity, Exact Evidence Binding, Governance
+Authority, or Authoritative Ref Monotonicity implementation. M7 implements
+distinct exact Git object/materialization and repository-publication *operations*
+over the consumer-owned repository; M6 consumes the existing consumer-local
+Python qualification authority and already applicable proto-ring mechanisms.
+
+The selected v1 runner completes one recoverable end-to-end tooling workflow:
+it can qualify a candidate, publish its exact authorized representation, then
+verify the exact published state. Formal Gate A READY is derived from the
+governed repository evidence; GateAQualification applies to a candidate; the
+runner's GATE-A-READY reports only the already accepted terminal conditions.
+The fact that v1 M7 is inside the runner is an implementation-construction
+choice, not a claim that hostile review intrinsically needs Git, nor that
+proto-ring governs Git ref mutation or grants admission of every future state.
+The Git dependency contract must separately qualify its exact-old guarded
+fast-forward realization and may not use an unqualified force-like fallback.
+No command spelling or provider API is selected or authorized by this revision.
+
 ## 2. System objective
 
 Build one isolated TypeScript/Node assurance-tooling application that mechanically executes the accepted Gate A hostile-review protocol over exact candidate repository states, persists and recovers execution without fabricating external outcomes, applies only exact protocol-authorized repairs, starts a full new review campaign whenever a repair changes the semantic subject `S`, and publishes only an exact mechanically qualified candidate.
@@ -1256,6 +1282,12 @@ higher-level harness execution path.
 The runner invokes existing Python validation authority out-of-process.
 
 The runner invokes Git/repository mechanisms through an explicit repository boundary.
+
+That boundary supplies exact Git data and publication effects, not a competing
+repository-governance provider. Applicable generic observation/integrity,
+projection, evidence-binding, and ref-protection semantics are consumed through
+the adopted immutable proto-ring bindings and the relevant existing consumer
+mechanisms, not reimplemented in M7.
 
 No artificial IPC layer is inserted between the runner and the Pi M4 adapter.
 
@@ -2380,6 +2412,15 @@ M7 → repository-control publication WorkItem bound to one exact
 ```
 
 M7 remains repository-fact/materialization authority.
+
+The M7 Git baseline is a self-contained immutable commit/tree closure for
+candidate reconstruction and publication. It is not Canonical RepositoryState's
+read-only local worktree/index/filesystem observation and must never be passed
+off as its opaque state identity. M7 also does not decide Repository Integrity,
+projection currentness, Exact Evidence Binding truth, pre-publication governance
+admission, Gate A semantic qualification, or the external ref-protection policy.
+A future discovered generic governance responsibility must be routed through
+ADR-051, rather than duplicated behind a Git-oriented API.
 
 For P8 candidate-bound semantic questions requiring CandidateView, M7 constructs
 the exact view from the exact sealed CandidateRevision materialization under the
@@ -8266,6 +8307,17 @@ Publication is separate from qualification.
 
 A qualified candidate is not yet repository authority.
 
+The current repository's formal Gate A readiness is mechanically derived by
+the existing assurance authority over current repository artifacts. A passing
+GateAQualification for an immutable candidate is not that current-repository
+verdict. Conversely, a runner GATE-A-READY terminal result asserts only the
+bound candidate qualification, exact publication confirmation, and successful
+post-publication validation required in Section 31. It is not a standing
+Authoritative State Admission policy preventing every future invalid Git
+fast-forward, and it never delegates product-semantic or review truth to M7.
+The review/cognitive portion could be separated from publication only through
+a future accepted construction boundary preserving these exact conditions.
+
 Publication consumes exactly:
 
 ```text
@@ -8336,6 +8388,19 @@ A conflict does not grant permission to:
 * include unrelated mutable worktree content.
 
 Any material change creates a different candidate and requires the appropriate review/qualification again.
+
+The ban above is effect- and authority-sensitive: no arbitrary history rewrite,
+unauthorized non-fast-forward target update, implicit conflict resolution, or
+unconditional fallback is admitted. A Git transport option whose name contains
+"force" does not itself establish either authorization or prohibition of its
+exact effect. The future Git Dependency Contract must positively demonstrate
+atomic expected-predecessor enforcement, the independently proven fast-forward
+relation, and compatibility with effective external ref governance. In
+particular, `--force-with-lease` is not selected or automatically authorized
+by this NIB-S. If its exact runtime behavior cannot meet all these guards, it
+must be rejected and an alternative qualified realization selected through
+the proper construction authority. Never interpret this paragraph as
+permission for a semantic force-push.
 
 The remote publication mutation itself is a `repository-control` WorkItem/Execution.
 
