@@ -705,7 +705,9 @@ def _protocol_v8_e1_semantic_value_errors(
         return [f"{label}: floating-point semantic values are forbidden"]
 
     if type(value) is str:
-        if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
+        if not value.isascii() and any(
+            0xD800 <= ord(character) <= 0xDFFF for character in value
+        ):
             errors.append(
                 f"{label}: Unicode surrogate code points are forbidden"
             )
