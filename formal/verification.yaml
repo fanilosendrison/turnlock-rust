@@ -725,6 +725,16 @@ claims:
     assurance_domain: formal-behavioral
     modality: liveness
     formal_semantic_domain: operational
+  - id: TL-CLAIM-084
+    statement: >-
+      For every admitted workflow-declared nested invocation occurrence whose normal completion is recognized, the resulting semantic state makes that exact immediate caller's preserved workflow-declared post-call continuation eligible according to the enclosing declared workflow topology.
+    normative_sources:
+      - TL-INV-008
+      - TL-INV-019
+      - TL-INV-035
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
 normative_coverage:
   - invariant: TL-INV-001
     canonical_operational_coverage: full
@@ -770,6 +780,7 @@ normative_coverage:
     formal_claims:
       - TL-CLAIM-010
       - TL-CLAIM-011
+      - TL-CLAIM-084
     residual_claims: []
   - invariant: TL-INV-009
     canonical_operational_coverage: partial
@@ -834,6 +845,7 @@ normative_coverage:
     formal_claims:
       - TL-CLAIM-011
       - TL-CLAIM-023
+      - TL-CLAIM-084
     residual_claims: []
   - invariant: TL-INV-020
     canonical_operational_coverage: none
@@ -961,6 +973,7 @@ normative_coverage:
       - TL-CLAIM-060
       - TL-CLAIM-061
       - TL-CLAIM-080
+      - TL-CLAIM-084
     residual_claims: []
   - invariant: TL-INV-036
     canonical_operational_coverage: partial

@@ -509,8 +509,8 @@ manifest schema_version/project
 formal semantic domain declarations
 behavioral modalities
 assurance domains
-83 claim contents and provenance
-42 normative coverage mappings
+required assurance claim contents and provenance
+normative coverage mappings
 ```
 
 Its explicit exclusions are:

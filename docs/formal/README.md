@@ -206,15 +206,15 @@ is version 5.0.
 The Gate A semantic subject remains owned by the existing authority dependency
 set.
 
-The current valid subject fingerprint is exactly:
+The current valid Gate A semantic-subject fingerprint is mechanically derived
+from its authoritative dependency set and is displayed in the generated
+[`invariant-mapping.md`](invariant-mapping.md) under
+`Gate A assurance-decomposition subject`.
 
-```text
-2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b
-```
-
-The live derived subject value remains owned by `formal/verification.yaml` and
-its generated projection in `invariant-mapping.md`, not by ADR-042, ADR-043, or
-ADR-045.
+This README does not maintain an independent mutable subject fingerprint.
+`formal/verification.yaml` owns the assurance graph; the generated mapping
+presents its derived current subject. ADR-042, ADR-043, and ADR-045 do not own
+that semantic subject.
 
 Gate A review packets are self-contained canonical JSON artifacts. Verification
 recomputes the packet subject SHA from its embedded `subject_payload`, requires

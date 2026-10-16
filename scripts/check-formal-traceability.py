@@ -333,9 +333,9 @@ INVARIANT_ID = re.compile(r"^TL-INV-[0-9]{3}$")
 CLAIM_ID = re.compile(r"^TL-CLAIM-[0-9]{3}$")
 ADR_ID = re.compile(r"^ADR-[0-9]{3}$")
 
-CLAIM_TOTAL = 83
+CLAIM_TOTAL = 84
 CLAIM_ID_MIN = 1
-CLAIM_ID_MAX = 83
+CLAIM_ID_MAX = 84
 
 LEGACY_SOURCE_COMMIT = "6d3c9851e0d66286280f8e49ebd8ed44da13d876"
 LEGACY_SOURCE_SCHEMA_VERSION = 2
@@ -30331,7 +30331,8 @@ def collect_errors(
     }
     if set(claim_by_id) != expected_claim_ids or len(claims) != CLAIM_TOTAL:
         errors.append(
-            "claim IDs must be contiguous from TL-CLAIM-001 through TL-CLAIM-083 "
+            f"claim IDs must be contiguous from TL-CLAIM-{CLAIM_ID_MIN:03d} "
+            f"through TL-CLAIM-{CLAIM_ID_MAX:03d} "
             f"({CLAIM_TOTAL} claims)"
         )
     summary["claims"] = len(claim_by_id)

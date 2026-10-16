@@ -19,7 +19,7 @@ reason: hostile assurance-decomposition review evidence required
 
 Gate A assurance-decomposition subject:
 - selector: `gate-a-assurance-decomposition-v1`
-- SHA-256: `2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b`
+- SHA-256: `7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f`
 
 Canonical-Formal-Semantics-Ready:
 NOT-APPLICABLE — candidate model absent
@@ -38,7 +38,7 @@ NOT-APPLICABLE — candidate model absent
 | `TL-INV-005` | full | `TL-CLAIM-007` | — |
 | `TL-INV-006` | full | `TL-CLAIM-008` | — |
 | `TL-INV-007` | full | `TL-CLAIM-009` | — |
-| `TL-INV-008` | full | `TL-CLAIM-010`, `TL-CLAIM-011` | — |
+| `TL-INV-008` | full | `TL-CLAIM-010`, `TL-CLAIM-011`, `TL-CLAIM-084` | — |
 | `TL-INV-009` | partial | `TL-CLAIM-012` | `TL-CLAIM-013` |
 | `TL-INV-010` | full | `TL-CLAIM-009` | — |
 | `TL-INV-011` | none | — | `TL-CLAIM-014` |
@@ -49,7 +49,7 @@ NOT-APPLICABLE — candidate model absent
 | `TL-INV-016` | full | `TL-CLAIM-019` | — |
 | `TL-INV-017` | full | `TL-CLAIM-020`, `TL-CLAIM-021`, `TL-CLAIM-022` | — |
 | `TL-INV-018` | full | `TL-CLAIM-011`, `TL-CLAIM-021` | — |
-| `TL-INV-019` | full | `TL-CLAIM-011`, `TL-CLAIM-023` | — |
+| `TL-INV-019` | full | `TL-CLAIM-011`, `TL-CLAIM-023`, `TL-CLAIM-084` | — |
 | `TL-INV-020` | none | — | `TL-CLAIM-024` |
 | `TL-INV-021` | none | — | `TL-CLAIM-025` |
 | `TL-INV-022` | none | — | `TL-CLAIM-014`, `TL-CLAIM-026` |
@@ -65,7 +65,7 @@ NOT-APPLICABLE — candidate model absent
 | `TL-INV-032` | none | — | `TL-CLAIM-017`, `TL-CLAIM-050` |
 | `TL-INV-033` | partial | `TL-CLAIM-051`, `TL-CLAIM-052`, `TL-CLAIM-053`, `TL-CLAIM-054`, `TL-CLAIM-055` | `TL-CLAIM-056` |
 | `TL-INV-034` | none | — | `TL-CLAIM-057`, `TL-CLAIM-058` |
-| `TL-INV-035` | full | `TL-CLAIM-010`, `TL-CLAIM-011`, `TL-CLAIM-020`, `TL-CLAIM-021`, `TL-CLAIM-022`, `TL-CLAIM-023`, `TL-CLAIM-032`, `TL-CLAIM-059`, `TL-CLAIM-060`, `TL-CLAIM-061`, `TL-CLAIM-080` | — |
+| `TL-INV-035` | full | `TL-CLAIM-010`, `TL-CLAIM-011`, `TL-CLAIM-020`, `TL-CLAIM-021`, `TL-CLAIM-022`, `TL-CLAIM-023`, `TL-CLAIM-032`, `TL-CLAIM-059`, `TL-CLAIM-060`, `TL-CLAIM-061`, `TL-CLAIM-080`, `TL-CLAIM-084` | — |
 | `TL-INV-036` | partial | `TL-CLAIM-062`, `TL-CLAIM-063`, `TL-CLAIM-065`, `TL-CLAIM-066`, `TL-CLAIM-067` | `TL-CLAIM-064` |
 | `TL-INV-037` | full | `TL-CLAIM-021`, `TL-CLAIM-054`, `TL-CLAIM-061`, `TL-CLAIM-068`, `TL-CLAIM-069`, `TL-CLAIM-070`, `TL-CLAIM-071` | — |
 | `TL-INV-038` | none | — | `TL-CLAIM-072`, `TL-CLAIM-073`, `TL-CLAIM-074` |
@@ -161,6 +161,7 @@ NOT-APPLICABLE — candidate model absent
 | `TL-CLAIM-081` | formal-behavioral | safety | `TL-INV-024`, `TL-INV-040`, `TL-INV-041` | Restrictions whose accepted scope extends into descendant composition remain effective across nested, recursive, and cyclic workflow boundaries, and neither a workflow boundary nor runtime scheduler order resets, weakens, widens, or manufactures admissibility. |
 | `TL-CLAIM-082` | formal-behavioral | safety | `TL-INV-041` | Acceptance of a caller invocation does not pre-authorize future descendant invocations; every attempted nested invocation occurrence has its own admission boundary. |
 | `TL-CLAIM-083` | formal-behavioral | liveness | `TL-INV-042` | For every particular TURNLOCK-owned progression occurrence, if that occurrence is eligible and remains continuously eligible and continuously applicable under its governing workflow semantics, TURNLOCK eventually advances that same occurrence. |
+| `TL-CLAIM-084` | formal-behavioral | safety | `TL-INV-008`, `TL-INV-019`, `TL-INV-035` | For every admitted workflow-declared nested invocation occurrence whose normal completion is recognized, the resulting semantic state makes that exact immediate caller's preserved workflow-declared post-call continuation eligible according to the enclosing declared workflow topology. |
 
 ## Formal realizations
 
@@ -253,6 +254,7 @@ No executable formal realizations are declared yet.
 - `TL-CLAIM-081` → `TL-INV-024`, `TL-INV-040`, `TL-INV-041`
 - `TL-CLAIM-082` → `TL-INV-041`
 - `TL-CLAIM-083` → `TL-INV-042`
+- `TL-CLAIM-084` → `TL-INV-008`, `TL-INV-019`, `TL-INV-035`
 
 Once formal realizations exist, this section also renders `formal realization identifier → claim IDs → invariant IDs`.
 

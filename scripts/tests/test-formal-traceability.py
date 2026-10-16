@@ -2132,7 +2132,7 @@ class FormalTraceabilityTests(unittest.TestCase):
         self.assertEqual(1, fast_path.call_count)
         self.assertEqual([], renderer_subprocesses)
         self.assertEqual(42, summary["invariants"])
-        self.assertEqual(83, summary["claims"])
+        self.assertEqual(84, summary["claims"])
         self.assertFalse(summary["gate_a"]["ready"])
         self.assertEqual(
             "hostile assurance-decomposition review evidence required",
@@ -3071,6 +3071,65 @@ class FormalTraceabilityTests(unittest.TestCase):
             errors, _ = checker.collect_errors(fixture_root, check_generated=False)
             self.assertTrue(
                 any("claim IDs must be contiguous" in error for error in errors),
+                errors,
+            )
+
+    def test_missing_last_claim_id_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+
+            self.assertEqual(
+                "TL-CLAIM-084",
+                manifest["claims"][-1]["id"],
+            )
+
+            manifest["claims"].pop()
+            save_manifest(fixture_root, manifest)
+
+            errors, _ = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+
+            self.assertTrue(
+                any(
+                    "claim IDs must be contiguous from "
+                    "TL-CLAIM-001 through TL-CLAIM-084 "
+                    "(84 claims)" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_claim_id_beyond_required_range_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture_root = make_fixture(temporary)
+            manifest = load_manifest(fixture_root)
+
+            self.assertEqual(
+                "TL-CLAIM-084",
+                manifest["claims"][-1]["id"],
+            )
+
+            extra_claim = copy.deepcopy(manifest["claims"][-1])
+            extra_claim["id"] = "TL-CLAIM-085"
+            manifest["claims"].append(extra_claim)
+
+            save_manifest(fixture_root, manifest)
+
+            errors, _ = checker.collect_errors(
+                fixture_root,
+                check_generated=False,
+            )
+
+            self.assertTrue(
+                any(
+                    "claim IDs must be contiguous from "
+                    "TL-CLAIM-001 through TL-CLAIM-084 "
+                    "(84 claims)" in error
+                    for error in errors
+                ),
                 errors,
             )
 
@@ -7146,7 +7205,7 @@ class GateAProtocolV4Tests(unittest.TestCase):
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
         self.assertEqual(
-            "2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b",
+            "7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f",
             subject["sha256"],
         )
 
@@ -7194,7 +7253,7 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         self.assertEqual(2, bundle["protocol_bundle_schema_version"])
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
-        self.assertEqual("2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b", subject["sha256"])
+        self.assertEqual("7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f", subject["sha256"])
 
     def test_review_schema5_is_current(self):
         schema = json.loads((ROOT / "formal/reviews/review-evidence.schema.json").read_text())
@@ -8317,7 +8376,7 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
         self.assertEqual(
-            "2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b",
+            "7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f",
             subject["sha256"],
         )
 
@@ -8852,7 +8911,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
         "7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72"
     )
     GATE_A_SUBJECT_SHA = (
-        "2b0dd42fb07d67f3a38d0414f12df49ecb9df640f12c805ee98b6af3a1db979b"
+        "7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f"
     )
     LEGACY_EVIDENCE_ALIAS = "formal/reviews/review-evidence.schema.json"
     LEGACY_BUNDLE_ALIAS = "formal/reviews/review-protocol-bundle.schema.json"
