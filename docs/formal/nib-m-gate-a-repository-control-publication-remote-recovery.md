@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-15"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY
-version: "1.0.0"
+version: "1.0.1"
 scope: gate-a-campaign-runner/repository-control/publication-remote-recovery
 status: active
 consumers: [architect, coding-agent]
@@ -23,11 +23,11 @@ complete M7 `repository-control` NIB-M coverage.
 It consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.2
 NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.0.0
 NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 8.0.0
-NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.1.1
+NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.1.2
 NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.1.0
 NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.1.0
 CampaignArtifactStore
@@ -44,6 +44,14 @@ must still close M1 orchestration. C10/NIB-T has not begun.
 
 The required Git Dependency Contract remains absent. This brief specifies its
 exact consumer surface but does not create it. M7-B is not GREEN.
+
+Version `1.0.1` synchronizes NIB-S `13.0.2` and M7-A `2.1.2`
+with Issue #78's generic-governance versus exact-Git-operation boundary.
+The existing four M7-B Git dependency primitives, T/P split, evidence,
+Arm, direct/recovered outcomes, blocker routing, terminal confirmation and
+publication recovery retain their meanings. The specific Git CLI transport
+remains unselected until the mandatory separate Git Dependency Contract is
+valid and tested.
 
 ## 2. Responsibility boundary
 
@@ -122,6 +130,26 @@ materialize_projected_successor
 
 boundaries and treats contradiction with either as an implementation/process/
 integrity failure.
+
+### 3.1 External governance and candidate admission exclusion
+
+M7-B observes a single exact Git publication target, proves the current
+predecessor P is ancestor-or-equal to M7-A's fixed successor T, and performs
+only the exact authorized effect after Arm. It does not reimplement proto-ring
+Authoritative Ref Monotonicity, whose ordinary-writer protection is externally
+enforced; a transition-specific P <= T proof and external ref protection are
+independent requirements. It also does not create Authoritative State Admission
+or assert that all future commits must pass Gate A. No external route, including
+direct Git mutation, may bypass the effective policy of the publication target.
+
+Neither Ruu nor another publication service is a mandatory component of the
+selected v1 runner: an alternative executor requires its own exact conformance
+and accepted construction handoff. In particular, no Git CLI or GraphQL/API
+syntax is silently selected by this Module Brief. A transport with ambiguous
+atomic expected-old behavior, uncertain evidence, unexpected ref writes, or
+forbidden force/non-FF effects fails closed. The future Git Dependency Contract
+must qualify the actual endpoint and must not reinterpret `applied`,
+`not-applied`, or `uncertain` from client convenience.
 
 ## 4. Shared Git Dependency Contract surface
 
