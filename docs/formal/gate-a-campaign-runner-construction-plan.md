@@ -43,6 +43,8 @@ If an implementing agent encounters an uncovered decision, ambiguity, contradict
 
 ## Construction methodology
 
+A bounded, non-authoritative responsibility-placement audit of M7 against the already adopted proto-ring governance contracts is recorded in [`gate-a-m7-proto-ring-responsibility-audit.md`](gate-a-m7-proto-ring-responsibility-audit.md), using exact Turnlock-Rust/proto-ring/Ruu repository revisions. It must be adjudicated in versioned construction authority before M7 Git dependency realization or dependent RED assumptions are finalized. The audit does not itself amend the NIB-S/M7 contracts or establish transport conformance.
+
 The runner follows the workspace NIB construction methodology:
 
 ```text
