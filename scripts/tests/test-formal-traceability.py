@@ -1869,6 +1869,245 @@ def fake_gate_a_subject() -> tuple[dict, dict]:
 
 
 class FormalTraceabilityTests(unittest.TestCase):
+    def test_c2_ascii_fastpath_bypasses_ord_for_exact_ascii(self) -> None:
+        import builtins
+
+        observed_characters: list[str] = []
+
+        def observe_ord(character: str) -> int:
+            observed_characters.append(character)
+            return builtins.ord(character)
+
+        fixtures = (
+            ("empty", ""),
+            ("controls-and-escapes", "quote\" slash\\ tab\t lf\n cr\r nul\x00"),
+            ("short", "turnlock-ASCII-123"),
+            ("long", "A" * 4096),
+            (
+                "nested",
+                {
+                    "ascii-key": ["value", "B" * 64, {"leaf": "C"}],
+                    "controls": "\x00\t\n\r",
+                },
+            ),
+        )
+        observed_calls_by_fixture: dict[str, int] = {}
+        self.assertNotIn("ord", checker.__dict__)
+        with mock.patch.dict(checker.__dict__, {"ord": observe_ord}):
+            for label, value in fixtures:
+                observed_characters.clear()
+                self.assertEqual(
+                    [],
+                    checker._protocol_v8_e1_semantic_value_errors(
+                        value,
+                        f"ASCII fixture {label}",
+                    ),
+                )
+                observed_calls_by_fixture[label] = len(observed_characters)
+        self.assertNotIn("ord", checker.__dict__)
+        self.assertEqual(
+            {label: 0 for label, _value in fixtures},
+            observed_calls_by_fixture,
+        )
+
+    def test_c2_ascii_fastpath_preserves_nonascii_and_surrogate_diagnostics(
+        self,
+    ) -> None:
+        import builtins
+
+        high = chr(0xD800)
+        low = chr(0xDC00)
+        observed_characters: list[str] = []
+
+        def observe_ord(character: str) -> int:
+            observed_characters.append(character)
+            return builtins.ord(character)
+
+        valid_scalars = (
+            "café",
+            "cafe\u0301",
+            "漢字",
+            "🙂",
+            chr(0xFDD0),
+            chr(0x10FFFF),
+        )
+        invalid_strings = (
+            ("high surrogate", high),
+            ("low surrogate", low),
+            ("paired codepoints", high + low),
+            ("surrogate first", high + "tail"),
+            ("surrogate middle", "left" + low + "right"),
+            ("surrogate last", "head" + high),
+        )
+        with mock.patch.dict(checker.__dict__, {"ord": observe_ord}):
+            for value in valid_scalars:
+                with self.subTest(valid_scalar=value.encode("unicode_escape")):
+                    observed_characters.clear()
+                    self.assertEqual(
+                        [],
+                        checker._protocol_v8_e1_semantic_value_errors(
+                            value,
+                            "valid scalar",
+                        ),
+                    )
+                    self.assertEqual(list(value), observed_characters)
+            for label, value in invalid_strings:
+                with self.subTest(label=label):
+                    observed_characters.clear()
+                    self.assertEqual(
+                        [
+                            f"{label}: Unicode surrogate code points are "
+                            "forbidden"
+                        ],
+                        checker._protocol_v8_e1_semantic_value_errors(
+                            value,
+                            label,
+                        ),
+                    )
+                    self.assertGreater(len(observed_characters), 0)
+
+        class Issue75StringSubclass(str):
+            pass
+
+        surrogate_key = high + "key"
+        nested = {
+            surrogate_key: ["valid", low],
+            "ascii": [
+                {"surrogate": "left" + high},
+                1.25,
+                ("tuple",),
+                b"bytes",
+                Issue75StringSubclass("subclass"),
+            ],
+        }
+        self.assertEqual(
+            [
+                "root object key: Unicode surrogate code points are forbidden",
+                f"root.{surrogate_key}[1]: Unicode surrogate code points are "
+                "forbidden",
+                "root.ascii[0].surrogate: Unicode surrogate code points are "
+                "forbidden",
+                "root.ascii[1]: floating-point semantic values are forbidden",
+                "root.ascii[2]: unsupported semantic JSON value type tuple",
+                "root.ascii[3]: unsupported semantic JSON value type bytes",
+                "root.ascii[4]: unsupported semantic JSON value type "
+                "Issue75StringSubclass",
+            ],
+            checker._protocol_v8_e1_semantic_value_errors(nested, "root"),
+        )
+
+        recursive_list: list[object] = []
+        recursive_list.append(recursive_list)
+        self.assertEqual(
+            ["recursive[0]: recursive semantic arrays are forbidden"],
+            checker._protocol_v8_e1_semantic_value_errors(
+                recursive_list,
+                "recursive",
+            ),
+        )
+        recursive_object: dict[str, object] = {}
+        recursive_object["self"] = recursive_object
+        self.assertEqual(
+            ["recursive.self: recursive semantic objects are forbidden"],
+            checker._protocol_v8_e1_semantic_value_errors(
+                recursive_object,
+                "recursive",
+            ),
+        )
+
+    def test_c2_ascii_fastpath_preserves_canonical_bytes_and_identities(
+        self,
+    ) -> None:
+        string_value = 'quote" slash\\ tab\t line\n café cafe\u0301 \x00'
+        canonical_value = {
+            "é": "precomposed",
+            "e\u0301": "decomposed",
+            "a": ["ASCII", "漢字", "🙂", None, True, False],
+            'quote"': "line\nslash\\tab\t",
+            "integer": 10 ** 80 + 123456789,
+        }
+        descriptor = {
+            "schema": "turnlock.logical-question-descriptor.v1",
+            "semanticQuestionContract": "turnlock.sqc:Issue75@1",
+            "exactLogicalInput": {"value": canonical_value},
+        }
+        expected_string_bytes = bytes.fromhex(
+            "2271756f74655c2220736c6173685c5c207461625c74206c696e655c6e2063"
+            "6166c3a92063616665cc81205c753030303022"
+        )
+        expected_canonical_bytes = bytes.fromhex(
+            "7b2261223a5b224153434949222c22e6bca2e5ad97222c22f09f9982222c6e75"
+            "6c6c2c747275652c66616c73655d2c2265cc81223a226465636f6d706f736564"
+            "222c22696e7465676572223a3130303030303030303030303030303030303030"
+            "3030303030303030303030303030303030303030303030303030303030303030"
+            "30303030303030303030303030303030303030303132333435363738392c2271"
+            "756f74655c22223a226c696e655c6e736c6173685c5c7461625c74222c22c3a9"
+            "223a22707265636f6d706f736564227d"
+        )
+
+        self.assertEqual(
+            expected_string_bytes,
+            checker._protocol_v8_e1_json_string_bytes(string_value),
+        )
+        self.assertEqual(
+            bytes.fromhex("22c3a922"),
+            checker._protocol_v8_e1_json_string_bytes("é"),
+        )
+        self.assertEqual(
+            bytes.fromhex("2265cc8122"),
+            checker._protocol_v8_e1_json_string_bytes("e\u0301"),
+        )
+        self.assertEqual(
+            expected_canonical_bytes,
+            checker._protocol_v8_e1_canonical_json_value_bytes(
+                canonical_value
+            ),
+        )
+        self.assertEqual(
+            "f0e14935e695977febf33cb69552b187cf583d95537ecc1d3cbef9ced25af73b",
+            checker._protocol_v8_e1_identity_hash(
+                "turnlock.semantic-value.v1",
+                canonical_value,
+            ),
+        )
+        self.assertEqual(
+            "semantic-value-sha256:"
+            "a1f17dcf8be7c248921eb72ccc914da4bfe686f431b82795590bea7046354fc7",
+            checker._protocol_v8_e1_semantic_value_id(
+                "turnlock.semantic-value:Issue75@1",
+                canonical_value,
+            ),
+        )
+        qlek = checker._protocol_v8_e1_qlek(descriptor)
+        self.assertEqual(
+            "qlek-sha256:"
+            "a56a46f9efc020eda508ace56f2b9b7e2defb8033ed206731c2e99768f15a28e",
+            qlek,
+        )
+        self.assertEqual(
+            "semantic-admission-sha256:"
+            "4a6ff569da126279cca3a6654430954ac6441a7058bea395c9e0505bd8c7bfc0",
+            checker._protocol_v8_e1_semantic_admission_id(
+                qlek,
+                canonical_value,
+            ),
+        )
+
+        high = chr(0xD800)
+        low = chr(0xDC00)
+        with self.assertRaisesRegex(
+            ValueError,
+            "^semantic JSON string: Unicode surrogate code points are "
+            "forbidden$",
+        ):
+            checker._protocol_v8_e1_json_string_bytes(high)
+        with self.assertRaisesRegex(
+            ValueError,
+            "^semantic JSON value.key: Unicode surrogate code points are "
+            "forbidden$",
+        ):
+            checker._protocol_v8_e1_canonical_json_value_bytes({"key": low})
+
     def test_repository_conforms(self) -> None:
         renderer_subprocesses = []
         original_run = subprocess.run
