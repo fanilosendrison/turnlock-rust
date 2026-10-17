@@ -37,7 +37,6 @@ ALLOWED_ROLES = frozenset(
 KEY_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
 ANCHOR_PATTERN = re.compile(r'^<a id="(term-[a-z0-9-]+)"></a>$')
 ANCHOR_LINK_PATTERN = r"\[`[^`]+`\]\(#(term-[a-z0-9-]+)\)"
-SECTION_PATTERN = re.compile(r"^(\d+(?:\.\d+)*[A-Z]?)\b")
 
 RegistryEntry = shared_terminology.RegistryEntry
 Block = shared_terminology.MarkdownBlock
@@ -54,8 +53,36 @@ REGISTRY_FORMAT = shared_terminology.RegistryFormat(
 
 
 def _section_from_heading(heading: str) -> str:
-    match = SECTION_PATTERN.match(heading)
-    return match.group(1) if match else ""
+    length = len(heading)
+    index = 0
+
+    while index < length and "0" <= heading[index] <= "9":
+        index += 1
+
+    if index == 0:
+        return ""
+
+    while index < length and heading[index] == ".":
+        digit_start = index + 1
+        digit_end = digit_start
+
+        while digit_end < length and "0" <= heading[digit_end] <= "9":
+            digit_end += 1
+
+        if digit_end == digit_start:
+            break
+
+        index = digit_end
+
+    if index < length and "A" <= heading[index] <= "Z":
+        index += 1
+
+    if index < length and (
+        heading[index].isalnum() or heading[index] == "_"
+    ):
+        return ""
+
+    return heading[:index]
 
 
 def _in_section_hierarchy(section: str, root: str) -> bool:

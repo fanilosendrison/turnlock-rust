@@ -180,12 +180,31 @@ class NormativeTerminologyTests(unittest.TestCase):
     def test_fixture_conforms_with_intent_obligation_and_implication_uses(self) -> None:
         self.assertEqual([], checker.check_document(SPEC, GOLDEN_INVENTORY))
 
+    def test_section_extraction_is_maximal_and_fail_closed(self) -> None:
+        cases = (
+            ("2 Core", "2"),
+            ("2.2 Work", "2.2"),
+            ("2.2A Work", "2.2A"),
+            ("0.10I Work", "0.10I"),
+            ("2.2A—Work", "2.2A"),
+            ("Heading", ""),
+            ("2.2Afoo", ""),
+            ("2.2A_foo", ""),
+            ("2é", ""),
+            ("٢.٢ Heading", ""),
+        )
+        for heading, expected in cases:
+            with self.subTest(heading=heading):
+                self.assertEqual(expected, checker._section_from_heading(heading))
+
     def test_canonical_location_does_not_treat_section_twenty_as_section_two(self) -> None:
-        changed = SPEC.replace("## 2.1 Alpha", "## 20.1 Alpha")
-        entries, registry_errors = checker.parse_registry(changed)
-        self.assertEqual([], registry_errors)
-        _occurrences, errors = checker.discover_occurrences(changed, entries)
-        self.assertTrue(any("outside Section 2" in error for error in errors), errors)
+        for heading in ("20.1 Alpha", "2.1Afoo Alpha", "2.1A_foo Alpha"):
+            with self.subTest(heading=heading):
+                changed = SPEC.replace("## 2.1 Alpha", f"## {heading}")
+                entries, registry_errors = checker.parse_registry(changed)
+                self.assertEqual([], registry_errors)
+                _occurrences, errors = checker.discover_occurrences(changed, entries)
+                self.assertTrue(any("outside Section 2" in error for error in errors), errors)
 
     def test_role_mapping_uses_exact_section_hierarchies(self) -> None:
         expected = {
