@@ -735,6 +735,27 @@ claims:
     assurance_domain: formal-behavioral
     modality: safety
     formal_semantic_domain: operational
+  - id: TL-CLAIM-085
+    statement: >-
+      For every admitted nested workflow invocation occurrence selected from a main-agent region, when normal completion of that invocation is recognized, the resulting semantic state resumes that exact immediate caller main-agent region at its preserved point following the nested invocation.
+    normative_sources:
+      - TL-INV-008
+      - TL-INV-018
+      - TL-INV-019
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
+  - id: TL-CLAIM-086
+    statement: >-
+      For every admitted nested workflow invocation occurrence selected by an independent-agent region under explicitly delegated nested-workflow invocation authority, when normal completion of that invocation is recognized, the resulting semantic state resumes that exact immediate caller independent-agent region and resumes that region's preserved independent cognitive lineage.
+    normative_sources:
+      - TL-INV-008
+      - TL-INV-018
+      - TL-INV-019
+      - TL-INV-025
+    assurance_domain: formal-behavioral
+    modality: safety
+    formal_semantic_domain: operational
 normative_coverage:
   - invariant: TL-INV-001
     canonical_operational_coverage: full
@@ -781,6 +802,8 @@ normative_coverage:
       - TL-CLAIM-010
       - TL-CLAIM-011
       - TL-CLAIM-084
+      - TL-CLAIM-085
+      - TL-CLAIM-086
     residual_claims: []
   - invariant: TL-INV-009
     canonical_operational_coverage: partial
@@ -839,6 +862,8 @@ normative_coverage:
     formal_claims:
       - TL-CLAIM-011
       - TL-CLAIM-021
+      - TL-CLAIM-085
+      - TL-CLAIM-086
     residual_claims: []
   - invariant: TL-INV-019
     canonical_operational_coverage: full
@@ -846,6 +871,8 @@ normative_coverage:
       - TL-CLAIM-011
       - TL-CLAIM-023
       - TL-CLAIM-084
+      - TL-CLAIM-085
+      - TL-CLAIM-086
     residual_claims: []
   - invariant: TL-INV-020
     canonical_operational_coverage: none
@@ -890,6 +917,7 @@ normative_coverage:
       - TL-CLAIM-037
       - TL-CLAIM-038
       - TL-CLAIM-039
+      - TL-CLAIM-086
     residual_claims:
       - TL-CLAIM-040
   - invariant: TL-INV-026

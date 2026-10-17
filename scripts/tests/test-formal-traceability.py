@@ -2132,7 +2132,7 @@ class FormalTraceabilityTests(unittest.TestCase):
         self.assertEqual(1, fast_path.call_count)
         self.assertEqual([], renderer_subprocesses)
         self.assertEqual(42, summary["invariants"])
-        self.assertEqual(84, summary["claims"])
+        self.assertEqual(86, summary["claims"])
         self.assertFalse(summary["gate_a"]["ready"])
         self.assertEqual(
             "hostile assurance-decomposition review evidence required",
@@ -3074,13 +3074,227 @@ class FormalTraceabilityTests(unittest.TestCase):
                 errors,
             )
 
+    def test_agent_selected_positive_return_claims_match_approved_contract(
+        self,
+    ) -> None:
+        manifest = load_manifest(ROOT)
+        claim_by_id = {claim["id"]: claim for claim in manifest["claims"]}
+
+        self.assertEqual(
+            [f"TL-CLAIM-{number:03d}" for number in range(1, 87)],
+            [claim["id"] for claim in manifest["claims"]],
+        )
+        self.assertEqual(
+            {
+                "id": "TL-CLAIM-085",
+                "statement": (
+                    "For every admitted nested workflow invocation occurrence "
+                    "selected from a main-agent region, when normal completion "
+                    "of that invocation is recognized, the resulting semantic "
+                    "state resumes that exact immediate caller main-agent "
+                    "region at its preserved point following the nested "
+                    "invocation."
+                ),
+                "normative_sources": [
+                    "TL-INV-008",
+                    "TL-INV-018",
+                    "TL-INV-019",
+                ],
+                "assurance_domain": "formal-behavioral",
+                "modality": "safety",
+                "formal_semantic_domain": "operational",
+            },
+            claim_by_id["TL-CLAIM-085"],
+        )
+        self.assertEqual(
+            {
+                "id": "TL-CLAIM-086",
+                "statement": (
+                    "For every admitted nested workflow invocation occurrence "
+                    "selected by an independent-agent region under explicitly "
+                    "delegated nested-workflow invocation authority, when "
+                    "normal completion of that invocation is recognized, the "
+                    "resulting semantic state resumes that exact immediate "
+                    "caller independent-agent region and resumes that region's "
+                    "preserved independent cognitive lineage."
+                ),
+                "normative_sources": [
+                    "TL-INV-008",
+                    "TL-INV-018",
+                    "TL-INV-019",
+                    "TL-INV-025",
+                ],
+                "assurance_domain": "formal-behavioral",
+                "modality": "safety",
+                "formal_semantic_domain": "operational",
+            },
+            claim_by_id["TL-CLAIM-086"],
+        )
+        self.assertEqual(
+            {
+                "id": "TL-CLAIM-011",
+                "statement": (
+                    "Normal completion of an invocation returns that exact "
+                    "invocation occurrence to the same immediate caller "
+                    "context and authorizes only the continuation appropriate "
+                    "to that caller."
+                ),
+                "normative_sources": [
+                    "TL-INV-008",
+                    "TL-INV-018",
+                    "TL-INV-019",
+                    "TL-INV-035",
+                ],
+                "assurance_domain": "formal-behavioral",
+                "modality": "safety",
+                "formal_semantic_domain": "operational",
+            },
+            claim_by_id["TL-CLAIM-011"],
+        )
+        self.assertEqual(
+            {
+                "id": "TL-CLAIM-084",
+                "statement": (
+                    "For every admitted workflow-declared nested invocation "
+                    "occurrence whose normal completion is recognized, the "
+                    "resulting semantic state makes that exact immediate "
+                    "caller's preserved workflow-declared post-call "
+                    "continuation eligible according to the enclosing "
+                    "declared workflow topology."
+                ),
+                "normative_sources": [
+                    "TL-INV-008",
+                    "TL-INV-019",
+                    "TL-INV-035",
+                ],
+                "assurance_domain": "formal-behavioral",
+                "modality": "safety",
+                "formal_semantic_domain": "operational",
+            },
+            claim_by_id["TL-CLAIM-084"],
+        )
+
+        expected_formal_claims = {
+            "TL-INV-008": [
+                "TL-CLAIM-010",
+                "TL-CLAIM-011",
+                "TL-CLAIM-084",
+                "TL-CLAIM-085",
+                "TL-CLAIM-086",
+            ],
+            "TL-INV-018": [
+                "TL-CLAIM-011",
+                "TL-CLAIM-021",
+                "TL-CLAIM-085",
+                "TL-CLAIM-086",
+            ],
+            "TL-INV-019": [
+                "TL-CLAIM-011",
+                "TL-CLAIM-023",
+                "TL-CLAIM-084",
+                "TL-CLAIM-085",
+                "TL-CLAIM-086",
+            ],
+            "TL-INV-025": [
+                "TL-CLAIM-033",
+                "TL-CLAIM-034",
+                "TL-CLAIM-035",
+                "TL-CLAIM-036",
+                "TL-CLAIM-037",
+                "TL-CLAIM-038",
+                "TL-CLAIM-039",
+                "TL-CLAIM-086",
+            ],
+        }
+        for invariant, expected in expected_formal_claims.items():
+            with self.subTest(invariant=invariant):
+                self.assertEqual(
+                    expected,
+                    coverage_entry(manifest, invariant)["formal_claims"],
+                )
+
+        for invariant in ("TL-INV-035", "TL-INV-040", "TL-INV-042"):
+            with self.subTest(excluded_invariant=invariant):
+                formal_claims = coverage_entry(manifest, invariant)["formal_claims"]
+                self.assertNotIn("TL-CLAIM-085", formal_claims)
+                self.assertNotIn("TL-CLAIM-086", formal_claims)
+
+        self.assertEqual(
+            "partial",
+            coverage_entry(manifest, "TL-INV-025")[
+                "canonical_operational_coverage"
+            ],
+        )
+        self.assertEqual(
+            ["TL-CLAIM-040"],
+            coverage_entry(manifest, "TL-INV-025")["residual_claims"],
+        )
+
+    def test_agent_selected_positive_return_mapping_drift_fails(self) -> None:
+        cases = (
+            (
+                "missing required mapping",
+                "TL-INV-008",
+                "TL-CLAIM-085",
+                (
+                    "TL-CLAIM-085 declares normative source TL-INV-008 but "
+                    "TL-INV-008 does not list it in formal_claims or "
+                    "residual_claims"
+                ),
+            ),
+            (
+                "forbidden declared-path mapping",
+                "TL-INV-035",
+                "TL-CLAIM-085",
+                (
+                    "TL-INV-035 formal_claims lists TL-CLAIM-085 but its "
+                    "normative_sources do not include TL-INV-035"
+                ),
+            ),
+            (
+                "forbidden lineage-exclusion mapping",
+                "TL-INV-040",
+                "TL-CLAIM-086",
+                (
+                    "TL-INV-040 formal_claims lists TL-CLAIM-086 but its "
+                    "normative_sources do not include TL-INV-040"
+                ),
+            ),
+            (
+                "forbidden liveness mapping",
+                "TL-INV-042",
+                "TL-CLAIM-086",
+                (
+                    "TL-INV-042 formal_claims lists TL-CLAIM-086 but its "
+                    "normative_sources do not include TL-INV-042"
+                ),
+            ),
+        )
+        for name, invariant, claim_id, expected_error in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                fixture_root = make_fixture(temporary)
+                manifest = load_manifest(fixture_root)
+                formal_claims = coverage_entry(manifest, invariant)["formal_claims"]
+                if name == "missing required mapping":
+                    formal_claims.remove(claim_id)
+                else:
+                    formal_claims.append(claim_id)
+                save_manifest(fixture_root, manifest)
+
+                errors, _ = checker.collect_errors(
+                    fixture_root,
+                    check_generated=False,
+                )
+
+                self.assertIn(expected_error, errors)
+
     def test_missing_last_claim_id_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture_root = make_fixture(temporary)
             manifest = load_manifest(fixture_root)
 
             self.assertEqual(
-                "TL-CLAIM-084",
+                "TL-CLAIM-086",
                 manifest["claims"][-1]["id"],
             )
 
@@ -3095,8 +3309,8 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertTrue(
                 any(
                     "claim IDs must be contiguous from "
-                    "TL-CLAIM-001 through TL-CLAIM-084 "
-                    "(84 claims)" in error
+                    "TL-CLAIM-001 through TL-CLAIM-086 "
+                    "(86 claims)" in error
                     for error in errors
                 ),
                 errors,
@@ -3108,12 +3322,12 @@ class FormalTraceabilityTests(unittest.TestCase):
             manifest = load_manifest(fixture_root)
 
             self.assertEqual(
-                "TL-CLAIM-084",
+                "TL-CLAIM-086",
                 manifest["claims"][-1]["id"],
             )
 
             extra_claim = copy.deepcopy(manifest["claims"][-1])
-            extra_claim["id"] = "TL-CLAIM-085"
+            extra_claim["id"] = "TL-CLAIM-087"
             manifest["claims"].append(extra_claim)
 
             save_manifest(fixture_root, manifest)
@@ -3126,8 +3340,8 @@ class FormalTraceabilityTests(unittest.TestCase):
             self.assertTrue(
                 any(
                     "claim IDs must be contiguous from "
-                    "TL-CLAIM-001 through TL-CLAIM-084 "
-                    "(84 claims)" in error
+                    "TL-CLAIM-001 through TL-CLAIM-086 "
+                    "(86 claims)" in error
                     for error in errors
                 ),
                 errors,
@@ -7205,7 +7419,7 @@ class GateAProtocolV4Tests(unittest.TestCase):
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
         self.assertEqual(
-            "7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f",
+            "8cfab71e739a0b78c8cec8bd4dd2779d5de57191cbc223a4efac881031773be8",
             subject["sha256"],
         )
 
@@ -7253,7 +7467,7 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         self.assertEqual(2, bundle["protocol_bundle_schema_version"])
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
-        self.assertEqual("7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f", subject["sha256"])
+        self.assertEqual("8cfab71e739a0b78c8cec8bd4dd2779d5de57191cbc223a4efac881031773be8", subject["sha256"])
 
     def test_review_schema5_is_current(self):
         schema = json.loads((ROOT / "formal/reviews/review-evidence.schema.json").read_text())
@@ -8376,7 +8590,7 @@ class GateAProtocolV5RegressionTests(unittest.TestCase):
         subject, errors = checker.build_gate_a_review_subject(ROOT, manifest)
         self.assertEqual([], errors)
         self.assertEqual(
-            "7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f",
+            "8cfab71e739a0b78c8cec8bd4dd2779d5de57191cbc223a4efac881031773be8",
             subject["sha256"],
         )
 
@@ -8911,7 +9125,7 @@ class GateAProtocolV4MetaSchemaTests(unittest.TestCase):
         "7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72"
     )
     GATE_A_SUBJECT_SHA = (
-        "7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f"
+        "8cfab71e739a0b78c8cec8bd4dd2779d5de57191cbc223a4efac881031773be8"
     )
     LEGACY_EVIDENCE_ALIAS = "formal/reviews/review-evidence.schema.json"
     LEGACY_BUNDLE_ALIAS = "formal/reviews/review-protocol-bundle.schema.json"

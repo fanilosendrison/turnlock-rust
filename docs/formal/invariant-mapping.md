@@ -19,7 +19,7 @@ reason: hostile assurance-decomposition review evidence required
 
 Gate A assurance-decomposition subject:
 - selector: `gate-a-assurance-decomposition-v1`
-- SHA-256: `7171ccc03b7ccf698e31a2880ac235636e1c2a178102ee0a8b3acb38c69b6a1f`
+- SHA-256: `8cfab71e739a0b78c8cec8bd4dd2779d5de57191cbc223a4efac881031773be8`
 
 Canonical-Formal-Semantics-Ready:
 NOT-APPLICABLE — candidate model absent
@@ -38,7 +38,7 @@ NOT-APPLICABLE — candidate model absent
 | `TL-INV-005` | full | `TL-CLAIM-007` | — |
 | `TL-INV-006` | full | `TL-CLAIM-008` | — |
 | `TL-INV-007` | full | `TL-CLAIM-009` | — |
-| `TL-INV-008` | full | `TL-CLAIM-010`, `TL-CLAIM-011`, `TL-CLAIM-084` | — |
+| `TL-INV-008` | full | `TL-CLAIM-010`, `TL-CLAIM-011`, `TL-CLAIM-084`, `TL-CLAIM-085`, `TL-CLAIM-086` | — |
 | `TL-INV-009` | partial | `TL-CLAIM-012` | `TL-CLAIM-013` |
 | `TL-INV-010` | full | `TL-CLAIM-009` | — |
 | `TL-INV-011` | none | — | `TL-CLAIM-014` |
@@ -48,14 +48,14 @@ NOT-APPLICABLE — candidate model absent
 | `TL-INV-015` | none | — | `TL-CLAIM-018` |
 | `TL-INV-016` | full | `TL-CLAIM-019` | — |
 | `TL-INV-017` | full | `TL-CLAIM-020`, `TL-CLAIM-021`, `TL-CLAIM-022` | — |
-| `TL-INV-018` | full | `TL-CLAIM-011`, `TL-CLAIM-021` | — |
-| `TL-INV-019` | full | `TL-CLAIM-011`, `TL-CLAIM-023`, `TL-CLAIM-084` | — |
+| `TL-INV-018` | full | `TL-CLAIM-011`, `TL-CLAIM-021`, `TL-CLAIM-085`, `TL-CLAIM-086` | — |
+| `TL-INV-019` | full | `TL-CLAIM-011`, `TL-CLAIM-023`, `TL-CLAIM-084`, `TL-CLAIM-085`, `TL-CLAIM-086` | — |
 | `TL-INV-020` | none | — | `TL-CLAIM-024` |
 | `TL-INV-021` | none | — | `TL-CLAIM-025` |
 | `TL-INV-022` | none | — | `TL-CLAIM-014`, `TL-CLAIM-026` |
 | `TL-INV-023` | none | — | `TL-CLAIM-026` |
 | `TL-INV-024` | full | `TL-CLAIM-027`, `TL-CLAIM-028`, `TL-CLAIM-029`, `TL-CLAIM-030`, `TL-CLAIM-032`, `TL-CLAIM-075`, `TL-CLAIM-080`, `TL-CLAIM-081` | — |
-| `TL-INV-025` | partial | `TL-CLAIM-033`, `TL-CLAIM-034`, `TL-CLAIM-035`, `TL-CLAIM-036`, `TL-CLAIM-037`, `TL-CLAIM-038`, `TL-CLAIM-039` | `TL-CLAIM-040` |
+| `TL-INV-025` | partial | `TL-CLAIM-033`, `TL-CLAIM-034`, `TL-CLAIM-035`, `TL-CLAIM-036`, `TL-CLAIM-037`, `TL-CLAIM-038`, `TL-CLAIM-039`, `TL-CLAIM-086` | `TL-CLAIM-040` |
 | `TL-INV-026` | partial | `TL-CLAIM-034`, `TL-CLAIM-041` | `TL-CLAIM-042`, `TL-CLAIM-043` |
 | `TL-INV-027` | full | `TL-CLAIM-027`, `TL-CLAIM-029`, `TL-CLAIM-030`, `TL-CLAIM-031` | — |
 | `TL-INV-028` | partial | `TL-CLAIM-015`, `TL-CLAIM-044`, `TL-CLAIM-045`, `TL-CLAIM-046` | `TL-CLAIM-016` |
@@ -162,6 +162,8 @@ NOT-APPLICABLE — candidate model absent
 | `TL-CLAIM-082` | formal-behavioral | safety | `TL-INV-041` | Acceptance of a caller invocation does not pre-authorize future descendant invocations; every attempted nested invocation occurrence has its own admission boundary. |
 | `TL-CLAIM-083` | formal-behavioral | liveness | `TL-INV-042` | For every particular TURNLOCK-owned progression occurrence, if that occurrence is eligible and remains continuously eligible and continuously applicable under its governing workflow semantics, TURNLOCK eventually advances that same occurrence. |
 | `TL-CLAIM-084` | formal-behavioral | safety | `TL-INV-008`, `TL-INV-019`, `TL-INV-035` | For every admitted workflow-declared nested invocation occurrence whose normal completion is recognized, the resulting semantic state makes that exact immediate caller's preserved workflow-declared post-call continuation eligible according to the enclosing declared workflow topology. |
+| `TL-CLAIM-085` | formal-behavioral | safety | `TL-INV-008`, `TL-INV-018`, `TL-INV-019` | For every admitted nested workflow invocation occurrence selected from a main-agent region, when normal completion of that invocation is recognized, the resulting semantic state resumes that exact immediate caller main-agent region at its preserved point following the nested invocation. |
+| `TL-CLAIM-086` | formal-behavioral | safety | `TL-INV-008`, `TL-INV-018`, `TL-INV-019`, `TL-INV-025` | For every admitted nested workflow invocation occurrence selected by an independent-agent region under explicitly delegated nested-workflow invocation authority, when normal completion of that invocation is recognized, the resulting semantic state resumes that exact immediate caller independent-agent region and resumes that region's preserved independent cognitive lineage. |
 
 ## Formal realizations
 
@@ -255,6 +257,8 @@ No executable formal realizations are declared yet.
 - `TL-CLAIM-082` → `TL-INV-041`
 - `TL-CLAIM-083` → `TL-INV-042`
 - `TL-CLAIM-084` → `TL-INV-008`, `TL-INV-019`, `TL-INV-035`
+- `TL-CLAIM-085` → `TL-INV-008`, `TL-INV-018`, `TL-INV-019`
+- `TL-CLAIM-086` → `TL-INV-008`, `TL-INV-018`, `TL-INV-019`, `TL-INV-025`
 
 Once formal realizations exist, this section also renders `formal realization identifier → claim IDs → invariant IDs`.
 
