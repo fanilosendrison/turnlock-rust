@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-15"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY
-version: "2.0.0"
+version: "2.0.1"
 scope: gate-a-campaign-runner/repository-control/publication-remote-recovery
 status: active
 consumers: [architect, coding-agent]
@@ -23,11 +23,11 @@ complete M7 `repository-control` NIB-M coverage.
 It consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.2
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.3
 NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.0.0
 NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 8.0.0
-NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.1.1
+NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION 2.1.2
 NIB-M-GATE-A-RECOVERY-OPERATOR-RECONCILIATION 2.1.0
 NIB-M-GATE-A-RECOVERY-OPERATOR-BOUNDARY 2.1.0
 CampaignArtifactStore
@@ -56,6 +56,18 @@ The existing four M7-B Git dependency primitives, M8 recovery classifications,
 M2 authoritative-state admission, candidate semantics, publication-intent
 identity, and Gate A outcome contract remain unchanged. The mandatory Git
 Dependency Contract is still absent.
+
+Version `2.0.1` incorporates the Issue #78 M7/proto-ring responsibility
+clarification into the already published Issue #87 recovery-safe M7-B contract.
+The exact four M7-B Git dependency primitives, T/P division, direct
+applied/not-applied result identities, and existing pending/unknown recovery
+branches retain their meanings. External authoritative-ref protection remains
+owned by the adopted proto-ring governance boundary.
+
+This revision does not restore the removed `recovery-successor-observed`
+outcome, does not create a recovered terminal CapturedExecutionResult from
+target T, and does not authorize a force-like Git transport. The required
+Git Dependency Contract remains absent.
 
 ## 2. Responsibility boundary
 
@@ -134,6 +146,26 @@ materialize_projected_successor
 
 boundaries and treats contradiction with either as an implementation/process/
 integrity failure.
+
+### 3.1 External governance and candidate admission exclusion
+
+M7-B observes a single exact Git publication target, proves the current
+predecessor P is ancestor-or-equal to M7-A's fixed successor T, and performs
+only the exact authorized effect after Arm. It does not reimplement proto-ring
+Authoritative Ref Monotonicity, whose ordinary-writer protection is externally
+enforced; a transition-specific P <= T proof and external ref protection are
+independent requirements. It also does not create Authoritative State Admission
+or assert that all future commits must pass Gate A. No external route, including
+direct Git mutation, may bypass the effective policy of the publication target.
+
+Neither Ruu nor another publication service is a mandatory component of the
+selected v1 runner: an alternative executor requires its own exact conformance
+and accepted construction handoff. In particular, no Git CLI or GraphQL/API
+syntax is silently selected by this Module Brief. A transport with ambiguous
+atomic expected-old behavior, uncertain evidence, unexpected ref writes, or
+forbidden force/non-FF effects fails closed. The future Git Dependency Contract
+must qualify the actual endpoint and must not reinterpret `applied`,
+`not-applied`, or `uncertain` from client convenience.
 
 ## 4. Shared Git Dependency Contract surface
 

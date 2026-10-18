@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-01"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-MATERIALIZATION-CANDIDATE-CONSTRUCTION
-version: "2.1.1"
+version: "2.1.2"
 scope: gate-a-campaign-runner/repository-control/materialization-candidate-construction
 status: active
 consumers: [architect, coding-agent]
@@ -18,13 +18,20 @@ superseded_by: []
 It consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.3
 NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS 1.0.1
-NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 2.0.1
 CampaignArtifactStore
 DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
 ```
+
+Version `2.1.2` synchronizes NIB-S `13.0.3` and M7-B `2.0.1`
+with the Issue #78 generic-governance/exact-Git-operation boundary. Its
+19 Git primitives, baseline object closure, bundle, canonical candidate,
+tree/commit construction, repair/projection bytes, successor T, isolation,
+replay and error behavior remain unchanged. This is construction
+responsibility placement, not a Git CLI transport selection.
 
 Version `2.1.1` is dependency/boundary synchronization with NIB-S `13.0.0`,
 M0 `1.4.0`, and M7-B `1.0.0`. It changes no M7-A algorithm, public type,
@@ -163,15 +170,37 @@ that projection and materialize its exact Git objects, but it may not derive
 another successor, modify commit metadata, select another parent, or make
 successor identity depend on current remote state.
 
+### 1.1 Proto-ring governance versus Git baseline ownership
+
+The mandatory proto-ring Canonical RepositoryState observes exact mutable local
+HEAD/index/worktree/filesystem state, under its own explicit coherence
+conditions. M7-A's `RepositoryInspectionRef`, immutable Git object closure,
+`baselineGitBasis` and independently restored tree serve a different,
+publication-capable baseline purpose. M7-A MUST NOT present those values as
+Canonical RepositoryState identities, perform an alternative Repository
+Integrity evaluation, infer generic projection/evidence-binding truth from an
+OID, or silently reimplement a proto-ring governance capability. Applicable
+generic checks remain bound to the consumer's pinned proto-ring provider; M6
+continues to own execution of the Turnlock-specific qualification authority.
+
+`inspectRepositoryHead`, `listTreeEntries`, `buildTree`, and other Git
+operations in Section 2 are exact Git data primitives, not competing public
+governance observation/evaluation APIs. `classifyGitMetadataPath` protects
+raw Git-tree candidate paths and must not be equated with a different
+proto-ring path or whitespace contract merely because both validate paths.
+
+No new general-purpose Git storage library, state-governance engine, authoring
+decision, or commit-publication service is authorized by this clarification.
+
 ## 2. Construction dependencies
 
 M7-A consumes exactly these construction dependencies:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.3
 NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-ASSURANCE-LEDGER-REPOSITORY-PROJECTION-READINESS 1.0.1
-NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 1.0.0
+NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY 2.0.1
 CampaignArtifactStore
 DC-GIT-CLI-GATE-A-REPOSITORY-CONTROL
 ```
@@ -212,7 +241,7 @@ flags, controlled environment, config semantics, byte/NUL parsing, refspec
 grammar, object-format mechanics, raw object mechanics, bundle mechanics,
 credential boundary, and Git error interpretation.
 
-M7-B `1.0.0` extends the same future shared Dependency Contract with exactly:
+M7-B `2.0.1` extends the same future shared Dependency Contract with exactly:
 
 ```text
 20 observePublicationTarget
@@ -1041,7 +1070,7 @@ P.entries duplicate-free by exact repositoryPath bytes
 
 every entry.content exact and intact
 every entry.content.repositoryPath == null
-every entry path/mediaType obeys NIB-S 13.0.0
+every entry path/mediaType obeys NIB-S 13.0.3
 ```
 
 M7-A never independently decides whether `A.protocolBundle` is current. After
@@ -2173,7 +2202,7 @@ M7A-22 Assurance repository placement never changes exact projection source
 M7A-23 Projection entry repositoryPath is placement authority; entry.content
         repositoryPath is always null.
 
-M7A-24 Projection media type is path-qualified exactly by NIB-S 13.0.0.
+M7A-24 Projection media type is path-qualified exactly by NIB-S 13.0.3.
 
 M7A-25 Every assurance-projected Git blob is represented in candidate
         materialization through an exact application/octet-stream candidate-
@@ -2367,5 +2396,5 @@ GREEN for M7-A remains forbidden until
 primitive with the exact contract consumed here. This Dependency Contract
 remains absent and is not created by C9-G.
 
-M7-B `1.0.0` owns publication, remote observation, publication recovery, and
+M7-B `2.0.1` owns publication, remote observation, publication recovery, and
 repository-control executor-domain recovery behavior.

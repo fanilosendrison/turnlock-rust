@@ -300,7 +300,7 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `13.0.2`. The brief's own NIB metadata is the sole source for its
+version is `13.0.3`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M0 `contracts` is covered by
@@ -557,7 +557,7 @@ Therefore:
 P6 remains current
 execution-receipt schema 3.0 remains current for P6
 review-evidence schema 5.0 remains current for P6
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.2 is active
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.3 is active
 M5-A/B/C/D construction is closed by the four active briefs
 P7 remains immutable, mechanically validated and permanently inactive
 P8 artifact/construction authority exists and remains inactive until C15
@@ -605,7 +605,7 @@ candidate construction and M7-B publication / remote observation / recovery.
 
 The active M7-A Module Brief is
 [`nib-m-gate-a-repository-control-materialization-candidate-construction.md`](nib-m-gate-a-repository-control-materialization-candidate-construction.md),
-version `2.1.1`. It owns repository inspection, exact baseline Git basis,
+version `2.1.2`. It owns repository inspection, exact baseline Git basis,
 publication-target identity resolution, canonical C0 materialization, exact
 RepairIntent patch application, exact assurance repository projection
 application, combined repair plus assurance successor construction, Git tree
@@ -634,7 +634,7 @@ GREEN.
 
 The active M7-B Module Brief is
 [`nib-m-gate-a-repository-control-publication-remote-recovery.md`](nib-m-gate-a-repository-control-publication-remote-recovery.md),
-version `2.0.0`. It owns exact target-predecessor observation, positive
+version `2.0.1`. It owns exact target-predecessor observation, positive
 fast-forward proof, publication preparation and realization selection,
 publication intent/obligation/WorkItem construction, pre-Arm target
 revalidation, conditional predecessor-enforced mutation, direct outcome
