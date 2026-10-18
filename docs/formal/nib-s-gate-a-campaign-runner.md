@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-09-20"
 step_id: 1
 id: NIB-S-GATE-A-CAMPAIGN-RUNNER
-version: "13.0.1"
+version: "13.0.2"
 scope: gate-a-hostile-review-campaign-runner
 status: active
 consumers: [architect, coding-agent]
@@ -1180,6 +1180,16 @@ hostile-review semantic, P6 behavior, P8 semantic, QLEK meaning, Admission
 meaning, recovery classification, publication meaning, external `RunnerResult`
 schema, module boundary or protocol activation. P6 remains current, P7 remains
 permanently inactive and P8 remains inactive until C15.
+
+Version `13.0.2` corrects Issue #87's publication-recovery execution-truth
+boundary. Observing that the exact remote publication target equals the intended
+successor does not establish which armed Execution produced that state.
+Selected v1 M7-B therefore preserves that observation as read-only recovery
+evidence and returns pending rather than synthesizing a terminal captured
+result. Existing M8 recovery classification, M2 admission and Gate A outcome
+semantics remain unchanged. This is a construction correction derived from
+existing exact-Execution recovery authority, not a new product or protocol
+decision.
 
 The pre-publication discovery is recorded exactly as:
 
@@ -3002,7 +3012,7 @@ PreparedPublication.publicationObligation.obligationId.
 The publication WorkItem operation must bind the exact `PublicationIntent`.
 
 Its exact runner-owned operation schema and pure binding extractor belong to
-M7-B `1.0.0`.
+M7-B `2.0.0`.
 
 M1 may coordinate this bundle but may not invent or reinterpret its WorkItem,
 obligation, transition, or repository-domain meaning.
@@ -3077,7 +3087,7 @@ Its `authority` must equal that confirmation's exact transition successor by bot
 Its `repositoryPath` is an operational location only. The path never substitutes for the bound target, authority, candidate, confirmation, or materialization evidence.
 
 `PublicationAlreadyCurrentObservationRef.evidence` is duplicate-free and every
-referenced artifact is intact. M7-B `1.0.0` defines the exact read-only
+referenced artifact is intact. M7-B `2.0.0` defines the exact read-only
 observation artifact schema and Git dependency interpretation.
 
 `PublicationNonApplicationRef.basisArtifacts` is duplicate-free, its `proof` is
@@ -6680,7 +6690,7 @@ supplies the publication predecessor.
 Publication preparation performs no remote mutation but may perform exact
 read-only target observation and acquire immutable Git objects/evidence needed
 to establish the predecessor and fast-forward relation. Remote observation is
-not the publication side effect. M7-B `1.0.0` and the future Git Dependency
+not the publication side effect. M7-B `2.0.0` and the future Git Dependency
 Contract define the exact observation and Git-dependency representations.
 
 It constructs the exact immutable successor repository object without mutating
@@ -8343,7 +8353,13 @@ M7 captures the immediate publication effect but does not classify uncertainty.
 
 If publication effect identity is uncertain, M7 returns an `UnresolvedExecutionRecoveryRef`, M1 commits it, and M8 performs the same execution-recovery classification used elsewhere in the runner.
 
-A recovered completed publication produces a recovered `CapturedExecutionResult`, which is passed to the same M7 publication-observation qualification boundary as an immediately captured publication result.
+Only an independently positively established completed publication Execution
+may produce a recovered `CapturedExecutionResult` for the ordinary M7
+publication-observation qualification boundary. Current remote target equality,
+including exact commit and tree equality with the intended successor, is not
+such a terminal witness. The selected v1 Git recovery mechanism has no qualified
+exact historical operation-outcome query and creates no recovered terminal
+captured result from target-state observation.
 
 There is no second publication-specific uncertainty-classification system.
 
@@ -8366,8 +8382,11 @@ After uncertainty:
 observed exact target ref commit == transition.successor.commitSha
 AND
 observed exact target ref tree == transition.successor.treeSha
-→ publication may be mechanically confirmed after target, ancestry,
-  and material-identity verification
+→ intended published target state is observed
+→ the historical outcome of the exact armed Execution is not established
+→ selected v1 M7 recovery remains pending with exact read-only continuability
+→ no recovered completion, confirmation, or GATE-A-READY may be inferred
+  from this target-state observation alone
 
 observed exact target ref commit == transition.predecessor.commitSha
 AND
@@ -8385,7 +8404,10 @@ Every publication attempt must be a compare-and-swap-style mutation of the exact
 
 Therefore a stale concurrent attempt using that same predecessor cannot overwrite a successor after another attempt has already won the transition: its predecessor condition must fail.
 
-Publication recovery must never infer exact completion from tree equality alone.
+Publication recovery must never infer exact Execution completion from remote
+target-state observation alone, even when both the commit SHA and tree SHA equal
+the intended successor. Exact target-state identity and exact historical
+Execution outcome are separate propositions.
 
 A read followed by an unconditional write is insufficient when it leaves an inspection-to-mutation race.
 
@@ -8403,13 +8425,16 @@ conditional publication operation did not apply its publication effect
 
 exact target proves intended successor present
 AND exact transition/material identity is established
-→ M7 recovery observation = terminal captured publication observation
-
-target state is nonterminal, the exact committed conditional publication
-operation remains mechanically queryable, and another exact observation is
-positively established to be non-mutating
+AND another exact recovery observation is positively established to be non-mutating
 → M7 recovery observation = pending
 → carries exact ReconciliationContinuabilityRef
+→ no recovered CapturedExecutionResult is created
+
+exact target proves expected predecessor still present
+AND another exact recovery observation is positively established to be non-mutating
+→ M7 recovery observation = pending
+→ carries exact ReconciliationContinuabilityRef
+→ target equality does not prove non-execution
 
 repository-domain evidence positively establishes that the exact committed
 conditional publication operation cannot be classified as applied, not applied,
@@ -8417,6 +8442,18 @@ or safely re-observable through the available recovery capability
 → M7 recovery observation = unknown
 → carries exact RecoveryIndeterminacyRef
 ```
+
+The following histories cannot be distinguished by a later target-state
+observation alone:
+
+H1: E performed the authorized CAS(P → T), but its response was lost.
+H2: E did not successfully perform CAS(P → T); another writer published
+    exactly T, and E's response was lost.
+
+Both histories permit the same subsequent observation of T. Neither that
+observation nor its content-addressed identity proves the historical terminal
+outcome of E. Selected v1 must retain the uncertainty rather than promote
+external-state satisfaction to PROVEN-COMPLETED(E).
 
 For M7 recovery, the relevant non-execution effect boundary is the exact
 conditional mutation of the exact PublicationIntent target ref from its exact
@@ -8438,7 +8475,7 @@ conditional publication operation.
 
 The exact M7 proof artifact schema, conditional-operation identity, repository
 evidence interpretation, and dependency mechanism sufficient to prove
-non-application belong to M7-B `1.0.0` and the future Git Dependency Contract.
+non-application belong to M7-B `2.0.0` and the future Git Dependency Contract.
 
 A publication pending observation must not perform, reissue, or replay the
 publication mutation. Its `ReconciliationContinuabilityRef` authorizes only the

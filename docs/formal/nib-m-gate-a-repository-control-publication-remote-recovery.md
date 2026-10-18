@@ -6,7 +6,7 @@ workspace: "turnlock-rust"
 date: "2026-10-15"
 step_id: 2
 id: NIB-M-GATE-A-REPOSITORY-CONTROL-PUBLICATION-REMOTE-RECOVERY
-version: "1.0.0"
+version: "2.0.0"
 scope: gate-a-campaign-runner/repository-control/publication-remote-recovery
 status: active
 consumers: [architect, coding-agent]
@@ -23,7 +23,7 @@ complete M7 `repository-control` NIB-M coverage.
 It consumes exactly:
 
 ```text
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.0
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.2
 NIB-M-GATE-A-CONTRACTS 1.4.0
 NIB-M-GATE-A-CAMPAIGN-STATE-MUTATION-EXECUTION 9.0.0
 NIB-M-GATE-A-CAMPAIGN-STATE-SNAPSHOT-INTEGRITY 8.0.0
@@ -44,6 +44,18 @@ must still close M1 orchestration. C10/NIB-T has not begun.
 
 The required Git Dependency Contract remains absent. This brief specifies its
 exact consumer surface but does not create it. M7-B is not GREEN.
+
+Version `2.0.0` closes Issue #87's execution-truth recovery defect.
+The formerly admitted synthetic recovered-successor publication-attempt
+outcome is removed. The active attempt-result contract is revised to v2 with
+only the two direct positive applied/not-applied outcomes. A fresh recovered
+observation of T now provides read-only pending continuability rather than
+a captured terminal result.
+
+The existing four M7-B Git dependency primitives, M8 recovery classifications,
+M2 authoritative-state admission, candidate semantics, publication-intent
+identity, and Gate A outcome contract remain unchanged. The mandatory Git
+Dependency Contract is still absent.
 
 ## 2. Responsibility boundary
 
@@ -692,17 +704,16 @@ M7-B exists.
 Define exactly:
 
 ```ts
-interface GateAPublicationAttemptResultV1 {
+interface GateAPublicationAttemptResultV2 {
   readonly schema:
-    "gate-a-publication-attempt-result.v1";
+    "gate-a-publication-attempt-result.v2";
   readonly publicationIntentId: PublicationIntentId;
   readonly target: RepositoryPublicationTargetRef;
   readonly expectedPredecessor: RepositoryAuthorityRef;
   readonly intendedSuccessor: RepositoryAuthorityRef;
   readonly outcome:
     | "conditional-update-applied"
-    | "conditional-update-not-applied"
-    | "recovery-successor-observed";
+    | "conditional-update-not-applied";
 }
 ```
 
@@ -908,12 +919,21 @@ establish exact successor returns blocked cause
 
 ### 21.3 Recovered execution
 
-Require request kind `executed-publication` and origin `recovered-execution`.
-`not-applied` is forbidden under all conditions. A raw outcome
-`conditional-update-not-applied` is implementation/process/integrity failure.
-The only M7-B recovery terminal attempt outcome is
-`recovery-successor-observed`. Freshly verify successor and construct exact
-confirmation and view.
+Selected v1 M7-B has no qualified recovery mechanism capable of establishing
+the exact terminal outcome of the original armed publication Execution from
+historical operation evidence. Its recovery port therefore never constructs
+a recovered CapturedExecutionResult or recovered publication-attempt result.
+
+For a selected-v1 publication WorkItem, invoking
+qualify_publication_observation with sourceOrigin = recovered-execution and a
+purported recovered CapturedExecutionResult is an
+implementation/process/integrity failure. It creates no confirmation, published
+view, non-application fact, operational blocker, or M2 mutation.
+
+M7-B must not reinterpret a remote target-state observation as a direct
+positive applied result. Generic M8/M2 support for genuinely proven recovered
+terminal outcomes remains unchanged. The two positively established direct
+result kinds remain governed by Section 21.2.
 
 ## 22. Operational cause union and resolution contracts
 
@@ -999,9 +1019,32 @@ Perform one fresh `observePublicationTarget`.
 
 ### 23.1 Target is T
 
-Construct exact attempt artifact with outcome `recovery-successor-observed` and
-return `kind = terminal`, `outcome.kind = captured`, with exact recovered
-`CapturedExecutionResult` and immutable observation evidence.
+Require a positive fresh observation that the exact target authority equals T
+by both commit SHA and tree SHA.
+
+This establishes the current remote target state only. It does not establish
+whether the exact armed Execution E performed the authorized conditional
+mutation. Another writer may have installed the same T.
+
+Construct the existing exact
+GateAPublicationReconciliationContinuabilityV1 payload from the bound recovery
+operation. Seal it through M0 canonical runner JSON.
+
+Construct the existing NIB-S ReconciliationContinuabilityRef envelope with:
+
+- the exact unresolved Execution E;
+- the exact WorkItem and repository-control executor;
+- the exact dispatch intent and RecoveryCapabilityRef;
+- the sealed continuability payload;
+- basisArtifacts equal to the one-element sequence containing the exact fresh
+  target-observation ArtifactRef.
+
+Return ExecutionRecoveryObservation.kind = pending with that exact envelope.
+
+This guarantees only safe read-only reobservation. It creates no
+GateAPublicationAttemptResultV2, CapturedExecutionResult,
+PublicationConfirmationRef, PublicationNonApplicationRef, terminal observation,
+PROVEN-COMPLETED, or authority to repeat the publication mutation.
 
 ### 23.2 Target is P
 
@@ -1044,6 +1087,15 @@ cannot create, repeat, or replay publication. Construct the NIB-S common
 `ReconciliationContinuabilityRef` envelope with exact Execution, WorkItem,
 executor, dispatch intent, recovery capability, payload artifact, and
 observation basis.
+
+For the target-T branch, the exact basisArtifacts sequence contains only the
+fresh target-observation ArtifactRef. Repeated observations returning the same
+target authority or even the same content-addressed ArtifactRef establish no
+additional historical Execution truth.
+
+All observations may remain pending throughout the existing finite M8 policy.
+Pending-policy exhaustion is not executor-domain recovery indeterminacy and
+must never be converted to UNRESOLVABLE merely because time elapsed.
 
 Define indeterminacy payload exactly:
 
@@ -1195,6 +1247,12 @@ M7B-22 A preparation obligation is operational construction state, not
 M7B-23 Recovery reobservation is read-only.
 M7B-24 P7 remains permanently inactive.
 M7B-25 P8 remains inactive until C15.
+M7B-26 Exact target T observation after uncertain armed publication never
+        proves that Execution's historical terminal outcome. Selected v1
+        returns positive read-only pending continuability for T.
+M7B-27 Selected v1 produces publication-attempt-result.v2 only for positive
+        direct applied/not-applied outcomes. Recovery creates neither a
+        synthetic publication attempt nor a captured terminal result.
 ```
 
 ## 30. Future NIB-T requirements
@@ -1219,7 +1277,12 @@ conditional update applied produces direct captured result
 conditional update positive not-applied produces direct captured result and PublicationNonApplicationRef
 conditional update uncertain produces unresolved Execution
 crash after Arm uses recovery only
-recovery target T produces recovered captured result
+recovery target T produces pending with exact read-only continuability, never a recovered captured result
+H1 original Execution published T then lost response: later T observation stays nonterminal
+H2 another writer published identical T: the same later observation stays nonterminal
+six valid target-T pending observations exhaust M8 repository policy without PROVEN-COMPLETED
+target-T pending never authorizes a second publication mutation
+direct positive applied and direct positive not-applied retain distinct terminal results
 recovery target P is pending and never PROVEN-NOT-EXECUTED
 recovery target missing is indeterminate
 recovery target X other than P/T is indeterminate
@@ -1252,6 +1315,9 @@ perform unconditional push
 retry remote mutation inside M7-B
 replay publication during recovery
 infer non-execution from target == predecessor
+infer terminal Execution completion from target == intended successor
+convert a recovered target observation into a direct positive applied result
+fabricate an execution-terminal witness from commit/tree equality
 infer non-execution from timeout
 infer non-execution from missing successor
 use tree equality without exact commit identity

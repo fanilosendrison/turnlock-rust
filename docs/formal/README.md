@@ -300,7 +300,7 @@ campaign runner is documented in
 
 The campaign-runner System Brief is stored in
 [`nib-s-gate-a-campaign-runner.md`](nib-s-gate-a-campaign-runner.md). Its current
-version is `13.0.1`. The brief's own NIB metadata is the sole source for its
+version is `13.0.2`. The brief's own NIB metadata is the sole source for its
 construction lifecycle status.
 
 M0 `contracts` is covered by
@@ -557,7 +557,7 @@ Therefore:
 P6 remains current
 execution-receipt schema 3.0 remains current for P6
 review-evidence schema 5.0 remains current for P6
-NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.1 is active
+NIB-S-GATE-A-CAMPAIGN-RUNNER 13.0.2 is active
 M5-A/B/C/D construction is closed by the four active briefs
 P7 remains immutable, mechanically validated and permanently inactive
 P8 artifact/construction authority exists and remains inactive until C15
@@ -634,7 +634,7 @@ GREEN.
 
 The active M7-B Module Brief is
 [`nib-m-gate-a-repository-control-publication-remote-recovery.md`](nib-m-gate-a-repository-control-publication-remote-recovery.md),
-version `1.0.0`. It owns exact target-predecessor observation, positive
+version `2.0.0`. It owns exact target-predecessor observation, positive
 fast-forward proof, publication preparation and realization selection,
 publication intent/obligation/WorkItem construction, pre-Arm target
 revalidation, conditional predecessor-enforced mutation, direct outcome
@@ -645,6 +645,13 @@ Together M7-A and M7-B provide complete M7 Module Brief coverage while
 preserving `M7-A = T` and `M7-B = P / P <= T / remote execution and recovery`.
 M7-B consumes M0 canonical JSON and leaves recovery classification and blocker
 materialization to unchanged M8-A/M8-B.
+
+Issue #87 correction: selected v1 M7-B cannot infer the historical terminal
+outcome of an uncertain armed publication Execution from the current remote
+target equaling T. Exact T observation yields read-only pending continuability,
+not a recovered captured result. M8/M2 remain the existing recovery/admission
+owners. The Git Dependency Contract remains absent and live publication
+transport conformance remains unqualified.
 
 M8 `recovery-operator` is architecturally decomposed into two active Module
 Briefs:
