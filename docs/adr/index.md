@@ -73,6 +73,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) | Define provider-reported effective model identity resolution | accepted | 2026-10-03 | complete | Gate A provider-reported model identity resolution<br>Canonical effective model identity channel<br>Provider-reported unresolved-alias handling<br>Reviewer identity realization conformance |
 | [ADR-055](adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md) | Define structured Gate A adjudication and resolution qualification | accepted | 2026-10-05 | complete | Gate A structured adjudication protocol evolution<br>Gate A structured resolution-qualification protocol evolution<br>Gate A supporting-role reviewer acquisition<br>Gate A role-aware deterministic cognitive-output validation<br>Gate A resolution challenge objectives<br>Gate A stale-protocol re-adjudication identity |
 | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) | Define global semantic-question identity and single-admission resolution evidence | accepted | 2026-10-06 | complete | Gate A protocol-v8 semantic-question identity<br>Gate A global single-admission cognitive-result authority<br>Gate A cross-run and cross-root semantic-result reuse<br>Gate A semantic-fact versus evidence-provenance separation<br>Gate A candidate-bound resolution identity and freshness<br>Gate A semantic-execution anti-model-shopping fencing<br>Gate A protocol-v7 non-activation and protocol-v8 activation lineage |
+| [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | Define Gate A runner ready as observation-bound publication | accepted | 2026-10-19 | complete | Gate A runner v1 terminal outcome semantics<br>Observation-bound publication and temporal claim scope<br>Separation of runner completion and current formal Gate A readiness<br>Publication-state satisfaction versus execution-outcome attribution<br>Gate A controller publication responsibility boundary |
 
 ## Recorded outgoing relations
 
@@ -223,6 +224,10 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) | confirms | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
 | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) | confirms | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) |
 | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) | confirms | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
+| [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | clarifies | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
+| [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | clarifies | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
+| [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | confirms | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
+| [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | confirms | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
 
 ## Derived incoming relations
 
@@ -320,6 +325,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-036](adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md) | amended by | [ADR-037](adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md) |
 | [ADR-040](adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md) | confirmed by | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | clarified by | [ADR-042](adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md) |
+| [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | clarified by | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-043](adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
 | [ADR-041](adr-041-establish-turnlock-formal-assurance-architecture.md) | confirmed by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
@@ -341,6 +347,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-055](adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | amended by | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) |
+| [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | clarified by | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) |
 | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) | confirmed by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-047](adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md) |
 | [ADR-046](adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md) | amended by | [ADR-048](adr-048-content-address-hostile-review-meta-schemas.md) |
@@ -367,6 +374,8 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | amended by | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | confirmed by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | amended by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
+| [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | confirmed by | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) |
+| [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | confirmed by | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | amended by | [ADR-055](adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | clarified by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | confirmed by | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) |
