@@ -16,10 +16,10 @@ governance_bindings:
         kind: logical_provider
       identity:
         repository: fanilosendrison/proto-ring
-        commit: dedb01a3a9b7a18930c9da75afa3773b5ad67f69
+        commit: 814a884ccb759b0fdbde48673a74428d6443b847
       authority:
         responsibility: executable_provider_binding
-        source: executable_dependency_manifest
+        source: governance_binding_registry
     shared_governance_provider_contract:
       kind: governance_contract
       scope:

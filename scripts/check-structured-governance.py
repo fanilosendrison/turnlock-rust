@@ -1,36 +1,48 @@
 #!/usr/bin/env python3
 """Validate Turnlock-Rust's routed structured governance declarations."""
 
-from __future__ import annotations
-
 from pathlib import Path
 import sys
 
-from proto_ring import repository_governance_state
+from proto_ring_executable_binding import ProtoRingExecutableError, invoke_compat_result
 
 ROOT = Path(__file__).resolve().parents[1]
+_REQUIRED_COMPONENTS = (
+    "repository_governance_model",
+    "governance_authority",
+    "governed_objects",
+    "governance_bindings",
+    "repository_integrity",
+    "projection_registry",
+    "evidence_requirements",
+)
 
 
-def load_structured_governance(root: Path = ROOT):
-    """Load the canonical exact state without executing validators or generators."""
+def load_structured_governance(root: Path = ROOT) -> dict[str, object]:
+    """Compose canonical governance without executing validators or generators."""
 
-    state = repository_governance_state.load(root)
-    return (
-        state.repository_governance_model,
-        state.governance_authority,
-        state.governed_objects,
-        state.governance_bindings,
-        state.repository_integrity,
-        state.projection_registry,
-        state.evidence_requirements,
+    return invoke_compat_result(
+        root, "repository-governance-state.compose", {"repository": str(root)}
     )
 
 
-def main() -> int:
+def check(root: Path = ROOT) -> list[str]:
     try:
-        load_structured_governance()
-    except repository_governance_state.RepositoryGovernanceStateError as error:
-        print(f"ERROR: structured governance: {error}", file=sys.stderr)
+        value = load_structured_governance(root)
+    except ProtoRingExecutableError as error:
+        return [str(error)]
+    components = value.get("components")
+    if not isinstance(components, dict):
+        return ["canonical governance state has no component projection"]
+    missing = [name for name in _REQUIRED_COMPONENTS if components.get(name) is not True]
+    return [f"canonical governance state is missing: {', '.join(missing)}"] if missing else []
+
+
+def main() -> int:
+    errors = check()
+    if errors:
+        for error in errors:
+            print(f"ERROR: structured governance: {error}", file=sys.stderr)
         print("structured governance: FAILED", file=sys.stderr)
         return 1
     print("structured governance: OK")

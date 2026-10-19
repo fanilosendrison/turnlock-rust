@@ -50,16 +50,9 @@ projection_registry:
       secondary_source: governed_objects_profile
       mode: mechanically_validated_maintained
       validation: governed_objects_profile
-    executable_binding_registry_representation:
-      responsibility: executable_provider_binding
-      canonical_source: executable_dependency_manifest
-      secondary_source: governance_binding_registry
-      mode: mechanically_validated_maintained
-      validation: proto_ring_binding_registry_currentness
-      binding: proto_ring_executable
     effective_proto_ring_realization:
       responsibility: executable_provider_binding
-      canonical_source: executable_dependency_manifest
+      canonical_source: governance_binding_registry
       secondary_source: effective_proto_ring_provider
       mode: generated
       validation: proto_ring_provider_currentness

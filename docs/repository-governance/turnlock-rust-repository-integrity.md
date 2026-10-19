@@ -114,7 +114,7 @@ repository_integrity:
       responsibility: repository_validation
       prerequisites: []
       instances: {kind: single}
-      command: {kind: command, environment: turnlock_python, arguments: [-m, proto_ring.accepted_adr_body], undetermined_exit_codes: []}
+      command: {kind: command, environment: turnlock_python, arguments: [scripts/check-accepted-adr-body.py], undetermined_exit_codes: []}
     proto_ring_binding_registry_currentness:
       responsibility: repository_validation
       prerequisites: []

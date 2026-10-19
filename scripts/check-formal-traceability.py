@@ -19,18 +19,15 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
-from proto_ring import evidence_requirements, repository_governance_state
-from proto_ring.evidence_requirements import (
-    EvidenceClassKind,
-    InstantiationKind,
-    PersistentEvidenceRequirement,
+
+from proto_ring_executable_binding import (
+    ProtoRingExecutableError,
+    invoke_compat_result,
 )
-from proto_ring.exact_evidence_binding import (
-    BindingStatus,
-    EvidenceBinding,
-    EvidenceRequirement,
-    evaluate as evaluate_evidence_binding,
-)
+
+
+class EvidenceRequirementsError(ValueError):
+    """Turnlock's routed Evidence Requirements Registry is invalid."""
 
 def _yaml_parser_state_value(
     value: object,
@@ -29800,23 +29797,29 @@ GATE_A_SUBJECT_REQUIREMENT_ID = "gate_a_subject_binding"
 GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID = "gate_a_current_protocol_binding"
 
 
-def _load_gate_a_requirements(
-    root: Path,
-) -> tuple[PersistentEvidenceRequirement, PersistentEvidenceRequirement]:
-    state = repository_governance_state.load(root)
-    registry = state.evidence_requirements
-    if registry is None:
-        raise evidence_requirements.EvidenceRequirementsError(
-            "Turnlock-Rust declares evidence_requirements but the canonical state "
-            "does not contain its registry"
-        )
+def _load_gate_a_requirements(root: Path) -> tuple[dict, dict]:
     try:
-        subject = registry.requirements[GATE_A_SUBJECT_REQUIREMENT_ID]
-        current_protocol = registry.requirements[
-            GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID
-        ]
+        value = invoke_compat_result(
+            root,
+            "evidence-requirements.registry",
+            {
+                "repository": str(root),
+                "requirement_ids": [
+                    GATE_A_SUBJECT_REQUIREMENT_ID,
+                    GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID,
+                ],
+            },
+        )
+    except ProtoRingExecutableError as error:
+        raise EvidenceRequirementsError(str(error)) from error
+    requirements = value.get("requirements")
+    if not isinstance(requirements, dict):
+        raise EvidenceRequirementsError("Evidence Requirements Registry is absent")
+    try:
+        subject = requirements[GATE_A_SUBJECT_REQUIREMENT_ID]
+        current_protocol = requirements[GATE_A_CURRENT_PROTOCOL_REQUIREMENT_ID]
     except KeyError as error:
-        raise evidence_requirements.EvidenceRequirementsError(
+        raise EvidenceRequirementsError(
             f"required Gate A EvidenceRequirementId is missing: {error.args[0]}"
         ) from error
     _validate_gate_a_requirement(subject)
@@ -29824,67 +29827,67 @@ def _load_gate_a_requirements(
     return subject, current_protocol
 
 
-def _validate_gate_a_requirement(
-    requirement: PersistentEvidenceRequirement,
-) -> None:
-    classes = requirement.evidence_classes
+def _validate_gate_a_requirement(requirement: dict) -> None:
+    classes = _mapping(requirement.get("evidence_classes"))
+    context = _mapping(requirement.get("context"))
+    context_required = context.get("required")
     if (
-        requirement.instances.kind is not InstantiationKind.SINGLE
-        or classes.kind is not EvidenceClassKind.EXPLICIT
-        or not classes.explicit_classes
-        or requirement.subject_source_id != "gate_a_current_subject"
-        or requirement.candidate_source_id != "gate_a_review_candidates"
+        type(context_required) is not bool
+        or _mapping(requirement.get("instances")).get("kind") != "single"
+        or classes.get("kind") != "explicit"
+        or not classes.get("classes")
+        or requirement.get("subject_source") != "gate_a_current_subject"
+        or requirement.get("candidate_source") != "gate_a_review_candidates"
         or (
-            requirement.context.required
-            and requirement.context.source_id != "gate_a_current_protocol_context"
+            context_required is True
+            and context.get("source") != "gate_a_current_protocol_context"
         )
-        or (
-            not requirement.context.required
-            and requirement.context.source_id is not None
-        )
+        or (context_required is False and context.get("source") is not None)
     ):
-        raise evidence_requirements.EvidenceRequirementsError(
-            f"unsupported Gate A evidence requirement declaration: {requirement.id}"
+        raise EvidenceRequirementsError(
+            "unsupported Gate A evidence requirement declaration: "
+            f"{requirement.get('id')}"
         )
 
 
 def _runtime_gate_a_requirement(
-    requirement: PersistentEvidenceRequirement,
+    requirement: dict,
     current_subject: dict | None,
     current_bundle_sha256: object,
-) -> EvidenceRequirement:
-    explicit_classes = requirement.evidence_classes.explicit_classes
-    if explicit_classes is None:
-        raise evidence_requirements.EvidenceRequirementsError(
-            f"Gate A evidence classes are not explicit: {requirement.id}"
+) -> dict[str, object]:
+    _validate_gate_a_requirement(requirement)
+    classes = _mapping(requirement.get("evidence_classes")).get("classes")
+    if not isinstance(classes, list):
+        raise EvidenceRequirementsError(
+            f"Gate A evidence classes are not explicit: {requirement.get('id')}"
         )
-    requires_context = requirement.context.required
-    return EvidenceRequirement(
-        admitted_classes=explicit_classes,
-        subject_identity=(
-            _canonical_json_bytes(current_subject)
+    requires_context = _mapping(requirement.get("context")).get("required") is True
+    return {
+        "admitted_classes": classes,
+        "subject_hex": (
+            _canonical_json_bytes(current_subject).hex()
             if isinstance(current_subject, dict)
             else None
         ),
-        context_required=requires_context,
-        context_identity=(
-            current_bundle_sha256.encode("utf-8")
+        "context_required": requires_context,
+        "context_hex": (
+            current_bundle_sha256.encode("utf-8").hex()
             if requires_context
             and isinstance(current_bundle_sha256, str)
             and current_bundle_sha256
             else None
         ),
-    )
+    }
 
 
 def _gate_a_binding_status(
     *,
-    requirement: PersistentEvidenceRequirement,
+    requirement: dict,
     current_subject: dict | None,
     current_bundle_sha256: object,
     record: dict,
     gate_a_subject: dict,
-) -> BindingStatus:
+) -> str:
     runtime_requirement = _runtime_gate_a_requirement(
         requirement, current_subject, current_bundle_sha256
     )
@@ -29892,20 +29895,30 @@ def _gate_a_binding_status(
     record_bundle_sha256 = _mapping(
         _mapping(record.get("protocol")).get("protocol_bundle")
     ).get("sha256")
-    evidence = EvidenceBinding(
-        evidence_class=(
+    requires_context = runtime_requirement["context_required"]
+    evidence = {
+        "evidence_class": (
             record_review_class if isinstance(record_review_class, str) else None
         ),
-        subject_identity=_canonical_json_bytes(gate_a_subject),
-        context_identity=(
-            record_bundle_sha256.encode("utf-8")
-            if requirement.context.required
+        "subject_hex": _canonical_json_bytes(gate_a_subject).hex(),
+        "context_hex": (
+            record_bundle_sha256.encode("utf-8").hex()
+            if requires_context
             and isinstance(record_bundle_sha256, str)
             and record_bundle_sha256
             else None
         ),
+    }
+    value = invoke_compat_result(
+        ROOT,
+        "exact-evidence-binding.evaluate",
+        {
+            "mode": "evaluate_binding",
+            "requirement": runtime_requirement,
+            "binding": evidence,
+        },
     )
-    return evaluate_evidence_binding(runtime_requirement, evidence)
+    return value["status"]
 
 
 def derive_gate_a(
@@ -29913,8 +29926,8 @@ def derive_gate_a(
     manifest: dict,
     current_subject: dict | None,
     records: list[tuple[Path, dict]],
-    subject_requirement: PersistentEvidenceRequirement,
-    current_protocol_requirement: PersistentEvidenceRequirement,
+    subject_requirement: dict,
+    current_protocol_requirement: dict,
     supplements: list[tuple[Path, dict]] | None = None,
 ) -> dict:
     """Derive Formal-Architecture-Ready from current review evidence."""
@@ -29937,7 +29950,7 @@ def derive_gate_a(
             record=record,
             gate_a_subject=gate_a_subjects[0],
         )
-        if subject_binding is not BindingStatus.MATCH:
+        if subject_binding != "MATCH":
             continue
         current_binding = _gate_a_binding_status(
             requirement=current_protocol_requirement,
@@ -29946,7 +29959,7 @@ def derive_gate_a(
             record=record,
             gate_a_subject=gate_a_subjects[0],
         )
-        if current_binding is BindingStatus.MATCH:
+        if current_binding == "MATCH":
             current.append(record)
         else:
             stale.append(record)
@@ -30490,11 +30503,7 @@ def collect_errors(
     if load_governance:
         try:
             gate_a_requirements = _load_gate_a_requirements(root)
-        except (
-            evidence_requirements.EvidenceRequirementsError,
-            repository_governance_state.RepositoryGovernanceStateError,
-            KeyError,
-        ) as error:
+        except (EvidenceRequirementsError, ProtoRingExecutableError, KeyError) as error:
             errors.append(f"Gate A evidence requirements: {error}")
 
     if (

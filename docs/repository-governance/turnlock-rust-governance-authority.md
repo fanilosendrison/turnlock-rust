@@ -39,8 +39,6 @@ governance_authority:
       repository_target: "docs/repository-governance/turnlock-rust-discovery-classification.md"
     governance_binding_registry:
       repository_target: "docs/repository-governance/turnlock-rust-governance-bindings.md"
-    executable_dependency_manifest:
-      repository_target: "requirements.txt"
     projection_registry:
       repository_target: "docs/repository-governance/turnlock-rust-projection-integrity.md"
     repository_integrity_profile:
@@ -140,8 +138,7 @@ governance_authority:
       precedence: []
     executable_provider_binding:
       roles:
-        executable_dependency_manifest: authority
-        governance_binding_registry: secondary_representation
+        governance_binding_registry: authority
         effective_proto_ring_provider: secondary_representation
         proto_ring_environment: non_authoritative
       precedence: []
