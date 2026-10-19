@@ -29,5 +29,8 @@ jobs:
       - name: Install validation dependencies
         run: python3 -m pip install --requirement requirements.txt
 
+      - name: Prepare exact native Proto-Ring provider
+        run: python3 scripts/prepare-proto-ring-provider.py
+
       - name: Check repository integrity
         run: python3 scripts/check-repository-integrity.py
