@@ -182,6 +182,25 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Pinned tooling dependencies](requirements.txt) support ADR metadata and
   formal traceability validation.
 
+## Repository governance validation
+
+Repository validation uses the native Proto-Ring compatibility executable bound
+by the Governance Binding Registry. Git, Cargo, and Rust must be available.
+Prepare the exact provider explicitly before running Repository Integrity:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --requirement requirements.txt
+.venv/bin/python scripts/prepare-proto-ring-provider.py
+.venv/bin/python scripts/check-repository-integrity.py
+```
+
+Preparation checks out the immutable bound Proto-Ring commit into an external,
+commit-keyed user cache and performs a locked release build. Repository
+Integrity only validates and uses that realized provider; it never downloads or
+builds the provider implicitly. `requirements.txt` contains Turnlock validation
+tooling only and does not install a Python Proto-Ring provider.
+
 ## Architectural snapshot
 
 The workflow program is the architectural center for declared orchestration:

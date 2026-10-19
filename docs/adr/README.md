@@ -213,6 +213,8 @@ Later ADRs record subsequently accepted decisions.
 
 57. [ADR-057: Define Gate A runner ready as observation-bound publication](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) — **Accepted**, clarifies ADR-041 and ADR-045 and confirms ADR-051 and ADR-052. Distinguishes current-repository Formal Gate A from the immutable terminal `GATE-A-READY` outcome of one runner execution. The selected v1 outcome requires exact candidate qualification, positively observed publication of the authorized successor T, and bound post-publication validation, without promising that the mutable remote ref will forever equal T. Publication-state satisfaction does not imply historical mutation authorship by a named Execution; post-Arm recovery and effect-safety guards remain mandatory until separately accepted construction authority provides an admissible progression path. No TURNLOCK product semantic, TL-INV identity, Gate A subject S, review protocol P, or formal-verification claim is changed.
 
+58. [ADR-058: Adopt native proto-ring compatibility execution boundary](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) — **Accepted**. Amends ADR-052 by making the Governance Binding Registry authoritative for the exact executable provider, realizing `proto-ring-compat` externally from immutable source, and moving all generic provider execution to compatibility transport v1. Python Proto-Ring execution and package provenance cease to be provider authority, while Turnlock policy, formal and evidence semantics, and the Repository Integrity validation membership and order remain unchanged.
+
 <!-- adr-annotated-trace:end -->
 
 [16]: adr-016-separate-workflow-authorship-from-runtime-execution-authority.md

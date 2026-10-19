@@ -74,6 +74,7 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-055](adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md) | Define structured Gate A adjudication and resolution qualification | accepted | 2026-10-05 | complete | Gate A structured adjudication protocol evolution<br>Gate A structured resolution-qualification protocol evolution<br>Gate A supporting-role reviewer acquisition<br>Gate A role-aware deterministic cognitive-output validation<br>Gate A resolution challenge objectives<br>Gate A stale-protocol re-adjudication identity |
 | [ADR-056](adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md) | Define global semantic-question identity and single-admission resolution evidence | accepted | 2026-10-06 | complete | Gate A protocol-v8 semantic-question identity<br>Gate A global single-admission cognitive-result authority<br>Gate A cross-run and cross-root semantic-result reuse<br>Gate A semantic-fact versus evidence-provenance separation<br>Gate A candidate-bound resolution identity and freshness<br>Gate A semantic-execution anti-model-shopping fencing<br>Gate A protocol-v7 non-activation and protocol-v8 activation lineage |
 | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | Define Gate A runner ready as observation-bound publication | accepted | 2026-10-19 | complete | Gate A runner v1 terminal outcome semantics<br>Observation-bound publication and temporal claim scope<br>Separation of runner completion and current formal Gate A readiness<br>Publication-state satisfaction versus execution-outcome attribution<br>Gate A controller publication responsibility boundary |
+| [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) | Adopt native proto-ring compatibility execution boundary | accepted | 2026-10-17 | complete | Native proto-ring executable compatibility boundary<br>Executable provider authority and external exact-source realization<br>Removal of Python proto-ring production execution |
 
 ## Recorded outgoing relations
 
@@ -228,6 +229,9 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | clarifies | [ADR-045](adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md) |
 | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | confirms | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
 | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) | confirms | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
+| [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) | amends | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
+| [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) | confirms | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) |
+| [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) | confirms | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
 
 ## Derived incoming relations
 
@@ -373,8 +377,11 @@ name: "Generated TURNLOCK Architecture Decision Record index"
 | [ADR-049](adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md) | confirmed by | [ADR-055](adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | amended by | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) |
 | [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | confirmed by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
+| [ADR-050](adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md) | confirmed by | [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) |
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | amended by | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) |
 | [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | confirmed by | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) |
+| [ADR-051](adr-051-require-proto-ring-for-applicable-generic-repository-governance.md) | confirmed by | [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) |
+| [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | amended by | [ADR-058](adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md) |
 | [ADR-052](adr-052-adopt-structured-proto-ring-governance.md) | confirmed by | [ADR-057](adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | amended by | [ADR-055](adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md) |
 | [ADR-053](adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md) | clarified by | [ADR-054](adr-054-define-provider-reported-effective-model-identity-resolution.md) |
