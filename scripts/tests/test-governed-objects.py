@@ -1,126 +1,91 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
+import sys
 import unittest
 
-from proto_ring import governance_authority, governed_objects
-from proto_ring import repository_governance_model
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-PROFILE_PATH = (
-    ROOT
-    / "docs"
-    / "repository-governance"
-    / "turnlock-rust-governed-objects.md"
-)
-def load_profiles():
-    model = repository_governance_model.load(ROOT)
-    authority_route = model.capabilities["governance_authority"].routes["profile"]
-    authority = governance_authority.load(ROOT, authority_route)
-    catalog_route = model.capabilities["governed_objects"].routes["profile"]
-    catalog = governed_objects.load(ROOT, catalog_route, authority)
-    return model, authority, catalog
+SCRIPTS = ROOT / "scripts"
+CHECKER = SCRIPTS / "check-governed-objects.py"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+PROFILE_PATH = ROOT / "docs/repository-governance/turnlock-rust-governed-objects.md"
+
+
+def load_checker():
+    spec = importlib.util.spec_from_file_location("check_governed_objects", CHECKER)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load governed objects checker")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def profile() -> dict:
+    text = PROFILE_PATH.read_text(encoding="utf-8")
+    return yaml.safe_load(text.split("---\n", 2)[1])["governed_objects"]
+
+
+checker = load_checker()
 
 
 class GovernedObjectsProfileTests(unittest.TestCase):
-    def test_profile_is_routed_without_duplicate_contract_pin(self) -> None:
-        model, _authority, catalog = load_profiles()
-        route = model.capabilities["governed_objects"].routes["profile"]
+    def test_native_composition_requires_profile_presence(self) -> None:
+        self.assertEqual([], checker.check(ROOT))
 
-        self.assertEqual(
-            "docs/repository-governance/turnlock-rust-governed-objects.md",
-            route.declared_path,
-        )
-        self.assertEqual(PROFILE_PATH.resolve(), route.target)
-        self.assertEqual(PROFILE_PATH.resolve(), catalog.carrier)
-
-        self.assertNotIn(
-            "governed_objects_contract:",
-            PROFILE_PATH.read_text(encoding="utf-8"),
-        )
-
-    def test_governance_authority_owns_only_profile_route(self) -> None:
-        _model, authority, _catalog = load_profiles()
-        responsibility = authority.responsibilities[
-            "governed_objects_profile_route"
-        ]
-
-        self.assertEqual(
-            {"agents_governance_frontmatter": governance_authority.SourceRole.AUTHORITY},
-            responsibility.roles,
-        )
-        self.assertEqual((), responsibility.precedence)
-
-    def test_catalog_has_exact_initial_interfaces_and_objects(self) -> None:
-        _model, _authority, catalog = load_profiles()
-
+    def test_profile_has_exact_consumer_interfaces(self) -> None:
+        interfaces = profile()["interfaces"]
         self.assertEqual(
             {"architecture_decisions", "stable_invariants", "formal_claims"},
-            set(catalog.interfaces),
+            set(interfaces),
         )
         self.assertEqual(
             {f"ADR-{number:03d}" for number in range(1, 53)},
-            set(catalog.interfaces["architecture_decisions"].objects),
+            set(interfaces["architecture_decisions"]["objects"]),
         )
         self.assertEqual(
             {f"TL-INV-{number:03d}" for number in range(1, 43)},
-            set(catalog.interfaces["stable_invariants"].objects),
+            set(interfaces["stable_invariants"]["objects"]),
         )
         self.assertEqual(
             {f"TL-CLAIM-{number:03d}" for number in range(1, 84)},
-            set(catalog.interfaces["formal_claims"].objects),
+            set(interfaces["formal_claims"]["objects"]),
         )
 
-    def test_catalog_has_exact_initial_responsibilities(self) -> None:
-        _model, _authority, catalog = load_profiles()
-
-        for governed_object in catalog.interfaces[
-            "architecture_decisions"
-        ].objects.values():
+    def test_profile_relations_use_turnlock_responsibilities(self) -> None:
+        interfaces = profile()["interfaces"]
+        for value in interfaces["architecture_decisions"]["objects"].values():
             self.assertEqual(
-                frozenset(
-                    {"adr_metadata", "product_semantics", "accepted_decisions"}
-                ),
-                governed_object.responsibilities,
+                ["adr_metadata", "product_semantics", "accepted_decisions"],
+                value["responsibilities"],
             )
-            self.assertEqual(frozenset(), governed_object.relations)
-
-        for governed_object in catalog.interfaces[
-            "stable_invariants"
-        ].objects.values():
+            self.assertEqual([], value.get("relations", []))
+        for value in interfaces["stable_invariants"]["objects"].values():
             self.assertEqual(
-                frozenset(
-                    {"product_semantics", "stable_invariant_definitions"}
-                ),
-                governed_object.responsibilities,
+                ["product_semantics", "stable_invariant_definitions"],
+                value["responsibilities"],
             )
-            self.assertEqual(frozenset(), governed_object.relations)
-
-        for governed_object in catalog.interfaces[
-            "formal_claims"
-        ].objects.values():
-            self.assertEqual(
-                frozenset({"formal_assurance_graph"}),
-                governed_object.responsibilities,
-            )
-
-    def test_claim_relations_use_only_normative_sources(self) -> None:
-        _model, _authority, catalog = load_profiles()
-        relations = [
-            relation
-            for governed_object in catalog.interfaces[
-                "formal_claims"
-            ].objects.values()
-            for relation in governed_object.relations
-        ]
-
+            self.assertEqual([], value.get("relations", []))
+        relations = []
+        for value in interfaces["formal_claims"]["objects"].values():
+            self.assertEqual(["formal_assurance_graph"], value["responsibilities"])
+            relations.extend(value["relations"])
+            for relation in value["relations"]:
+                self.assertEqual("normative_sources", relation["relation"])
+                self.assertEqual("formal_assurance_graph", relation["responsibility"])
+                self.assertEqual("stable_invariants", relation["target"]["interface"])
+                self.assertRegex(relation["target"]["object"], r"^TL-INV-\d{3}$")
         self.assertEqual(125, len(relations))
-        for relation in relations:
-            self.assertEqual("normative_sources", relation.relation)
-            self.assertEqual("formal_assurance_graph", relation.responsibility)
-            self.assertEqual("stable_invariants", relation.target.interface_id)
-            self.assertRegex(relation.target.object_id, r"^TL-INV-\d{3}$")
+
+    def test_profile_has_no_duplicate_contract_pin(self) -> None:
+        self.assertNotIn(
+            "governed_objects_contract:", PROFILE_PATH.read_text(encoding="utf-8")
+        )
 
 
 if __name__ == "__main__":

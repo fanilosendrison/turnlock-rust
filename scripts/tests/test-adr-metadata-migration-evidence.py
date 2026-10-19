@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -12,6 +13,13 @@ fixture = importlib.import_module("adr-metadata-test-fixture")
 ROOT = fixture.ROOT
 adr_metadata = fixture.adr_metadata
 disable_git_bound_validation = fixture.disable_git_bound_validation
+_ORIGINAL_SUBPROCESS_RUN = subprocess.run
+
+
+def run_with_successful_merge_base(command, *args, **kwargs):
+    if isinstance(command, list) and "merge-base" in command:
+        return mock.Mock(returncode=0, stderr=b"")
+    return _ORIGINAL_SUBPROCESS_RUN(command, *args, **kwargs)
 
 
 class AdrMetadataTests(unittest.TestCase):
@@ -100,9 +108,10 @@ class AdrMetadataTests(unittest.TestCase):
             (fixture_root / "docs" / "adr" / "metadata-migration-evidence.yaml").write_text(
                 adr_metadata.yaml.safe_dump(evidence, sort_keys=False), encoding="utf-8"
             )
-            successful_git = mock.Mock(returncode=0, stderr=b"")
             with mock.patch.object(
-                adr_metadata.subprocess, "run", return_value=successful_git
+                adr_metadata.subprocess,
+                "run",
+                side_effect=run_with_successful_merge_base,
             ), mock.patch.object(
                 adr_metadata, "_git_baseline_blob", return_value=baseline_payload
             ):
@@ -117,7 +126,9 @@ class AdrMetadataTests(unittest.TestCase):
                 )
             )
             with mock.patch.object(
-                adr_metadata.subprocess, "run", return_value=successful_git
+                adr_metadata.subprocess,
+                "run",
+                side_effect=run_with_successful_merge_base,
             ), mock.patch.object(
                 adr_metadata, "_git_baseline_blob", return_value=baseline_payload
             ):

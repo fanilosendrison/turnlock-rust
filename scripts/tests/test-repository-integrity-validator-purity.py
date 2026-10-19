@@ -1,51 +1,26 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import importlib
-import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
-import tempfile
 import unittest
 
-fixture = importlib.import_module("repository-integrity-test-fixture")
-ROOT = fixture.ROOT
-make_repository = fixture.make_committed_git_fixture
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class RepositoryIntegrityValidatorPurityTests(unittest.TestCase):
-    def test_whitespace_checker_is_non_mutating(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = make_repository(temporary)
-            scripts = root / "scripts"
-            scripts.mkdir()
-            checker = scripts / "check-git-whitespace.py"
-            shutil.copyfile(ROOT / "scripts/check-git-whitespace.py", checker)
-            before = subprocess.run(
-                ["git", "-C", str(root), "status", "--porcelain"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
-            environment = dict(os.environ)
-            environment.pop("GITHUB_EVENT_NAME", None)
-            environment.pop("GITHUB_EVENT_PATH", None)
-            result = subprocess.run(
-                [sys.executable, str(checker)],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                check=False,
-                env=environment,
-            )
-            after = subprocess.run(
-                ["git", "-C", str(root), "status", "--porcelain"],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
+    def test_native_whitespace_checker_is_non_mutating(self) -> None:
+        command = ["git", "-C", str(ROOT), "status", "--porcelain=v2", "-z"]
+        before = subprocess.run(command, check=True, capture_output=True).stdout
+        result = subprocess.run(
+            [sys.executable, "scripts/check-git-whitespace.py"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        after = subprocess.run(command, check=True, capture_output=True).stdout
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual(before, after)
 

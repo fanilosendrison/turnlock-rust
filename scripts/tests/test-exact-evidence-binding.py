@@ -1,27 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import importlib.util
-import inspect
 from pathlib import Path
 import sys
 import unittest
-from unittest import mock
-
-from proto_ring.evidence_requirements import (
-    EvidenceClassKind,
-    InstantiationKind,
-)
-from proto_ring.exact_evidence_binding import (
-    BindingStatus,
-    EvidenceBinding,
-    EvidenceRequirement,
-    evaluate,
-)
 
 ROOT = Path(__file__).resolve().parents[2]
-CHECKER_PATH = ROOT / "scripts" / "check-formal-traceability.py"
-EXECUTABLE_PROVIDER_COMMIT = "dedb01a3a9b7a18930c9da75afa3773b5ad67f69"
+SCRIPTS = ROOT / "scripts"
+CHECKER_PATH = SCRIPTS / "check-formal-traceability.py"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
 
 def load_checker():
@@ -48,13 +38,11 @@ def gate_a_subject(sha256: str = "subject-sha") -> dict:
 
 
 def review_record(
-    *,
-    review_class: object = checker.GATE_A_REVIEW_CLASS,
-    bundle_sha256: object = "current-bundle",
+    *, review_class: object = checker.GATE_A_REVIEW_CLASS, bundle: object = "bundle"
 ) -> dict:
     return {
         "review_class": review_class,
-        "protocol": {"protocol_bundle": {"sha256": bundle_sha256}},
+        "protocol": {"protocol_bundle": {"sha256": bundle}},
     }
 
 
@@ -65,176 +53,141 @@ class ExactEvidenceBindingTests(unittest.TestCase):
             checker._load_gate_a_requirements(ROOT)
         )
 
-    def test_requirements_pin_exact_provider(self) -> None:
-        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
-        self.assertIn(
-            "proto-ring @ git+https://github.com/fanilosendrison/"
-            f"proto-ring.git@{EXECUTABLE_PROVIDER_COMMIT}",
-            requirements.splitlines(),
+    def status(
+        self,
+        requirement: dict,
+        *,
+        current_subject: dict | None = None,
+        current_bundle: object = "bundle",
+        record_subject: dict | None = None,
+        review_class: object = checker.GATE_A_REVIEW_CLASS,
+        record_bundle: object = "bundle",
+    ) -> str:
+        subject = gate_a_subject() if current_subject is None else current_subject
+        return checker._gate_a_binding_status(
+            requirement=requirement,
+            current_subject=subject,
+            current_bundle_sha256=current_bundle,
+            record=review_record(review_class=review_class, bundle=record_bundle),
+            gate_a_subject=(subject if record_subject is None else record_subject),
         )
 
     def test_routed_registry_has_exact_gate_a_requirements(self) -> None:
         requirements = {
-            self.subject_requirement.id: self.subject_requirement,
-            self.protocol_requirement.id: self.protocol_requirement,
+            self.subject_requirement["id"]: self.subject_requirement,
+            self.protocol_requirement["id"]: self.protocol_requirement,
         }
         self.assertEqual(
-            {
-                "gate_a_subject_binding",
-                "gate_a_current_protocol_binding",
-            },
+            {"gate_a_subject_binding", "gate_a_current_protocol_binding"},
             set(requirements),
         )
         for requirement in requirements.values():
-            self.assertEqual("formal_assurance_graph", requirement.responsibility_id)
-            self.assertIs(InstantiationKind.SINGLE, requirement.instances.kind)
-            self.assertIs(EvidenceClassKind.EXPLICIT, requirement.evidence_classes.kind)
+            self.assertEqual("single", requirement["instances"]["kind"])
+            self.assertEqual("explicit", requirement["evidence_classes"]["kind"])
             self.assertEqual(
-                frozenset({"assurance-decomposition"}),
-                requirement.evidence_classes.explicit_classes,
+                ["assurance-decomposition"],
+                requirement["evidence_classes"]["classes"],
             )
-            self.assertEqual("gate_a_current_subject", requirement.subject_source_id)
-            self.assertEqual("gate_a_review_candidates", requirement.candidate_source_id)
-        self.assertFalse(self.subject_requirement.context.required)
-        self.assertIsNone(self.subject_requirement.context.source_id)
-        self.assertTrue(self.protocol_requirement.context.required)
         self.assertEqual(
-            "gate_a_current_protocol_context",
-            self.protocol_requirement.context.source_id,
+            {"required": False, "source": None},
+            self.subject_requirement["context"],
         )
-
-    def test_checker_delegates_registry_derived_runtime_values(self) -> None:
-        subject = gate_a_subject()
-        with mock.patch.object(
-            checker, "evaluate_evidence_binding", return_value=BindingStatus.MATCH
-        ) as shared_evaluate:
-            status = checker._gate_a_binding_status(
-                requirement=self.protocol_requirement,
-                current_subject=subject,
-                current_bundle_sha256="current-bundle",
-                record=review_record(),
-                gate_a_subject=subject,
-            )
-        self.assertIs(status, BindingStatus.MATCH)
-        requirement, evidence = shared_evaluate.call_args.args
-        self.assertIs(type(requirement), EvidenceRequirement)
-        self.assertIs(type(evidence), EvidenceBinding)
         self.assertEqual(
-            self.protocol_requirement.evidence_classes.explicit_classes,
-            requirement.admitted_classes,
+            {
+                "required": True,
+                "source": "gate_a_current_protocol_context",
+            },
+            self.protocol_requirement["context"],
         )
 
-    def test_subject_only_context_policy_comes_from_registry(self) -> None:
-        subject = gate_a_subject()
-        with mock.patch.object(
-            checker, "evaluate_evidence_binding", return_value=BindingStatus.MATCH
-        ) as shared_evaluate:
-            checker._gate_a_binding_status(
-                requirement=self.subject_requirement,
-                current_subject=subject,
-                current_bundle_sha256="current-bundle",
-                record=review_record(),
-                gate_a_subject=subject,
-            )
-        runtime = shared_evaluate.call_args.args[0]
-        self.assertFalse(runtime.context_required)
-        self.assertIsNone(runtime.context_identity)
-
-    def test_current_protocol_context_policy_comes_from_registry(self) -> None:
-        subject = gate_a_subject()
-        with mock.patch.object(
-            checker, "evaluate_evidence_binding", return_value=BindingStatus.MATCH
-        ) as shared_evaluate:
-            checker._gate_a_binding_status(
-                requirement=self.protocol_requirement,
-                current_subject=subject,
-                current_bundle_sha256="current-bundle",
-                record=review_record(),
-                gate_a_subject=subject,
-            )
-        runtime = shared_evaluate.call_args.args[0]
-        self.assertTrue(runtime.context_required)
-        self.assertEqual(b"current-bundle", runtime.context_identity)
-
-    def status(self, requirement, *, current="current-bundle", record="current-bundle", review_class=None):
-        subject = gate_a_subject()
-        return checker._gate_a_binding_status(
-            requirement=requirement,
-            current_subject=subject,
-            current_bundle_sha256=current,
-            record=review_record(
-                review_class=(checker.GATE_A_REVIEW_CLASS if review_class is None else review_class),
-                bundle_sha256=record,
+    def test_six_native_behavior_cases(self) -> None:
+        cases = (
+            (self.subject_requirement, {}, "MATCH"),
+            (self.subject_requirement, {"review_class": "other"}, "MISMATCH"),
+            (self.subject_requirement, {"current_subject": None}, "UNDETERMINED"),
+            (
+                self.subject_requirement,
+                {"record_subject": gate_a_subject("historical")},
+                "MISMATCH",
             ),
-            gate_a_subject=subject,
+            (self.protocol_requirement, {}, "MATCH"),
+            (self.protocol_requirement, {"current_bundle": None}, "UNDETERMINED"),
         )
+        observed = []
+        for requirement, arguments, expected in cases:
+            with self.subTest(expected=expected, arguments=arguments):
+                if "current_subject" in arguments:
+                    status = checker._gate_a_binding_status(
+                        requirement=requirement,
+                        current_subject=None,
+                        current_bundle_sha256="bundle",
+                        record=review_record(),
+                        gate_a_subject=gate_a_subject(),
+                    )
+                else:
+                    status = self.status(requirement, **arguments)
+                self.assertEqual(expected, status)
+                observed.append(status)
+        self.assertEqual(6, len(observed))
 
-    def test_stale_protocol_classification_is_unchanged(self) -> None:
-        self.assertIs(
-            BindingStatus.MATCH,
-            self.status(self.subject_requirement, current="current", record="stale"),
+    def test_stale_protocol_context_remains_mismatch(self) -> None:
+        self.assertEqual(
+            "MATCH",
+            self.status(
+                self.subject_requirement,
+                current_bundle="current",
+                record_bundle="stale",
+            ),
         )
-        self.assertIs(
-            BindingStatus.MISMATCH,
-            self.status(self.protocol_requirement, current="current", record="stale"),
-        )
-
-    def test_wrong_review_class_remains_mismatch(self) -> None:
-        self.assertIs(
-            BindingStatus.MISMATCH,
-            self.status(self.subject_requirement, review_class="other-review"),
-        )
-
-    def test_missing_current_context_remains_undetermined(self) -> None:
-        self.assertIs(
-            BindingStatus.UNDETERMINED,
-            self.status(self.protocol_requirement, current=None),
-        )
-
-    def test_different_exact_subject_remains_mismatch(self) -> None:
-        self.assertIs(
-            BindingStatus.MISMATCH,
-            checker._gate_a_binding_status(
-                requirement=self.subject_requirement,
-                current_subject=gate_a_subject("current"),
-                current_bundle_sha256=None,
-                record=review_record(),
-                gate_a_subject=gate_a_subject("historical"),
+        self.assertEqual(
+            "MISMATCH",
+            self.status(
+                self.protocol_requirement,
+                current_bundle="current",
+                record_bundle="stale",
             ),
         )
 
-    def test_current_subject_unavailable_remains_undetermined(self) -> None:
-        self.assertIs(
-            BindingStatus.UNDETERMINED,
-            checker._gate_a_binding_status(
-                requirement=self.subject_requirement,
-                current_subject=None,
-                current_bundle_sha256=None,
-                record=review_record(),
-                gate_a_subject=gate_a_subject(),
-            ),
-        )
+    def test_malformed_context_required_fails_closed(self) -> None:
+        for malformed in (None, "true", 1):
+            with self.subTest(malformed=malformed):
+                requirement = {
+                    **self.protocol_requirement,
+                    "context": {
+                        **self.protocol_requirement["context"],
+                        "required": malformed,
+                    },
+                }
+                with self.assertRaises(checker.EvidenceRequirementsError):
+                    checker._runtime_gate_a_requirement(
+                        requirement, gate_a_subject(), "bundle"
+                    )
 
-    def test_hardcoded_requirement_policy_cannot_return(self) -> None:
-        signature = inspect.signature(checker._gate_a_binding_status)
-        self.assertNotIn("context_required", signature.parameters)
+    def test_requirements_contains_no_python_provider(self) -> None:
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        self.assertNotIn("proto-ring", requirements)
+        self.assertNotIn("proto_ring", requirements)
+
+    def test_checker_uses_native_qualified_operations(self) -> None:
         source = CHECKER_PATH.read_text(encoding="utf-8")
-        compact = "".join(source.split())
-        self.assertNotIn(
-            "admitted_classes=frozenset({GATE_A_REVIEW_CLASS})", compact
+        self.assertIn('"evidence-requirements.registry"', source)
+        self.assertIn('"exact-evidence-binding.evaluate"', source)
+        tree = ast.parse(source)
+        imports = [
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.module is not None
+            and (node.module == "proto_ring" or node.module.startswith("proto_ring."))
+        ]
+        imports.extend(
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+            if alias.name == "proto_ring" or alias.name.startswith("proto_ring.")
         )
-        derive_source = inspect.getsource(checker.derive_gate_a)
-        self.assertNotIn("context_required=False", derive_source)
-        self.assertNotIn("context_required=True", derive_source)
-        self.assertIn("subject_requirement", derive_source)
-        self.assertIn("current_protocol_requirement", derive_source)
-        self.assertEqual(1, source.count("EvidenceRequirement("))
-
-    def test_checker_uses_shared_exact_evidence_objects(self) -> None:
-        self.assertIs(checker.BindingStatus, BindingStatus)
-        self.assertIs(checker.EvidenceRequirement, EvidenceRequirement)
-        self.assertIs(checker.EvidenceBinding, EvidenceBinding)
-        self.assertIs(checker.evaluate_evidence_binding, evaluate)
+        self.assertEqual([], imports)
 
 
 if __name__ == "__main__":

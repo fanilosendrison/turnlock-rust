@@ -21,6 +21,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "check-formal-traceability.py"
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
 
 spec = importlib.util.spec_from_file_location("formal_traceability", SCRIPT)
 if spec is None or spec.loader is None:
@@ -378,6 +380,12 @@ def _initialize_fixture_template() -> Path:
         ROOT / "scripts" / "check-repository-integrity.py",
         scripts_dir / "check-repository-integrity.py",
     )
+    for module_name in (
+        "proto_ring_executable_binding.py",
+        "proto_ring_result_validation.py",
+        "proto_ring_structured_value.py",
+    ):
+        shutil.copyfile(ROOT / "scripts" / module_name, scripts_dir / module_name)
     subprocess.run(["git", "init", "-q", str(fixture_root)], check=True)
     subprocess.run(
         ["git", "-C", str(fixture_root), "config", "user.name", "Turnlock Formal Test"],

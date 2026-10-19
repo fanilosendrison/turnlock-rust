@@ -17,6 +17,8 @@ GOVERNANCE_SOURCE_MODULES = (
     "scripts/check-proto-ring-binding-registry.py",
     "scripts/check-proto-ring-provider.py",
     "scripts/proto_ring_executable_binding.py",
+    "scripts/proto_ring_result_validation.py",
+    "scripts/proto_ring_structured_value.py",
     "scripts/check-repository-integrity.py",
     "scripts/check-structured-governance.py",
     "scripts/tests/adr-metadata-test-fixture.py",

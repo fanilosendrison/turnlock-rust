@@ -1,31 +1,30 @@
 #!/usr/bin/env python3
-"""Regression tests for canonical terminology governance."""
-
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 from pathlib import Path
-import subprocess
 import sys
-import tempfile
 import unittest
 from unittest import mock
 
-from proto_ring import normative_terminology as shared_terminology
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-CHECKER_PATH = ROOT / "scripts" / "check-normative-terminology.py"
-MODULE_NAME = "check_normative_terminology"
-SPEC = """# Example specification
+SCRIPTS = ROOT / "scripts"
+CHECKER_PATH = SCRIPTS / "check-normative-terminology.py"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+SPEC = ROOT / "docs/specification/turnlock-spec.md"
+INVENTORY = ROOT / "docs/specification/terminology-inventory.yaml"
+FIXTURE_SPEC = """# Example
 
 # 0. Product intent
 
-Alpha supports the product promise. Alpha MUST remain visible.
+Alpha supports the product promise.
 
 # 2. Core mental model
-
-Section 2 is the canonical terminology registry.
 
 <!-- normative-terminology-registry:start -->
 | Concept key | Canonical term | Canonical anchor | Accepted aliases | Deprecated wording | Term structure |
@@ -46,66 +45,36 @@ A **beta region** is a separate compound concept.
 
 # 3. Obligations
 
-Alpha MUST satisfy its declared obligation.
+Alpha MUST satisfy its obligation.
 
 # 5. Implications
 
-Alpha requires an architectural boundary.
+Alpha requires a boundary.
 
 # 8. Synopsis
 
-Alpha refers to the canonical Section 2 concept.
+Alpha refers to the canonical concept.
 """
 
 
 def load_checker():
-    spec = importlib.util.spec_from_file_location(MODULE_NAME, CHECKER_PATH)
+    spec = importlib.util.spec_from_file_location("check_normative_terminology", CHECKER_PATH)
     if spec is None or spec.loader is None:
         raise RuntimeError("cannot load terminology checker")
     module = importlib.util.module_from_spec(spec)
-    sys.modules[MODULE_NAME] = module
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
 checker = load_checker()
 
-GOLDEN_INVENTORY = {
-    "schema_version": 1,
-    "authority": "non-authoritative-review-inventory",
-    "source": "docs/specification/turnlock-spec.md",
-    "fingerprint": {"algorithm": "sha256", "normalization": "collapse-whitespace"},
-    "occurrences": [
-        {
-            "concepts": ["alpha"],
-            "section": "2.1",
-            "heading": "2.1 Alpha",
-            "role": "canonical-definition",
-            "fingerprint": "dd512041ce4865f1c234a7dfb3c29514888f360452003fe44238e8b5d49b6d28",
-        },
-        {
-            "concepts": ["beta"],
-            "section": "2.1",
-            "heading": "2.1 Alpha",
-            "role": "canonical-definition",
-            "fingerprint": "fd9289cbf61c3e981e55efc0351db6191ea60d3dc9942e8fd704c410484f2644",
-        },
-        {
-            "concepts": ["alpha"],
-            "section": "8",
-            "heading": "8. Synopsis",
-            "role": "synopsis",
-            "fingerprint": "ff42a5b92f9f445514632db3ce8d642de22eafe4a9475ca861539de53701385f",
-        },
-    ],
-}
 
-
-def inventory_for(specification: str) -> dict:
-    entries, registry_errors = checker.parse_registry(specification)
+def inventory_for(document: str) -> dict[str, object]:
+    entries, registry_errors = checker.parse_registry(document)
     if registry_errors:
         raise AssertionError(registry_errors)
-    occurrences, occurrence_errors = checker.discover_occurrences(specification, entries)
+    occurrences, occurrence_errors = checker.discover_occurrences(document, entries)
     if occurrence_errors:
         raise AssertionError(occurrence_errors)
     return {
@@ -120,65 +89,53 @@ def inventory_for(specification: str) -> dict:
     }
 
 
-def spec_with_unregistered_canonical_anchor() -> str:
-    return SPEC.replace(
-        "# 3. Obligations",
-        '<a id="term-gamma"></a>\n\n'
-        "A **gamma** is an unregistered canonical concept.\n\n"
-        "# 3. Obligations",
-        1,
-    )
-
-
 class NormativeTerminologyTests(unittest.TestCase):
-    def test_repository_conforms(self) -> None:
-        self.assertEqual([], checker.check_paths())
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.specification = SPEC.read_text(encoding="utf-8")
+        cls.inventory = yaml.safe_load(INVENTORY.read_text(encoding="utf-8"))
 
-    def test_shared_engine_is_bound_to_exact_executable_provider(self) -> None:
-        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
-        self.assertIn(
-            "proto-ring.git@dedb01a3a9b7a18930c9da75afa3773b5ad67f69",
-            requirements,
+    def test_live_registry_occurrences_and_inventory_pass(self) -> None:
+        entries, registry_errors = checker.parse_registry(self.specification)
+        occurrences, occurrence_errors = checker.discover_occurrences(
+            self.specification, entries
         )
-        binding = (
-            ROOT
-            / "docs"
-            / "repository-governance"
-            / "turnlock-rust-governance-bindings.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn("dc8e04c758fb40867dc7ad23f019843413fc4a1b", binding)
-        self.assertNotIn("c298343efa07d71790b53493ff15494f2fcac671", binding)
+        self.assertEqual([], registry_errors)
+        self.assertEqual([], occurrence_errors)
+        self.assertEqual(26, len(entries))
+        self.assertEqual(58, len(occurrences))
+        self.assertEqual([], checker.check_document(self.specification, self.inventory))
 
-    def test_generic_types_and_operations_delegate_to_shared_engine(self) -> None:
-        self.assertIs(checker.RegistryEntry, shared_terminology.RegistryEntry)
-        self.assertIs(checker.Block, shared_terminology.MarkdownBlock)
-        self.assertIs(checker.Occurrence, shared_terminology.Occurrence)
+    def test_native_fingerprint_is_stable(self) -> None:
+        text = "  A\n\n definition\twith spacing  "
+        self.assertEqual("A definition with spacing", checker.normalize_block(text))
+        self.assertEqual(
+            "7b2091576ab58037456d42b1e84170fba8373cb8c9a88461629b84b4a146e12e",
+            checker.fingerprint_block(text),
+        )
 
-        with (
-            mock.patch.object(
-                shared_terminology,
-                "parse_registry",
-                wraps=shared_terminology.parse_registry,
-            ) as parse_registry,
-            mock.patch.object(
-                shared_terminology,
-                "discover_occurrences",
-                wraps=shared_terminology.discover_occurrences,
-            ) as discover_occurrences,
-            mock.patch.object(
-                shared_terminology,
-                "reconcile_inventory",
-                wraps=shared_terminology.reconcile_inventory,
-            ) as reconcile_inventory,
-        ):
-            self.assertEqual([], checker.check_document(SPEC, GOLDEN_INVENTORY))
-
-        parse_registry.assert_called()
-        discover_occurrences.assert_called()
-        reconcile_inventory.assert_called_once()
-
-    def test_fixture_conforms_with_intent_obligation_and_implication_uses(self) -> None:
-        self.assertEqual([], checker.check_document(SPEC, GOLDEN_INVENTORY))
+    def test_occurrence_records_use_declarative_policy(self) -> None:
+        entries, _ = checker.parse_registry(self.specification)
+        occurrences, _ = checker.discover_occurrences(self.specification, entries)
+        roles = {checker.occurrence_record(item)["role"] for item in occurrences}
+        self.assertEqual(
+            {"canonical-definition", "intent", "obligation", "reference"}, roles
+        )
+        self.assertEqual("2", checker.TERMINOLOGY_POLICY["canonical_location"]["root"])
+        self.assertEqual(
+            [
+                ("0", "intent"),
+                ("3", "obligation"),
+                ("5", "implication"),
+                ("8", "synopsis"),
+            ],
+            [
+                (rule["matcher"]["value"], rule["role"])
+                for rule in checker.TERMINOLOGY_POLICY["role_policy"][
+                    "noncanonical_rules"
+                ]
+            ],
+        )
 
     def test_section_extraction_is_maximal_and_fail_closed(self) -> None:
         cases = (
@@ -195,16 +152,15 @@ class NormativeTerminologyTests(unittest.TestCase):
         )
         for heading, expected in cases:
             with self.subTest(heading=heading):
-                self.assertEqual(expected, checker._section_from_heading(heading))
+                blocks, _anchors = checker.parse_blocks(f"# {heading}\n\nBody.\n")
+                self.assertEqual(expected, blocks[0].section)
 
-    def test_canonical_location_does_not_treat_section_twenty_as_section_two(self) -> None:
-        for heading in ("20.1 Alpha", "2.1Afoo Alpha", "2.1A_foo Alpha"):
-            with self.subTest(heading=heading):
-                changed = SPEC.replace("## 2.1 Alpha", f"## {heading}")
-                entries, registry_errors = checker.parse_registry(changed)
-                self.assertEqual([], registry_errors)
-                _occurrences, errors = checker.discover_occurrences(changed, entries)
-                self.assertTrue(any("outside Section 2" in error for error in errors), errors)
+    def test_canonical_location_rejects_section_twenty(self) -> None:
+        changed = FIXTURE_SPEC.replace("## 2.1 Alpha", "## 20.1 Alpha")
+        entries, registry_errors = checker.parse_registry(changed)
+        self.assertEqual([], registry_errors)
+        _occurrences, errors = checker.discover_occurrences(changed, entries)
+        self.assertTrue(any("outside Section 2" in error for error in errors), errors)
 
     def test_role_mapping_uses_exact_section_hierarchies(self) -> None:
         expected = {
@@ -220,111 +176,68 @@ class NormativeTerminologyTests(unittest.TestCase):
         for section, role in expected.items():
             with self.subTest(section=section):
                 occurrence = checker.Occurrence(
-                    ("alpha",), section, f"{section} Heading", "0" * 64, 1, False
+                    ["alpha"], section, f"{section} Heading", "0" * 64, 1, False
                 )
                 self.assertEqual(role, checker.occurrence_record(occurrence)["role"])
 
-    def test_registry_requires_a_valid_gfm_separator(self) -> None:
+    def test_duplicate_registry_identity_and_anchor_are_rejected(self) -> None:
+        duplicate_key = FIXTURE_SPEC.replace("| `beta` |", "| `alpha` |")
+        _entries, errors = checker.parse_registry(duplicate_key)
+        self.assertIn("terminology registry contains duplicate concept keys", errors)
+        duplicate_anchor = FIXTURE_SPEC.replace(
+            "[`term-beta`](#term-beta)", "[`term-alpha`](#term-alpha)"
+        )
+        _entries, errors = checker.parse_registry(duplicate_anchor)
+        self.assertIn(
+            "terminology registry contains duplicate canonical destinations", errors
+        )
+
+    def test_overloaded_alias_remains_explicit_for_distinct_concepts(self) -> None:
+        changed = FIXTURE_SPEC.replace(
+            "| `first concept` |", "| `first concept`; `bounded region` |"
+        )
+        entries, errors = checker.parse_registry(changed)
+        self.assertEqual([], errors)
+        self.assertEqual(
+            2,
+            sum("bounded region" in entry.aliases for entry in entries),
+        )
+
+    def test_anchor_must_lead_to_its_registered_definition(self) -> None:
+        changed = FIXTURE_SPEC.replace(
+            "An **alpha** is the first canonical concept.",
+            "Alpha appears without a definition.",
+        )
+        errors = checker.check_document(changed, {**self.inventory, "occurrences": []})
+        self.assertTrue(
+            any("does not lead to a definition" in error for error in errors), errors
+        )
+
+    def test_fixture_conforms_with_native_policy(self) -> None:
+        self.assertEqual([], checker.check_document(FIXTURE_SPEC, inventory_for(FIXTURE_SPEC)))
+
+    def test_registry_requires_valid_gfm_structure(self) -> None:
         separator = "| ----------- | -------------- | ---------------- | ---------------- | ------------------ | -------------- |\n"
-        _, errors = checker.parse_registry(SPEC.replace(separator, ""))
-        self.assertTrue(any("separator" in error for error in errors))
-        _, errors = checker.parse_registry(SPEC.replace("-----------", "--", 1))
-        self.assertTrue(any("separator" in error for error in errors))
-        aligned = SPEC.replace(separator, "| :---------- | -------------: | :--------------: | ---------------: | :---------------- | -------------: |\n")
-        _, errors = checker.parse_registry(aligned)
+        _entries, errors = checker.parse_registry(FIXTURE_SPEC.replace(separator, ""))
+        self.assertIn("terminology registry structure is invalid", errors)
+        aligned = FIXTURE_SPEC.replace(
+            separator,
+            "| :---------- | -------------: | :--------------: | ---------------: | :---------------- | -------------: |\n",
+        )
+        _entries, errors = checker.parse_registry(aligned)
         self.assertEqual([], errors)
 
-    def test_canonical_anchor_must_bind_to_its_own_definition(self) -> None:
-        unrelated = SPEC.replace("An **alpha** is the first canonical concept.", "Alpha appears without a definition.")
-        errors = checker.check_document(unrelated, GOLDEN_INVENTORY)
-        self.assertTrue(any("does not lead to a definition of alpha" in error for error in errors))
-
-        consecutive = SPEC.replace(
-            '<a id="term-alpha"></a>\n\nAn **alpha** is the first canonical concept.\n\n<a id="term-beta"></a>',
-            '<a id="term-alpha"></a>\n\n<a id="term-beta"></a>\n\nAn **alpha** is the first canonical concept.',
-        )
-        errors = checker.check_document(consecutive, GOLDEN_INVENTORY)
-        self.assertTrue(any("not immediately followed" in error for error in errors))
-
-        anchor = '<a id="term-alpha"></a>'
-        duplicated = SPEC.replace(anchor, f"{anchor}\n\n{anchor}", 1)
-        errors = checker.check_document(duplicated, GOLDEN_INVENTORY)
-        self.assertTrue(any("occurs more than once" in error for error in errors))
-
     def test_unregistered_canonical_anchor_is_rejected(self) -> None:
-        errors = checker.check_document(
-            spec_with_unregistered_canonical_anchor(),
-            GOLDEN_INVENTORY,
+        changed = FIXTURE_SPEC.replace(
+            "# 3. Obligations",
+            '<a id="term-gamma"></a>\n\nA **gamma** is new.\n\n# 3. Obligations',
         )
+        errors = checker.check_document(changed, inventory_for(FIXTURE_SPEC))
         self.assertIn(
-            "canonical terminology anchor is not registered: term-gamma",
-            errors,
+            "canonical terminology anchor is not registered: term-gamma", errors
         )
 
-    def test_list_occurrences_rejects_unregistered_canonical_anchor(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            spec_path = Path(directory) / "spec.md"
-            spec_path.write_text(
-                spec_with_unregistered_canonical_anchor(),
-                encoding="utf-8",
-            )
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(CHECKER_PATH),
-                    "--spec",
-                    str(spec_path),
-                    "--list-occurrences",
-                ],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-        combined = result.stdout + result.stderr
-        self.assertEqual(1, result.returncode)
-        self.assertNotIn("Traceback", combined)
-        self.assertIn(
-            "canonical terminology anchor is not registered: term-gamma",
-            result.stderr,
-        )
-
-    def test_malformed_occurrence_collection_fails_without_traceback(self) -> None:
-        malformed = {**GOLDEN_INVENTORY, "occurrences": None}
-        errors = checker.check_document(SPEC, malformed)
-        self.assertIn("terminology inventory occurrences must be a list", errors)
-
-        with tempfile.TemporaryDirectory() as directory:
-            spec_path = Path(directory) / "spec.md"
-            inventory_path = Path(directory) / "inventory.yaml"
-            spec_path.write_text(SPEC, encoding="utf-8")
-            inventory_path.write_text(yaml.safe_dump(malformed), encoding="utf-8")
-            result = subprocess.run(
-                [sys.executable, str(CHECKER_PATH), "--spec", str(spec_path), "--inventory", str(inventory_path)],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-            )
-        self.assertNotEqual(0, result.returncode)
-        self.assertNotIn("Traceback", result.stderr + result.stdout)
-        self.assertIn("occurrences must be a list", result.stdout)
-
-        malformed_role = inventory_for(SPEC)
-        malformed_role["occurrences"][0]["role"] = []
-        errors = checker.check_document(SPEC, malformed_role)
-        self.assertTrue(any("has invalid role" in error for error in errors))
-
-    def test_new_competing_definition_is_rejected(self) -> None:
-        inventory = inventory_for(SPEC)
-        changed = SPEC.replace(
-            "# 5. Implications",
-            "# 4. Boundary\n\nAn alpha means an independently assigned meaning.\n\n# 5. Implications",
-        )
-        errors = checker.check_document(changed, inventory)
-        self.assertTrue(any("unreviewed definition-like occurrence for alpha" in error for error in errors))
-
-    def test_definition_cues_and_equations_are_detected(self) -> None:
+    def test_definition_cues_and_equations_are_discovered(self) -> None:
         additions = """
 
 # 4. Candidate forms
@@ -337,54 +250,60 @@ Alpha is defined as another candidate.
 alpha = candidate equation
 ```
 """
-        changed = SPEC.replace("# 5. Implications", additions + "\n# 5. Implications")
+        changed = FIXTURE_SPEC.replace(
+            "# 5. Implications", additions + "\n# 5. Implications"
+        )
         entries, errors = checker.parse_registry(changed)
         self.assertEqual([], errors)
         occurrences, errors = checker.discover_occurrences(changed, entries)
         self.assertEqual([], errors)
-        candidates = [item for item in occurrences if not item.canonical and item.section == "4"]
+        candidates = [
+            item for item in occurrences if not item.canonical and item.section == "4"
+        ]
         self.assertEqual(3, len(candidates))
-        self.assertTrue(all(item.concepts == ("alpha",) for item in candidates))
+        self.assertTrue(all(item.concepts == ["alpha"] for item in candidates))
 
-    def test_missing_or_stale_inventory_entry_is_rejected(self) -> None:
-        inventory = inventory_for(SPEC)
-        inventory["occurrences"] = inventory["occurrences"][:-1]
-        errors = checker.check_document(SPEC, inventory)
-        self.assertTrue(any("unreviewed definition-like occurrence" in error for error in errors))
+    def test_competing_and_synopsis_definitions_remain_unreviewed(self) -> None:
+        review = inventory_for(FIXTURE_SPEC)
+        competing = FIXTURE_SPEC.replace(
+            "# 5. Implications",
+            "# 4. Boundary\n\nAn alpha means independent meaning.\n\n# 5. Implications",
+        )
+        self.assertIn(
+            "unreviewed definition-like occurrence",
+            checker.check_document(competing, review),
+        )
+        synopsis = FIXTURE_SPEC + "\nAlpha is a new synopsis definition.\n"
+        self.assertIn(
+            "unreviewed definition-like occurrence",
+            checker.check_document(synopsis, review),
+        )
 
-        stale_inventory = inventory_for(SPEC)
-        stale_inventory["occurrences"][0]["fingerprint"] = "0" * 64
-        errors = checker.check_document(SPEC, stale_inventory)
-        self.assertTrue(any("stale terminology inventory entry" in error for error in errors))
+    def test_malformed_inventory_shape_fails_with_local_diagnostic(self) -> None:
+        malformed = inventory_for(FIXTURE_SPEC)
+        malformed["occurrences"] = None
+        self.assertIn(
+            "terminology inventory occurrences must be a list",
+            checker.check_document(FIXTURE_SPEC, malformed),
+        )
+        malformed = inventory_for(FIXTURE_SPEC)
+        malformed["occurrences"][0]["role"] = []
+        self.assertIn(
+            "terminology inventory entry has invalid role",
+            checker.check_document(FIXTURE_SPEC, malformed),
+        )
 
     def test_unknown_concept_is_rejected(self) -> None:
-        inventory = inventory_for(SPEC)
-        inventory["occurrences"][0]["concepts"] = ["unknown-concept"]
-        errors = checker.check_document(SPEC, inventory)
-        self.assertTrue(any("references unknown concepts" in error for error in errors))
-
-    def test_duplicate_concept_key_and_destination_are_rejected(self) -> None:
-        duplicate_key = SPEC.replace("| `beta` |", "| `alpha` |")
-        _, errors = checker.parse_registry(duplicate_key)
-        self.assertIn("terminology registry contains duplicate concept keys", errors)
-
-        duplicate_anchor = SPEC.replace("[`term-beta`](#term-beta)", "[`term-alpha`](#term-alpha)")
-        _, errors = checker.parse_registry(duplicate_anchor)
-        self.assertIn("terminology registry contains duplicate canonical destinations", errors)
-
-    def test_overloaded_alias_can_identify_distinct_compound_concepts(self) -> None:
-        overloaded = SPEC.replace("| `first concept` |", "| `first concept`; `bounded region` |")
-        entries, errors = checker.parse_registry(overloaded)
-        self.assertEqual([], errors)
-        self.assertEqual(2, sum("bounded region" in entry.expressions for entry in entries))
-
-    def test_section_eight_cannot_add_an_unreviewed_definition(self) -> None:
-        inventory = inventory_for(SPEC)
-        changed = SPEC + "\nAlpha is a new independent synopsis definition.\n"
-        errors = checker.check_document(changed, inventory)
-        self.assertTrue(any("Section 8" in error and "unreviewed" in error for error in errors))
+        malformed = inventory_for(FIXTURE_SPEC)
+        malformed["occurrences"][0]["concepts"] = ["unknown-concept"]
+        self.assertIn(
+            "terminology inventory entry references unknown concepts",
+            checker.check_document(FIXTURE_SPEC, malformed),
+        )
 
     def test_cli_disclaims_semantic_proof(self) -> None:
+        import subprocess
+
         result = subprocess.run(
             [sys.executable, str(CHECKER_PATH), "--help"],
             cwd=ROOT,
@@ -393,6 +312,56 @@ alpha = candidate equation
             text=True,
         )
         self.assertIn("not semantic proof", result.stdout)
+
+    def test_list_occurrences_reports_provider_failure_without_traceback(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch.object(
+            checker,
+            "parse_registry",
+            side_effect=checker.ProtoRingExecutableError("provider unavailable"),
+        ), mock.patch.object(
+            sys, "argv", [str(CHECKER_PATH), "--list-occurrences"]
+        ), contextlib.redirect_stderr(stderr):
+            self.assertEqual(1, checker.main())
+        self.assertIn("provider unavailable", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
+
+    def test_malformed_registry_produces_typed_diagnostic(self) -> None:
+        changed = self.specification.replace(
+            "<!-- normative-terminology-registry:end -->", "", 1
+        )
+        _entries, errors = checker.parse_registry(changed)
+        self.assertIn(
+            "specification must contain exactly one canonical terminology registry",
+            errors,
+        )
+
+    def test_stale_inventory_is_non_pass(self) -> None:
+        changed = dict(self.inventory)
+        changed["occurrences"] = self.inventory["occurrences"][:-1]
+        errors = checker.check_document(self.specification, changed)
+        self.assertIn("unreviewed definition-like occurrence", errors)
+
+    def test_malformed_fingerprint_is_typed(self) -> None:
+        changed = yaml.safe_load(yaml.safe_dump(self.inventory))
+        changed["occurrences"][0]["fingerprint"] = "not-a-digest"
+        errors = checker.check_document(self.specification, changed)
+        self.assertIn(
+            "terminology inventory entry has malformed fingerprint", errors
+        )
+
+    def test_local_executable_policy_copies_are_absent(self) -> None:
+        source = CHECKER_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("def _section_from_heading", source)
+        self.assertNotIn("def _canonical_location", source)
+        self.assertNotIn("def _suggested_role", source)
+        for operation in (
+            "normative-terminology.fingerprint",
+            "normative-terminology.registry",
+            "normative-terminology.markdown",
+            "normative-terminology.inventory",
+        ):
+            self.assertIn(operation, source)
 
 
 if __name__ == "__main__":

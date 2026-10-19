@@ -3,11 +3,14 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import shutil
+import sys
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "adr-metadata.py"
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
 
 spec = importlib.util.spec_from_file_location("adr_metadata", SCRIPT)
 if spec is None or spec.loader is None:

@@ -6,8 +6,12 @@ import shutil
 import subprocess
 import sys
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "check-repository-integrity.py"
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
 
 spec = importlib.util.spec_from_file_location("repository_integrity", SCRIPT)
 if spec is None or spec.loader is None:
@@ -65,15 +69,27 @@ def make_runner_fixture(
     scripts = root / "scripts"
     scripts.mkdir()
     shutil.copyfile(SCRIPT, scripts / SCRIPT.name)
+    for module_name in (
+        "proto_ring_executable_binding.py",
+        "proto_ring_result_validation.py",
+        "proto_ring_structured_value.py",
+    ):
+        shutil.copyfile(ROOT / "scripts" / module_name, scripts / module_name)
 
     child_sources = child_sources or {}
-    profile = checker.load_profile(ROOT)
+    profile_path = (
+        ROOT
+        / "docs/repository-governance/turnlock-rust-repository-integrity.md"
+    )
+    metadata = yaml.safe_load(
+        profile_path.read_text(encoding="utf-8").split("---\n", 2)[1]
+    )["repository_integrity"]
     child_paths = {
-        definition.command.arguments[0]
-        for definition in profile.validations.values()
-        if definition.command.arguments
-        and definition.command.arguments[0].startswith("scripts/")
-        and definition.command.arguments[0].endswith(".py")
+        definition["command"]["arguments"][0]
+        for definition in metadata["validations"].values()
+        if definition["command"]["arguments"]
+        and definition["command"]["arguments"][0].startswith("scripts/")
+        and definition["command"]["arguments"][0].endswith(".py")
     }
     for relative in child_paths:
         path = root / relative
