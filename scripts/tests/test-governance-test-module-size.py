@@ -12,6 +12,7 @@ RETIRED_TEST_MODULES = (
 )
 
 GOVERNANCE_SOURCE_MODULES = (
+    "scripts/check-assurance-archive.py",
     "scripts/check-authoritative-ref-monotonicity.py",
     "scripts/check-governed-objects.py",
     "scripts/check-proto-ring-binding-registry.py",
@@ -22,6 +23,7 @@ GOVERNANCE_SOURCE_MODULES = (
     "scripts/check-repository-integrity.py",
     "scripts/check-structured-governance.py",
     "scripts/tests/adr-metadata-test-fixture.py",
+    "scripts/tests/test-assurance-archive.py",
     "scripts/tests/repository-integrity-test-fixture.py",
     "scripts/tests/test-adr-metadata-provider-binding.py",
     "scripts/tests/test-adr-metadata-profile-validation.py",

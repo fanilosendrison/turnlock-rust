@@ -169,11 +169,11 @@ class ProtoRingProviderTests(unittest.TestCase):
                     "requirements": {
                         "gate": {
                             "id": "gate",
-                            "responsibility": "formal_assurance_graph",
+                            "responsibility": "repository_validation",
                             "instances": {"kind": "single", "source": None},
                             "evidence_classes": {
                                 "kind": "explicit",
-                                "classes": ["review"],
+                                "classes": ["check"],
                                 "source": None,
                             },
                             "subject_source": "subject",

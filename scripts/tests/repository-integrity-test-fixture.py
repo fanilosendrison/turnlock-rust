@@ -62,7 +62,6 @@ def make_runner_fixture(
     shutil.copyfile(ROOT / "AGENTS.md", root / "AGENTS.md")
     shutil.copyfile(ROOT / "requirements.txt", root / "requirements.txt")
     shutil.copytree(ROOT / "docs", root / "docs")
-    shutil.copytree(ROOT / "formal", root / "formal")
     workflow = root / ".github" / "workflows" / "repository-integrity.yml"
     workflow.parent.mkdir(parents=True)
     shutil.copyfile(ROOT / ".github/workflows/repository-integrity.yml", workflow)

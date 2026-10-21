@@ -41,20 +41,16 @@ class GovernedObjectsProfileTests(unittest.TestCase):
     def test_profile_has_exact_consumer_interfaces(self) -> None:
         interfaces = profile()["interfaces"]
         self.assertEqual(
-            {"architecture_decisions", "stable_invariants", "formal_claims"},
+            {"architecture_decisions", "stable_invariants"},
             set(interfaces),
         )
         self.assertEqual(
-            {f"ADR-{number:03d}" for number in range(1, 53)},
+            {f"ADR-{number:03d}" for number in range(1, 60)},
             set(interfaces["architecture_decisions"]["objects"]),
         )
         self.assertEqual(
             {f"TL-INV-{number:03d}" for number in range(1, 43)},
             set(interfaces["stable_invariants"]["objects"]),
-        )
-        self.assertEqual(
-            {f"TL-CLAIM-{number:03d}" for number in range(1, 84)},
-            set(interfaces["formal_claims"]["objects"]),
         )
 
     def test_profile_relations_use_turnlock_responsibilities(self) -> None:
@@ -71,16 +67,6 @@ class GovernedObjectsProfileTests(unittest.TestCase):
                 value["responsibilities"],
             )
             self.assertEqual([], value.get("relations", []))
-        relations = []
-        for value in interfaces["formal_claims"]["objects"].values():
-            self.assertEqual(["formal_assurance_graph"], value["responsibilities"])
-            relations.extend(value["relations"])
-            for relation in value["relations"]:
-                self.assertEqual("normative_sources", relation["relation"])
-                self.assertEqual("formal_assurance_graph", relation["responsibility"])
-                self.assertEqual("stable_invariants", relation["target"]["interface"])
-                self.assertRegex(relation["target"]["object"], r"^TL-INV-\d{3}$")
-        self.assertEqual(125, len(relations))
 
     def test_profile_has_no_duplicate_contract_pin(self) -> None:
         self.assertNotIn(

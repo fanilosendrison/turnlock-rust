@@ -145,16 +145,14 @@ class StructuredGovernanceTests(unittest.TestCase):
             bindings["repository_governance_model_contract"]["identity"]["commit"],
         )
 
-    def test_projection_has_only_effective_realization(self) -> None:
+    def test_projection_has_only_five_retained_projections(self) -> None:
         projections = self.projections["projections"]
         self.assertEqual(
             {
                 "adr_index",
                 "adr_annotated_history",
-                "formal_invariant_mapping",
                 "governed_adr_catalog",
                 "governed_invariant_catalog",
-                "governed_formal_claim_catalog",
                 "effective_proto_ring_realization",
             },
             set(projections),
@@ -167,21 +165,20 @@ class StructuredGovernanceTests(unittest.TestCase):
         self.assertEqual("proto_ring_executable", realization["binding"])
         self.assertEqual("proto_ring_provider_currentness", realization["validation"])
 
-    def test_evidence_registry_and_authority_remain_turnlock_owned(self) -> None:
-        requirements = self.evidence["requirements"]
+    def test_empty_evidence_registry_and_archive_custody_remain_turnlock_owned(self) -> None:
+        self.assertEqual({}, self.evidence["requirements"])
+        self.assertNotIn("gate_a_current_subject", self.authority["sources"])
+        self.assertNotIn("gate_a_current_protocol_context", self.authority["sources"])
+        self.assertNotIn("gate_a_review_candidates", self.authority["sources"])
         self.assertEqual(
-            {"gate_a_subject_binding", "gate_a_current_protocol_binding"},
-            set(requirements),
+            {
+                "assurance_archive_manifest": "authority",
+                "assurance_archive_payload": "non_authoritative",
+            },
+            self.authority["responsibilities"]["historical_source_custody"][
+                "roles"
+            ],
         )
-        for requirement in requirements.values():
-            self.assertEqual("formal_assurance_graph", requirement["responsibility"])
-            self.assertNotIn("target", requirement)
-        for source in (
-            "gate_a_current_subject",
-            "gate_a_current_protocol_context",
-            "gate_a_review_candidates",
-        ):
-            self.assertNotIn("repository_target", self.authority["sources"][source])
         self.assertEqual(
             {"repository_integrity_profile": "authority"},
             self.authority["responsibilities"]["repository_integrity_profile"][
@@ -194,6 +191,9 @@ class StructuredGovernanceTests(unittest.TestCase):
         order = self.integrity["order"]
         self.assertEqual(29, len(validations))
         self.assertEqual(list(validations), order)
+        self.assertEqual(
+            ["assurance_archive_tests", "assurance_archive_custody"], order[-2:]
+        )
         self.assertEqual(
             [2],
             validations["authoritative_ref_monotonicity_effective_rules"]["command"] [

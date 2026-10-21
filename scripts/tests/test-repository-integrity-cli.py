@@ -40,11 +40,11 @@ class RepositoryIntegrityCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             result = run_fixture(
                 temporary,
-                {"scripts/check-formal-traceability.py": "raise SystemExit(7)\n"},
+                {"scripts/check-assurance-archive.py": "raise SystemExit(7)\n"},
             )
         combined = result.stdout + result.stderr
         self.assertEqual(1, result.returncode)
-        self.assertIn("formal_traceability_check", combined)
+        self.assertIn("assurance_archive_custody", combined)
         self.assertIn("VIOLATED", combined)
         self.assertIn("command exited with 7", combined)
         self.assertIn("repository integrity: FAILED", combined)

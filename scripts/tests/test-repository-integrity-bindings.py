@@ -15,7 +15,6 @@ EXPECTED_ORDER = (
     "adr_metadata_migration_evidence_tests",
     "adr_metadata_generated_index_tests",
     "adr_metadata_annotated_history_tests",
-    "formal_traceability_tests",
     "exact_evidence_binding_tests",
     "structured_governance_tests",
     "proto_ring_binding_registry_tests",
@@ -37,8 +36,9 @@ EXPECTED_ORDER = (
     "governed_objects_profile",
     "authoritative_ref_monotonicity_effective_rules",
     "normative_terminology_check",
-    "formal_traceability_check",
     "git_whitespace_check",
+    "assurance_archive_tests",
+    "assurance_archive_custody",
 )
 
 
