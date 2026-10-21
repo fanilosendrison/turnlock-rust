@@ -12,7 +12,7 @@ name: "Turnlock-Rust engineering discovery classification profile"
 Apply the shared `engineering-discovery-classification` skill before using this
 profile. This file binds the shared classification mechanics to Turnlock-Rust
 authority and artifacts. It creates no TURNLOCK product semantics, accepted
-decision, or formal-verification evidence.
+decision, or verification evidence.
 
 ## Authority binding
 
@@ -28,12 +28,13 @@ Bind the shared layers as follows:
   including stable `TL-INV-NNN` identities.
 - `decision-history` maps to accepted ADRs under [`docs/adr/`](../adr/) and
   explicit later amendments.
-- `formal-model-or-analysis` maps to the intended traceability in
-  [`formal/verification.yaml`](../../formal/verification.yaml) and to executable
-  models and configurations under `formal/` once they exist.
-- `verification-or-qualification-evidence` maps only to scope-bound result
-  records under `formal/results/` once valid runs exist. Planned mappings and
-  generated projections are not successful verification evidence.
+- `formal-model-or-analysis` maps to separately authorized analysis or formal
+  artifacts if and when current authority establishes them. ADR-059 selects no
+  replacement carrier, language, model topology, or readiness sequence.
+- `verification-or-qualification-evidence` maps only to scope-bound evidence
+  records whose authority, subject, premises, and admissible conclusions have
+  been established. Plans, projections, archive custody, and successful tooling
+  are not successful verification evidence.
 - `architecture-or-implementation` maps to accepted implementation-specific
   decisions and future implementation artifacts. [`AGENTS.md`](../../AGENTS.md)
   owns repository implementation authorization and guardrails; the repository
@@ -53,8 +54,8 @@ Classify a discovery as `derived-from-existing-authority` only with a complete
 derivation from current normative prose and accepted decisions. Prefer mapping,
 formalizing, or clarifying an existing `TL-INV-NNN` when it already entails the
 obligation. Create a new invariant identity only when the invariant admission,
-ADR amendment, synchronization, and traceability rules establish a distinct
-normative obligation.
+ADR amendment, synchronization, and applicable examination rules establish a
+distinct normative obligation.
 
 Classify behavior not uniquely determined by current authority as
 `decision-required`. Keep it locked until the repository's accepted ADR process
@@ -64,20 +65,23 @@ does not accept that decision.
 
 Use `authority-conflict-or-uncertain` when the specification and accepted ADRs
 disagree or a derivation depends on an unstated product assumption. Resolve a
-semantic conflict only through a later ADR plus synchronized normative and
-formal artifacts.
+semantic conflict only through a later ADR plus synchronized applicable
+authoritative artifacts.
 
-## Formal and conformance interpretation
+## Examination and conformance interpretation
 
-Treat TLA+ and TLC as discovery and verification instruments within their
-declared scope:
+Apply ADR-059 before selecting an examination mechanism:
 
-- do not invent executable identifiers before the model contains them;
-- do not treat planned traceability as a checked result;
-- do not strengthen product semantics merely to make a property pass;
-- do not turn a modeling structure, finite bound, or fairness device into an
+- state the exact question, subject, scope, premises, required conclusions, and
+  evidence limits;
+- do not treat a plan, abstraction, model, review, or successful tool execution
+  as a broader checked result;
+- do not strengthen product semantics merely to make an examination succeed;
+- do not turn an analysis structure, finite bound, or fairness device into an
   implementation obligation;
-- do not weaken TURNLOCK semantics to accommodate a harness limitation.
+- do not weaken TURNLOCK semantics to accommodate a harness limitation;
+- do not infer a replacement formalism, claim graph, gate sequence, review
+  campaign, runner, or runtime from the retired method.
 
 When a harness cannot preserve accepted semantics, record the exact capability
 or conformance limitation and use only the support outcome permitted by current
@@ -87,8 +91,9 @@ TURNLOCK authority. Raise any proposed semantic weakening as a separate locked
 ## Durable routing and synchronization
 
 Keep transient discoveries with no durable impact in working notes. Preserve a
-discovery in the resulting ADR, Issue, review record, commit, formal artifact,
-or implementation artifact when its reasoning must survive the session.
+discovery in the resulting ADR, Issue, review record, commit, authorized
+analysis artifact, or implementation artifact when its reasoning must survive
+the session.
 
 For independently tracked work, apply the shared GitHub Engineering Projects
 skill and the
@@ -103,5 +108,5 @@ projection, apply the
 [repository projection-integrity policy](turnlock-rust-projection-integrity.md):
 reference, generate, validate, or explicitly snapshot canonical state instead of
 manually mirroring it. Classification never substitutes for ADR lifecycle,
-stable invariant identity, formal traceability, review, permission, or
+stable invariant identity, required examination, review, permission, or
 validation.

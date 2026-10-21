@@ -22,15 +22,10 @@ governance_authority:
     adr_history:
       repository_target: "docs/adr/README.md"
     adr_index_generator: {}
-    formal_assurance_manifest:
-      repository_target: "formal/verification.yaml"
-    formal_assurance_mapping:
-      repository_target: "docs/formal/invariant-mapping.md"
-    formal_mapping_generator: {}
-    hostile_review_records:
-      repository_target: "formal/reviews"
-    bounded_verification_results:
-      repository_target: "formal/results"
+    assurance_archive_manifest:
+      repository_target: docs/history/formal-assurance-2026-10-20/source-manifest.json
+    assurance_archive_payload:
+      repository_target: docs/history/formal-assurance-2026-10-20/source-tree.zip
     terminology_inventory:
       repository_target: "docs/specification/terminology-inventory.yaml"
     turnlock_vision:
@@ -49,9 +44,6 @@ governance_authority:
       repository_target: "docs/repository-governance/turnlock-rust-governed-objects.md"
     effective_proto_ring_provider: {}
     proto_ring_environment: {}
-    gate_a_current_subject: {}
-    gate_a_current_protocol_context: {}
-    gate_a_review_candidates: {}
     agents_governance_frontmatter:
       repository_target: "AGENTS.md"
     agents_directives:
@@ -68,7 +60,6 @@ governance_authority:
         turnlock_spec: authority
         accepted_adrs: authority
         turnlock_vision: non_authoritative
-        formal_assurance_mapping: non_authoritative
         terminology_inventory: non_authoritative
         discovery_classification_profile: non_authoritative
       precedence: []
@@ -102,26 +93,10 @@ governance_authority:
       roles:
         adr_profile: authority
       precedence: []
-    formal_assurance_graph:
+    historical_source_custody:
       roles:
-        formal_assurance_manifest: authority
-        formal_assurance_mapping: secondary_representation
-        governed_objects_profile: secondary_representation
-        formal_mapping_generator: non_authoritative
-        gate_a_current_subject: non_authoritative
-        gate_a_current_protocol_context: non_authoritative
-      precedence: []
-    canonical_formal_semantics:
-      roles: {}
-      precedence: []
-    hostile_review_evidence:
-      roles:
-        hostile_review_records: authority
-        gate_a_review_candidates: non_authoritative
-      precedence: []
-    bounded_verification_evidence:
-      roles:
-        bounded_verification_results: authority
+        assurance_archive_manifest: authority
+        assurance_archive_payload: non_authoritative
       precedence: []
     repository_artifact_state:
       roles:
@@ -200,6 +175,6 @@ governance_authority:
 # Turnlock-Rust Governance Authority profile
 
 This profile is the canonical machine-readable mapping of Turnlock-Rust
-repository-governance roles. Underlying TURNLOCK semantic, formal, review, and
-evidence authority remains in the sources identified here. Contract identities
-are owned by the routed Governance Binding Registry.
+repository-governance roles. Underlying TURNLOCK semantic authority and the
+bounded historical-source custody declaration remain in the sources identified
+here. Contract identities are owned by the routed Governance Binding Registry.

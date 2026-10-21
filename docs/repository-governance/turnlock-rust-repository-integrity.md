@@ -40,11 +40,6 @@ repository_integrity:
       prerequisites: []
       instances: {kind: single}
       command: {kind: command, environment: turnlock_python, arguments: [scripts/tests/test-adr-metadata-annotated-history.py], undetermined_exit_codes: []}
-    formal_traceability_tests:
-      responsibility: repository_validation
-      prerequisites: []
-      instances: {kind: single}
-      command: {kind: command, environment: turnlock_python, arguments: [scripts/tests/test-formal-traceability.py], undetermined_exit_codes: []}
     exact_evidence_binding_tests:
       responsibility: repository_validation
       prerequisites: []
@@ -150,23 +145,27 @@ repository_integrity:
       prerequisites: []
       instances: {kind: single}
       command: {kind: command, environment: turnlock_python, arguments: [scripts/check-normative-terminology.py], undetermined_exit_codes: []}
-    formal_traceability_check:
-      responsibility: repository_validation
-      prerequisites: []
-      instances: {kind: single}
-      command: {kind: command, environment: turnlock_python, arguments: [scripts/check-formal-traceability.py], undetermined_exit_codes: []}
     git_whitespace_check:
       responsibility: repository_validation
       prerequisites: []
       instances: {kind: single}
       command: {kind: command, environment: turnlock_python, arguments: [scripts/check-git-whitespace.py], undetermined_exit_codes: []}
+    assurance_archive_tests:
+      responsibility: repository_validation
+      prerequisites: []
+      instances: {kind: single}
+      command: {kind: command, environment: turnlock_python, arguments: [scripts/tests/test-assurance-archive.py], undetermined_exit_codes: []}
+    assurance_archive_custody:
+      responsibility: repository_validation
+      prerequisites: []
+      instances: {kind: single}
+      command: {kind: command, environment: turnlock_python, arguments: [scripts/check-assurance-archive.py], undetermined_exit_codes: []}
   order:
     - adr_metadata_provider_binding_tests
     - adr_metadata_profile_validation_tests
     - adr_metadata_migration_evidence_tests
     - adr_metadata_generated_index_tests
     - adr_metadata_annotated_history_tests
-    - formal_traceability_tests
     - exact_evidence_binding_tests
     - structured_governance_tests
     - proto_ring_binding_registry_tests
@@ -188,8 +187,9 @@ repository_integrity:
     - governed_objects_profile
     - authoritative_ref_monotonicity_effective_rules
     - normative_terminology_check
-    - formal_traceability_check
     - git_whitespace_check
+    - assurance_archive_tests
+    - assurance_archive_custody
 ---
 
 # Turnlock-Rust Repository Integrity profile

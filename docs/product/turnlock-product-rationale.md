@@ -359,9 +359,13 @@ It selects no language, scheduler, protocol, storage mechanism, provider, or
 harness API. It adds no SLA, throughput target, cost claim, adoption claim, or
 proof of formal verification.
 
-The Gate A campaign runner and its construction briefs govern the assurance
-controller, not TURNLOCK product runtime behavior. Their mechanisms and
-operational guarantees are not imported into this rationale.
+The former Gate A campaign runner and its construction briefs concerned an
+assurance controller, not TURNLOCK product runtime behavior. Their retirement
+is recorded by
+[ADR-059](../adr/adr-059-retire-formal-assurance-architecture-and-reopen-post-invariant-design.md).
+They are retained as [historical sources](../history/formal-assurance-2026-10-20/README.md),
+not active construction authority; their mechanisms and operational guarantees
+are not imported into this rationale.
 
 ## Reading basis
 

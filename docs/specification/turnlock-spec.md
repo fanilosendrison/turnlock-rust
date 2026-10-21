@@ -70,8 +70,8 @@ advance that same occurrence. The obligation applies whether TURNLOCK is
 progressing other work or no other work; conformance does not depend on
 classifying the cause of delay. This amendment does not add a universal
 completion, crash-recovery, or durability guarantee.
-ADR-015 governs how this normative specification co-evolves with the
-formal TLA+/TLC model and verification manifest.
+ADR-015 records the historical formalization methodology. ADR-059 governs
+its current methodological amendment and the post-invariant restart.
 
 If a future implementation admits several mechanisms, the conforming mechanism is the one that preserves this product intent and the derived invariants. A technical convenience is not sufficient reason to weaken the product promise. If a later design weakens one of these user-visible guarantees, that weakening must be explicit in a new ADR rather than emerging accidentally from implementation constraints.
 
@@ -4277,61 +4277,33 @@ conditions matter to a property or whether executions are comparable.
 
 The product is successful only if these roles remain distinct in the real execution model and if known orchestration decisions can remain in the workflow rather than being pushed back into an agent merely because the workflow lacks expressive power.
 
-# 9. Formal specification governance
+# 9. Specification examination and methodological status
 
-TURNLOCK maintains a formal state-machine specification alongside this normative prose specification for semantics that materially involve state, control ownership, lifecycle, invocation/return, nesting, concurrency, synchronization, failure, cancellation, or temporal progress. ADR-015 governs this relationship.
+The Product Intent, canonical terminology and stable invariants above remain
+TURNLOCK product authority under the retained accepted decisions. Their presence
+does not establish whole-product completeness, consistency, realizability or
+implementation conformance.
 
-The prose specification remains the normative statement of product meaning. The TLA+ model is an abstract executable model used to test relevant state/temporal consequences and to discover counterexamples before implementation choices harden. It MUST remain implementation-independent and harness-agnostic at the core semantic layer.
+ADR-059 retires the previously selected formal-assurance architecture and amends
+ADR-015's prescribed realization. The former claim graph, Gate A/B/C protocol,
+campaign-runner construction, and their dedicated validation corpus are retained
+as historical sources, not active prerequisites or successful verification.
+The source archive is indexed at
+`docs/history/formal-assurance-2026-10-20/README.md`.
 
-Every invariant in Section 3 has a stable `TL-INV-xxx` identifier. Section numbering and titles may evolve; published invariant IDs are stable traceability identities.
+Subsequent examination starts from an explicit question and the applicable
+accepted product meaning. It must identify its subject, scope, assumptions,
+required conclusions and evidence, preserve genuinely unresolved choices, and
+justify relevant abstractions and interactions. Formalization and mechanical
+examination can participate in elaboration and diagnosis rather than merely
+checking a finished implementation.
 
-Formal traceability is maintained in the machine-readable manifest:
+A model, successful tool invocation, reviewer agreement, repository-integrity
+result or completed work item cannot by itself establish fidelity to the
+accepted product meaning or support a claim beyond its actual evidence.
+Historical results may be reused only within their qualified applicability.
 
-```text
-formal/verification.yaml
-```
-
-A human-readable mapping in `docs/formal/invariant-mapping.md` is generated from that manifest. For every formally modeled invariant, the manifest is intended to trace the stable product ID to its TLA+ module/property, the state variables and actions/transitions used by that formalization, the focused/integrated TLC configurations that exercise it, and later implementation/conformance tests. The mapping MUST also be mechanically invertible so that a changed TLA+ property, state variable, or action can identify potentially affected product invariants.
-
-The manifest describes verification intent and traceability. Actual TLC execution evidence is a separate machine-readable artifact class under `formal/results/`, governed by `formal/tlc-result.schema.json`. A `checked` claim MUST identify successful run evidence for a concrete repository revision, TLC/model configuration, checked properties, and explicit finite bounds. Presence in the manifest MUST NOT be interpreted as successful TLC verification.
-
-Automated traceability checks SHOULD enforce referential integrity once mappings become executable: referenced TLA+ modules, properties, variables, actions/transitions, and TLC configurations must exist. Such checks do not prove semantic correspondence between prose and formula; that correspondence remains a formal-review obligation.
-
-TURNLOCK's formal verification organization has two complementary modes:
-
-```text
-focused exploration
-→ restrict the same semantic model to a mechanism/property for fast diagnosis
-
-integrated exploration
-→ exercise all currently-formalized core mechanisms together within finite bounds
-```
-
-Focused configurations are development accelerators, not substitutes for integrated verification. At least one integrated configuration MUST remain capable of composing all currently-formalized core execution forms in one state space. The project should maintain multiple integrated exploration budgets such as smoke, standard, and stress.
-
-A semantic change affecting the formal state machine should normally run the relevant focused checks plus an integrated smoke exploration. Larger integrated runs are governed by CI/release policy.
-
-TLC exploration is necessarily finite. "Integrated" means the formalized
-mechanisms are connected in the same abstract model; it does not claim exhaustive
-exploration of an unbounded real-world system. A finite TLC domain or exploration
-bound is a formal-modeling choice, not a TURNLOCK product resource limit,
-timeout, termination guarantee, or fairness premise.
-
-Safety and liveness are distinct obligations. For example:
-
-```text
-safety:  normal completion of a nested workflow never restores the wrong caller
-liveness: a TURNLOCK-owned progression occurrence that remains continuously enabled and applicable is eventually advanced by TURNLOCK
-```
-
-The liveness obligation does not assert that the event or execution resource
-which would enable the progression eventually completes. The concrete
-occurrence representation and fairness formula used to encode the obligation
-belong to the formal model and MUST NOT strengthen the normative product
-promise.
-
-The obligation does not require competing progression or a scheduler-choice
-cause: an indefinitely enabled and applicable occurrence that is never advanced
-violates the product contract even if TURNLOCK performs no other progression.
-
-Not every product invariant is necessarily expressible or useful as TLA+. DX and semantic-quality requirements may be explicitly marked `not-applicable`; state, ordering, ownership, lifecycle, nesting, concurrency, synchronization, and progress rules are strong formalization candidates.
+No replacement assurance architecture, formal language, solver, model topology,
+claim decomposition, readiness sequence, campaign runner or runtime
+implementation is selected or authorized by this methodological reset. The next
+post-invariant investigation requires its own explicit scope and execution brief.

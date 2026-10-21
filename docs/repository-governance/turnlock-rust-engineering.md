@@ -31,34 +31,31 @@ repository-qualified reference or Issue URL instead when the user provides one.
 
 Treat Turnlock-Rust Engineering as the authority for durable work existence,
 classification, priority, and workflow state. Never treat it as authority for
-TURNLOCK product semantics or formal-verification claims.
+TURNLOCK product semantics or verification claims.
 
 Apply these repository authority boundaries:
 
 1. `docs/specification/turnlock-spec.md` defines normative product meaning and
    stable invariant identities.
-2. Accepted ADRs under `docs/adr/` record decision history and explicit later
-   amendments.
-3. `formal/verification.yaml` defines intended formal traceability and coverage;
-   it is not evidence of successful verification.
-4. The executable model and configurations under `formal/`, once introduced,
-   define the checked abstract formulas for their declared scope without
-   replacing normative prose.
-5. Records under `formal/results/` are authoritative only for the concrete,
-   bounded verification runs they identify.
-6. Generated mappings and README files are explanatory projections, not
+2. Canonical ADRs under `docs/adr/` record decision history, lifecycle, and
+   explicit later amendments or supersession.
+3. ADR-059 owns the current methodological retirement and post-invariant reset;
+   it selects no replacement assurance architecture or implementation.
+4. `docs/history/formal-assurance-2026-10-20/` preserves historical sources and
+   work provenance without making them current semantic or verification
+   authority.
+5. Generated mappings and README files are explanatory projections, not
    independent semantic or verification authority.
 
 Report every inconsistency between these sources. Resolve a semantic conflict
-through an explicit new ADR and synchronized normative and formal artifacts
+through an explicit new ADR and synchronized applicable authoritative artifacts
 instead of treating an Issue or Project field as the decision.
 
 [`AGENTS.md`](../../AGENTS.md) owns repository implementation authorization and
-guardrails; the repository tree exposes actual artifact presence; accepted ADRs
-and the normative repository authority own accepted commitments; and
-`formal/verification.yaml` owns current formal-model state. The repository name
-does not authorize a crate structure, runtime mechanism, persistence model,
-public API, or release process.
+guardrails; the repository tree exposes actual artifact presence; applicable
+accepted ADRs and the normative repository authority own accepted commitments.
+The repository name and the methodological reset do not authorize a crate
+structure, runtime mechanism, persistence model, public API, or release process.
 
 ## Workflow-status mapping
 
@@ -94,9 +91,9 @@ reference that state; they must not maintain a second copy of it.
 | Blocking/blocked-by structure                     | Native GitHub dependency relationships |
 | Pull Request linkage                              | Native GitHub relationships            |
 | Product semantics                                 | `docs/specification/turnlock-spec.md`  |
-| Accepted decision history                         | Accepted ADRs                          |
-| Intended formal traceability/coverage             | `formal/verification.yaml`             |
-| Concrete bounded verification evidence            | `formal/results/`                      |
+| Decision history and lifecycle                    | Canonical ADR records                  |
+| Current methodological disposition                | ADR-059                                |
+| Historical source custody                         | Dated historical archive               |
 | Acceptance criteria for the work owned by Issue X | Issue X body                           |
 
 Apply the governing principle for Issue bodies:
@@ -150,13 +147,13 @@ not another live Project record.
 
 ### Let accepted authority own accepted outcomes
 
-When work produces an accepted ADR, normative specification change, formal
-contract, or other authoritative artifact, other work items must reference that
-artifact for the resulting technical meaning.
+When work produces an accepted ADR, normative specification change,
+authorized examination contract, or other authoritative artifact, other work
+items must reference that artifact for the resulting technical meaning.
 
 Do not use `Issue #N is resolved` as technical authority for an accepted
-product or formal conclusion. A closed Issue remains available as historical
-provenance.
+product or verification conclusion. A closed Issue remains available as
+historical provenance.
 
 ### Bound historical snapshots explicitly
 
@@ -182,6 +179,15 @@ non-authoritative. Never synchronize it by hand.
 Do not rewrite closed Issues solely to conform to this presentation rule. Apply
 the rule prospectively and normalize the currently active Issue corpus. Change
 a closed Issue only for an independently justified reason.
+
+For the ADR-059 retirement migration, `closed` with
+`state_reason = not_planned` and an archived Project item records abandonment of
+the former construction route. It does not mean successful technical delivery,
+resolution of every finding, passage of a formal gate, or invalidation of
+historical evidence. Historical links and acceptance criteria remain provenance.
+A current work item cannot become `Ready` merely because a former blocker was
+abandoned; its current authority, scope, dependencies, and local criteria must
+independently support readiness.
 
 ## Classification fields
 
@@ -211,8 +217,8 @@ This includes the canonical formal representation or intermediate
 representation if one is adopted; formal claims and verification-obligation
 metamodels; projection and backend boundaries; abstraction or projection
 fidelity; formal coverage; evidence contracts; translation or projection
-correctness; and the responsibility and shape of formal traceability artifacts
-such as `formal/verification.yaml`. If such work exposes product behavior that
+correctness; and the responsibility and shape of any separately accepted
+formal traceability artifacts. If such work exposes product behavior that
 current authority does not determine, route that semantic question to
 `Product Semantics` rather than resolving it as a formal-architecture choice.
 
@@ -352,7 +358,7 @@ reveals one of the material changes above.
    Markdown bodies.
 2. Refresh authoritative context: read `AGENTS.md`, this profile, the discovery
    classification profile, and the current accepted specification, ADR, and
-   formal authority referenced by the affected Issues. Do not reinterpret
+   examination authority referenced by the affected Issues. Do not reinterpret
    product semantics while scheduling.
 3. Evaluate every open Issue with the `P0`/`P1`/`P2`/`P3` contract, in this
    order: a repository default forcing `P0` (for example an unresolved
@@ -480,6 +486,6 @@ persist beyond the current work.
 ## Repository validation
 
 Use the current validation sequence in `AGENTS.md`. Project completion, an Issue
-closure, or a passing review cannot replace generated traceability freshness,
-the repository's formal checks, or any future model and implementation
-validation required by accepted repository changes.
+closure, or a passing review cannot replace active generated-projection
+freshness, repository-integrity checks, or any later examination, model, and
+implementation validation required by accepted repository changes.

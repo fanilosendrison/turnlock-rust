@@ -87,12 +87,15 @@ semantics; the Cloud rationale does not establish Turnlock Cloud Product Intent.
 ## Repository status
 
 TURNLOCK is developed specification-first: normative product meaning and
-accepted decisions govern later formalization and implementation.
+applicable accepted decisions govern later examination and implementation.
 
 Actual artifact presence is read from the repository tree. `AGENTS.md` owns
-repository execution and authorization guardrails. `formal/verification.yaml`
-owns formal lifecycle and intended verification state, and `formal/results/`
-owns bounded TLC evidence.
+repository execution and authorization guardrails. ADR-059 retires the former
+formal-assurance construction lineage while preserving the current Product
+Intent, canonical terminology, stable invariants, and historical sources. The
+post-invariant method must now be rederived; no replacement assurance
+architecture, executable formal model, or verified-product conclusion is
+selected by the current repository state.
 
 Pi is the first reference harness, while TURNLOCK workflow semantics remain
 harness-independent. Pi will be used to prove the coding-session lifecycle end
@@ -137,8 +140,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
 - [Repository Integrity profile](docs/repository-governance/turnlock-rust-repository-integrity.md)
   owns mandatory validation membership and order.
 - [Evidence Requirements Registry](docs/repository-governance/turnlock-rust-evidence-requirements.md)
-  declares the two Gate A Exact Evidence Binding requirements while retaining
-  Gate A semantics locally.
+  retains the routed capability with no active local requirement instances
+  after ADR-059.
 - [Normative specification](docs/specification/turnlock-spec.md) defines product
   intent, canonical terminology, promises, invariants, boundaries, and
   architectural implications.
@@ -152,22 +155,21 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   outgoing/incoming relations mechanically.
 - [ADR metadata profile](docs/adr/adr-profile.yaml) pins the generalized OKF ADR
   schema, TURNLOCK's local overlay, migration evidence, and validation commands.
-- [Formal-verification policy](docs/formal/README.md) explains the relationship
-  between normative prose, formal intent, executable models, and evidence.
-- [Formal traceability manifest](formal/verification.yaml) records
-  machine-readable forward and reverse traceability and intended verification
-  coverage.
-- [Generated invariant mapping](docs/formal/invariant-mapping.md) projects the
-  manifest into a human-readable view.
-- [Formal workspace](formal/README.md) explains formal artifact roles and
-  layout conventions; current formal lifecycle state is owned by
-  `formal/verification.yaml`.
+- [ADR-059](docs/adr/adr-059-retire-formal-assurance-architecture-and-reopen-post-invariant-design.md)
+  governs the retirement of the former assurance lineage and the current
+  post-invariant methodological reset.
+- [Historical source archive](docs/history/formal-assurance-2026-10-20/README.md)
+  indexes the byte-exact pre-retirement source tree and bounded public work
+  history without making them current authority.
+- [Post-invariant restart note](docs/design/post-invariant-restart.md) records the
+  non-normative point of departure and questions for the separately scoped next
+  investigation.
 - [ADR metadata tool](scripts/adr-metadata.py) validates ADR identity,
   provenance, lifecycle metadata, outgoing relations, body integrity, and
   generated projections.
-- [Traceability checker](scripts/check-formal-traceability.py) validates
-  invariant IDs, ADR references, manifest statuses, and generated mapping
-  freshness.
+- [Assurance archive checker](scripts/check-assurance-archive.py) validates
+  byte-exact historical-source custody against the fixed source Git tree; it
+  establishes no product-verification claim.
 - [Repository integrity suite](scripts/check-repository-integrity.py) is the
   canonical executable repository-integrity suite used by both agents and CI.
 - [Git whitespace checker](scripts/check-git-whitespace.py) validates Git
@@ -177,10 +179,8 @@ to end; Pi-specific mechanisms do not define TURNLOCK concepts.
   only heuristic, not semantic, detection of competing definitions.
 - [Terminology checker tests](scripts/tests/test-normative-terminology.py) cover
   structural drift, stale inventory, and likely competing definitions.
-- [Mapping renderer](scripts/render-formal-mapping.py) regenerates the
-  human-readable mapping from the manifest.
 - [Pinned tooling dependencies](requirements.txt) support ADR metadata and
-  formal traceability validation.
+  repository-integrity validation.
 
 ## Repository governance validation
 
@@ -247,25 +247,18 @@ TURNLOCK the evaluator or optimizer. Evaluation objectives, property-relative
 relevance, comparison judgments, and optimization policy come from an explicitly responsible actor or
 authored workflow, never from core TURNLOCK runtime policy.
 
-## Formal verification organization
+## Post-invariant methodological status
 
-```text
-docs/specification/turnlock-spec.md   normative meaning
-docs/adr/                             decision history
-formal/verification.yaml              intended forward/reverse traceability graph
-docs/formal/invariant-mapping.md      generated human-readable mapping
-formal/Turnlock.tla                   executable abstract state-machine model at its governed path
-formal/models/focused/                targeted TLC exploration of the shared model
-formal/models/integrated/             integrated TLC exploration profiles
-formal/tlc-result.schema.json         schema for TLC run evidence
-formal/results/                       bounded TLC run evidence
-```
+[ADR-059](docs/adr/adr-059-retire-formal-assurance-architecture-and-reopen-post-invariant-design.md)
+amends ADR-015's prescribed realization and retires the former claim graph,
+Gate sequence, protocols, campaign runner, and active formal corpus. Their exact
+pre-retirement sources remain available through the inert
+[historical archive](docs/history/formal-assurance-2026-10-20/README.md), where
+archival presence neither proves nor refutes their propositions.
 
-[ADR-015](docs/adr/adr-015-evolve-the-normative-and-formal-specifications-together.md)
-requires normative and formal specifications to evolve together. The manifest
-records intended traceability; it is not proof that model checking occurred.
-Actual TLC evidence remains separate under `formal/results/`, and focused
-exploration never substitutes for integrated exploration of the shared model.
-
-A `checked` claim exists only when the manifest state and matching bounded run
-evidence satisfy the formal traceability checker.
+Future examination starts from the current Product Intent, canonical
+terminology, stable invariants, and preserved open boundaries. It must state the
+question, scope, premises, required conclusions, examination means, and evidence
+limits before selecting a mechanism. No formal language, solver, model topology,
+replacement assurance architecture, review campaign, or runtime implementation
+is selected here.

@@ -11,11 +11,14 @@ name: "TURNLOCK architectural vision"
 
 > **Status: non-normative.** This document explains TURNLOCK's long-term thesis
 > and architectural motivation. Normative product semantics remain in the
-> [TURNLOCK specification](../specification/turnlock-spec.md), accepted
-> decisions remain in the [ADR record](../adr/README.md), and formal artifacts
-> remain governed by the [formal-specification policy](../formal/README.md) and
-> [ADR-015](../adr/adr-015-evolve-the-normative-and-formal-specifications-together.md).
-> If this vision conflicts with one of those authorities, this document yields.
+> [TURNLOCK specification](../specification/turnlock-spec.md), and accepted
+> decisions remain in the [ADR record](../adr/README.md), subject to their
+> applicable amendments and supersessions.
+> [ADR-059](../adr/adr-059-retire-formal-assurance-architecture-and-reopen-post-invariant-design.md)
+> records retirement of the former formal-assurance lineage and the amendment
+> of ADR-015's methodological prescriptions; it selects no replacement
+> assurance architecture or formalism.
+> If this vision conflicts with those authorities, this document yields.
 >
 > The separate [future workflow run-evaluation design space](future-workflow-run-evaluation.md)
 > preserves another non-normative exploration. It does not extend this vision or
@@ -744,9 +747,10 @@ This vision does not select:
 - one harness's internal APIs as TURNLOCK semantics.
 
 Current artifact status is not mirrored here: the repository tree exposes
-actual artifact presence, and `formal/verification.yaml` owns current
-formal-model and intended-verification state. Pi is the first reference harness,
-but supported harnesses realize TURNLOCK semantics rather than define them.
+actual artifact presence. The [former formal-assurance corpus](../history/formal-assurance-2026-10-20/README.md)
+is historical only under ADR-059, not current formal-model or verification
+authority. Pi is the first reference harness, but supported harnesses realize
+TURNLOCK semantics rather than define them.
 
 These boundaries allow the architectural thesis to remain explicit without
 turning implementation guesses, long-term hypotheses, or motivating examples

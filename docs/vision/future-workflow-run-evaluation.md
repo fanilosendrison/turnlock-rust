@@ -188,7 +188,7 @@ distinct from:
 
 - harness conformance evidence;
 - repository validation output;
-- TLC result evidence under `formal/results/`;
+- evidence from formal verification, where separately produced and qualified;
 - proof that an implementation satisfies every TURNLOCK invariant.
 
 The concrete event set, retention model, ordering guarantees, and any

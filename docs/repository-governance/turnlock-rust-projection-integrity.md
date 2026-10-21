@@ -25,13 +25,6 @@ projection_registry:
       secondary_source: adr_history
       mode: mechanically_validated_maintained
       validation: adr_metadata_annotated_history_tests
-    formal_invariant_mapping:
-      responsibility: formal_assurance_graph
-      canonical_source: formal_assurance_manifest
-      secondary_source: formal_assurance_mapping
-      mode: generated
-      validation: formal_traceability_check
-      generator_source: formal_mapping_generator
     governed_adr_catalog:
       responsibility: accepted_decisions
       canonical_source: accepted_adrs
@@ -41,12 +34,6 @@ projection_registry:
     governed_invariant_catalog:
       responsibility: stable_invariant_definitions
       canonical_source: turnlock_spec
-      secondary_source: governed_objects_profile
-      mode: mechanically_validated_maintained
-      validation: governed_objects_profile
-    governed_formal_claim_catalog:
-      responsibility: formal_assurance_graph
-      canonical_source: formal_assurance_manifest
       secondary_source: governed_objects_profile
       mode: mechanically_validated_maintained
       validation: governed_objects_profile

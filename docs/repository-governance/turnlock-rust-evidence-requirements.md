@@ -11,40 +11,12 @@ evidence_requirements:
   authority:
     responsibility: evidence_requirement_registry
     source: evidence_requirement_registry
-  requirements:
-    gate_a_subject_binding:
-      responsibility: formal_assurance_graph
-      instances:
-        kind: single
-      evidence_classes:
-        kind: explicit
-        classes:
-          - assurance-decomposition
-      subject:
-        source: gate_a_current_subject
-      context:
-        required: false
-      candidates:
-        source: gate_a_review_candidates
-    gate_a_current_protocol_binding:
-      responsibility: formal_assurance_graph
-      instances:
-        kind: single
-      evidence_classes:
-        kind: explicit
-        classes:
-          - assurance-decomposition
-      subject:
-        source: gate_a_current_subject
-      context:
-        required: true
-        source: gate_a_current_protocol_context
-      candidates:
-        source: gate_a_review_candidates
+  requirements: {}
 ---
 
 # Turnlock-Rust Evidence Requirements Registry
 
-The registry declares the two current Gate A binding requirements. Turnlock-Rust
-continues to own subject and protocol identity construction, candidate parsing,
-finding lifecycle, materiality, challenge, re-adjudication, and readiness.
+ADR-059 retires the two consumer-local Gate A requirement instances from the
+previous method. The routed capability, registry, provider binding, and generic
+Exact Evidence Binding contract remain present. An empty registry establishes
+no product-assurance or verification result.
