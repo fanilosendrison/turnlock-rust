@@ -1,0 +1,1564 @@
+{
+  "schema_version": 1,
+  "repository": "fanilosendrison/turnlock-rust",
+  "source_commit": "b1b8902cb2be879f3930c2730002a1ea5e4e1f02",
+  "source_tree": "964b7128908a52151740b68d9c2ca978dbb4f7d1",
+  "archive_file": "source-tree.zip",
+  "archive_sha256": "d4cb146c1b29fa6bfe573008348381ea6f2e14875af5f28369a9b78e908b5ff1",
+  "members": [
+    {
+      "path": ".github/workflows/repository-integrity.yml",
+      "mode": "100644",
+      "git_blob_oid": "9abefc55e67e8c7d84bcae07af0b1c307284a3dc",
+      "size": 794,
+      "sha256": "7d7eaa284ba749e786e5703a8e762a5ecf203e8f1f495d29081ae55623877ce5"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "git_blob_oid": "6b41016115be127afa58abf0e40f60042324a5e6",
+      "size": 40,
+      "sha256": "68d18a4bfa7258bf2e69ee1598ded328e49a6a6ff72724b188d4be174160d9fb"
+    },
+    {
+      "path": "AGENTS.md",
+      "mode": "100644",
+      "git_blob_oid": "becae180ea641accdabb8eba95ee010cf103e7e7",
+      "size": 37684,
+      "sha256": "d06be395e7cf31dc234248aa0bfed68c61030d34ab6311f81906c98fa1151fc0"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "git_blob_oid": "224d77ea1ed90f3c5472e83092d0654d7b0bae93",
+      "size": 15324,
+      "sha256": "78757f46068d6cbfacad36390c9887b8e8b9b804829f5ee5c911b5cdc6b68828"
+    },
+    {
+      "path": "docs/adr/README.md",
+      "mode": "100644",
+      "git_blob_oid": "f12e5b9f1051ac505033fa4efde8ae2597ac94ce",
+      "size": 52755,
+      "sha256": "f6d9d380ae56ac9e2ab37bed3af76bb5229161713c0a5a3d3e80facf36b34051"
+    },
+    {
+      "path": "docs/adr/adr-001-make-the-workflow-own-orchestration-after-session-entry.md",
+      "mode": "100644",
+      "git_blob_oid": "ead6a92bb73bb9989f1042f04008d0c019b54737",
+      "size": 3939,
+      "sha256": "e5e51cef321dca67ecadb34d1f0e960ae075a7adc2109e4ec9a8c6c6aafc80c0"
+    },
+    {
+      "path": "docs/adr/adr-002-require-natural-skill-like-slash-command-invocation.md",
+      "mode": "100644",
+      "git_blob_oid": "a3459d054ac64f89426b99105d4de683bb6fed15",
+      "size": 4739,
+      "sha256": "f3590e60212bd442fda66f5a80c8d6a1b1d18115045bb4d8d898d7a6478404cc"
+    },
+    {
+      "path": "docs/adr/adr-003-make-product-intent-and-derived-invariants-govern-implementation.md",
+      "mode": "100644",
+      "git_blob_oid": "bd4cc47a8a96b8ab54fac9d38e67074d6113925e",
+      "size": 3379,
+      "sha256": "cdc5d9bf2a0868c0eba49ea6f8eb9012e931bccdb77ec8b69d03d5a60e1b18c5"
+    },
+    {
+      "path": "docs/adr/adr-004-make-mechanical-steps-first-class-and-non-agent-mediated.md",
+      "mode": "100644",
+      "git_blob_oid": "fc5768eb50eaae0a6635599af261e20dcf6b3161",
+      "size": 2697,
+      "sha256": "3398af0313fbf18739b399da02981500538d61f1e7868f1a810af052bb19a89e"
+    },
+    {
+      "path": "docs/adr/adr-005-model-main-agent-steps-as-reversible-repeatable-control-handoffs.md",
+      "mode": "100644",
+      "git_blob_oid": "41043e845023e723a79b0af6fa910ac62e23e75b",
+      "size": 3377,
+      "sha256": "79ebb0f84658b4b7370754509d88cf9cafd9fcf69fa5917d6e4c9274c4fab3c0"
+    },
+    {
+      "path": "docs/adr/adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md",
+      "mode": "100644",
+      "git_blob_oid": "09bc33262782ba54242ea7fc8e5b7d330e6a5a93",
+      "size": 3498,
+      "sha256": "0f8f9de5ef1edcd78c67470f1d5be38125337209b1775bd009eeccef763680e9"
+    },
+    {
+      "path": "docs/adr/adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md",
+      "mode": "100644",
+      "git_blob_oid": "4ce743ff7dc5d4ce47f692a32ca9bd89a1315cfd",
+      "size": 7177,
+      "sha256": "4bfd9eb36f18f993b36d1ebba8d716a47fcee23306517f16946dd4b6dcb005db"
+    },
+    {
+      "path": "docs/adr/adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md",
+      "mode": "100644",
+      "git_blob_oid": "681fd955b85f94406227021da93744f46126500d",
+      "size": 8694,
+      "sha256": "d141d70e38fc02321aee01fbf250d21ea6a169c179d38ff85957877c7132213b"
+    },
+    {
+      "path": "docs/adr/adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md",
+      "mode": "100644",
+      "git_blob_oid": "fbab91859e75da205faf4637b8db4fcd7e9fc84a",
+      "size": 5121,
+      "sha256": "0dab5e126055157ecc290af9d6ca63eb776e0dc868fc45c9fbb489a91cea624e"
+    },
+    {
+      "path": "docs/adr/adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md",
+      "mode": "100644",
+      "git_blob_oid": "faa122d513905a0f6475adb1cf96f44fa2bb8ba4",
+      "size": 5630,
+      "sha256": "0a771dd0af60eb614a9ee569f0c9a88212095bc100cd0d6207a943b172e67134"
+    },
+    {
+      "path": "docs/adr/adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md",
+      "mode": "100644",
+      "git_blob_oid": "dcdec18664fb75b7a2c14a3732fd067168b1e5cd",
+      "size": 7275,
+      "sha256": "8bd83c92c5691c4913776b4b63cc20cdd64298f838b801a49cba5552bd9906cf"
+    },
+    {
+      "path": "docs/adr/adr-012-make-bounded-raw-llm-inference-first-class-and-allocate-minimum-sufficient-cognition.md",
+      "mode": "100644",
+      "git_blob_oid": "7355e109e9e281b3a8851eb305729dc2b0499ac3",
+      "size": 6958,
+      "sha256": "aeb3251ee892c19103556a03bdebfc17bfebb62a6847d7cb314cf9dbf3baa425"
+    },
+    {
+      "path": "docs/adr/adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md",
+      "mode": "100644",
+      "git_blob_oid": "017f32e18a836b23e8038e3fd43023459b51c855",
+      "size": 5146,
+      "sha256": "f415e0ff6c1f72dab7a551dff14eb472677d70cfd69c989fd5382693c9eb30b4"
+    },
+    {
+      "path": "docs/adr/adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md",
+      "mode": "100644",
+      "git_blob_oid": "3a80aaedc58718ca3b165c1b68754b54956b5924",
+      "size": 5693,
+      "sha256": "b110ca89bfe7acefbcdb0a30019488c65be1f73a7381d7cacc33cb6e413e8fe7"
+    },
+    {
+      "path": "docs/adr/adr-015-evolve-the-normative-and-formal-specifications-together.md",
+      "mode": "100644",
+      "git_blob_oid": "fc744a26eebb908112bc0abaa76b79bc431fa8e6",
+      "size": 11727,
+      "sha256": "f37afab39c6fc3b642fc386ebd40d30e5d9260bec115584b31faeab85c41c956"
+    },
+    {
+      "path": "docs/adr/adr-016-separate-workflow-authorship-from-runtime-execution-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "6316adb7fa8896afc05f6f2ec3f7b225e76fc588",
+      "size": 7675,
+      "sha256": "7ae5a729928ec674edd7a1807e36f369874d4e626a90433ba45f7d338024c7ff"
+    },
+    {
+      "path": "docs/adr/adr-017-adopt-validated-okf-architecture-decision-record-metadata.md",
+      "mode": "100644",
+      "git_blob_oid": "84ac30dc080369d506fa4fd1b9a8856bbe942187",
+      "size": 8440,
+      "sha256": "d1c2dd57b34750a27cc0a87beb34a08d241dc8af891914779c9392f43e6c9b50"
+    },
+    {
+      "path": "docs/adr/adr-018-require-completed-workflow-execution-inspectability.md",
+      "mode": "100644",
+      "git_blob_oid": "5b37448322ccd734565bfac1717eb063fade535b",
+      "size": 8995,
+      "sha256": "c17d585b816c92e09da4054e6950599166b31f456bb24a9cb9c97313fb7d75d4"
+    },
+    {
+      "path": "docs/adr/adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md",
+      "mode": "100644",
+      "git_blob_oid": "33d825440d5dbe1bec522d428fe03b5458c5d62e",
+      "size": 14107,
+      "sha256": "0345e47cf879e5c16e3f5976dbc72d1b1de5a96932f2427681a8a989a5e10c81"
+    },
+    {
+      "path": "docs/adr/adr-020-define-independent-agent-context-provenance.md",
+      "mode": "100644",
+      "git_blob_oid": "709a8518aaf13c18f89d7ef536babc45d9a68c41",
+      "size": 15642,
+      "sha256": "486dc0d834c8356ed00d973e1ebcbaec000a3c65eb4972504df6617166af1772"
+    },
+    {
+      "path": "docs/adr/adr-021-separate-independent-agent-completion-output-and-effects.md",
+      "mode": "100644",
+      "git_blob_oid": "8cf2c048dec0e9ccbc44a542fa13ef1a8d5e91e8",
+      "size": 16421,
+      "sha256": "85fb4e9b2a4b08678506cd0de093e29d5f7f6e687aea9bcaee6cbe25ddeacd45"
+    },
+    {
+      "path": "docs/adr/adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md",
+      "mode": "100644",
+      "git_blob_oid": "0327900dc398b21ede941c4fd25d6b5c54ee182b",
+      "size": 8750,
+      "sha256": "de38c625720354bfb9ab959c83466352e630305aab5c08dabc58cb472afbfa16"
+    },
+    {
+      "path": "docs/adr/adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md",
+      "mode": "100644",
+      "git_blob_oid": "16839365ebe538cadd46a8969497459d2e46a89f",
+      "size": 7704,
+      "sha256": "1c82db54f484d89a2f644114870fa8cf56331c6d19382f57c31f745560169885"
+    },
+    {
+      "path": "docs/adr/adr-024-preserve-effective-execution-condition-provenance.md",
+      "mode": "100644",
+      "git_blob_oid": "8c5009cf87d5569327877df86f40acd1770a62af",
+      "size": 19826,
+      "sha256": "6e2157365e05c9de41a2743b25d53e5702877b013aee88766173cc896c9d807d"
+    },
+    {
+      "path": "docs/adr/adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md",
+      "mode": "100644",
+      "git_blob_oid": "70684476ce101b6baaf061fcec9ae7dd4c59ec69",
+      "size": 18830,
+      "sha256": "46a076614e5ef8d8c621d9843404551d5a51cb252284e31ad8a6b725e5a0b20e"
+    },
+    {
+      "path": "docs/adr/adr-026-define-a-realizable-semantic-boundary-capture-handoff.md",
+      "mode": "100644",
+      "git_blob_oid": "6b1f272f58a1ed363a51fbabfa7f438359a57115",
+      "size": 31690,
+      "sha256": "56b605d23f3d8dfb65349ee5b9c115b473ce0cec3c3d577c981d48c378788761"
+    },
+    {
+      "path": "docs/adr/adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md",
+      "mode": "100644",
+      "git_blob_oid": "70294d0e04d2cc18fc245aa1c64e62831caeaa45",
+      "size": 29251,
+      "sha256": "df8914add16d18f0e13c194f8d6d062eeea08853f15e11d5eab7e3e474b1eb82"
+    },
+    {
+      "path": "docs/adr/adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md",
+      "mode": "100644",
+      "git_blob_oid": "23e22702b9095204d3fe37ee677abc223788e9c2",
+      "size": 15311,
+      "sha256": "3294e4c3784e6b1055ea7d2fe1512026494041309345395dd19104490bf67509"
+    },
+    {
+      "path": "docs/adr/adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md",
+      "mode": "100644",
+      "git_blob_oid": "1e9effb1b7937b5b3d578befc5981a524ae39a85",
+      "size": 36923,
+      "sha256": "9abb7c399b729acd58b522a3989cd6a514d65be1ddca5c4a46ad08a3064e1cb9"
+    },
+    {
+      "path": "docs/adr/adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md",
+      "mode": "100644",
+      "git_blob_oid": "dfc6535b8429d210da175932308896797a3c5097",
+      "size": 21974,
+      "sha256": "0c68549a8162b2a01e692ce95b4cce067634155101789d6be78438d67a72c02b"
+    },
+    {
+      "path": "docs/adr/adr-031-clarify-the-runtime-realization-composability-trigger.md",
+      "mode": "100644",
+      "git_blob_oid": "eebbe06e013012fbcbb6634f954e6a4cfbd4ae7d",
+      "size": 7036,
+      "sha256": "fa457c3ec51e8e22f125edd28464b84b98c6c70e0e162425a555601a9e80876a"
+    },
+    {
+      "path": "docs/adr/adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md",
+      "mode": "100644",
+      "git_blob_oid": "c59a71f2318385d12465394b50da905580899706",
+      "size": 15294,
+      "sha256": "37c09c21e9a1a321d25a21a3bfbbd738823eb137684c843d4eccd62e223bdbc6"
+    },
+    {
+      "path": "docs/adr/adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md",
+      "mode": "100644",
+      "git_blob_oid": "6b1f6bb01135ecbd7e1cd2920106029b5a07d6cd",
+      "size": 17934,
+      "sha256": "cef16e1788335078a3fb80a677b6d851a9c34e739a68e01f88a4422eb3ccfee8"
+    },
+    {
+      "path": "docs/adr/adr-034-delegate-nested-workflow-invocation-to-independent-agent-regions-without-main-agent-reachability.md",
+      "mode": "100644",
+      "git_blob_oid": "58ae62b1157faa8609714ed21e55fc2c3273728f",
+      "size": 25437,
+      "sha256": "a2f91e3f43cd558d2b6d54f0d87e887c144af43579b4b05c50b84dcf01284e17"
+    },
+    {
+      "path": "docs/adr/adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md",
+      "mode": "100644",
+      "git_blob_oid": "bfd9b048d2b155f10e7ae0db593f81a2c4fb359f",
+      "size": 25444,
+      "sha256": "a0dd2d79cf251f24657c5e0ab4192c12d7f16e7650d0ebf0d623edae5681e133"
+    },
+    {
+      "path": "docs/adr/adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md",
+      "mode": "100644",
+      "git_blob_oid": "8fb3b4c3c94f3953af2ba4a8005b904767df20bb",
+      "size": 10373,
+      "sha256": "1fbfb6088e13091232d5b91d236280c48c4e4f3bd8d6c9ab88c99af1632677fe"
+    },
+    {
+      "path": "docs/adr/adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md",
+      "mode": "100644",
+      "git_blob_oid": "bb089478cb8baa8f400c0ce1494147ced11c8bb2",
+      "size": 7805,
+      "sha256": "6ce05de806ddcc2f0fb9673b2ff346431d7aba59cf6c9e65995db716fc6af78a"
+    },
+    {
+      "path": "docs/adr/adr-038-assume-native-harness-workflow-convergence.md",
+      "mode": "100644",
+      "git_blob_oid": "e69b363d6846d4003115912b2be7fce11fcb854a",
+      "size": 8714,
+      "sha256": "b9ce7eb0e19df263d31078e8f05d9fdf5f2c2f377125362d1ad382064621f3b6"
+    },
+    {
+      "path": "docs/adr/adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md",
+      "mode": "100644",
+      "git_blob_oid": "d50061dd99146c885f49f13320960a4e8052f7e6",
+      "size": 18424,
+      "sha256": "bbcf561d6460950c3d4f8c986e08ff9c19fe255837230d5c310bd1134e17a00e"
+    },
+    {
+      "path": "docs/adr/adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md",
+      "mode": "100644",
+      "git_blob_oid": "c3f05755e69cf694a711690c0346cd0b22f5b0b7",
+      "size": 11494,
+      "sha256": "3c1f02bbe91bc45c5e699624ea1b98f18f63e1ae09ad34af6ae702501f8ab8fd"
+    },
+    {
+      "path": "docs/adr/adr-041-establish-turnlock-formal-assurance-architecture.md",
+      "mode": "100644",
+      "git_blob_oid": "e67a76c1b2acfd75e24c97a4bfc019c4a6da1e54",
+      "size": 19884,
+      "sha256": "2319492c39d340358fd28c51b85fe181cd08504034f9dd2c8a013f3d052d5042"
+    },
+    {
+      "path": "docs/adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md",
+      "mode": "100644",
+      "git_blob_oid": "198f40f89a4279ef1242a3c1a2353c82fa91c191",
+      "size": 13302,
+      "sha256": "67c519b614253e6adbb076f7ebd047b9be1cb2837f715915bd83caa5f3f6b234"
+    },
+    {
+      "path": "docs/adr/adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md",
+      "mode": "100644",
+      "git_blob_oid": "cf37046250196782e02a5e674d688001d506eada",
+      "size": 14114,
+      "sha256": "15cc82d095a719b1b2eba7ccecc2d7e227e124d69d1136ff42568b088a50d3a0"
+    },
+    {
+      "path": "docs/adr/adr-044-require-one-unambiguous-gate-a-review-subject.md",
+      "mode": "100644",
+      "git_blob_oid": "ee445b4488cbdb37555ddcd5124599433dd6e5c0",
+      "size": 7981,
+      "sha256": "9956f9756b7bb5deb7e7fe5ab4179124dde21d666d00740adfde3db247ccda25"
+    },
+    {
+      "path": "docs/adr/adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md",
+      "mode": "100644",
+      "git_blob_oid": "e6957d376c73f989ff050efb4616234289ac214a",
+      "size": 19323,
+      "sha256": "5519ba43361258c62a8714e125c5a2dc8c8c1c932d7735f33c9428ec07439825"
+    },
+    {
+      "path": "docs/adr/adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md",
+      "mode": "100644",
+      "git_blob_oid": "56e835313079af9ef18ce9947dc401410463729f",
+      "size": 6711,
+      "sha256": "cb565a67f83f1f6d8593eaec374849a09b54b78142061ba1ed19856b2118d963"
+    },
+    {
+      "path": "docs/adr/adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md",
+      "mode": "100644",
+      "git_blob_oid": "f497179deb546c19e85be1cbbd02d1ec7c2b2d2e",
+      "size": 6136,
+      "sha256": "50960324b7bed5094f5655dbea48678e89778cb3e6438275270e6b89e8e9dc38"
+    },
+    {
+      "path": "docs/adr/adr-048-content-address-hostile-review-meta-schemas.md",
+      "mode": "100644",
+      "git_blob_oid": "c11c6f08ece68dd18fe25684fa9e0470ea101417",
+      "size": 7488,
+      "sha256": "1abd3cd492d6da33b9668f21f57dd10295ac493dab77323ebfcbdc7e99d8918f"
+    },
+    {
+      "path": "docs/adr/adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md",
+      "mode": "100644",
+      "git_blob_oid": "1f19c90323767fb23cf0bb9fb6fbbf8790e4db4f",
+      "size": 7259,
+      "sha256": "8a22fd7c20a64197fadb5af3983d4ef743cba3513fd0e627374b06821186549c"
+    },
+    {
+      "path": "docs/adr/adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "45b995d6014d45930e6444e665142acf523bb9cd",
+      "size": 9779,
+      "sha256": "0c407c438b69a7a9cd67c69d8c42bf3e9ea34ae1997e5573564c74e1e282c5b4"
+    },
+    {
+      "path": "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md",
+      "mode": "100644",
+      "git_blob_oid": "ba131ad4db3f887d6ed7de6d9a77f9f4e8f47f30",
+      "size": 4508,
+      "sha256": "dfa972b3431a0572fd6a41735b86c78d9d044a8a3601f7cf1396d3f5b6dff8a9"
+    },
+    {
+      "path": "docs/adr/adr-052-adopt-structured-proto-ring-governance.md",
+      "mode": "100644",
+      "git_blob_oid": "bda9b6415b781913728860ed521d81df65b43bee",
+      "size": 4818,
+      "sha256": "c07449dd7b49ebb36eb6a64f3f3ce6c8610d63646b2dafdb6b700e047a853d52"
+    },
+    {
+      "path": "docs/adr/adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md",
+      "mode": "100644",
+      "git_blob_oid": "f3f70e6f777a8695c030f3c6afe79b621fb9e9e1",
+      "size": 14974,
+      "sha256": "27d5aee190bc99b6a1afd1de3796afefb5a5c986690697498a51ca8c7b90c54c"
+    },
+    {
+      "path": "docs/adr/adr-054-define-provider-reported-effective-model-identity-resolution.md",
+      "mode": "100644",
+      "git_blob_oid": "538f24b329acbd9c25e2144e7ca9d47b988dc4ba",
+      "size": 11265,
+      "sha256": "fe09a66dae22cc9441e5e0a654bb7cbe32fa89945e63a3fbd678e46691f3c3f6"
+    },
+    {
+      "path": "docs/adr/adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md",
+      "mode": "100644",
+      "git_blob_oid": "f202703cd9f838e76fb0337e7249a9d4163300fd",
+      "size": 80164,
+      "sha256": "e45878ba73e5ba24d541c1294f96edc223c94ca6bedb46e1dcb30c1cc7ec81db"
+    },
+    {
+      "path": "docs/adr/adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md",
+      "mode": "100644",
+      "git_blob_oid": "d922deaf06d7dda21355cbcf8f74030959df113a",
+      "size": 53377,
+      "sha256": "462545d7cafa54b5cb0cc76d733522334e739a338239d03aaa6dffdac1030084"
+    },
+    {
+      "path": "docs/adr/adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md",
+      "mode": "100644",
+      "git_blob_oid": "f03c37ce05e370e27d25e83d95192e27b9872f08",
+      "size": 15450,
+      "sha256": "1180521549e3a4f35f7b454cda6f9a4e2e0079315a973311e5e7c9617d8d4516"
+    },
+    {
+      "path": "docs/adr/adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md",
+      "mode": "100644",
+      "git_blob_oid": "5be452d5368bcbf6376be9f3977b28a87f3090c5",
+      "size": 7522,
+      "sha256": "e16018df97748dbfc2c186f1e468417cb56b0a934fa2f42169eb4849b7782f65"
+    },
+    {
+      "path": "docs/adr/adr-profile.yaml",
+      "mode": "100644",
+      "git_blob_oid": "6444fb33445caabfaa822f0934d44166c36a07ba",
+      "size": 2069,
+      "sha256": "d7a7ab4dc93db3c7d22a24960f0c487a2e7265503a4ab64fc7c0573bd2f6a1a3"
+    },
+    {
+      "path": "docs/adr/index.md",
+      "mode": "100644",
+      "git_blob_oid": "e177e827bf8b32cdb3a569fac7165c943746a884",
+      "size": 84253,
+      "sha256": "fbe9fadf79ea1a9dcd54b70802aa2d46d63951c1121a39bd6b2f804be97b1273"
+    },
+    {
+      "path": "docs/adr/metadata-migration-evidence.yaml",
+      "mode": "100644",
+      "git_blob_oid": "e43a0ab14ca805859ead2b1d32529b916aeac10e",
+      "size": 8291,
+      "sha256": "0a763fb3e9e7e4c288d105562ed5421947097e887efb1cf8ca6e8964a52b40b5"
+    },
+    {
+      "path": "docs/adr/schemas/architecture-decision-record.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "c196e3708cc39c543a48a29d4dd994692ad53d9f",
+      "size": 3025,
+      "sha256": "55c9ff189e686cb1d545d0cbcfc9527a72dd1e1185c5ba595a3a1da7f3aa8c57"
+    },
+    {
+      "path": "docs/adr/schemas/turnlock-architecture-decision-record.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "189512d652dd997a5ac7fdb7438b7e991c40d6dd",
+      "size": 514,
+      "sha256": "46cace41bb6e50c7a6ef95e338dd2aaecb401a2475366c22b94947687c377ca5"
+    },
+    {
+      "path": "docs/formal/README.md",
+      "mode": "100644",
+      "git_blob_oid": "28de320666061799ee6258822db9e5245e817380",
+      "size": 33723,
+      "sha256": "422998d53a65bf2a464078cbd4bc82b23103c75107b2bc44af7f5433eb0d9df8"
+    },
+    {
+      "path": "docs/formal/dependency-contract-pi-m4-cognitive-execution.md",
+      "mode": "100644",
+      "git_blob_oid": "356c11adbcd958b6a26177040334909ed33db081",
+      "size": 46623,
+      "sha256": "51f768aa740f2d000075a75186ba59c55370813c529e5e763cbce82563702a67"
+    },
+    {
+      "path": "docs/formal/dependency-contract-sqlite-node-gate-a-campaign-state.md",
+      "mode": "100644",
+      "git_blob_oid": "7e7fbbf97a671912ceb299cc071be1edff852016",
+      "size": 33983,
+      "sha256": "eced3d5694db0ad3e205575562f38388f8ab4c5ac7976760333c853ff1b6f7d5"
+    },
+    {
+      "path": "docs/formal/dependency-contract-zod-gate-a-contracts.md",
+      "mode": "100644",
+      "git_blob_oid": "f908e3af7e33e28db3f75b243fb46bb77529ff05",
+      "size": 25489,
+      "sha256": "1565a17173c29e9564dcdc18c0d28ad9666d08b26411a6fceb9c90cef61f03b4"
+    },
+    {
+      "path": "docs/formal/gate-a-campaign-runner-construction-plan.md",
+      "mode": "100644",
+      "git_blob_oid": "d2dd01a4cc23f052abf6199e20d760bf9dea690e",
+      "size": 12197,
+      "sha256": "f445f44c8b5689ee0d3a528c6c21a299813aaaa8e15c3b649c8e2e0d162ca6af"
+    },
+    {
+      "path": "docs/formal/gate-a-git-exact-old-local-conformance.sh",
+      "mode": "100644",
+      "git_blob_oid": "41ae8ec8ecc42600cf7149688326ddf5a51ea63b",
+      "size": 2119,
+      "sha256": "6fa11a5004894ac6149612fab93d26e304594bbff14eb03603b3367db43aa293"
+    },
+    {
+      "path": "docs/formal/gate-a-git-transport-conformance-note.md",
+      "mode": "100644",
+      "git_blob_oid": "843588c64c7cd4bee403c8db5f6fdc702d968f19",
+      "size": 8071,
+      "sha256": "6299b0566010cbeef38dacf238c385b804fe7862b29bed3897b8063de550bd82"
+    },
+    {
+      "path": "docs/formal/gate-a-m7-proto-ring-responsibility-audit.md",
+      "mode": "100644",
+      "git_blob_oid": "daef73f5a1ab175ff7c95358d7784dec85fe373f",
+      "size": 20004,
+      "sha256": "d731bebba197147c04f0a02e42e52ed45589b8d42dbf53f3a6467c1d64665281"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-candidate-bound-identity-candidate-view.md",
+      "mode": "100644",
+      "git_blob_oid": "c9781fae56c528388a268db5a84211b999417c72",
+      "size": 36663,
+      "sha256": "546b4982151fde3d8408fc887ba1a521031f2e4e6270a46188af4544ff2aee4f"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-construction-plan.md",
+      "mode": "100644",
+      "git_blob_oid": "785f11ad00f69a21d3cb0a3d9194562e816fedc7",
+      "size": 32172,
+      "sha256": "05d22a259d86e46448dff4f21897d1f51cb412f56bad53f2fc0531af432b8ef4"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-packet-receipt-evidence-projections.md",
+      "mode": "100644",
+      "git_blob_oid": "4a8a77b89be2f2ef4f040f5ae70ef94565807e13",
+      "size": 45806,
+      "sha256": "29a1a96893d04ec0eb7e38ca8bc6f5269d88339b67fe22919b3f5e72c046564c"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-admission-authority-execution-fencing.md",
+      "mode": "100644",
+      "git_blob_oid": "e2050760a11ecac9fa02903c5699f4ad89d71de6",
+      "size": 41858,
+      "sha256": "73b0ffb333f197341962d419e35a5f2abf57a8a368f4c48aba92e0c41fcdfdaa"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-fact-qualification-resolution.md",
+      "mode": "100644",
+      "git_blob_oid": "fccf594a3f340dbdd18798689f8b059f1fa9e8be",
+      "size": 41819,
+      "sha256": "b138f69f770229976f18a84607f65b04d3f88321ef9cd0cfde72fb94fa915f0a"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-identity-algebra.md",
+      "mode": "100644",
+      "git_blob_oid": "9fb224d0658e464ddb2636ad93d5f1e46d403ab6",
+      "size": 39898,
+      "sha256": "b91af70d4a73823311c78820b2ecc2ed1a41059d04f8c5b30852859d77084e78"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-question-contract-catalog.md",
+      "mode": "100644",
+      "git_blob_oid": "3af7a5249d4239a69d6ef0296413d96010d377f0",
+      "size": 46065,
+      "sha256": "86ce9a8cce3087a82c9790f39977bbe3aab70cbe7491acc8c718ae88d88a42af"
+    },
+    {
+      "path": "docs/formal/invariant-mapping.md",
+      "mode": "100644",
+      "git_blob_oid": "fec7f30288a27443406f517505f53e2287928a91",
+      "size": 33498,
+      "sha256": "8e0a35bf25f145572ff4f00bb895750a5c5a7e2ae33c45260de91b4dc6a49b17"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md",
+      "mode": "100644",
+      "git_blob_oid": "87409f69aef3877a6692e02908944cf91bce94d4",
+      "size": 67709,
+      "sha256": "1cbf86892bdacb46d9e7248a14ea7f845a7bcb122a1a0ccb11761ab394bec553"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-finding-adjudication.md",
+      "mode": "100644",
+      "git_blob_oid": "261ef5501e36c5d38298f52c0bf34e2a36f09229",
+      "size": 17554,
+      "sha256": "263b1e24d385c6ba92721d0f511661c2fd98b52f9e00dd81a82d9119b29aff72"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-repository-projection-readiness.md",
+      "mode": "100644",
+      "git_blob_oid": "d1eb42f8a2783955f6d2f839c461e19ea4ef86f5",
+      "size": 21236,
+      "sha256": "49bf2c98c032d1e17d1cc16cabb77a8d31662b4936f5ed1520cb86cc4c42aec6"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-resolution-qualification.md",
+      "mode": "100644",
+      "git_blob_oid": "1f5548a116f30681f0bfe574235a15504c19ae03",
+      "size": 21762,
+      "sha256": "552aa5b73f331e10c4d3bb9ccaa73ae99e8c12737a73798fef4506ab28b23606"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "03be33d3223f28a183d655f1d39c4fe049ff6e35",
+      "size": 44808,
+      "sha256": "bdf0cf751df94d750a75c70f2b441e5d937d7aa348086bbb1e3d4f3d0b96f392"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-state-mutation-execution.md",
+      "mode": "100644",
+      "git_blob_oid": "fd837cb80e581d11ffda7004d008f07f084f0487",
+      "size": 97595,
+      "sha256": "bce5d8cd7ea75deb8f5bd00df32198d360ea9ab35f442ebf88ef7e4fc75be918"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-state-persistence-ownership.md",
+      "mode": "100644",
+      "git_blob_oid": "d5719bce9c431f7ad53d50d323b9cf623f3b224a",
+      "size": 47588,
+      "sha256": "0e3c5f29c8b46d6ddcb7f4914b562e550de63fe6f3f55ab52bc10baed7bf75f3"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-state-snapshot-integrity.md",
+      "mode": "100644",
+      "git_blob_oid": "32da40482855a6dad6893d1cea29748218c10727",
+      "size": 82163,
+      "sha256": "4d4c517965749d415d3c52071f2c174e3e03f16d9f740dd9a9b97aaef5d5ef9f"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-cognitive-execution-capture.md",
+      "mode": "100644",
+      "git_blob_oid": "c906d0f38e038e5cb6ab0c18587a2bc3d9877074",
+      "size": 88600,
+      "sha256": "c4c8d1dae101c1e0cf79f56f6be96041916b40088e5cba0fd832a1d37d021bf0"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-cognitive-execution-recovery-observation.md",
+      "mode": "100644",
+      "git_blob_oid": "1a85d2349ee337c0ae8b4e092c7fa8fbcc39397b",
+      "size": 27627,
+      "sha256": "3f8008f6e4c0f36c2cc812e10b498dd52f3e8f72dc2be47bcf03c6ca52f42078"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-contracts.md",
+      "mode": "100644",
+      "git_blob_oid": "021d61cd30ce39bba1ef07262df391d2dffc866b",
+      "size": 81207,
+      "sha256": "925a5a46528b716279a1a2eb7ee99e22d1360e78dffeabbaa83228053bee4a5f"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-mechanical-validation.md",
+      "mode": "100644",
+      "git_blob_oid": "96a47f9e16cd29435ffcf5266cd10da3c0b57cf2",
+      "size": 72917,
+      "sha256": "59c638ac3a5abb0280d974d957c75b6178b13d90f3fbb951dbbadd67ccb61090"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-orchestrator.md",
+      "mode": "100644",
+      "git_blob_oid": "133e6549c168bf9f88005dddccb2f977d9589513",
+      "size": 29890,
+      "sha256": "9c083277d3dbe9d28facc37c98dd04a4440f4a47ce4ef015cf063f576149b273"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-recovery-operator-boundary.md",
+      "mode": "100644",
+      "git_blob_oid": "c87d81e2abd6937d4ed31af788d3708833fd8468",
+      "size": 30138,
+      "sha256": "cfe958d8e61e1b6d66b388217d5da2bee85a54d6759683c6ab42915da866a623"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-recovery-operator-reconciliation.md",
+      "mode": "100644",
+      "git_blob_oid": "662fc475b9336431c220276a1602b12b968eb37c",
+      "size": 44975,
+      "sha256": "edc79096db2ef2ea8d03584a0ff8ef76183713a202ba7304c77cd6739a1d1d28"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-repository-control-materialization-candidate-construction.md",
+      "mode": "100644",
+      "git_blob_oid": "9ff27bc397a24f0ae5cc7ec22292e6b9e13f895c",
+      "size": 65065,
+      "sha256": "72c9f2c1c3d6296182f8658f0c465d70d1f26b53a9dbff25a50fbf47b5acc811"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-repository-control-publication-remote-recovery.md",
+      "mode": "100644",
+      "git_blob_oid": "f1c763fea1b345b15fc5ed3dccae39dca6ce8023",
+      "size": 44285,
+      "sha256": "98afb040e6b493392c5a13f74eac0a93921dd3fdd2e1310469b756f29682ad50"
+    },
+    {
+      "path": "docs/formal/nib-s-gate-a-campaign-runner.md",
+      "mode": "100644",
+      "git_blob_oid": "774c796d3288a366c1859cc64666d686d3fa0a79",
+      "size": 417946,
+      "sha256": "1cc6f2af5a63ed7593b69219377fea11ca2ab971ab5cbd0f741f9b065214bb2f"
+    },
+    {
+      "path": "docs/product/positioning.md",
+      "mode": "100644",
+      "git_blob_oid": "83576c01c9e0c5f2c26bf62a5b01b61608a0c85f",
+      "size": 9534,
+      "sha256": "6309789c047bbd6fe3456125075b5a6e579d4d167de4ed9f18e62290954a6058"
+    },
+    {
+      "path": "docs/product/turnlock-cloud-product-rationale.md",
+      "mode": "100644",
+      "git_blob_oid": "046cbe67a3d017d1ebbb82dfcd78e35c445d1cdf",
+      "size": 22236,
+      "sha256": "d6f9a5962508b1b1a7b9ef67ddc3d7ae59086d4f06207e7406592eef096a9c4d"
+    },
+    {
+      "path": "docs/product/turnlock-product-rationale.md",
+      "mode": "100644",
+      "git_blob_oid": "54a64108d0a4248310657155594d5c9aad44dff1",
+      "size": 16675,
+      "sha256": "1dc210aa4e539897314e3660b2593b384cde83f303fda2c2bf823ad724ef9927"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-authoritative-ref-monotonicity.md",
+      "mode": "100644",
+      "git_blob_oid": "cef7ddf92ddffe7f74c83b93bf1c6c9c95f0e29c",
+      "size": 1401,
+      "sha256": "a23d17d9e4b6a948394b6ee9c3907d06be88aeb69ff822ad90c90d30c05a31e2"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-discovery-classification.md",
+      "mode": "100644",
+      "git_blob_oid": "e204b4fc079541e661163fa29176e2a776bf681b",
+      "size": 5227,
+      "sha256": "0201570468cc9c0ce20ed7dc49bce01fb93a464e348d6b4389c563f1f41a5fab"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-engineering.md",
+      "mode": "100644",
+      "git_blob_oid": "e39ce04717bd18c31afb18e4d6d1bd663227e1ba",
+      "size": 23012,
+      "sha256": "2e285c8314bf96c3a7b08328fe12bba3e3d19ac58114f44c1288df65e149ecdd"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-evidence-requirements.md",
+      "mode": "100644",
+      "git_blob_oid": "0bc56becc11a5f9751761693940fa928ffe99052",
+      "size": 1443,
+      "sha256": "47cee64fa800c6315953a046720a51fcdfebea8ebe39b174fcda57b061b9473f"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-governance-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "cbf209e808837e16c11ece630a3ee54b3490b6b2",
+      "size": 6959,
+      "sha256": "42d8cb6efd2e6354f78949f00dbc1dad321039d8bbb8ce27f2be74680779e68e"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-governance-bindings.md",
+      "mode": "100644",
+      "git_blob_oid": "3ba322f84c4ae86c62d530291bb665fe42c74fd7",
+      "size": 5147,
+      "sha256": "8dcf770096a671c61f0ef27ad66e61d4cbb49e6e0ab13395eb76b82cc0f50237"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-governed-objects.md",
+      "mode": "100644",
+      "git_blob_oid": "b73eba007caf75da1bf995ef23b30a96018670a1",
+      "size": 47384,
+      "sha256": "5b305c0b9ab989d85daaac791795b308d086d9cc4b9b9c8f35c175991594126f"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-projection-integrity.md",
+      "mode": "100644",
+      "git_blob_oid": "928b492c87b15fb672ab89525cef08207bdfed59",
+      "size": 2468,
+      "sha256": "ecf097db70a3331e9ed5abc9d537554e57f73cea8101abbe3858be03fb639b01"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-repository-integrity.md",
+      "mode": "100644",
+      "git_blob_oid": "eceb63b4686e9aace4b1e764738e346d0c719c34",
+      "size": 10043,
+      "sha256": "5c2c4b04cd428c2a18322eab000350555dd3b3119d0dfdef1419e15e24eb0076"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-worktree-management.md",
+      "mode": "100644",
+      "git_blob_oid": "c694117ec1672e483fa22748dfe12dd1f0e5b232",
+      "size": 10560,
+      "sha256": "a67d18c4592f21d73404c26209bc9d6c1bf7213b5439071fa36583e1846bf1b3"
+    },
+    {
+      "path": "docs/research/competitive-watch/README.md",
+      "mode": "100644",
+      "git_blob_oid": "5da3f4ef15e2f1823ab17ec72d6d3c25b58f49b5",
+      "size": 6590,
+      "sha256": "320cc3ebed7a68192b6f61012dc47d48a429ebe98e27a28037077cce0310feb1"
+    },
+    {
+      "path": "docs/research/competitive-watch/execution.md",
+      "mode": "100644",
+      "git_blob_oid": "d6bd3c6ec53bfebb063906f724e740250a842e68",
+      "size": 5740,
+      "sha256": "8db909262e1741cf2c1e4254ba0407d1cc556fd26b65c6df338d4fb5974369c7"
+    },
+    {
+      "path": "docs/research/competitive-watch/methodology.md",
+      "mode": "100644",
+      "git_blob_oid": "4178e2bb0b79737036ab655ac94564ec193915c8",
+      "size": 17390,
+      "sha256": "a08f1b343dc252db37cd743666fa0d135da71ea776b20254b33309adc63ae65b"
+    },
+    {
+      "path": "docs/research/competitive-watch/report-template.md",
+      "mode": "100644",
+      "git_blob_oid": "e25cdc58c8a1ab4a729f31a548c1e127fb1e6700",
+      "size": 7893,
+      "sha256": "7157297eae1a9091e10c8036a9c210c0d57194227e2c1c9819413f2afda811d5"
+    },
+    {
+      "path": "docs/research/competitive-watch/report.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "fdfd7398b689b519f3047b94ee467e830e0636d2",
+      "size": 21041,
+      "sha256": "1ea6984bffad4a3a363b0992573ae25d0dac1b2b7a3f44b74980b5056c476060"
+    },
+    {
+      "path": "docs/research/competitive-watch/watchlist.json",
+      "mode": "100644",
+      "git_blob_oid": "ba7f6b322330160cac1f296a57cda13fb9e68c84",
+      "size": 9102,
+      "sha256": "6fdb347bdd675b9c616dee875bd5e4afdac10c03a1531757ba8472b81f132002"
+    },
+    {
+      "path": "docs/specification/terminology-inventory.yaml",
+      "mode": "100644",
+      "git_blob_oid": "95910da0cf5ae6d367ce248fb4f727861b8323c5",
+      "size": 13377,
+      "sha256": "65ec5d9a9edf23c863c80f7f135cc92f94554c460bcb6a60b7929bcb2c32c35c"
+    },
+    {
+      "path": "docs/specification/turnlock-spec.md",
+      "mode": "100644",
+      "git_blob_oid": "6af726a5effa2d461dc8c2bdc86b11fa295d458d",
+      "size": 222398,
+      "sha256": "49775a0a73702448505e083b03a544ab2dc715e11f4439834c0d816db6e611f0"
+    },
+    {
+      "path": "docs/vision/future-managed-execution.md",
+      "mode": "100644",
+      "git_blob_oid": "0696ed3c68d81d254ee6957c6e8ccdfc8ee44316",
+      "size": 19419,
+      "sha256": "2b9b4ffa976b0365b8e73b888999a9884702c9513d1217fe6630d32a9d97114f"
+    },
+    {
+      "path": "docs/vision/future-workflow-run-evaluation.md",
+      "mode": "100644",
+      "git_blob_oid": "e157f06bb09962a8c0d9e0235e10b921909983b3",
+      "size": 24999,
+      "sha256": "8108c417e5e08f7dcab689bf849947db2d2b66308cad994c6521f2bb35789e03"
+    },
+    {
+      "path": "docs/vision/turnlock-vision.md",
+      "mode": "100644",
+      "git_blob_oid": "798cabd1d3ed2f16c88fe82a318d885874ceadcc",
+      "size": 26925,
+      "sha256": "42debe7b746ef172c3564f28408ee0c0fd1acfccff449352de0bc695bf88a5e1"
+    },
+    {
+      "path": "formal/README.md",
+      "mode": "100644",
+      "git_blob_oid": "bb5abacc8f70034e429031011fd9075d6585a320",
+      "size": 11054,
+      "sha256": "7002c1d6d0b83687b750f81bdf828f95ea6aab13091a1df98d8f550c7de1a783"
+    },
+    {
+      "path": "formal/migrations/verification-v2-to-v3-property-audit.yaml",
+      "mode": "100644",
+      "git_blob_oid": "6cc166d6e7840b3e50660c3163a7eafb42961543",
+      "size": 9405,
+      "sha256": "cdc3f2eec0dc395c8d418035a743309459e1d4ac0065b2f4b61e0d8b749e1a61"
+    },
+    {
+      "path": "formal/models/focused/README.md",
+      "mode": "100644",
+      "git_blob_oid": "c3635488aaeaed3548b9c3f78cf56e59ec7baaea",
+      "size": 257,
+      "sha256": "bbe319be5bb592761a9faf19a86db160348822914c01b56899b7ac90a029cb5d"
+    },
+    {
+      "path": "formal/models/integrated/README.md",
+      "mode": "100644",
+      "git_blob_oid": "6e2765694c0ee8d4b2f04d454819f4b3e48b39b9",
+      "size": 317,
+      "sha256": "66e357af3cfae3d4d45ec778dd73ea00d80ca432628ea1f741f3ba94c2298fc7"
+    },
+    {
+      "path": "formal/results/README.md",
+      "mode": "100644",
+      "git_blob_oid": "c8dc07ac81bc91273656132a607e58cd5b5f13e0",
+      "size": 1416,
+      "sha256": "e2fe33895cab42127a557401808dfe9fa4d4cb9797df08ebfaa08ba711ae5e09"
+    },
+    {
+      "path": "formal/reviews/README.md",
+      "mode": "100644",
+      "git_blob_oid": "7ff39186ff49d5b18154ea08efec3dbffcb23e43",
+      "size": 26830,
+      "sha256": "2bfede3f84d7dd23926ccd5174edf35077e5f31f8b5a2f14daad2b9066de85d0"
+    },
+    {
+      "path": "formal/reviews/contracts/gate-a-predicate-revisions-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "14c6209459b4a4a9beda55b52ce6afab0e400700",
+      "size": 14163,
+      "sha256": "895007928cf71e56c2e1908e2b8540a99ef92b8725eb9a4feb9167053b74d788"
+    },
+    {
+      "path": "formal/reviews/contracts/gate-a-qualification-contracts-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "5e7a168a5a07f9ad0c88d6cf9fa132ed2163e6e5",
+      "size": 8310,
+      "sha256": "3be09c8de68f70e2c5cfe1409f417dfffc38bc62502df0036c4bc073bfafd2f1"
+    },
+    {
+      "path": "formal/reviews/contracts/gate-a-semantic-question-contracts-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "9d05265598765c3a62a3829db72980996ae258e3",
+      "size": 33243,
+      "sha256": "ad347de040e6b48730af346532d97a6553a8604bbdf1fb4dd45abe3d41336daf"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/README.md",
+      "mode": "100644",
+      "git_blob_oid": "a2b50d5c773135c52bfafb160d111a1efc029235",
+      "size": 2098,
+      "sha256": "7529019e11e0640c02f2956d02c146b8b6550cadac30478f777fde84c7c5a40e"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-evidence-v5.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "9e612d2949e395513f88abf238ef2de22ce05a28",
+      "size": 17320,
+      "sha256": "0f66a468c5afc0909389bf3bece221cc083e05a52f9e19be8b41c7e24d3e01bc"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-evidence-v6.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "1ff8bb65d32088add710fd8386bbf998e7daa8d6",
+      "size": 4614,
+      "sha256": "d91fa2e6fe3f3e00065cf5631ea8737de9e4f314ea52d945517f27c968770c63"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "cf87ef20ecb6b3f1719a664d8a4b47459969950d",
+      "size": 11655,
+      "sha256": "a599aab44b160773f35aec693bd63d604f7ddd51b8243e1f4fb12fcf2af2d1f0"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "b1ffc96ff547a943a828a9e16b087d9b4408e3f4",
+      "size": 9411,
+      "sha256": "4604ad8aa1868c0f13bad5a173af5c7df1cb4343a9cd7b3b48d3000e2fb6cb43"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "ff31f91bef1f552a124c9c2cbfbd5166570c68cb",
+      "size": 9992,
+      "sha256": "96ff941defb59687f77593fb60b7dda460da06250b718e9ce082f78e94407327"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "885d6c6313f4b165f0bd2f28f99a13441c8eda14",
+      "size": 10175,
+      "sha256": "b4cfc0ca7b577e2d37f048d9cb7bb5d546c77a6dffed2100340e05d52b525e78"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v7.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "c91d0f48fafb834e015d95e0c3ff8998925562f0",
+      "size": 17086,
+      "sha256": "f1c2c91cedd8e248962d5890834472fcbbaab32daaf2bc76eccd3e910841f4f3"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v8.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "672f7cf44c6ff0d8949e6b74b86d983dabb56f65",
+      "size": 7097,
+      "sha256": "179687faf37035245ddf117c9604621ebef1d104e07ae31f66eb042589097801"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-adjudication-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "f1654cb64e97a79e1edcc29cb10e124fb7cd1fd4",
+      "size": 928,
+      "sha256": "76a342dd88f2566a9fa40ee3b9f5ccbd6d5b399de822227b3ccd451774dc2f50"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-adjudication-v2.md",
+      "mode": "100644",
+      "git_blob_oid": "be1d67d50ce52fdedb1e1c5b8bdfeccd0f40b8d9",
+      "size": 6455,
+      "sha256": "eabe1cb19ace6ba8789cd0b03ab4622b3df6585f9d5c876361de87c265b89ca1"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-adjudication-v3.md",
+      "mode": "100644",
+      "git_blob_oid": "2026fb9eea51bb250a2f871360de2711a2b876a8",
+      "size": 8281,
+      "sha256": "19f40526aea2ffaae324859b3f1fd21e516d7230b237d3a31234f3678dd8770f"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-challenge-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "fa6f33bf69e95e7acb084484a0c027ad86e68393",
+      "size": 966,
+      "sha256": "b5fef8fd42eef80175556322c8067dc5ea9c1eb66869061e22ef194a434aeb65"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-challenge-v2.md",
+      "mode": "100644",
+      "git_blob_oid": "c27398d4cca644e1c8936a0bf54c05ac38ab24f0",
+      "size": 2964,
+      "sha256": "386f44d5f790f80821ab90170828469da844b3fd6d26852963b0c72b487d7edd"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-initial-review-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "888c056740640213981145580482e299c3dec83e",
+      "size": 3963,
+      "sha256": "516c63b4df16c72fb7ac1718fa4af5a9ab402e0ecf9c460d44a65858b7862748"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-repair-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "c512fc4dfe7324b977e9a8f0b57f1e5051850d21",
+      "size": 605,
+      "sha256": "3c7e1e97667c5f0e3d2e578d6c256a22cf5227b66865f858421cc7d23dad5a6c"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-repair-v2.md",
+      "mode": "100644",
+      "git_blob_oid": "98f248c1f856efea1d8160f2f1449aca67f8ed10",
+      "size": 4268,
+      "sha256": "194d422e52c790d7444bfbb2a88f43d2d838f7a00bb1bfef8eef0c0138568940"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-repair-v3.md",
+      "mode": "100644",
+      "git_blob_oid": "6cafe9b2ee17a6a0db05eb129615bcbfb9337e1b",
+      "size": 5334,
+      "sha256": "3b42a6e99d85aebc29574d6130709ef641a4cc80595249e4623710db4a547e1c"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v1.json",
+      "mode": "100644",
+      "git_blob_oid": "9ac70d3f97e557d6425f062506640bbe59a59c00",
+      "size": 1966,
+      "sha256": "156d6247907f17b49802b7953ef866bdd6e07c2b3f40b01c45f6077bd8498cc1"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
+      "mode": "100644",
+      "git_blob_oid": "a76898ab391f1ea810a5a5294c56ea69019c2503",
+      "size": 2577,
+      "sha256": "ba64ac934bee21ae3e4f31b8381c5289c56fde0a45e25d660c3ef7c6f715d6d9"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v3.json",
+      "mode": "100644",
+      "git_blob_oid": "3fd3f38fb61894c654d0d82f6a20cb1ff42e28a1",
+      "size": 3030,
+      "sha256": "cb46d3e2ba7e4832a8877de679412fb0ec9d520327ef7c4dc0f1c6304cd222c6"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v4.json",
+      "mode": "100644",
+      "git_blob_oid": "d104b24c47507e78abccb4b6ea8a38d1e554ae9a",
+      "size": 3382,
+      "sha256": "f059401f092a9133fb5729db5d0f7b94346c52389bcd4deb81583152ad3b09ac"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v5.json",
+      "mode": "100644",
+      "git_blob_oid": "b289ee61fa11c10affffcc9d8f101f660bd3a0ce",
+      "size": 3468,
+      "sha256": "b9dc015188b89f605bf8252bf47ff5497be54668cc274e953146577f1a76e091"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v6.json",
+      "mode": "100644",
+      "git_blob_oid": "70798d92862906ae18d8f5f4631d6369774baf70",
+      "size": 3554,
+      "sha256": "841908ae137b1caaa8d0ae1035d7f888f736fda04ef70c10d33bda8383feae98"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+      "mode": "100644",
+      "git_blob_oid": "ae88ffce87eb1096531cbbeab1a543ae34c58344",
+      "size": 8140,
+      "sha256": "b9c6cde1624590d43686703b5dba991ca7a8a46f65a65d047a52197c02686f94"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "70dfea55290a8989353f7d291671a3179593ef25",
+      "size": 8848,
+      "sha256": "e83bb163519e6f278d6111b1d53f0218e0a3c0fece11ead91c1548d5d13219f5"
+    },
+    {
+      "path": "formal/reviews/review-evidence.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "9e612d2949e395513f88abf238ef2de22ce05a28",
+      "size": 17320,
+      "sha256": "0f66a468c5afc0909389bf3bece221cc083e05a52f9e19be8b41c7e24d3e01bc"
+    },
+    {
+      "path": "formal/reviews/review-protocol-bundle.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "cf87ef20ecb6b3f1719a664d8a4b47459969950d",
+      "size": 11655,
+      "sha256": "a599aab44b160773f35aec693bd63d604f7ddd51b8243e1f4fb12fcf2af2d1f0"
+    },
+    {
+      "path": "formal/reviews/schemas/adjudication-output-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "069f0773868da467888f7a4fb2890c07511c37da",
+      "size": 42525,
+      "sha256": "20b6e57eb630295442eee3200982529c4df9f5020724e601d595cdb11a0a9347"
+    },
+    {
+      "path": "formal/reviews/schemas/adjudication-packet-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "b602ad8ed18370450f17d5f2b2c5a5703836a4c2",
+      "size": 27556,
+      "sha256": "c520db4ceb66bf906a80f2dc71cdcdbe35f632125639a28c78169ac942765ce1"
+    },
+    {
+      "path": "formal/reviews/schemas/challenge-output-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "81b4a0499f282e5843743f4d3fe431b4b7a74152",
+      "size": 2301,
+      "sha256": "418245a1619b51090fc52e431996f05303ce6f38736423212879b6cb768419f2"
+    },
+    {
+      "path": "formal/reviews/schemas/challenge-packet-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "1003374572112c6cdcb6725cb2adbc8237e506c8",
+      "size": 1141,
+      "sha256": "82f8c7956c860235def469a1975c3baf9572091bd9ce39b709bd1547338911ba"
+    },
+    {
+      "path": "formal/reviews/schemas/cognitive-execution-packet-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "7781491c9876d01bed3bb1c18b9bee6bb4bb68b4",
+      "size": 12871,
+      "sha256": "93deddfd3b69c1e69f208b15df594e74d57e47d2f074143f364cb7c300a841fc"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "5656459530d41413cdb81c7ad31457e035821194",
+      "size": 5723,
+      "sha256": "f23511730695a61d4a79102874228196c26af9c6c8ce3b4af6251c1429dd8d2b"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v2.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "2d419f8acd3055aee7a293290fed1bc95c4dcf08",
+      "size": 3878,
+      "sha256": "51b7a911e05cb1469ad289147ab5d3158673fff8c703168d15501e2dfd731026"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v3.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "cb6aba67bdd81cc2400aa75d6491451ea6855dc3",
+      "size": 4228,
+      "sha256": "7432767a0714324214bafe3f79856ac4ea34badd21c3a0a97ee70e4bc1865d72"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v4.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "4567cc81ad41214e1f7badd829b1b05a7c6a0f04",
+      "size": 7083,
+      "sha256": "9d5e0b50bf9b5464fadc9c57edfa265935bdf0ace9fcaf1c9770e5f7e7ab312c"
+    },
+    {
+      "path": "formal/reviews/schemas/finding-adjudication-supplement-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "9c9090f1608ebb12862862202712c14c0ac283e5",
+      "size": 4683,
+      "sha256": "b9c60cc9bf786e9b127e7acffaa55a5156edfe29d521321c7f796f00dd3a20ca"
+    },
+    {
+      "path": "formal/reviews/schemas/finding-adjudication-supplement-v2.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "c93a7adbec58928ddcc8cc71adf304da3c2fc667",
+      "size": 2322,
+      "sha256": "001050946c7275ba768676ea4dc8c24dfc2af5b1b285475864d050cbfe95991a"
+    },
+    {
+      "path": "formal/reviews/schemas/predicate-revision-catalog-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "4f13abd7d8f038d2d74cf1f9bad6f41d06a33158",
+      "size": 5846,
+      "sha256": "da100b5f6ca9d40bdf7e07a1560d9ef0ede321c7bb4f9fb3977aa9d815fae20e"
+    },
+    {
+      "path": "formal/reviews/schemas/qualification-contract-catalog-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "f37be54a759704455550bf912b10e03b1245dfaa",
+      "size": 4018,
+      "sha256": "cb490d4a530f2438d051134f5ca588ecfa42fd5b24bf1bbb2e75cdaa1e40d5a3"
+    },
+    {
+      "path": "formal/reviews/schemas/raw-review-output-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "76d50f1c01a047b784ea77ff68f5a1d8345a6989",
+      "size": 3560,
+      "sha256": "ab9c8f7c8d0e0314a925a7feb589975c98314c0e47e70c7794c1e1443aca8b6c"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-admission-origin-witness-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "294a72897c01561cbcdf4d6f0c2abf4794aed3fd",
+      "size": 1730,
+      "sha256": "acdcf78b6862080f5147df525bc919e2b8eb6eb94b3c920fee8b9886e582607b"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-identity-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "a5f00e19dae44d333e193cbce7cd660a998567fe",
+      "size": 3359,
+      "sha256": "fc9e6a4dc241508c50a1d1671c9f43bd04ab257a8d0ad5b6319ba5522966a3f3"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-question-binding-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "534bffea2245e248685a9b63ff486c14d7d91c8b",
+      "size": 1061,
+      "sha256": "fae52d48d08df8e9c3d7cafc74899913f4cc5655fb0a7ac8eb594df6edece15e"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-question-contract-catalog-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "59d06f70c7d0c173ebbf4a56a2913dcb878467e4",
+      "size": 6792,
+      "sha256": "dca83227b9a4c6c8bde3dbce381027a94079648fd1fec1ead861c57219bdd8ca"
+    },
+    {
+      "path": "formal/tlc-result.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "390b9537727b07daf30e850e8df894e1efed6786",
+      "size": 1608,
+      "sha256": "436539bdb58226bd17c8a449fcd019c005f1c1d1b2165e065186d6cc12f2c0f8"
+    },
+    {
+      "path": "formal/verification.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "725c0b916e2e11015f7d09b7052ee6cee5e05f64",
+      "size": 14030,
+      "sha256": "78602229ca27ee791269699205000233a34c7ecb8e709629b384995092981540"
+    },
+    {
+      "path": "formal/verification.yaml",
+      "mode": "100644",
+      "git_blob_oid": "3e2c2a37082f56a3eb9229d0e4b77d954928ee3f",
+      "size": 42205,
+      "sha256": "49f67ff40a30dc003f9e5287251887b2b1db53480375ddddfdabc3fa6f90567a"
+    },
+    {
+      "path": "requirements.txt",
+      "mode": "100644",
+      "git_blob_oid": "d37efa74c2b806d1b29e5aea92733abed85d4ff6",
+      "size": 33,
+      "sha256": "c189f9508164a727d37665dd09645f36a1ede5e71cc794f618d554550d7cb920"
+    },
+    {
+      "path": "scripts/adr-metadata.py",
+      "mode": "100644",
+      "git_blob_oid": "11f2c83350dd1fa90642f1660bfcf2c942700a06",
+      "size": 36787,
+      "sha256": "ac8cf0ed383a08f41aaf1c7eacb7ba32573de096ebffed1290a71c6c7f8938cd"
+    },
+    {
+      "path": "scripts/check-accepted-adr-body.py",
+      "mode": "100644",
+      "git_blob_oid": "c5ace8c4b2333ced369d97d83276ef1dd147c69e",
+      "size": 1225,
+      "sha256": "750536d30ec119fb8cb9f08b3f5b741143c96219d7dcb0e6a0a1e8150876c7cd"
+    },
+    {
+      "path": "scripts/check-authoritative-ref-monotonicity.py",
+      "mode": "100644",
+      "git_blob_oid": "6bee4e83cb689c2e926ccce61e290416561bc90c",
+      "size": 1165,
+      "sha256": "68186ed10ad3f80a3b8f8ca02c84ead69f214713d1853e48b5f53aa51e03fac1"
+    },
+    {
+      "path": "scripts/check-formal-traceability.py",
+      "mode": "100755",
+      "git_blob_oid": "bc8b160a302250ddfcd96b2bb1816bd8c01a3b5d",
+      "size": 1160476,
+      "sha256": "3877f5fa9a839b7c714f07aa2f705cf34fe6ae992f5021eca2ea5e2e97818479"
+    },
+    {
+      "path": "scripts/check-git-whitespace.py",
+      "mode": "100644",
+      "git_blob_oid": "54e15de32a263c54fe508e874954baa42f133318",
+      "size": 2114,
+      "sha256": "eab45cd4222fedb666d652fda44c196f2ac4edafa5dcbd46bdd810839d094e51"
+    },
+    {
+      "path": "scripts/check-governance-authority.py",
+      "mode": "100644",
+      "git_blob_oid": "51e46f6a8b348156652e7f62e25224cc727f3ad3",
+      "size": 970,
+      "sha256": "0674ccd6bfa47b92522e1c2900ef30ed83133f6ef91280cdc1c7dd173d9b22c6"
+    },
+    {
+      "path": "scripts/check-governed-objects.py",
+      "mode": "100644",
+      "git_blob_oid": "871ab4b2041bac312dc3d937d743010f84a1a08d",
+      "size": 950,
+      "sha256": "56901f8ce3fdab0a0bc6426793ec5629df8135d9cf7615f9a48f3f95646791ba"
+    },
+    {
+      "path": "scripts/check-normative-terminology.py",
+      "mode": "100644",
+      "git_blob_oid": "7a668faacc6007d6ab87309a6a7dffc04d44eba8",
+      "size": 12682,
+      "sha256": "018b252b5a304338f23cabd83794978da3247477732339f8e0d33a9b76795136"
+    },
+    {
+      "path": "scripts/check-proto-ring-binding-registry.py",
+      "mode": "100644",
+      "git_blob_oid": "fce75ec3d5a0e9d2207d2017f88f6ae141906756",
+      "size": 2058,
+      "sha256": "d16664be2bfb8811b58982b45a75991cb4c5ef4ec1f95914d3857d1f32310622"
+    },
+    {
+      "path": "scripts/check-proto-ring-provider.py",
+      "mode": "100644",
+      "git_blob_oid": "2764b24dbafc35d2ae0c7e09e3e3fe9c75e8a308",
+      "size": 1421,
+      "sha256": "8c16f52e33ca6dfb27ec6bf9486678cedcbf5755ec588fcdfe4b8d3630e4ea8e"
+    },
+    {
+      "path": "scripts/check-repository-integrity.py",
+      "mode": "100644",
+      "git_blob_oid": "b4007e0184b9ce9ddc2fd5ccd77cbe863112f3ba",
+      "size": 6286,
+      "sha256": "3372e8552b068ad6455956154124e4b6df011a651c8e883a66caaeb76a9a0e05"
+    },
+    {
+      "path": "scripts/check-structured-governance.py",
+      "mode": "100644",
+      "git_blob_oid": "2a730e3ecb730fcbba5ceebe4c08238deb858383",
+      "size": 1641,
+      "sha256": "1063a06127113307dda564182b13ed4db91e170ba7de6a22a9c843405701cbb6"
+    },
+    {
+      "path": "scripts/prepare-proto-ring-provider.py",
+      "mode": "100644",
+      "git_blob_oid": "7f222790aa32c4595b034962d98311b66e8d7f25",
+      "size": 5058,
+      "sha256": "13ff2e4e3771f4f0ca62019d2da101989cb1b33d7aa77f674c08af88e97be8d3"
+    },
+    {
+      "path": "scripts/proto_ring_executable_binding.py",
+      "mode": "100644",
+      "git_blob_oid": "d33ae73964429544c41f34767df62338c6198e6a",
+      "size": 14515,
+      "sha256": "81a13dcf39360741014afc5c0a092ce53eacc2a04abee094d49bc91db68cf18a"
+    },
+    {
+      "path": "scripts/proto_ring_result_validation.py",
+      "mode": "100644",
+      "git_blob_oid": "0f0854822acfc619df1d0fd634b1f206c0ce05cf",
+      "size": 14555,
+      "sha256": "ae778870dbef8a08b28228dc878d6cb2f6c2a5187db98ad3677ad37b72babf63"
+    },
+    {
+      "path": "scripts/proto_ring_structured_value.py",
+      "mode": "100644",
+      "git_blob_oid": "dfe7eb78944761b6a1284cf34f38c933c8cbfbff",
+      "size": 2548,
+      "sha256": "198abdd2e3360a08c76025bc983dd4d83cf8cc52a78d4b7ac709def3c06c95a5"
+    },
+    {
+      "path": "scripts/render-formal-mapping.py",
+      "mode": "100755",
+      "git_blob_oid": "b411923478d6304770f086efe976d659409520be",
+      "size": 13023,
+      "sha256": "981bd6ea5101f353f2f5da8e25c2f623cc83e679bb318d03b5231003110ef12b"
+    },
+    {
+      "path": "scripts/tests/adr-metadata-test-fixture.py",
+      "mode": "100644",
+      "git_blob_oid": "3b2dbdba34107f16c6493e02792b979ff117f660",
+      "size": 2822,
+      "sha256": "cc959b5529b65a485ee5c47bad34d6dac54728d554f4b877312baed244eacb14"
+    },
+    {
+      "path": "scripts/tests/repository-integrity-test-fixture.py",
+      "mode": "100644",
+      "git_blob_oid": "9ce9f72fee82adbe064d3160ae0144f485842ac4",
+      "size": 3325,
+      "sha256": "f96dfed0924be0ba245ca4dc85160beb4f85f23c4fd8782e78e67af6c11b7368"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-annotated-history.py",
+      "mode": "100644",
+      "git_blob_oid": "f5243c26f2cff2909365266db7d6f65e9702c13d",
+      "size": 8679,
+      "sha256": "37008d69b593f8dc03230ebd56c00789a569d54dcdb4501682a4255c93d5fb20"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-generated-index.py",
+      "mode": "100644",
+      "git_blob_oid": "bc47602f62d3a122e5b90133a4c20e4baa15006a",
+      "size": 3300,
+      "sha256": "b13e68bcf8b9553c806247d0ed6d32d776d31cebb43190a83134712fb56fad29"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-migration-evidence.py",
+      "mode": "100644",
+      "git_blob_oid": "20605ad6153808bcf27291b07567a9787afde823",
+      "size": 6138,
+      "sha256": "fe03ed430b382c0bf6435bfb2295e093126402711f860ad8aa7c65fd2cc5682c"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-profile-validation.py",
+      "mode": "100644",
+      "git_blob_oid": "a079b498922580204485e18fbb6e8aea4b07af9e",
+      "size": 8646,
+      "sha256": "dacc2befcf69c5ec9f59b7150100c7b48d89dc8b80b5d2f8e3a993116f4e08c9"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-provider-binding.py",
+      "mode": "100644",
+      "git_blob_oid": "e7f3202665b5e0813f26ea86e9740006b52cfc1b",
+      "size": 6366,
+      "sha256": "ba03ed0cb3138fdcbedb366b904d3a38148e03279e0b2c8126ff306b5302aa3c"
+    },
+    {
+      "path": "scripts/tests/test-exact-evidence-binding.py",
+      "mode": "100644",
+      "git_blob_oid": "02a0b4f83fd5a5e472db19342d18ed3b2d04a1fa",
+      "size": 6955,
+      "sha256": "4b75b5348befe8adea180fc5251cf74118cc6104c812a14d826e916845b54594"
+    },
+    {
+      "path": "scripts/tests/test-formal-traceability.py",
+      "mode": "100644",
+      "git_blob_oid": "e1f35696c1bd2f2eb1d126dfe89ba37138ac923e",
+      "size": 560605,
+      "sha256": "921d716169f9f45e07071d008f5720f22002481af8400cf35b569da470067caf"
+    },
+    {
+      "path": "scripts/tests/test-git-whitespace.py",
+      "mode": "100644",
+      "git_blob_oid": "eaf9de86c5ba8d4b2a41a421d197cc9888bb39fb",
+      "size": 3318,
+      "sha256": "2570711a8f6156041295612b46e18bbd0a054754a7d12339ed93306b0b1a0884"
+    },
+    {
+      "path": "scripts/tests/test-governance-test-module-size.py",
+      "mode": "100644",
+      "git_blob_oid": "c648259859f91f73a4c7b17b97ca3dfe8f22af21",
+      "size": 2431,
+      "sha256": "5aff11620f732140f8c29152d255aef70302e70052a059feca0865e3df1067e9"
+    },
+    {
+      "path": "scripts/tests/test-governed-objects.py",
+      "mode": "100644",
+      "git_blob_oid": "38a87a35770aee51f9d9754a6e32a9f68255c7e4",
+      "size": 3482,
+      "sha256": "6d4dd98ed57cdca0aacd89e5af5cd3f178d931859a0de7b259041adb9ce78646"
+    },
+    {
+      "path": "scripts/tests/test-normative-terminology.py",
+      "mode": "100644",
+      "git_blob_oid": "05a679d16c2716a1d8312bad679de8f51ac37b51",
+      "size": 14131,
+      "sha256": "7254fbccd71c5d426ba8ed96227da6a36c5d3d0a6cce292349658a32e4c0243e"
+    },
+    {
+      "path": "scripts/tests/test-proto-ring-binding-registry.py",
+      "mode": "100644",
+      "git_blob_oid": "1370f9aff1636cf842289df7c1ca640f432622a2",
+      "size": 4773,
+      "sha256": "37183e1705ad013c9c4893a8c95b91ca12dd2956447e5b41a375a5330ec1efc0"
+    },
+    {
+      "path": "scripts/tests/test-proto-ring-provider.py",
+      "mode": "100644",
+      "git_blob_oid": "9df2d0e4e302dda101f2685a27ee2e0d362163fd",
+      "size": 9045,
+      "sha256": "ecd097f95b8df33d7714b7db5b2a0299eb103216dbae0732b3d6b66f4e181cd6"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-bindings.py",
+      "mode": "100644",
+      "git_blob_oid": "4d31dab8435b3112b74daf706dcd568c66809985",
+      "size": 3840,
+      "sha256": "eb6d927ba64e2e924df1aa733ef28ebba7dc6e97cfab0711edaa1a1880ed3b68"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-cli.py",
+      "mode": "100644",
+      "git_blob_oid": "b4349b446813710bf6c3e74d598be20f20d0d30b",
+      "size": 7513,
+      "sha256": "457d012378b883c0a90d8d27a6996722ba8d8e1cc1e655a97dc9e9b2e43c8c5d"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-evaluator.py",
+      "mode": "100644",
+      "git_blob_oid": "496c9d0d174dad9b254be8d7c2d68e7a5ae06bac",
+      "size": 5483,
+      "sha256": "64e37040345818fcfd057ca2b2510d750c39f77cf12fd483be774b1c67c6e72d"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-validator-purity.py",
+      "mode": "100644",
+      "git_blob_oid": "099869369a0fb861b9d88dd2d00b0372e84b2a75",
+      "size": 927,
+      "sha256": "51fdb9699516092ba8fb92f491ad68eac78e229070a104186cd13be0a60580cc"
+    },
+    {
+      "path": "scripts/tests/test-structured-governance.py",
+      "mode": "100644",
+      "git_blob_oid": "6916b1e15aa4b46d26fab45cb6a161e0167efa6d",
+      "size": 8798,
+      "sha256": "12fac0aadc7b062c7459d3f93b1732c9d1a2841158503f0154b03ccb5b85d847"
+    }
+  ]
+}

@@ -1,0 +1,1424 @@
+{
+  "schema_version": 1,
+  "repository": "fanilosendrison/turnlock-rust",
+  "source_commit": "b1b8902cb2be879f3930c2730002a1ea5e4e1f02",
+  "source_tree": "964b7128908a52151740b68d9c2ca978dbb4f7d1",
+  "base_paths": [
+    {
+      "path": ".github/workflows/repository-integrity.yml",
+      "mode": "100644",
+      "git_blob_oid": "9abefc55e67e8c7d84bcae07af0b1c307284a3dc",
+      "disposition": "unchanged"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "git_blob_oid": "6b41016115be127afa58abf0e40f60042324a5e6",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "AGENTS.md",
+      "mode": "100644",
+      "git_blob_oid": "becae180ea641accdabb8eba95ee010cf103e7e7",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "retired formal-assurance authority, reading, Gate, runner, and implementation directives"
+      ]
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "git_blob_oid": "224d77ea1ed90f3c5472e83092d0654d7b0bae93",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "active formal-corpus and Gate A status descriptions and links"
+      ]
+    },
+    {
+      "path": "docs/adr/README.md",
+      "mode": "100644",
+      "git_blob_oid": "f12e5b9f1051ac505033fa4efde8ae2597ac94ce",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "canonical lifecycle status annotations and ADR-059 chronological/current-authority entry"
+      ]
+    },
+    {
+      "path": "docs/adr/adr-001-make-the-workflow-own-orchestration-after-session-entry.md",
+      "mode": "100644",
+      "git_blob_oid": "ead6a92bb73bb9989f1042f04008d0c019b54737",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-002-require-natural-skill-like-slash-command-invocation.md",
+      "mode": "100644",
+      "git_blob_oid": "a3459d054ac64f89426b99105d4de683bb6fed15",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-003-make-product-intent-and-derived-invariants-govern-implementation.md",
+      "mode": "100644",
+      "git_blob_oid": "bd4cc47a8a96b8ab54fac9d38e67074d6113925e",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-004-make-mechanical-steps-first-class-and-non-agent-mediated.md",
+      "mode": "100644",
+      "git_blob_oid": "fc5768eb50eaae0a6635599af261e20dcf6b3161",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-005-model-main-agent-steps-as-reversible-repeatable-control-handoffs.md",
+      "mode": "100644",
+      "git_blob_oid": "41043e845023e723a79b0af6fa910ac62e23e75b",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-006-nest-workflow-execution-inside-the-originating-main-agent-session-lifecycle.md",
+      "mode": "100644",
+      "git_blob_oid": "09bc33262782ba54242ea7fc8e5b7d330e6a5a93",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-007-preserve-main-agent-cognitive-lineage-and-ordinary-interactive-agency.md",
+      "mode": "100644",
+      "git_blob_oid": "4ce743ff7dc5d4ce47f692a32ca9bd89a1315cfd",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-008-allow-nested-workflow-invocation-from-main-agent-regions.md",
+      "mode": "100644",
+      "git_blob_oid": "681fd955b85f94406227021da93744f46126500d",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-009-use-the-same-turnlock-primitives-for-developer-and-agent-authored-workflows.md",
+      "mode": "100644",
+      "git_blob_oid": "fbab91859e75da205faf4637b8db4fcd7e9fc84a",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-010-keep-workflow-semantics-harness-independent-and-use-pi-as-the-first-reference-integration.md",
+      "mode": "100644",
+      "git_blob_oid": "faa122d513905a0f6475adb1cf96f44fa2bb8ba4",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-011-make-independent-agents-first-class-and-support-parallel-fan-out-fan-in.md",
+      "mode": "100644",
+      "git_blob_oid": "dcdec18664fb75b7a2c14a3732fd067168b1e5cd",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-012-make-bounded-raw-llm-inference-first-class-and-allocate-minimum-sufficient-cognition.md",
+      "mode": "100644",
+      "git_blob_oid": "7355e109e9e281b3a8851eb305729dc2b0499ac3",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-013-allow-heterogeneous-parallel-fan-out-across-execution-forms.md",
+      "mode": "100644",
+      "git_blob_oid": "017f32e18a836b23e8038e3fd43023459b51c855",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-014-define-turnlock-as-the-orchestration-engine-and-the-workflow-as-the-orchestration-program.md",
+      "mode": "100644",
+      "git_blob_oid": "3a80aaedc58718ca3b165c1b68754b54956b5924",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-015-evolve-the-normative-and-formal-specifications-together.md",
+      "mode": "100644",
+      "git_blob_oid": "fc744a26eebb908112bc0abaa76b79bc431fa8e6",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-016-separate-workflow-authorship-from-runtime-execution-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "6316adb7fa8896afc05f6f2ec3f7b225e76fc588",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-017-adopt-validated-okf-architecture-decision-record-metadata.md",
+      "mode": "100644",
+      "git_blob_oid": "84ac30dc080369d506fa4fd1b9a8856bbe942187",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-018-require-completed-workflow-execution-inspectability.md",
+      "mode": "100644",
+      "git_blob_oid": "5b37448322ccd734565bfac1717eb063fade535b",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-019-keep-evaluation-and-optimization-policy-outside-turnlock-core.md",
+      "mode": "100644",
+      "git_blob_oid": "33d825440d5dbe1bec522d428fe03b5458c5d62e",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-020-define-independent-agent-context-provenance.md",
+      "mode": "100644",
+      "git_blob_oid": "709a8518aaf13c18f89d7ef536babc45d9a68c41",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-021-separate-independent-agent-completion-output-and-effects.md",
+      "mode": "100644",
+      "git_blob_oid": "8cf2c048dec0e9ccbc44a542fa13ef1a8d5e91e8",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-022-allow-workflow-declared-invocation-with-structured-call-return-semantics.md",
+      "mode": "100644",
+      "git_blob_oid": "0327900dc398b21ede941c4fd25d6b5c54ee182b",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-023-clarify-caller-context-and-continuation-semantics-across-nested-workflow-invocations.md",
+      "mode": "100644",
+      "git_blob_oid": "16839365ebe538cadd46a8969497459d2e46a89f",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-024-preserve-effective-execution-condition-provenance.md",
+      "mode": "100644",
+      "git_blob_oid": "8c5009cf87d5569327877df86f40acd1770a62af",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-025-preserve-condition-specific-provenance-without-requiring-protected-value-disclosure.md",
+      "mode": "100644",
+      "git_blob_oid": "70684476ce101b6baaf061fcec9ae7dd4c59ec69",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-026-define-a-realizable-semantic-boundary-capture-handoff.md",
+      "mode": "100644",
+      "git_blob_oid": "6b1f272f58a1ed363a51fbabfa7f438359a57115",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-027-bind-each-accepted-invocation-to-a-stable-governing-workflow-definition.md",
+      "mode": "100644",
+      "git_blob_oid": "70294d0e04d2cc18fc245aa1c64e62831caeaa45",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-028-clarify-that-tl-inv-037-forbids-governing-definition-changes-under-current-semantics.md",
+      "mode": "100644",
+      "git_blob_oid": "23e22702b9095204d3fe37ee677abc223788e9c2",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-029-separate-local-execution-capabilities-from-immutable-invocation-orchestration.md",
+      "mode": "100644",
+      "git_blob_oid": "1e9effb1b7937b5b3d578befc5981a524ae39a85",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-030-make-turnlock-core-a-runtime-composable-execution-substrate.md",
+      "mode": "100644",
+      "git_blob_oid": "dfc6535b8429d210da175932308896797a3c5097",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-031-clarify-the-runtime-realization-composability-trigger.md",
+      "mode": "100644",
+      "git_blob_oid": "eebbe06e013012fbcbb6634f954e6a4cfbd4ae7d",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-032-allow-main-agent-participation-in-workflow-owned-concurrency-without-cognitive-lineage-fork.md",
+      "mode": "100644",
+      "git_blob_oid": "c59a71f2318385d12465394b50da905580899706",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-033-permit-recursive-and-cyclic-workflow-invocation-under-ordinary-invocation-semantics.md",
+      "mode": "100644",
+      "git_blob_oid": "6b1f6bb01135ecbd7e1cd2920106029b5a07d6cd",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-034-delegate-nested-workflow-invocation-to-independent-agent-regions-without-main-agent-reachability.md",
+      "mode": "100644",
+      "git_blob_oid": "58ae62b1157faa8609714ed21e55fc2c3273728f",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-035-define-transitive-nested-composition-admissibility-and-fail-closed-invocation-acceptance.md",
+      "mode": "100644",
+      "git_blob_oid": "bfd9b048d2b155f10e7ae0db593f81a2c4fb359f",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-036-define-occurrence-scoped-conditional-orchestration-progress-without-universal-completion.md",
+      "mode": "100644",
+      "git_blob_oid": "8fb3b4c3c94f3953af2ba4a8005b904767df20bb",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-037-require-eventual-advance-of-continuously-enabled-orchestration-progress.md",
+      "mode": "100644",
+      "git_blob_oid": "bb089478cb8baa8f400c0ce1494147ced11c8bb2",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-038-assume-native-harness-workflow-convergence.md",
+      "mode": "100644",
+      "git_blob_oid": "e69b363d6846d4003115912b2be7fce11fcb854a",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-039-define-sufficient-execution-inspectability-and-terminal-inspection-handoff.md",
+      "mode": "100644",
+      "git_blob_oid": "d50061dd99146c885f49f13320960a4e8052f7e6",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-040-preserve-future-abstraction-extractability-without-prematurely-generalizing-turnlock.md",
+      "mode": "100644",
+      "git_blob_oid": "c3f05755e69cf694a711690c0346cd0b22f5b0b7",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-041-establish-turnlock-formal-assurance-architecture.md",
+      "mode": "100644",
+      "git_blob_oid": "e67a76c1b2acfd75e24c97a4bfc019c4a6da1e54",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-042-define-auditable-hostile-review-campaign-execution-and-adjudication.md",
+      "mode": "100644",
+      "git_blob_oid": "198f40f89a4279ef1242a3c1a2353c82fa91c191",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-043-bind-hostile-review-evidence-to-exact-reviewed-inputs.md",
+      "mode": "100644",
+      "git_blob_oid": "cf37046250196782e02a5e674d688001d506eada",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-044-require-one-unambiguous-gate-a-review-subject.md",
+      "mode": "100644",
+      "git_blob_oid": "ee445b4488cbdb37555ddcd5124599433dd6e5c0",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-045-bind-gate-a-campaigns-to-versioned-review-protocol-and-derived-evidence.md",
+      "mode": "100644",
+      "git_blob_oid": "e6957d376c73f989ff050efb4616234289ac214a",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-046-bind-challenge-executions-to-exact-inputs-and-derive-retry-admissibility.md",
+      "mode": "100644",
+      "git_blob_oid": "56e835313079af9ef18ce9947dc401410463729f",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-047-make-unvalidated-cognitive-completions-terminal-and-validate-readiness-projections.md",
+      "mode": "100644",
+      "git_blob_oid": "f497179deb546c19e85be1cbbd02d1ec7c2b2d2e",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-048-content-address-hostile-review-meta-schemas.md",
+      "mode": "100644",
+      "git_blob_oid": "c11c6f08ece68dd18fe25684fa9e0470ea101417",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-049-clarify-hostile-review-execution-receipt-attempt-mapping.md",
+      "mode": "100644",
+      "git_blob_oid": "1f19c90323767fb23cf0bb9fb6fbbf8790e4db4f",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-050-allow-shared-governance-implementation-without-transferring-repository-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "45b995d6014d45930e6444e665142acf523bb9cd",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-051-require-proto-ring-for-applicable-generic-repository-governance.md",
+      "mode": "100644",
+      "git_blob_oid": "ba131ad4db3f887d6ed7de6d9a77f9f4e8f47f30",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-052-adopt-structured-proto-ring-governance.md",
+      "mode": "100644",
+      "git_blob_oid": "bda9b6415b781913728860ed521d81df65b43bee",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-053-define-deterministic-minimum-effective-hostile-reviewer-acquisition.md",
+      "mode": "100644",
+      "git_blob_oid": "f3f70e6f777a8695c030f3c6afe79b621fb9e9e1",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-054-define-provider-reported-effective-model-identity-resolution.md",
+      "mode": "100644",
+      "git_blob_oid": "538f24b329acbd9c25e2144e7ca9d47b988dc4ba",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-055-define-structured-gate-a-adjudication-and-resolution-qualification.md",
+      "mode": "100644",
+      "git_blob_oid": "f202703cd9f838e76fb0337e7249a9d4163300fd",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-056-define-global-semantic-question-identity-and-single-admission-resolution-evidence.md",
+      "mode": "100644",
+      "git_blob_oid": "d922deaf06d7dda21355cbcf8f74030959df113a",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-057-define-gate-a-runner-ready-as-observation-bound-publication.md",
+      "mode": "100644",
+      "git_blob_oid": "f03c37ce05e370e27d25e83d95192e27b9872f08",
+      "disposition": "adr-status-only"
+    },
+    {
+      "path": "docs/adr/adr-058-adopt-native-proto-ring-compatibility-execution-boundary.md",
+      "mode": "100644",
+      "git_blob_oid": "5be452d5368bcbf6376be9f3977b28a87f3090c5",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/adr-profile.yaml",
+      "mode": "100644",
+      "git_blob_oid": "6444fb33445caabfaa822f0934d44166c36a07ba",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/index.md",
+      "mode": "100644",
+      "git_blob_oid": "e177e827bf8b32cdb3a569fac7165c943746a884",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "generated ADR lifecycle and relation projection"
+      ]
+    },
+    {
+      "path": "docs/adr/metadata-migration-evidence.yaml",
+      "mode": "100644",
+      "git_blob_oid": "e43a0ab14ca805859ead2b1d32529b916aeac10e",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/schemas/architecture-decision-record.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "c196e3708cc39c543a48a29d4dd994692ad53d9f",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/adr/schemas/turnlock-architecture-decision-record.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "189512d652dd997a5ac7fdb7438b7e991c40d6dd",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/formal/README.md",
+      "mode": "100644",
+      "git_blob_oid": "28de320666061799ee6258822db9e5245e817380",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/dependency-contract-pi-m4-cognitive-execution.md",
+      "mode": "100644",
+      "git_blob_oid": "356c11adbcd958b6a26177040334909ed33db081",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/dependency-contract-sqlite-node-gate-a-campaign-state.md",
+      "mode": "100644",
+      "git_blob_oid": "7e7fbbf97a671912ceb299cc071be1edff852016",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/dependency-contract-zod-gate-a-contracts.md",
+      "mode": "100644",
+      "git_blob_oid": "f908e3af7e33e28db3f75b243fb46bb77529ff05",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-campaign-runner-construction-plan.md",
+      "mode": "100644",
+      "git_blob_oid": "d2dd01a4cc23f052abf6199e20d760bf9dea690e",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-git-exact-old-local-conformance.sh",
+      "mode": "100644",
+      "git_blob_oid": "41ae8ec8ecc42600cf7149688326ddf5a51ea63b",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-git-transport-conformance-note.md",
+      "mode": "100644",
+      "git_blob_oid": "843588c64c7cd4bee403c8db5f6fdc702d968f19",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-m7-proto-ring-responsibility-audit.md",
+      "mode": "100644",
+      "git_blob_oid": "daef73f5a1ab175ff7c95358d7784dec85fe373f",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-candidate-bound-identity-candidate-view.md",
+      "mode": "100644",
+      "git_blob_oid": "c9781fae56c528388a268db5a84211b999417c72",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-construction-plan.md",
+      "mode": "100644",
+      "git_blob_oid": "785f11ad00f69a21d3cb0a3d9194562e816fedc7",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-packet-receipt-evidence-projections.md",
+      "mode": "100644",
+      "git_blob_oid": "4a8a77b89be2f2ef4f040f5ae70ef94565807e13",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-admission-authority-execution-fencing.md",
+      "mode": "100644",
+      "git_blob_oid": "e2050760a11ecac9fa02903c5699f4ad89d71de6",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-fact-qualification-resolution.md",
+      "mode": "100644",
+      "git_blob_oid": "fccf594a3f340dbdd18798689f8b059f1fa9e8be",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-identity-algebra.md",
+      "mode": "100644",
+      "git_blob_oid": "9fb224d0658e464ddb2636ad93d5f1e46d403ab6",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/gate-a-protocol-v8-semantic-question-contract-catalog.md",
+      "mode": "100644",
+      "git_blob_oid": "3af7a5249d4239a69d6ef0296413d96010d377f0",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/invariant-mapping.md",
+      "mode": "100644",
+      "git_blob_oid": "fec7f30288a27443406f517505f53e2287928a91",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-campaign-work-execution-receipt.md",
+      "mode": "100644",
+      "git_blob_oid": "87409f69aef3877a6692e02908944cf91bce94d4",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-finding-adjudication.md",
+      "mode": "100644",
+      "git_blob_oid": "261ef5501e36c5d38298f52c0bf34e2a36f09229",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-repository-projection-readiness.md",
+      "mode": "100644",
+      "git_blob_oid": "d1eb42f8a2783955f6d2f839c461e19ea4ef86f5",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-assurance-ledger-resolution-qualification.md",
+      "mode": "100644",
+      "git_blob_oid": "1f5548a116f30681f0bfe574235a15504c19ae03",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "03be33d3223f28a183d655f1d39c4fe049ff6e35",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-state-mutation-execution.md",
+      "mode": "100644",
+      "git_blob_oid": "fd837cb80e581d11ffda7004d008f07f084f0487",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-state-persistence-ownership.md",
+      "mode": "100644",
+      "git_blob_oid": "d5719bce9c431f7ad53d50d323b9cf623f3b224a",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-campaign-state-snapshot-integrity.md",
+      "mode": "100644",
+      "git_blob_oid": "32da40482855a6dad6893d1cea29748218c10727",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-cognitive-execution-capture.md",
+      "mode": "100644",
+      "git_blob_oid": "c906d0f38e038e5cb6ab0c18587a2bc3d9877074",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-cognitive-execution-recovery-observation.md",
+      "mode": "100644",
+      "git_blob_oid": "1a85d2349ee337c0ae8b4e092c7fa8fbcc39397b",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-contracts.md",
+      "mode": "100644",
+      "git_blob_oid": "021d61cd30ce39bba1ef07262df391d2dffc866b",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-mechanical-validation.md",
+      "mode": "100644",
+      "git_blob_oid": "96a47f9e16cd29435ffcf5266cd10da3c0b57cf2",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-orchestrator.md",
+      "mode": "100644",
+      "git_blob_oid": "133e6549c168bf9f88005dddccb2f977d9589513",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-recovery-operator-boundary.md",
+      "mode": "100644",
+      "git_blob_oid": "c87d81e2abd6937d4ed31af788d3708833fd8468",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-recovery-operator-reconciliation.md",
+      "mode": "100644",
+      "git_blob_oid": "662fc475b9336431c220276a1602b12b968eb37c",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-repository-control-materialization-candidate-construction.md",
+      "mode": "100644",
+      "git_blob_oid": "9ff27bc397a24f0ae5cc7ec22292e6b9e13f895c",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-m-gate-a-repository-control-publication-remote-recovery.md",
+      "mode": "100644",
+      "git_blob_oid": "f1c763fea1b345b15fc5ed3dccae39dca6ce8023",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/formal/nib-s-gate-a-campaign-runner.md",
+      "mode": "100644",
+      "git_blob_oid": "774c796d3288a366c1859cc64666d686d3fa0a79",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "docs/product/positioning.md",
+      "mode": "100644",
+      "git_blob_oid": "83576c01c9e0c5f2c26bf62a5b01b61608a0c85f",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/product/turnlock-cloud-product-rationale.md",
+      "mode": "100644",
+      "git_blob_oid": "046cbe67a3d017d1ebbb82dfcd78e35c445d1cdf",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/product/turnlock-product-rationale.md",
+      "mode": "100644",
+      "git_blob_oid": "54a64108d0a4248310657155594d5c9aad44dff1",
+      "disposition": "methodology-only-edit",
+      "affected_subparts": [
+        "D3"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-authoritative-ref-monotonicity.md",
+      "mode": "100644",
+      "git_blob_oid": "cef7ddf92ddffe7f74c83b93bf1c6c9c95f0e29c",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-discovery-classification.md",
+      "mode": "100644",
+      "git_blob_oid": "e204b4fc079541e661163fa29176e2a776bf681b",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "retired-method references and ADR-059 authority boundary"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-engineering.md",
+      "mode": "100644",
+      "git_blob_oid": "e39ce04717bd18c31afb18e4d6d1bd663227e1ba",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "retired-method references and historical not-planned disposition rule"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-evidence-requirements.md",
+      "mode": "100644",
+      "git_blob_oid": "0bc56becc11a5f9751761693940fa928ffe99052",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "retired Gate A requirement instances replaced by an empty registry"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-governance-authority.md",
+      "mode": "100644",
+      "git_blob_oid": "cbf209e808837e16c11ece630a3ee54b3490b6b2",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "retired formal sources/responsibilities",
+        "historical archive custody sources/responsibility"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-governance-bindings.md",
+      "mode": "100644",
+      "git_blob_oid": "3ba322f84c4ae86c62d530291bb665fe42c74fd7",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-governed-objects.md",
+      "mode": "100644",
+      "git_blob_oid": "b73eba007caf75da1bf995ef23b30a96018670a1",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "formal_claims interface",
+        "ADR catalog extension through ADR-059"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-projection-integrity.md",
+      "mode": "100644",
+      "git_blob_oid": "928b492c87b15fb672ab89525cef08207bdfed59",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "formal_invariant_mapping and governed_formal_claim_catalog projections"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-repository-integrity.md",
+      "mode": "100644",
+      "git_blob_oid": "eceb63b4686e9aace4b1e764738e346d0c719c34",
+      "disposition": "governance-adaptation",
+      "affected_subparts": [
+        "two retired formal validations",
+        "two archive-custody validations"
+      ]
+    },
+    {
+      "path": "docs/repository-governance/turnlock-rust-worktree-management.md",
+      "mode": "100644",
+      "git_blob_oid": "c694117ec1672e483fa22748dfe12dd1f0e5b232",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/research/competitive-watch/README.md",
+      "mode": "100644",
+      "git_blob_oid": "5da3f4ef15e2f1823ab17ec72d6d3c25b58f49b5",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/research/competitive-watch/execution.md",
+      "mode": "100644",
+      "git_blob_oid": "d6bd3c6ec53bfebb063906f724e740250a842e68",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/research/competitive-watch/methodology.md",
+      "mode": "100644",
+      "git_blob_oid": "4178e2bb0b79737036ab655ac94564ec193915c8",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/research/competitive-watch/report-template.md",
+      "mode": "100644",
+      "git_blob_oid": "e25cdc58c8a1ab4a729f31a548c1e127fb1e6700",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/research/competitive-watch/report.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "fdfd7398b689b519f3047b94ee467e830e0636d2",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/research/competitive-watch/watchlist.json",
+      "mode": "100644",
+      "git_blob_oid": "ba7f6b322330160cac1f296a57cda13fb9e68c84",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/specification/terminology-inventory.yaml",
+      "mode": "100644",
+      "git_blob_oid": "95910da0cf5ae6d367ce248fb4f727861b8323c5",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/specification/turnlock-spec.md",
+      "mode": "100644",
+      "git_blob_oid": "6af726a5effa2d461dc8c2bdc86b11fa295d458d",
+      "disposition": "methodology-only-edit"
+    },
+    {
+      "path": "docs/vision/future-managed-execution.md",
+      "mode": "100644",
+      "git_blob_oid": "0696ed3c68d81d254ee6957c6e8ccdfc8ee44316",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "docs/vision/future-workflow-run-evaluation.md",
+      "mode": "100644",
+      "git_blob_oid": "e157f06bb09962a8c0d9e0235e10b921909983b3",
+      "disposition": "methodology-only-edit",
+      "affected_subparts": [
+        "D4"
+      ]
+    },
+    {
+      "path": "docs/vision/turnlock-vision.md",
+      "mode": "100644",
+      "git_blob_oid": "798cabd1d3ed2f16c88fe82a318d885874ceadcc",
+      "disposition": "methodology-only-edit",
+      "affected_subparts": [
+        "D1",
+        "D2"
+      ]
+    },
+    {
+      "path": "formal/README.md",
+      "mode": "100644",
+      "git_blob_oid": "bb5abacc8f70034e429031011fd9075d6585a320",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/migrations/verification-v2-to-v3-property-audit.yaml",
+      "mode": "100644",
+      "git_blob_oid": "6cc166d6e7840b3e50660c3163a7eafb42961543",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/models/focused/README.md",
+      "mode": "100644",
+      "git_blob_oid": "c3635488aaeaed3548b9c3f78cf56e59ec7baaea",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/models/integrated/README.md",
+      "mode": "100644",
+      "git_blob_oid": "6e2765694c0ee8d4b2f04d454819f4b3e48b39b9",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/results/README.md",
+      "mode": "100644",
+      "git_blob_oid": "c8dc07ac81bc91273656132a607e58cd5b5f13e0",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/README.md",
+      "mode": "100644",
+      "git_blob_oid": "7ff39186ff49d5b18154ea08efec3dbffcb23e43",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/contracts/gate-a-predicate-revisions-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "14c6209459b4a4a9beda55b52ce6afab0e400700",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/contracts/gate-a-qualification-contracts-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "5e7a168a5a07f9ad0c88d6cf9fa132ed2163e6e5",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/contracts/gate-a-semantic-question-contracts-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "9d05265598765c3a62a3829db72980996ae258e3",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/README.md",
+      "mode": "100644",
+      "git_blob_oid": "a2b50d5c773135c52bfafb160d111a1efc029235",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-evidence-v5.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "9e612d2949e395513f88abf238ef2de22ce05a28",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-evidence-v6.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "1ff8bb65d32088add710fd8386bbf998e7daa8d6",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v1-v3.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "cf87ef20ecb6b3f1719a664d8a4b47459969950d",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v4.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "b1ffc96ff547a943a828a9e16b087d9b4408e3f4",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v5.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "ff31f91bef1f552a124c9c2cbfbd5166570c68cb",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v6.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "885d6c6313f4b165f0bd2f28f99a13441c8eda14",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v7.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "c91d0f48fafb834e015d95e0c3ff8998925562f0",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/meta-schemas/review-protocol-bundle-v8.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "672f7cf44c6ff0d8949e6b74b86d983dabb56f65",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-adjudication-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "f1654cb64e97a79e1edcc29cb10e124fb7cd1fd4",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-adjudication-v2.md",
+      "mode": "100644",
+      "git_blob_oid": "be1d67d50ce52fdedb1e1c5b8bdfeccd0f40b8d9",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-adjudication-v3.md",
+      "mode": "100644",
+      "git_blob_oid": "2026fb9eea51bb250a2f871360de2711a2b876a8",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-challenge-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "fa6f33bf69e95e7acb084484a0c027ad86e68393",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-challenge-v2.md",
+      "mode": "100644",
+      "git_blob_oid": "c27398d4cca644e1c8936a0bf54c05ac38ab24f0",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-initial-review-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "888c056740640213981145580482e299c3dec83e",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-repair-v1.md",
+      "mode": "100644",
+      "git_blob_oid": "c512fc4dfe7324b977e9a8f0b57f1e5051850d21",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-repair-v2.md",
+      "mode": "100644",
+      "git_blob_oid": "98f248c1f856efea1d8160f2f1449aca67f8ed10",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/prompts/gate-a-repair-v3.md",
+      "mode": "100644",
+      "git_blob_oid": "6cafe9b2ee17a6a0db05eb129615bcbfb9337e1b",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v1.json",
+      "mode": "100644",
+      "git_blob_oid": "9ac70d3f97e557d6425f062506640bbe59a59c00",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v2.json",
+      "mode": "100644",
+      "git_blob_oid": "a76898ab391f1ea810a5a5294c56ea69019c2503",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v3.json",
+      "mode": "100644",
+      "git_blob_oid": "3fd3f38fb61894c654d0d82f6a20cb1ff42e28a1",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v4.json",
+      "mode": "100644",
+      "git_blob_oid": "d104b24c47507e78abccb4b6ea8a38d1e554ae9a",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v5.json",
+      "mode": "100644",
+      "git_blob_oid": "b289ee61fa11c10affffcc9d8f101f660bd3a0ce",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v6.json",
+      "mode": "100644",
+      "git_blob_oid": "70798d92862906ae18d8f5f4631d6369774baf70",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v7.json",
+      "mode": "100644",
+      "git_blob_oid": "ae88ffce87eb1096531cbbeab1a543ae34c58344",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/protocols/gate-a-campaign-protocol-v8.json",
+      "mode": "100644",
+      "git_blob_oid": "70dfea55290a8989353f7d291671a3179593ef25",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/review-evidence.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "9e612d2949e395513f88abf238ef2de22ce05a28",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/review-protocol-bundle.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "cf87ef20ecb6b3f1719a664d8a4b47459969950d",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/adjudication-output-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "069f0773868da467888f7a4fb2890c07511c37da",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/adjudication-packet-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "b602ad8ed18370450f17d5f2b2c5a5703836a4c2",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/challenge-output-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "81b4a0499f282e5843743f4d3fe431b4b7a74152",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/challenge-packet-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "1003374572112c6cdcb6725cb2adbc8237e506c8",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/cognitive-execution-packet-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "7781491c9876d01bed3bb1c18b9bee6bb4bb68b4",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "5656459530d41413cdb81c7ad31457e035821194",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v2.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "2d419f8acd3055aee7a293290fed1bc95c4dcf08",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v3.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "cb6aba67bdd81cc2400aa75d6491451ea6855dc3",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/execution-receipt-v4.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "4567cc81ad41214e1f7badd829b1b05a7c6a0f04",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/finding-adjudication-supplement-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "9c9090f1608ebb12862862202712c14c0ac283e5",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/finding-adjudication-supplement-v2.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "c93a7adbec58928ddcc8cc71adf304da3c2fc667",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/predicate-revision-catalog-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "4f13abd7d8f038d2d74cf1f9bad6f41d06a33158",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/qualification-contract-catalog-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "f37be54a759704455550bf912b10e03b1245dfaa",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/raw-review-output-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "76d50f1c01a047b784ea77ff68f5a1d8345a6989",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-admission-origin-witness-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "294a72897c01561cbcdf4d6f0c2abf4794aed3fd",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-identity-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "a5f00e19dae44d333e193cbce7cd660a998567fe",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-question-binding-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "534bffea2245e248685a9b63ff486c14d7d91c8b",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/reviews/schemas/semantic-question-contract-catalog-v1.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "59d06f70c7d0c173ebbf4a56a2913dcb878467e4",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/tlc-result.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "390b9537727b07daf30e850e8df894e1efed6786",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/verification.schema.json",
+      "mode": "100644",
+      "git_blob_oid": "725c0b916e2e11015f7d09b7052ee6cee5e05f64",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "formal/verification.yaml",
+      "mode": "100644",
+      "git_blob_oid": "3e2c2a37082f56a3eb9229d0e4b77d954928ee3f",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "requirements.txt",
+      "mode": "100644",
+      "git_blob_oid": "d37efa74c2b806d1b29e5aea92733abed85d4ff6",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/adr-metadata.py",
+      "mode": "100644",
+      "git_blob_oid": "11f2c83350dd1fa90642f1660bfcf2c942700a06",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-accepted-adr-body.py",
+      "mode": "100644",
+      "git_blob_oid": "c5ace8c4b2333ced369d97d83276ef1dd147c69e",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-authoritative-ref-monotonicity.py",
+      "mode": "100644",
+      "git_blob_oid": "6bee4e83cb689c2e926ccce61e290416561bc90c",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-formal-traceability.py",
+      "mode": "100755",
+      "git_blob_oid": "bc8b160a302250ddfcd96b2bb1816bd8c01a3b5d",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "scripts/check-git-whitespace.py",
+      "mode": "100644",
+      "git_blob_oid": "54e15de32a263c54fe508e874954baa42f133318",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-governance-authority.py",
+      "mode": "100644",
+      "git_blob_oid": "51e46f6a8b348156652e7f62e25224cc727f3ad3",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-governed-objects.py",
+      "mode": "100644",
+      "git_blob_oid": "871ab4b2041bac312dc3d937d743010f84a1a08d",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-normative-terminology.py",
+      "mode": "100644",
+      "git_blob_oid": "7a668faacc6007d6ab87309a6a7dffc04d44eba8",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-proto-ring-binding-registry.py",
+      "mode": "100644",
+      "git_blob_oid": "fce75ec3d5a0e9d2207d2017f88f6ae141906756",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-proto-ring-provider.py",
+      "mode": "100644",
+      "git_blob_oid": "2764b24dbafc35d2ae0c7e09e3e3fe9c75e8a308",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-repository-integrity.py",
+      "mode": "100644",
+      "git_blob_oid": "b4007e0184b9ce9ddc2fd5ccd77cbe863112f3ba",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/check-structured-governance.py",
+      "mode": "100644",
+      "git_blob_oid": "2a730e3ecb730fcbba5ceebe4c08238deb858383",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/prepare-proto-ring-provider.py",
+      "mode": "100644",
+      "git_blob_oid": "7f222790aa32c4595b034962d98311b66e8d7f25",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/proto_ring_executable_binding.py",
+      "mode": "100644",
+      "git_blob_oid": "d33ae73964429544c41f34767df62338c6198e6a",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/proto_ring_result_validation.py",
+      "mode": "100644",
+      "git_blob_oid": "0f0854822acfc619df1d0fd634b1f206c0ce05cf",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/proto_ring_structured_value.py",
+      "mode": "100644",
+      "git_blob_oid": "dfe7eb78944761b6a1284cf34f38c933c8cbfbff",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/render-formal-mapping.py",
+      "mode": "100755",
+      "git_blob_oid": "b411923478d6304770f086efe976d659409520be",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "scripts/tests/adr-metadata-test-fixture.py",
+      "mode": "100644",
+      "git_blob_oid": "3b2dbdba34107f16c6493e02792b979ff117f660",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/repository-integrity-test-fixture.py",
+      "mode": "100644",
+      "git_blob_oid": "9ce9f72fee82adbe064d3160ae0144f485842ac4",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-annotated-history.py",
+      "mode": "100644",
+      "git_blob_oid": "f5243c26f2cff2909365266db7d6f65e9702c13d",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-generated-index.py",
+      "mode": "100644",
+      "git_blob_oid": "bc47602f62d3a122e5b90133a4c20e4baa15006a",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-migration-evidence.py",
+      "mode": "100644",
+      "git_blob_oid": "20605ad6153808bcf27291b07567a9787afde823",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-profile-validation.py",
+      "mode": "100644",
+      "git_blob_oid": "a079b498922580204485e18fbb6e8aea4b07af9e",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-adr-metadata-provider-binding.py",
+      "mode": "100644",
+      "git_blob_oid": "e7f3202665b5e0813f26ea86e9740006b52cfc1b",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-exact-evidence-binding.py",
+      "mode": "100644",
+      "git_blob_oid": "02a0b4f83fd5a5e472db19342d18ed3b2d04a1fa",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-formal-traceability.py",
+      "mode": "100644",
+      "git_blob_oid": "e1f35696c1bd2f2eb1d126dfe89ba37138ac923e",
+      "disposition": "archived-and-removed"
+    },
+    {
+      "path": "scripts/tests/test-git-whitespace.py",
+      "mode": "100644",
+      "git_blob_oid": "eaf9de86c5ba8d4b2a41a421d197cc9888bb39fb",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-governance-test-module-size.py",
+      "mode": "100644",
+      "git_blob_oid": "c648259859f91f73a4c7b17b97ca3dfe8f22af21",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-governed-objects.py",
+      "mode": "100644",
+      "git_blob_oid": "38a87a35770aee51f9d9754a6e32a9f68255c7e4",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-normative-terminology.py",
+      "mode": "100644",
+      "git_blob_oid": "05a679d16c2716a1d8312bad679de8f51ac37b51",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-proto-ring-binding-registry.py",
+      "mode": "100644",
+      "git_blob_oid": "1370f9aff1636cf842289df7c1ca640f432622a2",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-proto-ring-provider.py",
+      "mode": "100644",
+      "git_blob_oid": "9df2d0e4e302dda101f2685a27ee2e0d362163fd",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-bindings.py",
+      "mode": "100644",
+      "git_blob_oid": "4d31dab8435b3112b74daf706dcd568c66809985",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-cli.py",
+      "mode": "100644",
+      "git_blob_oid": "b4349b446813710bf6c3e74d598be20f20d0d30b",
+      "disposition": "test-consumer-adaptation"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-evaluator.py",
+      "mode": "100644",
+      "git_blob_oid": "496c9d0d174dad9b254be8d7c2d68e7a5ae06bac",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-repository-integrity-validator-purity.py",
+      "mode": "100644",
+      "git_blob_oid": "099869369a0fb861b9d88dd2d00b0372e84b2a75",
+      "disposition": "unchanged"
+    },
+    {
+      "path": "scripts/tests/test-structured-governance.py",
+      "mode": "100644",
+      "git_blob_oid": "6916b1e15aa4b46d26fab45cb6a161e0167efa6d",
+      "disposition": "test-consumer-adaptation"
+    }
+  ],
+  "additions": [
+    {
+      "path": "docs/adr/adr-059-retire-formal-assurance-architecture-and-reopen-post-invariant-design.md",
+      "responsibility": "Record the owner-authorized methodological retirement and post-invariant restart decision."
+    },
+    {
+      "path": "docs/design/post-invariant-restart.md",
+      "responsibility": "State the non-normative restart point and link the separately tracked future investigation."
+    },
+    {
+      "path": "docs/history/formal-assurance-2026-10-20/README.md",
+      "responsibility": "Explain the inert historical archive and its custody boundary."
+    },
+    {
+      "path": "docs/history/formal-assurance-2026-10-20/retirement-map.json",
+      "responsibility": "Record the exhaustive bounded disposition of this transition."
+    },
+    {
+      "path": "docs/history/formal-assurance-2026-10-20/source-manifest.json",
+      "responsibility": "Bind archive members and ZIP bytes to the fixed Git source tree."
+    },
+    {
+      "path": "docs/history/formal-assurance-2026-10-20/source-tree.zip",
+      "responsibility": "Preserve every source-tree blob at the fixed baseline with exact bytes."
+    },
+    {
+      "path": "docs/history/formal-assurance-2026-10-20/work-history-before.json",
+      "responsibility": "Preserve the bounded public GitHub work-history capture made before retirement."
+    },
+    {
+      "path": "scripts/check-assurance-archive.py",
+      "responsibility": "Verify read-only byte-exact custody of the fixed historical Git tree."
+    },
+    {
+      "path": "scripts/tests/test-assurance-archive.py",
+      "responsibility": "Exercise positive and required negative archive-custody cases."
+    }
+  ]
+}
