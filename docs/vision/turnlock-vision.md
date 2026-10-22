@@ -743,7 +743,11 @@ This vision does not select:
   protocol;
 - completion, failure, cancellation, retry, or durability semantics that the
   normative specification leaves open;
-- main-agent participation as an ordinary concurrent branch;
+- concrete scheduling or integration mechanisms for main-agent participation
+  in workflow-owned concurrency; the accepted participation semantics are
+  already defined by specification Section 0.10C and ADR-032, including
+  branch-local handoff and restrictions on unordered concurrent use of the
+  same main-agent cognitive lineage;
 - one harness's internal APIs as TURNLOCK semantics.
 
 Current artifact status is not mirrored here: the repository tree exposes
